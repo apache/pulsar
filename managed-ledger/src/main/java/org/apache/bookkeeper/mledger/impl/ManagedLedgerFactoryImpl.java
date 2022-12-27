@@ -23,7 +23,6 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLed
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,7 +35,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -83,8 +81,11 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Runnables;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -181,14 +182,24 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                      BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                      boolean isBookkeeperManaged,
                                      ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
+        int mlSchedulerThreadNumber = config.getNumManagedLedgerSchedulerThreads();
+
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
-                .numThreads(config.getNumManagedLedgerSchedulerThreads())
+                .numThreads(mlSchedulerThreadNumber)
                 .statsLogger(statsLogger)
                 .traceTaskExecution(config.isTraceTaskExecution())
                 .name("bookkeeper-ml-scheduler")
                 .build();
-        cacheEvictionExecutor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("bookkeeper-ml-cache-eviction"));
+
+        // OrderedExecutor need threadNumber * 2 to fully register all thread.
+        // because `OrderedExecutor.chooseThread` will i>>>1
+        for (int i = 0; i < mlSchedulerThreadNumber * 2; i++) {
+            ThreadPoolMonitor.registerSingleThreadExecutor(scheduledExecutor.chooseThread(i));
+        }
+
+        cacheEvictionExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("bookkeeper-ml-cache-eviction"));
+
         this.metadataServiceAvailable = true;
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;

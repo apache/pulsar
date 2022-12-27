@@ -19,9 +19,7 @@
 package org.apache.pulsar.metadata.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -29,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
@@ -63,8 +63,9 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         this.tickTimeMillis = zk.getSessionTimeout() / 15;
         this.sessionListener = sessionListener;
 
-        this.scheduler = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
+        this.scheduler = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("metadata-store-zk-session-watcher"));
+
         this.task =
                 scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
                         tickTimeMillis,

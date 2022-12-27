@@ -205,6 +205,8 @@ public class PrometheusMetricsGenerator {
 
             generateManagedLedgerBookieClientMetrics(pulsar, stream);
 
+            generateThreadMonitorMetrics(pulsar, stream);
+
             if (metricsProviders != null) {
                 for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
                     metricsProvider.generate(stream);
@@ -223,6 +225,14 @@ public class PrometheusMetricsGenerator {
                 buf.release();
             }
         }
+    }
+
+    private static void generateThreadMonitorMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
+        String clusterName = pulsar.getConfiguration().getClusterName();
+
+        List<Metrics> metrics = PrometheusMetricsGeneratorUtils.generateThreadPoolMonitorMetrics(clusterName);
+
+        parseMetricsToPrometheusMetrics(metrics, clusterName, Collector.Type.GAUGE, stream);
     }
 
     private static void generateBrokerBasicMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {

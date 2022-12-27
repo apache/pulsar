@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.admin.internal.http;
 
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslProvider;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -31,7 +31,6 @@ import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
@@ -52,9 +51,12 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.WithSNISslEngineFactory;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -81,8 +83,8 @@ public class AsyncHttpConnector implements Connector {
     private final Duration readTimeout;
     private final int maxRetries;
     private final PulsarServiceNameResolver serviceNameResolver;
-    private final ScheduledExecutorService delayer = Executors.newScheduledThreadPool(1,
-            new DefaultThreadFactory("delayer"));
+    private final ScheduledExecutorService delayer = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+            new ExecutorProvider.ExtendedThreadFactory("pulsar-admin-http-delayer"));
 
     public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds) {
         this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
@@ -104,7 +106,10 @@ public class AsyncHttpConnector implements Connector {
         confBuilder.setReadTimeout(readTimeoutMs);
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setRequestTimeout(requestTimeoutMs);
-        confBuilder.setIoThreadsCount(conf.getNumIoThreads());
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false,
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-async-http-connector"));
+        confBuilder.setEventLoopGroup(eventLoopGroup);
+
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
             public boolean keepAlive(InetSocketAddress remoteAddress, Request ahcRequest,

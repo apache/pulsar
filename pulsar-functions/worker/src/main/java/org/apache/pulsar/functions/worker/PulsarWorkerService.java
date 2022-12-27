@@ -22,11 +22,9 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
 import javax.ws.rs.core.Response;
@@ -56,6 +54,8 @@ import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsImplV2;
@@ -190,8 +190,8 @@ public class PulsarWorkerService implements WorkerService {
     public void init(WorkerConfig workerConfig,
                      URI dlogUri,
                      boolean runAsStandalone) {
-        this.statsUpdater = Executors
-            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-stats-updater"));
+        this.statsUpdater = ScheduledExecutorProvider
+            .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("worker-stats-updater"));
         this.metricsGenerator = new MetricsGenerator(this.statsUpdater, workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;

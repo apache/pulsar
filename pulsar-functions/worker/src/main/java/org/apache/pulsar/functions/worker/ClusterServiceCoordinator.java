@@ -22,14 +22,14 @@ import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowabl
 import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 
 @Slf4j
 public class ClusterServiceCoordinator implements AutoCloseable {
@@ -53,7 +53,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final Supplier<Boolean> isLeader;
 
     public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
-        this(workerId, leaderService, isLeader, Executors.newSingleThreadScheduledExecutor(
+        this(workerId, leaderService, isLeader, ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("cluster-service-coordinator-timer")));
     }
 

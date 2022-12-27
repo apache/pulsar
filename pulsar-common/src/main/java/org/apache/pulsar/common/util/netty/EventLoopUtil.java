@@ -40,11 +40,13 @@ import io.netty.incubator.channel.uring.IOUringDatagramChannel;
 import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
 import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.netty.incubator.channel.uring.IOUringSocketChannel;
+import io.netty.util.concurrent.EventExecutor;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.affinity.CpuAffinity;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 
 @SuppressWarnings("checkstyle:JavadocType")
 @Slf4j
@@ -64,11 +66,11 @@ public class EventLoopUtil {
             if (StringUtils.equalsAnyIgnoreCase(enableIoUring, "1", "true")) {
                 // Throw exception if IOUring cannot be used
                 IOUring.ensureAvailability();
-                return new IOUringEventLoopGroup(nThreads, threadFactory);
+                return monitor(new IOUringEventLoopGroup(nThreads, threadFactory));
             } else {
                 if (!enableBusyWait) {
                     // Regular Epoll based event loop
-                    return new EpollEventLoopGroup(nThreads, threadFactory);
+                    return monitor(new EpollEventLoopGroup(nThreads, threadFactory));
                 }
 
                 // With low latency setting, put the Netty event loop on busy-wait loop to reduce cost of
@@ -88,14 +90,21 @@ public class EventLoopUtil {
                     });
                 }
 
-                return eventLoopGroup;
+                return monitor(eventLoopGroup);
             }
         } else {
             // Fallback to NIO
-            return new NioEventLoopGroup(nThreads, threadFactory);
+            return monitor(new NioEventLoopGroup(nThreads, threadFactory));
         }
     }
 
+    public static EventLoopGroup monitor(EventLoopGroup group) {
+        for (EventExecutor eventExecutor : group) {
+            ThreadPoolMonitor.registerSingleThreadExecutor(eventExecutor);
+        }
+
+        return group;
+    }
     /**
      * Return a SocketChannel class suitable for the given EventLoopGroup implementation.
      *

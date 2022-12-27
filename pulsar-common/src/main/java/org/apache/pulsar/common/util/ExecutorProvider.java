@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.common.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -30,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 @Slf4j
 public class ExecutorProvider {
@@ -76,7 +75,9 @@ public class ExecutorProvider {
     }
 
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-       return Executors.newSingleThreadExecutor(threadFactory);
+        ExecutorService executor = Executors.newSingleThreadExecutor(threadFactory);
+        ThreadPoolMonitor.registerSingleThreadExecutor(executor);
+        return executor;
     }
 
     public ExecutorService getExecutor() {

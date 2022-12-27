@@ -48,6 +48,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.utils.misc.ThreadPoolMonitorHelper;
 
 @SuppressWarnings("deprecation")
 @Slf4j
@@ -79,7 +80,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
         try {
-            return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            BookKeeper bookkeeper = getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            ThreadPoolMonitorHelper.registerOrderedExecutor(bookkeeper.getMainWorkerPool(),
+                    bkConf.getNumWorkerThreads());
+
+            return bookkeeper;
         } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }

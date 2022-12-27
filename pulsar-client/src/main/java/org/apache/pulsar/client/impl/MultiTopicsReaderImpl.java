@@ -40,9 +40,8 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
-import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
-
+import org.apache.pulsar.common.util.ExecutorProvider;
 @Slf4j
 public class MultiTopicsReaderImpl<T> implements Reader<T> {
 

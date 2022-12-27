@@ -23,11 +23,19 @@ import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.common.util.ThreadMonitor;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 
 /**
  * Generate metrics in a text format suitable to be consumed by Prometheus.
@@ -70,7 +78,7 @@ public class PrometheusMetricsGeneratorUtils {
                 if (!sample.labelNames.contains("cluster")) {
                     stream.write("cluster=\"").write(cluster).write('"');
                     // If label is empty, should not append ','.
-                    if (!CollectionUtils.isEmpty(sample.labelNames)){
+                    if (!CollectionUtils.isEmpty(sample.labelNames)) {
                         stream.write(",");
                     }
                 }
@@ -94,6 +102,70 @@ public class PrometheusMetricsGeneratorUtils {
             }
         }
     }
+
+    public static final String THREAD_BLOCK_COUNTS = "thread_blocked_count";
+    public static final String THREAD_BLOCK_TIME_MS = "thread_blocked_time_ms";
+    public static final String THREAD_WAIT_COUNTS = "thread_waited_counts";
+    public static final String THREAD_WAIT_TIME_MS = "thread_waited_time_ms";
+
+    public static List<Metrics> generateThreadPoolMonitorMetrics(String cluster) {
+        List<Metrics> metrics = new ArrayList<>();
+
+        Map<Long, ThreadMonitor.ThreadMonitorState> threadStat = new HashMap<>(ThreadMonitor.THREAD_ID_TO_STATE.size());
+        threadStat.putAll(ThreadMonitor.THREAD_ID_TO_STATE);
+
+        threadStat.forEach((tid, threadMonitorState) -> {
+            Map<String, String> dimensionMap = new HashMap<>();
+            dimensionMap.put("cluster", cluster);
+            dimensionMap.put("threadName", threadMonitorState.getName());
+            dimensionMap.put("tid", String.valueOf(tid));
+            dimensionMap.put("runningTask", Boolean.toString(threadMonitorState.isRunningTask()));
+            Metrics m = Metrics.create(dimensionMap);
+            m.put(ThreadMonitor.THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME, threadMonitorState.getLastActiveTimestamp());
+
+            metrics.add(m);
+        });
+
+        Map<String, String> dimensionMap = new HashMap<>();
+        dimensionMap.put("cluster", cluster);
+
+        Metrics m = Metrics.create(dimensionMap);
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_ENABLED_GAUGE_NAME,
+                ThreadPoolMonitor.isEnabled() ? 1 : 0);
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_CHECK_INTERVAL_MS_GAUGE_NAME,
+                ThreadPoolMonitor.checkIntervalMs());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_REGISTERED_POOL_NUMBER_GAUGE_NAME,
+                ThreadPoolMonitor.registeredThreadPool());
+        m.put(ThreadPoolMonitor.THREAD_POOL_MONITOR_SUBMITTED_POOL_NUMBER_GAUGE_NAME,
+                ThreadPoolMonitor.submittedThreadPool());
+
+        metrics.add(m);
+
+        ThreadMXBean threadMXBean = ThreadPoolMonitor.THREAD_MX_BEAN;
+        if (threadMXBean.isThreadContentionMonitoringSupported()) {
+            long[] allThreadIds = threadMXBean.getAllThreadIds();
+            ThreadInfo[] threadInfo = threadMXBean.getThreadInfo(allThreadIds, 0);
+            for (ThreadInfo info : threadInfo) {
+                if (info != null) {
+                    Map<String, String> dimensions = new HashMap<>();
+                    dimensions.put("cluster", cluster);
+                    dimensions.put("threadName", info.getThreadName());
+                    dimensions.put("tid", String.valueOf(info.getThreadId()));
+
+                    Metrics threadMetric = Metrics.create(dimensions);
+                    threadMetric.put(THREAD_BLOCK_COUNTS, info.getBlockedCount());
+                    threadMetric.put(THREAD_BLOCK_TIME_MS, info.getBlockedTime());
+                    threadMetric.put(THREAD_WAIT_COUNTS, info.getWaitedCount());
+                    threadMetric.put(THREAD_WAIT_TIME_MS, info.getWaitedTime());
+
+                    metrics.add(threadMetric);
+                }
+            }
+        }
+
+        return metrics;
+    }
+
 
     static String getTypeNameSuffix(Collector.Type type) {
         if (type.equals(Collector.Type.INFO)) {

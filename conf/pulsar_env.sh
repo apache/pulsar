@@ -94,3 +94,8 @@ PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -D
 #Wait time before forcefully kill the pulsar server instance, if the stop is not successful
 #PULSAR_STOP_TIMEOUT=
 
+# ThreadMonitor config
+PULSAR_THREAD_MONITOR_ENABLE=${PULSAR_THREAD_MONITOR_ENABLE:-"true"}
+PULSAR_THREAD_MONITOR_INTERVAL_MS=${PULSAR_THREAD_MONITOR_INTERVAL_MS:-"10000"}
+
+

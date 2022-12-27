@@ -16,21 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
-
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
-public class ScheduledExecutorProvider extends ExecutorProvider {
-
-    public ScheduledExecutorProvider(int numThreads, String poolName) {
-        super(numThreads, poolName);
-    }
-
-    @Override
-    protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-        return Executors.newSingleThreadScheduledExecutor(threadFactory);
-    }
-}
+package org.apache.pulsar.utils.misc;

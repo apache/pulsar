@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -28,13 +27,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -61,8 +61,8 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     public CoordinationServiceImpl(MetadataStoreExtended store) {
         this.store = store;
-        this.executor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("metadata-store-coordination-service"));
+        this.executor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("metadata-store-coordination-service"));
     }
 
     @Override

@@ -19,19 +19,19 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.EOFException;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +54,8 @@ public class PrometheusMetricsServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
-        executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("prometheus-stats"));
+        executor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("prometheus-stats"));
     }
 
     @Override

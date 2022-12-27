@@ -49,7 +49,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -129,8 +128,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.internal.PropertiesUtils;
-import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -140,10 +137,13 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
+import org.apache.pulsar.common.util.ThreadPoolMonitor;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
@@ -169,6 +169,7 @@ import org.apache.pulsar.packages.management.core.impl.PackagesManagementImpl;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider;
+import org.apache.pulsar.utils.misc.ThreadPoolMonitorHelper;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketPingPongServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -314,14 +315,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
         this.processTerminator = processTerminator;
-        this.loadManagerExecutor = Executors
+        this.loadManagerExecutor = ScheduledExecutorProvider
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
         this.workerConfig = workerConfig;
         this.functionWorkerService = functionWorkerService;
-        this.executor = Executors.newScheduledThreadPool(config.getNumExecutorThreadPoolSize(),
+
+        this.executor = ScheduledExecutorProvider.newScheduledThreadPool(
+                config.getNumExecutorThreadPoolSize(),
                 new ExecutorProvider.ExtendedThreadFactory("pulsar"));
-        this.cacheExecutor = Executors.newScheduledThreadPool(config.getNumCacheExecutorThreadPoolSize(),
+        this.cacheExecutor = ScheduledExecutorProvider.newScheduledThreadPool(
+                config.getNumCacheExecutorThreadPoolSize(),
                 new ExecutorProvider.ExtendedThreadFactory("zk-cache-callback"));
+
 
         if (config.isTransactionCoordinatorEnabled()) {
             this.transactionExecutorProvider = new ExecutorProvider(this.getConfiguration()
@@ -409,6 +414,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             LOG.info("Closing PulsarService");
             state = State.Closing;
+
+            ThreadPoolMonitor.stop();
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
@@ -621,7 +628,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
-        ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
+        ScheduledExecutorService shutdownExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory(getClass().getSimpleName() + "-shutdown"));
         FutureUtil.addTimeoutHandling(future,
                 Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
@@ -745,10 +752,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
 
+            int orderedExecutorThreadNumber = config.getNumOrderedExecutorThreads();
             orderedExecutor = OrderedExecutor.newBuilder()
-                    .numThreads(config.getNumOrderedExecutorThreads())
+                    .numThreads(orderedExecutorThreadNumber)
                     .name("pulsar-ordered")
                     .build();
+
+            ThreadPoolMonitorHelper.registerOrderedExecutor(orderedExecutor, orderedExecutorThreadNumber);
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);
@@ -1435,7 +1445,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     protected synchronized ScheduledExecutorService getCompactorExecutor() {
         if (this.compactorExecutor == null) {
-            compactorExecutor = Executors.newSingleThreadScheduledExecutor(
+            compactorExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                     new ExecutorProvider.ExtendedThreadFactory("compaction"));
         }
         return this.compactorExecutor;
@@ -1467,6 +1477,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                     .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
                     .name("offloader").build();
+            ThreadPoolMonitorHelper.registerOrderedExecutor(offloaderScheduler,
+                    offloadPolicies.getManagedLedgerOffloadMaxThreads());
         }
         return this.offloaderScheduler;
     }

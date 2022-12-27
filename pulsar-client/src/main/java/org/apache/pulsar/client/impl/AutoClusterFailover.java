@@ -26,7 +26,6 @@ import java.net.Socket;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
@@ -37,7 +36,8 @@ import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 
 @Slf4j
 @Data
@@ -79,7 +79,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.failedTimestamp = -1;
         this.intervalMs = builder.checkIntervalMs;
         this.resolver = new PulsarServiceNameResolver();
-        this.executor = Executors.newSingleThreadScheduledExecutor(
+        this.executor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
     }
 

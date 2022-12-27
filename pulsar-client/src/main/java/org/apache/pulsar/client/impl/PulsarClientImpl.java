@@ -39,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadLocalRandom;
@@ -75,8 +74,6 @@ import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider;
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
-import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -84,7 +81,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.topics.TopicList;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -754,7 +753,7 @@ public class PulsarClientImpl implements PulsarClient {
         // to shutdown the EventLoopGroup as well as that would be trying to shutdown itself thus a deadlock
         // would happen
         CompletableFuture<Void> combinedFuture = FutureUtil.waitForAll(futures);
-        ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
+        ScheduledExecutorService shutdownExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
         FutureUtil.addTimeoutHandling(combinedFuture, Duration.ofSeconds(CLOSE_TIMEOUT_SECONDS),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Closing producers and consumers timed out.",

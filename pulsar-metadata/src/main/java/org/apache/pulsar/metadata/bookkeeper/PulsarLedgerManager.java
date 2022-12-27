@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Optional;
@@ -28,7 +27,6 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -43,7 +41,9 @@ import org.apache.bookkeeper.util.StringUtils;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -63,8 +63,9 @@ public class PulsarLedgerManager implements LedgerManager {
     private final LegacyHierarchicalLedgerManager legacyLedgerManager;
     private final LongHierarchicalLedgerManager longLedgerManager;
 
-    private final ScheduledExecutorService scheduler = Executors
-            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-bk-ledger-manager-scheduler"));
+    private final ScheduledExecutorService scheduler =
+            ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                    new ExecutorProvider.ExtendedThreadFactory("pulsar-bk-ledger-manager-scheduler"));
 
     // ledger metadata listeners
     protected final ConcurrentMap<Long, Set<BookkeeperInternalCallbacks.LedgerMetadataListener>> listeners =

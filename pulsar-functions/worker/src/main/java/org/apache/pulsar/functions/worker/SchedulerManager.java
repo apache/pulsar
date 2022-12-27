@@ -23,7 +23,6 @@ import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowabl
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -35,7 +34,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -63,8 +61,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
@@ -182,8 +182,8 @@ public class SchedulerManager implements AutoCloseable {
             executorService = new ThreadPoolExecutor(1, 5, 0L, TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>(5));
             executorService.setThreadFactory(new ThreadFactoryBuilder().setNameFormat("worker-scheduler-%d").build());
-            scheduledExecutorService = Executors
-                    .newSingleThreadScheduledExecutor(new DefaultThreadFactory("worker-assignment-topic-compactor"));
+            scheduledExecutorService = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                            new ExecutorProvider.ExtendedThreadFactory("worker-assignment-topic-compactor"));
             if (workerConfig.getTopicCompactionFrequencySec() > 0) {
                 scheduleCompaction(this.scheduledExecutorService, workerConfig.getTopicCompactionFrequencySec());
             }

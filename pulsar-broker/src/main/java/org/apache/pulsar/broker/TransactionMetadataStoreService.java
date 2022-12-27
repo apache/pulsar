@@ -33,9 +33,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -51,10 +49,11 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -92,10 +91,6 @@ public class TransactionMetadataStoreService {
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
-    private final ThreadFactory threadFactory =
-            new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
-
-
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
                                            HashedWheelTimer timer) {
@@ -108,7 +103,8 @@ public class TransactionMetadataStoreService {
         this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
         this.pendingConnectRequests =
                 ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
-        this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        this.internalPinnedExecutor = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory"));
     }
 
     public CompletableFuture<Void> handleTcClientConnect(TransactionCoordinatorID tcId) {

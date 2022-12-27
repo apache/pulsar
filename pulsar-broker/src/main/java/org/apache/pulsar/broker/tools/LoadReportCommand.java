@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.tools;
 
 import com.beust.jcommander.Parameter;
 import java.util.Optional;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.tools.framework.Cli;
@@ -32,7 +31,8 @@ import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.broker.tools.LoadReportCommand.Flags;
-import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ExecutorProvider;
+import org.apache.pulsar.common.util.ScheduledExecutorProvider;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
@@ -89,7 +89,7 @@ public class LoadReportCommand extends CliCommand<CliFlags, Flags> {
         spec.console().println("--------------------------------------");
         spec.console().println();
 
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
+        ScheduledExecutorService scheduler = ScheduledExecutorProvider.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("load-report"));
         BrokerHostUsage hostUsage;
         try {
