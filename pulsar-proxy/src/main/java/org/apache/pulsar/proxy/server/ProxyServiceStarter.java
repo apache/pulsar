@@ -240,6 +240,7 @@ public class ProxyServiceStarter {
             if (server != null) {
                 server.stop();
             }
+            CollectorRegistry.defaultRegistry.clear();
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
         } finally {
