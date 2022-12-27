@@ -144,6 +144,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -4654,6 +4655,74 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
         });
+    }
+    protected void internalTrimTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
+                    if (topic == null) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString())));
+                        return null;
+                    }
+                    if (!(topic instanceof PersistentTopic)) {
+                        log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
+                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Trim on a non-persistent topic is not allowed"));
+                        return null;
+                    }
+                    if (topicName.isPartitioned()) {
+                        return trimPartitionedTopic(asyncResponse, authoritative);
+                    }
+                    return trimNonPartitionedTopic(asyncResponse, (PersistentTopic) topic);
+                }).exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @NotNull
+    private static CompletableFuture<Void> trimNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                                   PersistentTopic topic) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        Optional.ofNullable(topic.getManagedLedger()).ifPresent(managedLedger ->
+                managedLedger.trimConsumedLedgersInBackground(new CompletableFuture<>()
+                        .thenAccept((v) -> result.complete(null))
+                        .exceptionally(e -> {
+                            result.completeExceptionally(e);
+                            return null;
+                        })));
+        return result.thenAccept(asyncResponse::resume);
+    }
+
+    private CompletableFuture<Void> trimPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                .thenCompose((metadata) -> {
+                    if (metadata.partitions == 0) {
+                        String msg = "Abnormal number of partitions";
+                        log.error("[{}] [{}] {}", clientAppId(), topicName, msg);
+                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
+                        return null;
+                    } else {
+                        List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
+                        for (int i = 0; i < metadata.partitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                futures.add(pulsar().getAdminClient().topics()
+                                        .trimTopicAsync(topicNamePartition.toString()));
+                            } catch (Exception e) {
+                                log.error("[{}] Failed to trim topic {}", clientAppId(), topicNamePartition, e);
+                                throw new RestException(e);
+                            }
+                        }
+                        return FutureUtil.waitForAll(futures).thenAccept(asyncResponse::resume);
+                    }
+                });
     }
 
     protected CompletableFuture<DispatchRateImpl> internalGetDispatchRate(boolean applied, boolean isGlobal) {

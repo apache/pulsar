@@ -261,6 +261,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
+        jcommander.addCommand("trim-topic", new TrimTopic());
+
         initDeprecatedCommands();
     }
 
@@ -3105,6 +3107,17 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             getAdmin().topics().setSchemaValidationEnforced(topic, enable);
+        }
+    }
+    @Parameters(commandDescription = "Trim a topic")
+    private class TrimTopic extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getAdmin().topics().trimTopic(topic);
         }
     }
 }
