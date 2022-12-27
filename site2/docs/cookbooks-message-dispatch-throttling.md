@@ -29,7 +29,7 @@ Message dispatch throttling is a mechanism that limits the speed at which messag
 - `dispatchThrottlingRateInByte` The maximum number of bytes of messages delivered per rate-limiting period. The default
    is' -1 ', which means no limit.
 
-> `dispatchThrottlingRateInMsg` and `dispatchThrottlingRateInByte` are these AND relations.
+> `dispatchThrottlingRateInMsg` and `dispatchThrottlingRateInByte` are AND relations.
 
 ### How it works
 Message dispatch throttling works divided into these steps:
