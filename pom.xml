@@ -247,6 +247,7 @@ flexible messaging model and an intuitive client API.</description>
     <awaitility.version>4.2.0</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
     <jettison.version>1.5.1</jettison.version>
+    <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
 
     <!-- Plugin dependencies -->
@@ -827,6 +828,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.codehaus.jettison</groupId>
         <artifactId>jettison</artifactId>
         <version>${jettison.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.woodstox</groupId>
+        <artifactId>woodstox-core</artifactId>
+        <version>${woodstox.version}</version>
       </dependency>
 
 
