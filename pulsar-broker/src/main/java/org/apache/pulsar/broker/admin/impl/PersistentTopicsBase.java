@@ -5226,6 +5226,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                 clientAppId(), topicName, subName, t);
                                         asyncResponse.resume(new RestException(t));
                                     }
+                                    return null;
                                 }
                                 asyncResponse.resume(status);
                                 return null;
