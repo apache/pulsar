@@ -1269,21 +1269,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     long estimateBacklogFromPosition(PositionImpl pos) {
         synchronized (this) {
-            Map<Long, LedgerInfo> tailLedgerInfos = ledgers.tailMap(pos.getLedgerId());
-            if (tailLedgerInfos.isEmpty()) { // pos is greater than the greatest ledgerId in ledgers
-                return 0;
-            }
-
-            long size = tailLedgerInfos.values().stream()
-                    .filter(ledgerInfo -> ledgerInfo.getLedgerId() != currentLedger.getId())
-                    .mapToLong(LedgerInfo::getSize).sum() + currentLedgerSize;
-            LedgerInfo ledgerInfo = tailLedgerInfos.get(pos.getLedgerId());
-            if (ledgerInfo == null) { // smaller than the smallest ledgerId in tailLedgerInfos
-                return size;
+            long sizeBeforePosLedger = ledgers.headMap(pos.getLedgerId()).values()
+                    .stream().mapToLong(LedgerInfo::getSize).sum();
+            LedgerInfo ledgerInfo = ledgers.get(pos.getLedgerId());
+            long sizeAfter = getTotalSize() - sizeBeforePosLedger;
+            if (ledgerInfo == null) {
+                return sizeAfter;
             } else if (pos.getLedgerId() == currentLedger.getId()) {
-                return size - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
+                return sizeAfter - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
             } else {
-                return size - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
+                return sizeAfter - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
             }
         }
     }
