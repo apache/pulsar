@@ -546,7 +546,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private @Nullable MessageIdImpl getMessageIdToAcknowledge(BatchMessageIdImpl messageId, AckType ackType) {
+    @Nullable
+    private MessageIdImpl getMessageIdToAcknowledge(BatchMessageIdImpl messageId, AckType ackType) {
         final BatchMessageAcker acker;
         if (messageId.getAcker() instanceof BatchMessageAckerDisabled) {
             acker = batchMessageToAcker.computeIfAbsent(
