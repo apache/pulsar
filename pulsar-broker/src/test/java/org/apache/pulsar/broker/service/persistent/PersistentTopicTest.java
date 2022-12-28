@@ -408,7 +408,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
 
     @Test
-    public void testCreateNonExistentPartitions() throws PulsarAdminException {
+    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
         final String topicName = "persistent://prop/ns-abc/testCreateNonExistentPartitions";
         admin.topics().createPartitionedTopic(topicName, 4);
         TopicName partition = TopicName.get(topicName).getPartition(4);
@@ -418,8 +418,8 @@ public class PersistentTopicTest extends BrokerTestBase {
                     .topic(partition.toString())
                     .create();
             fail("unexpected behaviour");
-        } catch (PulsarClientException ex) {
-            Assert.assertTrue(ex instanceof PulsarClientException.TopicDoesNotExistException);
+        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
