@@ -131,9 +131,8 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         PersistentDispatcherMultipleConsumers sharedDispatcher = (PersistentDispatcherMultipleConsumers) sharedSub
                 .getDispatcher();
-        PersistentDispatcherSingleActiveConsumer failOverDispatcher =
-                (PersistentDispatcherSingleActiveConsumer) failOverSub
-                        .getDispatcher();
+        PersistentDispatcherSingleActiveConsumer failOverDispatcher = (PersistentDispatcherSingleActiveConsumer) failOverSub
+                .getDispatcher();
 
         // build backlog
         consumer1.close();
@@ -283,15 +282,14 @@ public class PersistentTopicTest extends BrokerTestBase {
     @DataProvider(name = "topicAndMetricsLevel")
     public Object[][] indexPatternTestData() {
         return new Object[][]{
-                new Object[]{"persistent://prop/autoNs/test_delayed_message_metric", true},
-                new Object[]{"persistent://prop/autoNs/test_delayed_message_metric", false},
+                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", true},
+                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", false},
         };
     }
 
 
     @Test(dataProvider = "topicAndMetricsLevel")
-    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics)
-            throws Exception {
+    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics) throws Exception {
         PulsarClient client = pulsar.getClient();
         String namespace = TopicName.get(topic).getNamespace();
         admin.namespaces().createNamespace(namespace);
@@ -370,8 +368,8 @@ public class PersistentTopicTest extends BrokerTestBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        PersistentSubscription persistentSubscription = topic.getSubscription(sharedSubName);
-        PersistentSubscription persistentSubscription2 = topic.getSubscription(failoverSubName);
+        PersistentSubscription persistentSubscription =  topic.getSubscription(sharedSubName);
+        PersistentSubscription persistentSubscription2 =  topic.getSubscription(failoverSubName);
 
         // `addConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeAddConsumerTimestamp);
