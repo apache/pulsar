@@ -1022,17 +1022,17 @@ public class BrokerService implements Closeable {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                             if (topicName.getPartitionIndex() < metadata.partitions) {
-                                return isPersistentTopic ?
-                                        loadOrCreatePersistentTopic(name, createIfMissing, properties) :
+                                return isPersistentTopic
+                                        ? loadOrCreatePersistentTopic(name, createIfMissing, properties) :
                                         createNonPersistentTopic(name);
                             }
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
                     }
                     // non-partitioned topic
-                    return isPersistentTopic ?
+                    return isPersistentTopic
                             // persistent topic
-                            loadOrCreatePersistentTopic(name, createIfMissing, properties) :
+                            ? loadOrCreatePersistentTopic(name, createIfMissing, properties) :
                             // non-persistent topic
                             (createIfMissing ? createNonPersistentTopic(name) :
                                     CompletableFuture.completedFuture(Optional.empty()));
