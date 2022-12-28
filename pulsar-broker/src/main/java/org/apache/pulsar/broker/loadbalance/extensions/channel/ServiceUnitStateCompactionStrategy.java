@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
@@ -43,6 +44,7 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
         return schema;
     }
 
+    @VisibleForTesting
     public void checkBrokers(boolean check) {
         this.checkBrokers = check;
     }

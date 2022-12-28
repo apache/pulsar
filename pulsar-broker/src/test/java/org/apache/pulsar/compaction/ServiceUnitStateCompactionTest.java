@@ -24,13 +24,11 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,23 +44,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import lombok.Cleanup;
-import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -73,15 +61,11 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 
@@ -845,83 +829,5 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
             assertNull(none);
         }
-    }
-
-    @SneakyThrows
-    @Test
-    public void testHealthCheckTopicNotCompacted() {
-        NamespaceName heartbeatNamespaceV1 =
-                NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
-        String topicV1 = "persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck";
-        NamespaceName heartbeatNamespaceV2 =
-                NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfiguration());
-        String topicV2 = heartbeatNamespaceV2.toString() + "/healthcheck";
-        Producer<ServiceUnitStateData> producer1 = pulsarClient.newProducer(schema).topic(topicV1).create();
-        Producer<ServiceUnitStateData> producer2 = pulsarClient.newProducer(schema).topic(topicV2).create();
-        Optional<Topic> topicReferenceV1 = pulsar.getBrokerService().getTopic(topicV1, false).join();
-        Optional<Topic> topicReferenceV2 = pulsar.getBrokerService().getTopic(topicV2, false).join();
-        assertFalse(((SystemTopic) topicReferenceV1.get()).isCompactionEnabled());
-        assertFalse(((SystemTopic) topicReferenceV2.get()).isCompactionEnabled());
-        producer1.close();
-        producer2.close();
-    }
-
-    @Test(timeOut = 60000)
-    public void testCompactionWithMarker() throws Exception {
-        String namespace = "my-property/use/my-ns";
-        final TopicName dest = TopicName.get(
-                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWriteMarker"));
-        admin.topics().createNonPartitionedTopic(dest.toString());
-        @Cleanup
-        Consumer<ServiceUnitStateData> consumer = pulsarClient.newConsumer(schema)
-                .topic(dest.toString())
-                .subscriptionName("test-compaction-sub")
-                .subscriptionType(SubscriptionType.Exclusive)
-                .readCompacted(true)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
-                .subscribe();
-        @Cleanup
-        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
-                .topic(dest.toString())
-                .enableBatching(true)
-                .messageRoutingMode(MessageRoutingMode.SinglePartition)
-                .create();
-        producer.newMessage().value(testValue0(("msg-1"))).send();
-        Optional<Topic> topic = pulsar.getBrokerService().getTopic(dest.toString(), true).join();
-        Assert.assertTrue(topic.isPresent());
-        PersistentTopic persistentTopic = (PersistentTopic) topic.get();
-        Random random = new Random();
-        for (int i = 0; i < 100; i++) {
-            int rad = random.nextInt(3);
-            ByteBuf marker;
-            if (rad == 0) {
-                marker = Markers.newTxnCommitMarker(-1L, 0, i);
-            } else if (rad == 1) {
-                marker = Markers.newTxnAbortMarker(-1L, 0, i);
-            } else {
-                marker = Markers.newReplicatedSubscriptionsSnapshotRequest(UUID.randomUUID().toString(), "r1");
-            }
-            persistentTopic.getManagedLedger().asyncAddEntry(marker, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    //
-                }
-
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    //
-                }
-            }, null);
-            marker.release();
-        }
-        producer.newMessage().value(testValue0(("msg-2"))).send();
-        admin.topics().triggerCompaction(dest.toString());
-        Awaitility.await()
-                .atMost(50, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
-                .untilAsserted(() -> {
-                    long ledgerId = admin.topics().getInternalStats(dest.toString()).compactedLedger.ledgerId;
-                    Assert.assertNotEquals(ledgerId, -1L);
-                });
     }
 }
