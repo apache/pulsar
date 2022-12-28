@@ -1273,12 +1273,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (tailLedgerInfos.isEmpty()) { // pos is greater than the greatest ledgerId in ledgers
                 return 0;
             }
+
+            long size = tailLedgerInfos.values().stream()
+                    .filter(ledgerInfo -> ledgerInfo.getLedgerId() != currentLedger.getId())
+                    .mapToLong(LedgerInfo::getSize).sum() + currentLedgerSize;
             LedgerInfo ledgerInfo = tailLedgerInfos.get(pos.getLedgerId());
-            if (ledgerInfo == null) { // pos is smaller than the smallest ledgerId in ledgers
-                return getTotalSize();
-            }
-            long size = tailLedgerInfos.values().stream().mapToLong(LedgerInfo::getSize).sum();
-            if (pos.getLedgerId() == currentLedger.getId()) {
+            if (ledgerInfo == null) { // smaller than the smallest ledgerId in tailLedgerInfos
+                return size;
+            } else if (pos.getLedgerId() == currentLedger.getId()) {
                 return size - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
             } else {
                 return size - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
@@ -1290,7 +1292,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (ledgerEntries <= 0) {
             return 0;
         }
-        if (ledgerEntries == (consumedEntries + 1)) {
+        if (ledgerEntries <= (consumedEntries + 1)) {
             return ledgerSize;
         } else {
             long averageSize = ledgerSize / ledgerEntries;

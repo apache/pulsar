@@ -3840,12 +3840,19 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testGetEstimatedBacklogSize() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testGetEstimatedBacklogSize");
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testGetEstimatedBacklogSize", config);
+        List<Position> positions = new ArrayList<>(10);
         for (int i = 0; i < 10; i++) {
-            ledger.addEntry(new byte[1024]);
+            positions.add(ledger.addEntry(new byte[1]));
         }
-        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1)), 10240);
-        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(11, 2)), 0);
+
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1)), 10);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1))), 8);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext()), 0);
         ledger.close();
     }
 }
