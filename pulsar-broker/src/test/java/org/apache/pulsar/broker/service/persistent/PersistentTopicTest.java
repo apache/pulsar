@@ -29,6 +29,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +39,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
@@ -46,6 +48,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -128,8 +131,9 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         PersistentDispatcherMultipleConsumers sharedDispatcher = (PersistentDispatcherMultipleConsumers) sharedSub
                 .getDispatcher();
-        PersistentDispatcherSingleActiveConsumer failOverDispatcher = (PersistentDispatcherSingleActiveConsumer) failOverSub
-                .getDispatcher();
+        PersistentDispatcherSingleActiveConsumer failOverDispatcher =
+                (PersistentDispatcherSingleActiveConsumer) failOverSub
+                        .getDispatcher();
 
         // build backlog
         consumer1.close();
@@ -279,14 +283,15 @@ public class PersistentTopicTest extends BrokerTestBase {
     @DataProvider(name = "topicAndMetricsLevel")
     public Object[][] indexPatternTestData() {
         return new Object[][]{
-                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", true},
-                new Object[] {"persistent://prop/autoNs/test_delayed_message_metric", false},
+                new Object[]{"persistent://prop/autoNs/test_delayed_message_metric", true},
+                new Object[]{"persistent://prop/autoNs/test_delayed_message_metric", false},
         };
     }
 
 
     @Test(dataProvider = "topicAndMetricsLevel")
-    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics) throws Exception {
+    public void testDelayedDeliveryTrackerMemoryUsageMetric(String topic, boolean exposeTopicLevelMetrics)
+            throws Exception {
         PulsarClient client = pulsar.getClient();
         String namespace = TopicName.get(topic).getNamespace();
         admin.namespaces().createNamespace(namespace);
@@ -365,8 +370,8 @@ public class PersistentTopicTest extends BrokerTestBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
-        PersistentSubscription persistentSubscription =  topic.getSubscription(sharedSubName);
-        PersistentSubscription persistentSubscription2 =  topic.getSubscription(failoverSubName);
+        PersistentSubscription persistentSubscription = topic.getSubscription(sharedSubName);
+        PersistentSubscription persistentSubscription2 = topic.getSubscription(failoverSubName);
 
         // `addConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeAddConsumerTimestamp);
@@ -401,5 +406,22 @@ public class PersistentTopicTest extends BrokerTestBase {
         // `removeConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
         assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
+    }
+
+
+    @Test
+    public void testCreateNonExistentPartitions() throws PulsarAdminException {
+        final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
+        admin.topics().createPartitionedTopic(topicName, 4);
+        TopicName partition = TopicName.get(topicName).getPartition(4);
+        try {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(partition.toString())
+                    .create();
+            fail("unexpected behaviour");
+        } catch (PulsarClientException ex) {
+            Assert.assertTrue(ex instanceof PulsarClientException.TopicDoesNotExistException);
+        }
     }
 }

@@ -1016,27 +1016,27 @@ public class BrokerService implements Closeable {
                 }
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
-            if (isPersistentTopic) {
-                return topics.computeIfAbsent(topicName.toString(), (k) -> {
-                    return this.loadOrCreatePersistentTopic(k, createIfMissing, properties);
-                });
-            } else {
-                return topics.computeIfAbsent(topicName.toString(), (name) -> {
+            return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                    // partitioned topic
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                        return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                        return fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                             if (topicName.getPartitionIndex() < metadata.partitions) {
-                                return createNonPersistentTopic(name);
+                                return isPersistentTopic ?
+                                        loadOrCreatePersistentTopic(name, createIfMissing, properties) :
+                                        createNonPersistentTopic(name);
                             }
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
-                    } else if (createIfMissing) {
-                        return createNonPersistentTopic(name);
-                    } else {
-                        return CompletableFuture.completedFuture(Optional.empty());
                     }
-                });
-            }
+                    // non-partitioned topic
+                    return isPersistentTopic ?
+                            // persistent topic
+                            loadOrCreatePersistentTopic(name, createIfMissing, properties) :
+                            // non-persistent topic
+                            (createIfMissing ? createNonPersistentTopic(name) :
+                                    CompletableFuture.completedFuture(Optional.empty()));
+                    });
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
             return FutureUtil.failedFuture(e);
