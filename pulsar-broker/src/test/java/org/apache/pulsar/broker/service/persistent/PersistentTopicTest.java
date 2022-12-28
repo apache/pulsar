@@ -409,7 +409,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     @Test
     public void testCreateNonExistentPartitions() throws PulsarAdminException {
-        final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
+        final String topicName = "persistent://prop/ns-abc/testCreateNonExistentPartitions";
         admin.topics().createPartitionedTopic(topicName, 4);
         TopicName partition = TopicName.get(topicName).getPartition(4);
         try {
