@@ -62,7 +62,7 @@ public class ManagedLedgerInternalStats {
     public String state;
 
     /** The ordered list of all ledgers for this topic holding messages. */
-    public List<LedgerInfo> ledgers;
+    public List<InternalLedgerInfo> ledgers;
 
     /** The list of all cursors on this topic. Each subscription in the topic stats has a cursor. */
     public Map<String, CursorStats> cursors;
@@ -70,7 +70,7 @@ public class ManagedLedgerInternalStats {
     /**
      * Ledger information.
      */
-    public static class LedgerInfo {
+    public static class InternalLedgerInfo {
         public long ledgerId;
         public long entries;
         public long size;

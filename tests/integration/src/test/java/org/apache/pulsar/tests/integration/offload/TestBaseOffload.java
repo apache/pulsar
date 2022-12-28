@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.offload;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -32,7 +31,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -214,7 +213,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
-    private boolean ledgerOffloaded(List<PersistentTopicInternalStats.LedgerInfo> ledgers, long ledgerId) {
+    private boolean ledgerOffloaded(List<ManagedLedgerInternalStats.InternalLedgerInfo> ledgers, long ledgerId) {
         return ledgers.stream().filter(l -> l.ledgerId == ledgerId)
                 .map(l -> l.offloaded).findFirst().get();
     }
@@ -236,7 +235,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                     ? topic + "-partition-" + partitionNum
                     : topic;
 
-            List<PersistentTopicInternalStats.LedgerInfo> ledgers = admin.topics()
+            List<ManagedLedgerInternalStats.InternalLedgerInfo> ledgers = admin.topics()
                     .getInternalStats(topicToCheck).ledgers;
             long currentLedger = ledgers.get(ledgers.size() - 1).ledgerId;
 

@@ -43,7 +43,7 @@ import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.InternalLedgerInfo;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -78,8 +78,8 @@ public class TestCmdTopics {
         //NOTHING FOR NOW
     }
 
-    private static LedgerInfo newLedger(long id, long entries, long size) {
-        LedgerInfo l = new LedgerInfo();
+    private static InternalLedgerInfo newLedger(long id, long entries, long size) {
+        InternalLedgerInfo l = new InternalLedgerInfo();
         l.ledgerId = id;
         l.entries = entries;
         l.size = size;
@@ -88,7 +88,7 @@ public class TestCmdTopics {
 
     @Test
     public void testFindFirstLedgerWithinThreshold() throws Exception {
-        List<LedgerInfo> ledgers = new ArrayList<>();
+        List<InternalLedgerInfo> ledgers = new ArrayList<>();
         ledgers.add(newLedger(0, 10, 1000));
         ledgers.add(newLedger(1, 10, 2000));
         ledgers.add(newLedger(2, 10, 3000));

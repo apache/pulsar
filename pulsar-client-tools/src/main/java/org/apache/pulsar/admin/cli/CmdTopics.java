@@ -67,6 +67,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1428,13 +1429,13 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    static MessageId findFirstLedgerWithinThreshold(List<PersistentTopicInternalStats.LedgerInfo> ledgers,
+    static MessageId findFirstLedgerWithinThreshold(List<ManagedLedgerInternalStats.InternalLedgerInfo> ledgers,
                                                     long sizeThreshold) {
         long suffixSize = 0L;
 
         ledgers = Lists.reverse(ledgers);
         long previousLedger = ledgers.get(0).ledgerId;
-        for (PersistentTopicInternalStats.LedgerInfo l : ledgers) {
+        for (ManagedLedgerInternalStats.InternalLedgerInfo l : ledgers) {
             suffixSize += l.size;
             if (suffixSize > sizeThreshold) {
                 return new MessageIdImpl(previousLedger, 0L, -1);
@@ -1464,7 +1465,7 @@ public class CmdTopics extends CmdBase {
                 throw new PulsarAdminException("Topic doesn't have any data");
             }
 
-            LinkedList<PersistentTopicInternalStats.LedgerInfo> ledgers = new LinkedList(stats.ledgers);
+            LinkedList<ManagedLedgerInternalStats.InternalLedgerInfo> ledgers = new LinkedList(stats.ledgers);
             ledgers.get(ledgers.size() - 1).size = stats.currentLedgerSize; // doesn't get filled in now it seems
             MessageId messageId = findFirstLedgerWithinThreshold(ledgers, sizeThreshold);
 

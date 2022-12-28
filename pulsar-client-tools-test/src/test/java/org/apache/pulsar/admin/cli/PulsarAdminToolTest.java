@@ -97,7 +97,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.InternalLedgerInfo;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1981,8 +1981,8 @@ public class PulsarAdminToolTest {
 
     }
 
-    private static LedgerInfo newLedger(long id, long entries, long size) {
-        LedgerInfo l = new LedgerInfo();
+    private static InternalLedgerInfo newLedger(long id, long entries, long size) {
+        InternalLedgerInfo l = new InternalLedgerInfo();
         l.ledgerId = id;
         l.entries = entries;
         l.size = size;

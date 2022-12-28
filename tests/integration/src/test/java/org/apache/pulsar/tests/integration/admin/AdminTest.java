@@ -19,7 +19,6 @@
 package org.apache.pulsar.tests.integration.admin;
 
 import static org.testng.Assert.assertNotNull;
-
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +27,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.messaging.MessagingBase;
 import org.testng.Assert;
@@ -68,7 +68,7 @@ public class AdminTest extends MessagingBase {
         log.info("Successfully to publish 10 messages to {}", topicName);
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
         Assert.assertTrue(stats.ledgers.size() > 0);
-        for (PersistentTopicInternalStats.LedgerInfo ledger : stats.ledgers) {
+        for (ManagedLedgerInternalStats.InternalLedgerInfo ledger : stats.ledgers) {
             Assert.assertFalse(ledger.underReplicated);
         }
     }

@@ -45,6 +45,7 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -384,9 +385,9 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             }
         })).when(mockBookKeeper).getLedgerMetadata(anyLong());
         PersistentTopicInternalStats persistentTopicInternalStats = admin.topics().getInternalStats(topicName);
-        List<PersistentTopicInternalStats.LedgerInfo> list = persistentTopicInternalStats.schemaLedgers;
+        List<ManagedLedgerInternalStats.InternalLedgerInfo> list = persistentTopicInternalStats.schemaLedgers;
         assertEquals(list.size(), 1);
-        PersistentTopicInternalStats.LedgerInfo ledgerInfo = list.get(0);
+        ManagedLedgerInternalStats.InternalLedgerInfo ledgerInfo = list.get(0);
         assertEquals(ledgerInfo.ledgerId, ledgerId);
         assertEquals(ledgerInfo.entries, entryId + 1);
         assertEquals(ledgerInfo.size, length);

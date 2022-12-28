@@ -134,7 +134,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.LedgerInfo;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.InternalLedgerInfo;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -2204,7 +2204,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         statFuture.completeExceptionally(e);
                     } else {
                         ml.getLedgersInfo().forEach((id, li) -> {
-                            LedgerInfo info = new LedgerInfo();
+                            InternalLedgerInfo info = new InternalLedgerInfo();
                             info.ledgerId = li.getLedgerId();
                             info.entries = li.getEntries();
                             info.size = li.getSize();
@@ -2232,7 +2232,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         );
 
         // Add ledger info for compacted topic ledger if exist.
-        LedgerInfo info = new LedgerInfo();
+        InternalLedgerInfo info = new InternalLedgerInfo();
         info.ledgerId = -1;
         info.entries = -1;
         info.size = -1;
@@ -2316,7 +2316,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             }
                             if (metadataFuture != null) {
                                 metadataFuture.thenAccept(metadata -> {
-                                    LedgerInfo schemaLedgerInfo = new LedgerInfo();
+                                    InternalLedgerInfo schemaLedgerInfo = new InternalLedgerInfo();
                                     schemaLedgerInfo.ledgerId = metadata.getLedgerId();
                                     schemaLedgerInfo.entries = metadata.getLastEntryId() + 1;
                                     schemaLedgerInfo.size = metadata.getLength();

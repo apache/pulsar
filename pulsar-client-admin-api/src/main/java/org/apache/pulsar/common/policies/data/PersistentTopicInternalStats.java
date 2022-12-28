@@ -23,10 +23,10 @@ import java.util.List;
 /**
  * Persistent topic internal statistics.
  */
-public class PersistentTopicInternalStats extends ManagedLedgerInternalStats{
+public class PersistentTopicInternalStats extends ManagedLedgerInternalStats {
 
-    public List<LedgerInfo> schemaLedgers;
+    public List<InternalLedgerInfo> schemaLedgers;
 
-    // LedgerInfo for compacted topic if exist.
-    public LedgerInfo compactedLedger;
+    // LedgerInfo for compacted topic if existed.
+    public InternalLedgerInfo compactedLedger;
 }

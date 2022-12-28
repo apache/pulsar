@@ -4254,7 +4254,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         FutureUtil.waitForAll(ledgerMetadataFutures.values()).thenAccept(__ -> {
             stats.ledgers = new ArrayList();
             ledgersInfos.forEach(li -> {
-                ManagedLedgerInternalStats.LedgerInfo info = new ManagedLedgerInternalStats.LedgerInfo();
+                ManagedLedgerInternalStats.InternalLedgerInfo info =
+                        new ManagedLedgerInternalStats.InternalLedgerInfo();
                 info.ledgerId = li.getLedgerId();
                 info.entries = li.getEntries();
                 info.size = li.getSize();
