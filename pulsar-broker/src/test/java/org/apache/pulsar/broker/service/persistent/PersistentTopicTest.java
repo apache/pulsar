@@ -421,5 +421,6 @@ public class PersistentTopicTest extends BrokerTestBase {
         } catch (PulsarClientException ex) {
             Assert.assertTrue(ex instanceof PulsarClientException.TopicDoesNotExistException);
         }
+        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 }
