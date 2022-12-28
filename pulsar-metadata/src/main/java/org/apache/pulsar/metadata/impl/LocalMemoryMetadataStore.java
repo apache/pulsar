@@ -229,4 +229,11 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.ofNullable(synchronizer);
     }
+
+    @Override
+    public void close() throws Exception {
+        if (isClosed.compareAndSet(false, true)) {
+            super.close();
+        }
+    }
 }

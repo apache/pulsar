@@ -60,6 +60,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class TableViewTest extends MockedPulsarServiceBaseTest {
 
+    private static final String ECDSA_PUBLIC_KEY = "src/test/resources/certificate/public-key.client-ecdsa.pem";
+    private static final String ECDSA_PRIVATE_KEY = "src/test/resources/certificate/private-key.client-ecdsa.pem";
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -87,6 +90,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     private Set<String> publishMessages(String topic, int count, boolean enableBatch) throws Exception {
+        return publishMessages(topic, count, enableBatch, false);
+    }
+
+    private Set<String> publishMessages(String topic, int count, boolean enableBatch, boolean enableEncryption) throws Exception {
         Set<String> keys = new HashSet<>();
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.SinglePartition);
@@ -99,6 +106,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             builder.batchingMaxMessages(count);
         } else {
             builder.enableBatching(false);
+        }
+        if (enableEncryption) {
+            builder.addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader("file:./" + ECDSA_PUBLIC_KEY);
         }
         try (Producer<byte[]> producer = builder.create()) {
             CompletableFuture<?> lastFuture = null;
@@ -342,5 +353,30 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .until(() -> tv.size() == 10);
 
         assertEquals(mockAction.acceptedCount, 5);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTableViewWithEncryptedMessages() throws Exception {
+        String topic = "persistent://public/default/tableview-encryption-test";
+        admin.topics().createPartitionedTopic(topic, 3);
+
+        // publish encrypted messages
+        int count = 20;
+        Set<String> keys = this.publishMessages(topic, count, false, true);
+
+        // TableView can read them using the private key
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+            .topic(topic)
+            .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+            .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
+            .create();
+        log.info("start tv size: {}", tv.size());
+        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        Awaitility.await().untilAsserted(() -> {
+            log.info("Current tv size: {}", tv.size());
+            assertEquals(tv.size(), count);
+        });
+        assertEquals(tv.keySet(), keys);
     }
 }

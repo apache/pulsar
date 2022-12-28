@@ -110,13 +110,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "numIoThreads",
             value = "Number of IO threads."
     )
-    private int numIoThreads = 1;
+    private int numIoThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "numListenerThreads",
             value = "Number of consumer listener threads."
     )
-    private int numListenerThreads = 1;
+    private int numListenerThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "connectionsPerBroker",
