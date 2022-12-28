@@ -32,6 +32,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -44,15 +52,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Alluxio sink that treats incoming messages on the input topic as Strings
@@ -127,6 +126,7 @@ public class AlluxioSink implements Sink<GenericObject> {
         rotationInterval =  alluxioSinkConfig.getRotationInterval();
     }
 
+    @SuppressWarnings("checkstyle:fallthrough")
     @Override
     public void write(Record<GenericObject> record) {
         long now = System.currentTimeMillis();
@@ -293,7 +293,8 @@ public class AlluxioSink implements Sink<GenericObject> {
                 KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) record.getSchema();
                 valueSchema = keyValueSchema.getValueSchema();
                 org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject> keyValue =
-                        (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) record.getValue().getNativeObject();
+                        (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>)
+                                record.getValue().getNativeObject();
                 recordValue = keyValue.getValue();
             } else {
                 valueSchema = record.getSchema();
@@ -315,8 +316,8 @@ public class AlluxioSink implements Sink<GenericObject> {
             return new KeyValue<>(null, value);
         } else {
             return new KeyValue<>(null, new String(record.getMessage()
-                            .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
-                            .getData(), StandardCharsets.UTF_8));
+                    .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
+                    .getData(), StandardCharsets.UTF_8));
         }
     }
 
