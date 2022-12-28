@@ -702,14 +702,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, SchemaData schemaData) {
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(), option.isDurable(),
                 option.getStartMessageId(), option.getMetadata(), option.isReadCompacted(),
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()),
-                option.getConsumerEpoch(), schemaData);
+                option.getConsumerEpoch(), option.getSchemaType());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -723,7 +723,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch,
-                                                          SchemaData schemaData) {
+                                                          SchemaType schemaType) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -812,7 +812,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
                         readCompacted, keySharedMeta, startMessageId, consumerEpoch,
-                        schemaData == null ? SchemaType.BYTES : schemaData.getType());
+                        schemaType == null ? SchemaType.BYTES : schemaType);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
@@ -887,10 +887,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
                                                  KeySharedMeta keySharedMeta,
-                                                 SchemaData schemaData) {
+                                                 SchemaType schemaType) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, schemaData);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, schemaType);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,

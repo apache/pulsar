@@ -129,7 +129,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption, null);
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -187,7 +187,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption, null);
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -251,7 +251,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption, null);
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -309,7 +309,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
         SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption, null);
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);

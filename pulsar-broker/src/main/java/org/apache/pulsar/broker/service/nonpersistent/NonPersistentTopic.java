@@ -250,13 +250,13 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribe(SubscriptionOption option, SchemaData schemaData) {
+    public CompletableFuture<Consumer> subscribe(SubscriptionOption option) {
         return internalSubscribe(option.getCnx(), option.getSubscriptionName(), option.getConsumerId(),
                 option.getSubType(), option.getPriorityLevel(), option.getConsumerName(),
                 option.isDurable(), option.getStartMessageId(), option.getMetadata(),
                 option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
-                option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null), schemaData);
+                option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null), option.getSchemaType());
     }
 
     @Override
@@ -267,10 +267,10 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  InitialPosition initialPosition,
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta,
-                                                 SchemaData schemaData) {
+                                                 SchemaType schemaType) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
-                replicateSubscriptionState, keySharedMeta, null, schemaData);
+                replicateSubscriptionState, keySharedMeta, null, schemaType);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -282,7 +282,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
-                                                          SchemaData schemaData) {
+                                                          SchemaType schemaType) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -325,7 +325,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
-                    DEFAULT_CONSUMER_EPOCH, schemaData == null ? SchemaType.BYTES : schemaData.getType());
+                    DEFAULT_CONSUMER_EPOCH, schemaType == null ? SchemaType.BYTES : schemaType);
             if (isMigrated()) {
                 consumer.topicMigrated(getClusterMigrationUrl());
             }

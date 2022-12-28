@@ -57,6 +57,16 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private SchemaInfoProvider schemaInfoProvider;
 
+    private static final SchemaInfo SCHEMA_INFO;
+
+    static {
+        SCHEMA_INFO = SchemaInfoImpl.builder()
+                .name("AutoConsume")
+                .type(SchemaType.AUTO_CONSUME)
+                .schema(new byte[0])
+                .build();
+    }
+
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
         ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
         // The Schema.BYTES will not be uploaded to the broker and store in the schema storage,
@@ -140,7 +150,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     @Override
     public SchemaInfo getSchemaInfo() {
         if (!schemaMap.containsKey(SchemaVersion.Latest)) {
-            return null;
+            return SCHEMA_INFO;
         }
         return schemaMap.get(SchemaVersion.Latest).getSchemaInfo();
     }

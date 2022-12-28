@@ -771,11 +771,20 @@ public class Commands {
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
-        return Schema.Type.valueOf(type.getValue());
+        if (type.getValue() < 0 && type.getValue() != -3) {
+            return Schema.Type.None;
+        } else {
+            return Schema.Type.valueOf(type.getValue());
+        }
     }
 
     public static SchemaType getSchemaType(Schema.Type type) {
-        return SchemaType.valueOf(type.getValue());
+        if (type.getValue() < 0 && type.getValue() != -3) {
+            // this is unexpected
+            return SchemaType.NONE;
+        } else {
+            return SchemaType.valueOf(type.getValue());
+        }
     }
 
     private static void convertSchema(SchemaInfo schemaInfo, Schema schema) {

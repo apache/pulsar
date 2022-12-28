@@ -712,7 +712,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         SubscriptionOption subscriptionOption = getSubscriptionOption(cmd);
 
-        Future<Consumer> f1 = topic.subscribe(subscriptionOption, null);
+        Future<Consumer> f1 = topic.subscribe(subscriptionOption);
         try {
             f1.get();
             fail("should fail with exception");
@@ -747,11 +747,11 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setSubType(SubType.Exclusive);
 
         // 1. simple subscribe
-        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         // 2. duplicate subscribe
-        Future<Consumer> f2 = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f2 = topic.subscribe(getSubscriptionOption(cmd));
         try {
             f2.get();
             fail("should fail with exception");
@@ -1318,7 +1318,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         CompletableFuture<Void> cf2 = topic.delete();
@@ -1342,7 +1342,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setReadCompacted(false)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -1399,7 +1399,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
 
         f1.get();
 
@@ -1493,7 +1493,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f = topic.subscribe(getSubscriptionOption(cmd));
         try {
             f.get();
             fail("should have failed");
@@ -1634,7 +1634,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setSubType(SubType.Failover);
 
         // 1. Subscribe with non partition topic
-        Future<Consumer> f1 = topic1.subscribe(getSubscriptionOption(cmd1), null);
+        Future<Consumer> f1 = topic1.subscribe(getSubscriptionOption(cmd1));
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -1649,7 +1649,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
-        Future<Consumer> f2 = topic2.subscribe(getSubscriptionOption(cmd2), null);
+        Future<Consumer> f2 = topic2.subscribe(getSubscriptionOption(cmd2));
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -1662,7 +1662,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
-        Future<Consumer> f3 = topic2.subscribe(getSubscriptionOption(cmd3), null);
+        Future<Consumer> f3 = topic2.subscribe(getSubscriptionOption(cmd3));
         f3.get();
 
         assertEquals(
@@ -1686,7 +1686,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Failover);
 
-        Future<Consumer> f4 = topic2.subscribe(getSubscriptionOption(cmd4), null);
+        Future<Consumer> f4 = topic2.subscribe(getSubscriptionOption(cmd4));
         f4.get();
 
         assertEquals(
@@ -1715,7 +1715,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f5 = topic2.subscribe(getSubscriptionOption(cmd5), null);
+        Future<Consumer> f5 = topic2.subscribe(getSubscriptionOption(cmd5));
         try {
             f5.get();
             fail("should fail with exception");
@@ -1734,7 +1734,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f6 = topic2.subscribe(getSubscriptionOption(cmd6), null);
+        Future<Consumer> f6 = topic2.subscribe(getSubscriptionOption(cmd6));
         f6.get();
 
         // 7. unsubscribe exclusive sub
@@ -2255,7 +2255,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 
-        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd), null);
+        Future<Consumer> f1 = topic.subscribe(getSubscriptionOption(cmd));
         f1.get();
 
         Future<Void> f2 = topic.unsubscribe(successSubName);

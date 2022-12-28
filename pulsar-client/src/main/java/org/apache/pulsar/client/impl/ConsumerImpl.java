@@ -83,7 +83,6 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -812,13 +811,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         SchemaInfo si = schema.getSchemaInfo();
-        if (si == null && schema instanceof AutoConsumeSchema) {
-            si = SchemaInfo.builder()
-                    .name("")
-                    .type(SchemaType.AUTO_CONSUME)
-                    .schema(new byte[0])
-                    .build();
-        }
         if (si != null && (SchemaType.BYTES == si.getType() || SchemaType.NONE == si.getType())) {
             // don't set schema for Schema.BYTES
             si = null;
