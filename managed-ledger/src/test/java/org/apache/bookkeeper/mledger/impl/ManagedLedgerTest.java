@@ -470,7 +470,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                                         fail(exception.getMessage());
                                     }
-                                }, cursor, PositionImpl.LATEST, null);
+                                }, cursor, PositionImpl.LATEST);
                             }
 
                             @Override

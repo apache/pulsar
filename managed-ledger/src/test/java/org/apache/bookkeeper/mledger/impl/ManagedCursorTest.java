@@ -454,7 +454,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 fail(exception.getMessage());
             }
 
-        }, null, PositionImpl.LATEST, null);
+        }, null, PositionImpl.LATEST);
 
         counter.await();
     }
@@ -482,7 +482,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 fail("async-call should not have failed");
             }
 
-        }, null, PositionImpl.LATEST, null);
+        }, null, PositionImpl.LATEST);
 
         counter.await();
 
@@ -504,7 +504,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 counter2.countDown();
             }
 
-        }, null, PositionImpl.LATEST, null);
+        }, null, PositionImpl.LATEST);
 
         counter2.await();
     }
@@ -531,7 +531,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 counter.countDown();
             }
 
-        }, null, PositionImpl.LATEST, null);
+        }, null, PositionImpl.LATEST);
 
         counter.await();
     }
@@ -568,7 +568,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 fail(exception.getMessage());
             }
-        }, null, null, null);
+        }, null, null);
         counter.await();
     }
 
@@ -1827,7 +1827,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("Error reading", exception);
                 }
-            }, null, PositionImpl.LATEST, position -> false);
+            }, null, PositionImpl.LATEST);
         }
 
         ledger.addEntry("test".getBytes());
@@ -2831,7 +2831,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 counter.countDown();
             }
-        }, null, PositionImpl.LATEST, null);
+        }, null, PositionImpl.LATEST);
 
         assertTrue(c1.cancelPendingReadRequest());
 
@@ -2847,7 +2847,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 counter2.countDown();
             }
-        }, null, PositionImpl.LATEST, null);
+        }, null, PositionImpl.LATEST);
 
         ledger.addEntry("entry-1".getBytes(Encoding));
 
@@ -3754,7 +3754,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 completableFuture.completeExceptionally(exception);
             }
-        }, null, (PositionImpl) position, null);
+        }, null, (PositionImpl) position);
 
         int number = completableFuture.get();
         assertEquals(number, readMaxNumber);
@@ -3769,7 +3769,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
                 completableFuture.completeExceptionally(exception);
             }
-        }, null, (PositionImpl) maxCanReadPosition, null);
+        }, null, (PositionImpl) maxCanReadPosition);
 
         assertEquals(number, sendNumber - readMaxNumber);
 
@@ -4172,7 +4172,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         final int numReadRequests = 3;
         for (int i = 0; i < numReadRequests; i++) {
-            cursor.asyncReadEntriesOrWait(1, callback, null, new PositionImpl(0, 0), null);
+            cursor.asyncReadEntriesOrWait(1, callback, null, new PositionImpl(0, 0));
         }
         Awaitility.await().atMost(Duration.ofSeconds(1))
                 .untilAsserted(() -> assertEquals(ledger.waitingCursors.size(), 1));
@@ -4272,7 +4272,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         }
         CompletableFuture<Integer> completableFuture = new CompletableFuture<>();
-        cursor.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+        cursor.asyncReadEntriesWithSkipOrWait(sendNumber, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 completableFuture.complete(entries.size());
@@ -4292,7 +4292,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition().getEntryId(), 10);
 
         CompletableFuture<Integer> completableFuture2 = new CompletableFuture<>();
-        cursor.asyncReadEntriesOrWait(sendNumber, new ReadEntriesCallback() {
+        cursor.asyncReadEntriesWithSkipOrWait(sendNumber, new ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 completableFuture2.complete(entries.size());

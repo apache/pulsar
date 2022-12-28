@@ -103,14 +103,20 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
-                                 PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                 PositionImpl maxPosition) {
 
     }
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes,
-                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition,
-                                 Predicate<PositionImpl> skipCondition) {
+                                 AsyncCallbacks.ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
+
+    }
+
+    @Override
+    public void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes,
+                                         AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
+                                         PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
 
     }
 
@@ -140,13 +146,26 @@ public class MockManagedCursor implements ManagedCursor {
 
     @Override
     public void asyncReadEntriesOrWait(int numberOfEntriesToRead, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                       Object ctx, PositionImpl maxPosition) {
 
     }
 
     @Override
     public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, AsyncCallbacks.ReadEntriesCallback callback,
-                                       Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                       Object ctx, PositionImpl maxPosition) {
+
+    }
+
+    @Override
+    public void asyncReadEntriesWithSkipOrWait(int maxEntries, AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
+                                               PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+
+    }
+
+    @Override
+    public void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes,
+                                               AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
+                                               PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
 
     }
 

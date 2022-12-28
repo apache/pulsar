@@ -150,11 +150,9 @@ public interface ManagedCursor {
      *            opaque context
      * @param maxPosition
      *            max position can read
-     * @param skipCondition
-     *            predicate of read filter out
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                          PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+                          PositionImpl maxPosition);
 
 
     /**
@@ -165,10 +163,21 @@ public interface ManagedCursor {
      * @param callback              callback object
      * @param ctx                   opaque context
      * @param maxPosition           max position can read
-     * @param skipCondition             predicate of read filter out
      */
     void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+                          Object ctx, PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     * @param maxPosition           max position can read
+     */
+    void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                  Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -242,11 +251,51 @@ public interface ManagedCursor {
      *            opaque context
      * @param maxPosition
      *            max position can read
+     */
+    void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
+                                PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     */
+    void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
+                                PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
      * @param skipCondition
      *            predicate of read filter out
      */
-    void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+    void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
+                                        PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
 
     /**
      * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
@@ -268,13 +317,13 @@ public interface ManagedCursor {
      * @param skipCondition
      *            predicate of read filter out
      */
-    void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+    void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
+                                        PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
      *
-     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, PositionImpl, Predicate)
+     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, PositionImpl)
      * @return true if the read operation was canceled or false if there was no pending operation
      */
     boolean cancelPendingReadRequest();

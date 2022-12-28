@@ -329,7 +329,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                                 .containsMessage(position.getLedgerId(), position.getEntryId());
                     }
                 }
-                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
                         topic.getMaxReadPosition(), skipCondition);
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);

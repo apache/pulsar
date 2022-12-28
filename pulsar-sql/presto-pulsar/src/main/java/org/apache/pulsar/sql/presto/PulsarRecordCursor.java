@@ -410,7 +410,7 @@ public class PulsarRecordCursor implements RecordCursor {
                             // if the available size is invalid and the entry queue size is 0, read one entry
                             outstandingReadsRequests.decrementAndGet();
                             cursor.asyncReadEntries(batchSize, entryQueueCacheSizeAllocator.getAvailableCacheSize(),
-                                    this, System.nanoTime(), PositionImpl.LATEST, null);
+                                    this, System.nanoTime(), PositionImpl.LATEST);
                         }
 
                         // stats for successful read request

@@ -111,14 +111,21 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                     PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                     PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx);
         }
 
         @Override
         public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                                     Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                     Object ctx, PositionImpl maxPosition) {
             callback.readEntriesComplete(null, ctx);
+        }
+
+        @Override
+        public void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                             Object ctx, PositionImpl maxPosition,
+                                             Predicate<PositionImpl> skipCondition) {
+
         }
 
         @Override
@@ -302,12 +309,12 @@ public class ManagedCursorContainerTest {
 
         @Override
         public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                           PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                           PositionImpl maxPosition) {
         }
 
         @Override
         public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                                           Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+                                           Object ctx, PositionImpl maxPosition) {
 
         }
 
@@ -402,6 +409,19 @@ public class ManagedCursorContainerTest {
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
                 throws InterruptedException, ManagedLedgerException {
             return null;
+        }
+
+        @Override
+        public void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
+                                                   PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+
+        }
+
+        @Override
+        public void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                                   Object ctx, PositionImpl maxPosition,
+                                                   Predicate<PositionImpl> skipCondition) {
+
         }
 
         @Override
