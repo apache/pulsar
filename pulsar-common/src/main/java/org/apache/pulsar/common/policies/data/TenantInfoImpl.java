@@ -29,10 +29,12 @@ import lombok.NoArgsConstructor;
 /**
  * Information of admin roles and allowed clusters for tenant.
  */
+@ApiModel(
+        value = "TenantInfo",
+        description = "Information of adminRoles and allowedClusters for tenant")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
 public class TenantInfoImpl implements TenantInfo {
     /**
      * List of role enabled as admin for this tenant.

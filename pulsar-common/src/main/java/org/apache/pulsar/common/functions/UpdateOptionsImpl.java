@@ -26,9 +26,11 @@ import lombok.NoArgsConstructor;
 /**
  * Options while updating the sink.
  */
+@ApiModel(
+        value = "UpdateOptions",
+        description = "Options while updating the sink")
 @Data
 @NoArgsConstructor
-@ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
 public class UpdateOptionsImpl implements UpdateOptions {
     @ApiModelProperty(
             value = "Whether or not to update the auth data",
