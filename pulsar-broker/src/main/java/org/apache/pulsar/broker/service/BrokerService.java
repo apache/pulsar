@@ -2930,7 +2930,7 @@ public class BrokerService implements Closeable {
                                             && !topicName.isPartitioned()
                                             && pulsar.getBrokerService()
                                                             .isDefaultTopicTypePartitioned(topicName, policies)) {
-                                        isAllowAutoTopicCreationAsync(topicName, policies).thenAccept(allowed -> {
+                                        isAllowAutoTopicCreationAsync(topicName).thenAccept(allowed -> {
                                             if (allowed) {
                                                 pulsar.getBrokerService()
                                                         .createDefaultPartitionedTopicAsync(topicName, policies)
@@ -3157,42 +3157,38 @@ public class BrokerService implements Closeable {
         TopicName topicName = TopicName.get(topic);
         return isAllowAutoTopicCreationAsync(topicName);
     }
-
     public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName) {
-        Optional<Policies> policies =
-                pulsar.getPulsarResources().getNamespaceResources()
-                        .getPoliciesIfCached(topicName.getNamespaceObject());
-        return isAllowAutoTopicCreationAsync(topicName, policies);
-    }
-
-    private CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName,
-                                                                     final Optional<Policies> policies) {
-        if (policies.isPresent() && policies.get().deleted) {
-            log.info("Preventing AutoTopicCreation on a namespace that is being deleted {}",
-                    topicName.getNamespaceObject());
-            return CompletableFuture.completedFuture(false);
-        }
-        //System topic can always be created automatically
-        if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
-            return CompletableFuture.completedFuture(true);
-        }
-        final boolean allowed;
-        AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
-        if (autoTopicCreationOverride != null) {
-            allowed = autoTopicCreationOverride.isAllowAutoTopicCreation();
-        } else {
-            allowed = pulsar.getConfiguration().isAllowAutoTopicCreation();
-        }
-
-        if (allowed && topicName.isPartitioned()) {
-            // cannot re-create topic while it is being deleted
-            return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                    .isPartitionedTopicBeingDeletedAsync(topicName)
-                    .thenApply(beingDeleted -> !beingDeleted);
-        } else {
-            return CompletableFuture.completedFuture(allowed);
-        }
-
+        return pulsar.getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(topicName.getNamespaceObject(), true)
+                .thenCompose(
+                        policies -> {
+                            if (policies.isPresent() && policies.get().deleted) {
+                                log.info("Preventing AutoTopicCreation on a namespace that is being deleted {}",
+                                        topicName.getNamespaceObject());
+                                return CompletableFuture.completedFuture(false);
+                            }
+                            //System topic can always be created automatically
+                            if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
+                                return CompletableFuture.completedFuture(true);
+                            }
+                            final boolean allowed;
+                            AutoTopicCreationOverride autoTopicCreationOverride =
+                                    getAutoTopicCreationOverride(topicName, policies);
+                            if (autoTopicCreationOverride != null) {
+                                allowed = autoTopicCreationOverride.isAllowAutoTopicCreation();
+                            } else {
+                                allowed = pulsar.getConfiguration().isAllowAutoTopicCreation();
+                            }
+                            if (allowed && topicName.isPartitioned()) {
+                                // cannot re-create topic while it is being deleted
+                                return pulsar.getPulsarResources().getNamespaceResources()
+                                        .getPartitionedTopicResources()
+                                        .isPartitionedTopicBeingDeletedAsync(topicName)
+                                        .thenApply(beingDeleted -> !beingDeleted);
+                            } else {
+                                return CompletableFuture.completedFuture(allowed);
+                            }
+                        });
     }
 
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {

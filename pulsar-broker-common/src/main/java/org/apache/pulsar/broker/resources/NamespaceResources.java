@@ -122,7 +122,15 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns) {
-        return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        return getPoliciesAsync(ns, false);
+    }
+
+    public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns, boolean refresh) {
+        if (refresh) {
+            return refreshAndGetAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        } else {
+            return getAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        }
     }
 
     public void setPolicies(NamespaceName ns, Function<Policies, Policies> function) throws MetadataStoreException {
