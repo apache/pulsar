@@ -559,10 +559,15 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-s", "--subscriptions" }, description = "List of subscriptions to create")
+        private String subscriptions;
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().createMissedPartitions(topic);
+            List<String> subscriptionList =
+                    isNotBlank(subscriptions) ? Lists.newArrayList(subscriptions.split(",")) : null;
+            getTopics().createMissedPartitions(topic, subscriptionList);
         }
     }
 
