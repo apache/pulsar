@@ -42,6 +42,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 
 /**
  * Statistics for a non-persistent topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPersistentTopicStats {
@@ -148,7 +149,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
+    // stats. This stat addition is not thread-safe.
     public NonPersistentTopicStatsImpl add(NonPersistentTopicStats ts) {
         NonPersistentTopicStatsImpl stats = (NonPersistentTopicStatsImpl) ts;
         Objects.requireNonNull(stats);

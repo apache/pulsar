@@ -41,6 +41,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Statistics for a Pulsar topic.
+ * This class is not thread-safe.
  */
 @Data
 public class TopicStatsImpl implements TopicStats {
@@ -216,7 +217,7 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
+    // stats. This stat addition is not thread-safe.
     public TopicStatsImpl add(TopicStats ts) {
         TopicStatsImpl stats = (TopicStatsImpl) ts;
 
