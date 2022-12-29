@@ -38,6 +38,10 @@ public interface AcknowledgmentsGroupingTracker extends AutoCloseable {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Deprecated
+    CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType,
+                                                  Map<String, Long> properties);
+
     CompletableFuture<Void> addListAcknowledgment(List<MessageIdImpl> messageIds, Map<String, Long> properties);
 
     void flush();

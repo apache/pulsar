@@ -124,6 +124,17 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     }
 
     @Override
+    public CompletableFuture<Void> addListAcknowledgment(List<MessageId> messageIds, AckType ackType,
+                                                         Map<String, Long> properties) {
+        checkArgument(ackType == AckType.Individual);
+        final List<MessageIdImpl> messageIdImpls = new ArrayList<>();
+        for (MessageId messageId : messageIds) {
+            messageIdImpls.add((MessageIdImpl) messageId);
+        }
+        return addListAcknowledgment(messageIdImpls, properties);
+    }
+
+    @Override
     public CompletableFuture<Void> addListAcknowledgment(List<MessageIdImpl> messageIds,
                                                          Map<String, Long> properties) {
         Optional<Lock> readLock = acquireReadLock();
