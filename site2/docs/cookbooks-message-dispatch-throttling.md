@@ -48,7 +48,8 @@ Message dispatch throttling works divided into these steps:
 batch to read(see [Estimate the amount of data to be read from the Storage](#Estimate-the-amount-of-data-to-be-read-from-the-Storage)),
 but the sum of all the number of messages in batches may already exceed the flow threshold. 
 - Cause-2: The logic of the dispatch throttling is: `1.get remaining amount` -> `2.load data` -> `3.deduct amount`, If
-there are two process `a & b` are executed in parallel, it is possible to execute in this order: 
+there are two process "dispatch replay messages(we call it `a`)" and "dispatch non-replay messages(we call it `b`)" in
+the same subscription are executed in parallel, it is possible to execute in this order:
 `process-a: 1.get remaining amount` -> `process-a: 2.load data` -> `process-b: 1.get remaining amount` ->
 `process-b: 2.load data` -> `process-a: 3.deduct amount` -> `process-b: 3.deduct amount`, both `process-a` and
 `process-b` dispatch enough messages, and the total number exceeds the threshold.
@@ -73,7 +74,7 @@ algorithm 'avg = (history-avg * 0.9 + new-avg * 0.1)' is used.
 > but also maximizes pulsar's throughput while keeping storage read requests stable.
 
 #### Automatically close message dispatch throttling when there is no backlog
-After we turn on `dispatchThrottlingOnNonBacklogConsumerEnabled`(default is enabled), if all consumers in one
+After we turn off `dispatchThrottlingOnNonBacklogConsumerEnabled`(default is enabled), if all consumers in one
 subscription have no backlog(it is clear that almost all read requests can hit the cache), then message dispatch
 throttling is turned off automatically(it means that even if we set `dispatchThrottlingRateInMsg` and
 `dispatchThrottlingRateInByte`, throttling won't work because there is no backlog)，and if any consumer has backlog,
