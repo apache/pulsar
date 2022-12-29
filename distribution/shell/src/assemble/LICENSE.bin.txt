@@ -368,12 +368,6 @@ The Apache Software License, Version 2.0
     - netty-tcnative-boringssl-static-2.0.54.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.54.Final-windows-x86_64.jar
     - netty-tcnative-classes-2.0.54.Final.jar
-    - netty-incubator-transport-classes-io_uring-0.0.16.Final.jar
-    - netty-incubator-transport-native-io_uring-0.0.16.Final-linux-aarch_64.jar
-    - netty-incubator-transport-native-io_uring-0.0.16.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.1.86.Final.jar
-    - netty-resolver-dns-native-macos-4.1.86.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.86.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -404,7 +398,7 @@ The Apache Software License, Version 2.0
     - websocket-api-9.4.48.v20220622.jar
     - websocket-client-9.4.48.v20220622.jar
     - websocket-common-9.4.48.v20220622.jar
- * SnakeYaml -- snakeyaml-1.32.jar
+ * SnakeYaml -- snakeyaml-1.31.jar
  * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro
@@ -420,10 +414,6 @@ MIT License
     - slf4j-api-1.7.32.jar
  * The Checker Framework
     - checker-qual-3.12.0.jar
-
-Protocol Buffers License
- * Protocol Buffers
-   - protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- ../licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API
