@@ -29,7 +29,8 @@
   <includeBaseDirectory>true</includeBaseDirectory>
   <files>
     <file>
-      <source>${basedir}/../../LICENSE</source>
+      <source>${basedir}/src/assemble/LICENSE.bin.txt</source>
+      <destName>LICENSE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
