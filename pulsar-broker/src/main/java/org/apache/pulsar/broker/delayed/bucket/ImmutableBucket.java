@@ -90,7 +90,6 @@ class ImmutableBucket extends Bucket {
 
             return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
                 if (nextSegmentEntryId > lastSegmentEntryId) {
-                    // TODO Delete bucket snapshot
                     return CompletableFuture.completedFuture(null);
                 }
 
@@ -132,12 +131,26 @@ class ImmutableBucket extends Bucket {
         this.setNumberBucketDelayedMessages(numberMessages.getValue());
     }
 
+    CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
+        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), currentSegmentEntryId,
+                lastSegmentEntryId);
+    }
+
+    CompletableFuture<Void> asyncDeleteBucketSnapshot() {
+        return removeBucketCursorProperty(bucketKey()).thenCompose(__ ->
+                bucketSnapshotStorage.deleteBucketSnapshot(getAndUpdateBucketId()));
+    }
+
     void clear(boolean delete) {
         delayedIndexBitMap.clear();
         getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
             if (delete) {
                 snapshotGenerateFuture.cancel(true);
-                // TODO delete bucket snapshot
+                try {
+                    asyncDeleteBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
             } else {
                 try {
                     snapshotGenerateFuture.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
