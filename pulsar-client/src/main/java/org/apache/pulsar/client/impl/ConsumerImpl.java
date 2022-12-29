@@ -48,6 +48,8 @@ import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentNavigableMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -207,7 +209,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final AtomicReference<ClientCnx> clientCnxUsedForConsumerRegistration = new AtomicReference<>();
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
     // Key is the ledger id and the entry id, entry is the acker that represents which single messages are acknowledged
-    private final Map<Pair<Long, Long>, BatchMessageAcker> batchMessageToAcker = new ConcurrentHashMap<>();
+    private final ConcurrentNavigableMap<Pair<Long, Long>, BatchMessageAcker> batchMessageToAcker =
+            new ConcurrentSkipListMap<>();
 
     static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
                                                String topic,
@@ -546,6 +549,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    private void removeBatchMessageAckerUntil(Pair<Long, Long> position) {
+        for (Pair<Long, Long> key : batchMessageToAcker.keySet()) {
+            if (key.compareTo(position) <= 0) {
+                batchMessageToAcker.remove(key);
+            } else {
+                break;
+            }
+        }
+    }
+
     @Nullable
     private MessageIdImpl getMessageIdToAcknowledge(BatchMessageIdImpl messageId, AckType ackType) {
         final BatchMessageAcker acker;
@@ -565,7 +578,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         } else {
             if (acker.ackCumulative(messageId.getBatchIndex())) {
-                batchMessageToAcker.remove(Pair.of(messageId.getLedgerId(), messageId.getEntryId()));
+                removeBatchMessageAckerUntil(Pair.of(messageId.getLedgerId(), messageId.getEntryId()));
                 return messageId.toMessageIdImpl();
             } else if (conf.isBatchIndexAckEnabled()) {
                 return messageId;
@@ -574,7 +587,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     return null;
                 } else {
                     acker.setPrevBatchCumulativelyAcked(true);
-                    return messageId.prevBatchMessageId();
+                    MessageIdImpl prevMessageId = messageId.prevBatchMessageId();
+                    removeBatchMessageAckerUntil(Pair.of(prevMessageId.getLedgerId(), prevMessageId.getEntryId()));
+                    return prevMessageId;
                 }
             }
         }
@@ -2866,6 +2881,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         ClientCnx cnx = getClientCnx();
         return conf.isAckReceiptEnabled() && cnx != null
                 && Commands.peerSupportsAckReceipt(cnx.getRemoteEndpointProtocolVersion());
+    }
+
+    @VisibleForTesting
+    int getBatchMessageToAckerSize() {
+        return batchMessageToAcker.size();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);
