@@ -114,6 +114,7 @@ jobs:
 
       - name: Check binary licenses
         run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+             src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-shell.tar.gz
 
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
