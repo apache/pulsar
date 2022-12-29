@@ -295,13 +295,13 @@ You can obtain the metadata service URI of the existing BookKeeper cluster by us
 
 [BookKeeper](https://bookkeeper.apache.org) handles all persistent data storage in Pulsar. You need to deploy a cluster of BookKeeper bookies to use Pulsar. You can choose to run a **3-bookie BookKeeper cluster**.
 
-You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important step in configuring bookies for our purposes here is ensuring that [`zkServers`](reference-configuration.md#bookkeeper-zkServers) is set to the connection string for the ZooKeeper cluster. The following is an example:
+You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](reference-configuration.md#bookkeeper) configuration file. The most important step in configuring bookies for our purposes here is ensuring that `metadataServiceUri` is set to the URI for the ZooKeeper cluster. The following is an example:
 
 ```properties
-zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
+metadataServiceUri=zk://zk1.us-west.example.com:2181/ledgers
 ```
 
-Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](https://bookkeeper.apache.org/docs/next/reference/config/) for a more in-depth guide might be a better choice.
+Once you appropriately modify the `metadataServiceUri` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](https://bookkeeper.apache.org/docs/next/reference/config/) for a more in-depth guide might be a better choice.
 
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
