@@ -41,6 +41,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -66,15 +67,18 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor {
 
+    //Stored the unsealed aborted txn id, it will be persistent as a snapshot segment and reinit
+    // when its size reach the capital of a snapshot segment.
     private LinkedList<TxnID> unsealedAbortedTxnIdSegment;
 
-    //Store the fixed aborted transaction segment
-    private final ConcurrentSkipListMap<PositionImpl, TxnID> segmentIndex = new ConcurrentSkipListMap<>();
+    //A mapping form the latest txn mark persistent position in a segment to its txn ID.
+    //This is mainly used to trim expired snapshot segment.
+    private final LinkedMap<PositionImpl, TxnID> segmentIndex = new LinkedMap<>();
 
-    private final LinkedList<TxnID> aborts = new LinkedList<>();
-
-    private final ConcurrentSkipListMap<PositionImpl, TransactionBufferSnapshotIndex> indexes =
-            new ConcurrentSkipListMap<>();
+    //Store all aborted txn IDs check whether a txn is an aborted txn.
+    private final LinkedMap<TxnID, TxnID> aborts = new LinkedMap<>();
+    //The indexes of the snapshot segments.
+    private final LinkedMap<PositionImpl, TransactionBufferSnapshotIndex> indexes = new LinkedMap<>();
     //The latest persistent snapshot index. This is used to combine new segment indexes with the latest metadata and
     // indexes.
     private TransactionBufferSnapshotIndexes persistentSnapshotIndexes = new TransactionBufferSnapshotIndexes();
@@ -103,7 +107,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
-        aborts.add(abortedTxnId);
+        aborts.put(abortedTxnId, abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             LinkedList<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
@@ -116,7 +120,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
-        return aborts.contains(txnID);
+        return aborts.containsKey(txnID);
     }
 
     //In this implementation, we adopt snapshot segments. And then we clear invalid segment by its max read position.
@@ -208,7 +212,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         this.unsealedAbortedTxnIdSegment = convertTypeToTxnID(persistentSnapshotIndexes
                                 .getSnapshot().getAborts());
                         if (indexes.size() != 0) {
-                            persistentWorker.sequenceID.set(indexes.lastEntry().getValue().sequenceID + 1);
+                            persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
                         }
                     }
                     //Read snapshot segment to recover aborts.
@@ -323,7 +327,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         segmentIndex.put(new PositionImpl(snapshotSegment.getPersistentPositionLedgerId(),
                 snapshotSegment.getPersistentPositionEntryId()),
                 new TxnID(lastTxn.getMostSigBits(), lastTxn.getLeastSigBits()));
-        aborts.addAll(convertTypeToTxnID(snapshotSegment.getAborts()));
+        convertTypeToTxnID(snapshotSegment.getAborts()).forEach(txnID -> aborts.put(txnID, txnID));
     }
 
     private long getSystemClientOperationTimeoutMs() throws Exception {
@@ -526,8 +530,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                         this.topic.getName(), this.sequenceID, positionNeedToDelete);
                             }
                             TxnID theLatestDeletedTxnID = segmentIndex.remove(positionNeedToDelete);
-                            while (!aborts.getFirst().equals(theLatestDeletedTxnID)) {
-                                aborts.removeFirst();
+                            while (!aborts.firstKey().equals(theLatestDeletedTxnID)) {
+                                aborts.remove(aborts.firstKey());
                             }
                             aborts.remove(theLatestDeletedTxnID);
                             //The process will check whether the snapshot segment is null, and update index when
