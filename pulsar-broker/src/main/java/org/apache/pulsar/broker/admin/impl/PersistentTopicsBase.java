@@ -4686,18 +4686,24 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    @NotNull
     private static CompletableFuture<Void> trimNonPartitionedTopic(AsyncResponse asyncResponse,
                                                                    PersistentTopic topic) {
+        ManagedLedger managedLedger = topic.getManagedLedger();
+        if (managedLedger == null) {
+            asyncResponse.resume(null);
+            return CompletableFuture.completedFuture(null);
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
-        Optional.ofNullable(topic.getManagedLedger()).ifPresent(managedLedger ->
-                managedLedger.trimConsumedLedgersInBackground(new CompletableFuture<>()
-                        .thenAccept((v) -> result.complete(null))
-                        .exceptionally(e -> {
-                            result.completeExceptionally(e);
-                            return null;
-                        })));
-        return result.thenAccept(asyncResponse::resume);
+        managedLedger.trimConsumedLedgersInBackground(new CompletableFuture<>()
+                .whenComplete((v, e) -> {
+                    asyncResponse.resume(e);
+                    if (e != null) {
+                        result.completeExceptionally(e);
+                    } else {
+                        result.complete(null);
+                    }
+                }));
+        return result;
     }
 
     private CompletableFuture<Void> trimPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
