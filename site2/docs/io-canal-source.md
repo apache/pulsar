@@ -4,6 +4,12 @@ title: Canal source connector
 sidebar_label: "Canal source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Canal source connector pulls messages from MySQL to Pulsar topics.
 
 ## Configuration
@@ -71,7 +77,7 @@ Here is an example of storing MySQL data using the configuration file as above.
 
 2. Create a configuration file `mysqld.cnf`.
 
-   ```bash
+   ```properties
    [mysqld]
    pid-file    = /var/run/mysqld/mysqld.pid
    socket      = /var/run/mysqld/mysqld.sock
@@ -163,14 +169,14 @@ Here is an example of storing MySQL data using the configuration file as above.
    docker exec -it pulsar-standalone /bin/bash
    wget https://archive.apache.org/dist/pulsar/pulsar-2.3.0/connectors/pulsar-io-canal-2.3.0.nar -P connectors
    ./bin/pulsar-admin source localrun \
-   --archive ./connectors/pulsar-io-canal-2.3.0.nar \
-   --classname org.apache.pulsar.io.canal.CanalStringSource \
-   --tenant public \
-   --namespace default \
-   --name canal \
-   --destination-topic-name my-topic \
-   --source-config-file /pulsar/conf/canal-mysql-source-config.yaml \
-   --parallelism 1
+      --archive ./connectors/pulsar-io-canal-2.3.0.nar \
+      --classname org.apache.pulsar.io.canal.CanalStringSource \
+      --tenant public \
+      --namespace default \
+      --name canal \
+      --destination-topic-name my-topic \
+      --source-config-file /pulsar/conf/canal-mysql-source-config.yaml \
+      --parallelism 1
    ```
 
 12. Consume data from MySQL. 

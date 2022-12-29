@@ -512,7 +512,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
-
     @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
@@ -554,6 +553,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How often to check for topics that have reached the quota."
             + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
@@ -616,6 +616,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         dynamic = true,
         doc = "How often to check for inactive topics"
     )
@@ -665,6 +666,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How frequently to proactively check and purge expired messages"
     )
     private int messageExpiryCheckIntervalInMinutes = 5;
@@ -768,12 +770,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "Time of inactivity after which the broker will discard the deduplication information"
             + " relative to a disconnected producer. Default is 6 hours.")
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
@@ -1762,6 +1766,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
+            doc = "whether limit per_channel_bookie_client metrics of bookkeeper client stats"
+    )
+    private boolean bookkeeperClientLimitStatsLogging = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
             doc = "Throttle value for bookkeeper client"
     )
     private int bookkeeperClientThrottleValue = 0;
@@ -1864,6 +1874,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for bytes read from storage."
+            + " This is the memory retained by data read from storage (or cache) until it has been delivered to the"
+            + " Consumer Netty channel. Use O to disable")
+    private long managedLedgerMaxReadsInFlightSizeInMB = 0;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -1903,7 +1919,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
-    private String allowAutoTopicCreationType = "non-partitioned";
+    private TopicType allowAutoTopicCreationType = TopicType.NON_PARTITIONED;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -2699,6 +2715,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposePublisherStats = true;
     @FieldContext(
         category = CATEGORY_METRICS,
+        minValue = 1,
         doc = "Stats update frequency in seconds"
     )
     private int statsUpdateFrequencyInSecs = 60;
@@ -3189,7 +3206,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public boolean isDefaultTopicTypePartitioned() {
-        return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+        return TopicType.PARTITIONED.equals(allowAutoTopicCreationType);
     }
 
     public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {

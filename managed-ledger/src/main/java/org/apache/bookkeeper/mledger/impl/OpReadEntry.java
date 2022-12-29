@@ -156,7 +156,7 @@ class OpReadEntry implements ReadEntriesCallback {
                 cursor.readOperationCompleted();
 
             } finally {
-                cursor.ledger.getExecutor().executeOrdered(cursor.ledger.getName(), safeRun(() -> {
+                cursor.ledger.getExecutor().execute(safeRun(() -> {
                     callback.readEntriesComplete(entries, ctx);
                     recycle();
                 }));
@@ -166,10 +166,6 @@ class OpReadEntry implements ReadEntriesCallback {
 
     public int getNumberOfEntriesToRead() {
         return count - entries.size();
-    }
-
-    public boolean isSlowestReader() {
-        return cursor.ledger.getSlowestConsumer() == cursor;
     }
 
     private final Handle<OpReadEntry> recyclerHandle;

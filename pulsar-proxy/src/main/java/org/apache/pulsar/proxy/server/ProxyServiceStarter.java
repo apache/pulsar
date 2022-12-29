@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import lombok.Getter;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -131,7 +132,7 @@ public class ProxyServiceStarter {
                 }
             } catch (Exception e) {
                 jcommander.usage();
-                System.exit(-1);
+                System.exit(1);
             }
 
             // load config file
@@ -239,8 +240,11 @@ public class ProxyServiceStarter {
             if (server != null) {
                 server.stop();
             }
+            CollectorRegistry.defaultRegistry.clear();
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+        } finally {
+            LogManager.shutdown();
         }
     }
 

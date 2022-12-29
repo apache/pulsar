@@ -22,18 +22,18 @@ If the consumption of a message fails and you want this message to be consumed a
 
 Messages are the basic "unit" of Pulsar. The following table lists the components of messages.
 
-Component | Description
-:---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data [schemas](schema-get-started.md).
-Key | The key (string type) of the message. It is a short name of message key or partition key. Messages are optionally tagged with keys, which is useful for features like [topic compaction](concepts-topic-compaction.md).
-Properties | An optional key/value map of user-defined properties.
-Producer name | The name of the producer who produces the message. If you do not specify a producer name, the default name is used.
-Topic name | The name of the topic that the message is published to.
-Schema version | The version number of the schema that the message is produced with.
-Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of a message is initially assigned by its producer, indicating its order in that sequence, and can also be customized.<br />Sequence ID can be used for message deduplication. If `brokerDeduplicationEnabled` is set to `true`, the sequence ID of each message is unique within a producer of a topic (non-partitioned) or a partition.
-Message ID | The message ID of a message is assigned by bookies as soon as the message is persistently stored. Message ID indicates a message’s specific position in a ledger and is unique within a Pulsar cluster.
-Publish time | The timestamp of when the message is published. The timestamp is automatically applied by the producer.
-Event time | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`.
+| Component            | Description                                                                                                                                                                                                                                                                                                                                                                                                                |
+|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Value / data payload | The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data [schemas](schema-get-started.md).                                                                                                                                                                                                                                                                   |
+| Key                  | The key (string type) of the message. It is a short name of message key or partition key. Messages are optionally tagged with keys, which is useful for features like [topic compaction](concepts-topic-compaction.md).                                                                                                                                                                                                    |
+| Properties           | An optional key/value map of user-defined properties.                                                                                                                                                                                                                                                                                                                                                                      |
+| Producer name        | The name of the producer who produces the message. If you do not specify a producer name, the default name is used.                                                                                                                                                                                                                                                                                                        |
+| Topic name           | The name of the topic that the message is published to.                                                                                                                                                                                                                                                                                                                                                                    |
+| Schema version       | The version number of the schema that the message is produced with.                                                                                                                                                                                                                                                                                                                                                        |
+| Sequence ID          | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of a message is initially assigned by its producer, indicating its order in that sequence, and can also be customized.<br />Sequence ID can be used for message deduplication. If `brokerDeduplicationEnabled` is set to `true`, the sequence ID of each message is unique within a producer of a topic (non-partitioned) or a partition. |
+| Message ID           | The message ID of a message is assigned by bookies as soon as the message is persistently stored. Message ID indicates a message’s specific position in a ledger and is unique within a Pulsar cluster.                                                                                                                                                                                                                    |
+| Publish time         | The timestamp of when the message is published. The timestamp is automatically applied by the producer.                                                                                                                                                                                                                                                                                                                    |
+| Event time           | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`.                                                                                                                                                                                                                             |
 
 The default size of a message is 5 MB. You can configure the max size of a message with the following configurations.
 
@@ -61,21 +61,21 @@ A producer is a process that attaches to a topic and publishes messages to a Pul
 
 Producers send messages to brokers synchronously (sync) or asynchronously (async).
 
-| Mode       | Description |
-|:-----------|-----------|
-| Sync send  | The producer waits for an acknowledgment from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.                                                                                                                                                                                    |
+| Mode       | Description                                                                                                                                                                                                                                                                                                                                                      |
+|:-----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sync send  | The producer waits for an acknowledgment from the broker after sending every message. If the acknowledgment is not received, the producer treats the sending operation as a failure.                                                                                                                                                                             |
 | Async send | The producer puts a message in a blocking queue and returns immediately. The client library sends the message to the broker in the background. If the queue is full (you can [configure](reference-configuration.md#broker) the maximum size), the producer is blocked or fails immediately when calling the API, depending on arguments passed to the producer. |
 
 ### Access mode
 
 You can have different types of access modes on topics for producers.
 
-Access mode | Description
-:-----------|------------
-`Shared`           | Multiple producers can publish on a topic. <br /><br />This is the **default** setting.
-`Exclusive`        | Only one producer can publish on a topic. <br /><br />If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br /><br />The "old" producer is evicted and a "new" producer is selected to be the next exclusive producer if the "old" producer experiences a network partition with the broker.
-`ExclusiveWithFencing`|Only one producer can publish on a topic. <br /><br />If there is already a producer connected, it will be removed and invalidated immediately.
-`WaitForExclusive` | If there is already a producer connected, the producer creation is pending (rather than timing out) until the producer gets the `Exclusive` access.<br /><br />The producer that succeeds in becoming the exclusive one is treated as the leader. Consequently, if you want to implement a leader election scheme for your application, you can use this access mode. Note that the leader pattern scheme mentioned refers to using Pulsar as a Write-Ahead Log (WAL) which means the leader writes its "decisions" to the topic. On error cases, the leader will get notified it is no longer the leader *only* when it tries to write a message and fails on appropriate error, by the broker.
+| Access mode            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+|:-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Shared`               | Multiple producers can publish on a topic. <br /><br />This is the **default** setting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `Exclusive`            | Only one producer can publish on a topic. <br /><br />If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br /><br />The "old" producer is evicted and a "new" producer is selected to be the next exclusive producer if the "old" producer experiences a network partition with the broker.                                                                                                                                                                                                                                                                                                                                       |
+| `ExclusiveWithFencing` | Only one producer can publish on a topic. <br /><br />If there is already a producer connected, it will be removed and invalidated immediately.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `WaitForExclusive`     | If there is already a producer connected, the producer creation is pending (rather than timing out) until the producer gets the `Exclusive` access.<br /><br />The producer that succeeds in becoming the exclusive one is treated as the leader. Consequently, if you want to implement a leader election scheme for your application, you can use this access mode. Note that the leader pattern scheme mentioned refers to using Pulsar as a Write-Ahead Log (WAL) which means the leader writes its "decisions" to the topic. On error cases, the leader will get notified it is no longer the leader *only* when it tries to write a message and fails on appropriate error, by the broker. |
 
 :::note
 
@@ -99,9 +99,9 @@ Compression types are stored in the message metadata, so consumers can adopt dif
 
 The sample code below shows how to enable compression type for a producer:
 
-```
+```java
 client.newProducer()
-    .topic(“topic-name”)
+    .topic("topic-name")
     .compressionType(CompressionType.LZ4)
     .create();
 ```
@@ -126,7 +126,6 @@ For example:
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer()
-        .newConsumer(Schema.BYTES)
         .topic(topicName)
         .subscriptionName(subscriptionName)
         .subscriptionType(subType)
@@ -281,16 +280,16 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer()
 
 The message redelivery behavior should be as follows.
 
-Redelivery count | Redelivery delay
-:--------------------|:-----------
-1 | 1 seconds
-2 | 2 seconds
-3 | 4 seconds
-4 | 8 seconds
-5 | 16 seconds
-6 | 32 seconds
-7 | 60 seconds
-8 | 60 seconds
+| Redelivery count | Redelivery delay |
+|:-----------------|:-----------------|
+| 1                | 1 seconds        |
+| 2                | 2 seconds        |
+| 3                | 4 seconds        |
+| 4                | 8 seconds        |
+| 5                | 16 seconds       |
+| 6                | 32 seconds       |
+| 7                | 60 seconds       |
+| 8                | 60 seconds       |
 
 :::note
 
@@ -299,6 +298,12 @@ If batching is enabled, all messages in one batch are redelivered to the consume
 :::
 
 ### Acknowledgment timeout
+
+:::note
+
+By default, the acknowledge timeout is disabled and that means that messages delivered to a consumer will not be re-delivered unless the consumer crashes.
+
+:::
 
 The acknowledgment timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgment timeout (`ackTimeout`) period, the client sends `redeliver unacknowledged messages` request to the broker, thus the broker resends the unacknowledged messages to the consumer.
 
@@ -311,24 +316,24 @@ If you want to use redelivery backoff, you can use the following API.
 ```java
 consumer.ackTimeout(10, TimeUnit.SECOND)
         .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-        .minDelayMs(1000)
-        .maxDelayMs(60 * 1000)
-        .multiplier(2)
-        .build())
+            .minDelayMs(1000)
+            .maxDelayMs(60 * 1000)
+            .multiplier(2)
+            .build());
 ```
 
 The message redelivery behavior should be as follows.
 
-Redelivery count | Redelivery delay
-:--------------------|:-----------
-1 | 10 + 1 seconds
-2 | 10 + 2 seconds
-3 | 10 + 4 seconds
-4 | 10 + 8 seconds
-5 | 10 + 16 seconds
-6 | 10 + 32 seconds
-7 | 10 + 60 seconds
-8 | 10 + 60 seconds
+| Redelivery count | Redelivery delay |
+|:-----------------|:-----------------|
+| 1                | 10 + 1 seconds   |
+| 2                | 10 + 2 seconds   |
+| 3                | 10 + 4 seconds   |
+| 4                | 10 + 8 seconds   |
+| 5                | 10 + 16 seconds  |
+| 6                | 10 + 32 seconds  |
+| 7                | 10 + 60 seconds  |
+| 8                | 10 + 60 seconds  |
 
 :::note
 
@@ -357,7 +362,7 @@ consumer.acknowledge(message);
 
 ### Retry letter topic
 
-The retry letter topic allows you to store the messages that failed to be consumed and retry consuming them later. With this method, you can customize the interval at which the messages are redelivered. Consumers on the original topic are automatically subscribed to the retry letter topic as well. Once the maximum number of retries has been reached, the unconsumed messages are moved to a [dead letter topic](#dead-letter-topic) for manual processing.
+Retry letter topic allows you to store the messages that failed to be consumed and retry consuming them later. With this method, you can customize the interval at which the messages are redelivered. Consumers on the original topic are automatically subscribed to the retry letter topic as well. Once the maximum number of retries has been reached, the unconsumed messages are moved to a [dead letter topic](#dead-letter-topic) for manual processing. The functionality of a retry letter topic is implemented by consumers. 
 
 The diagram below illustrates the concept of the retry letter topic.
 ![](/assets/retry-letter-topic.svg)
@@ -382,7 +387,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 The default retry letter topic uses this format:
 
-```
+```text
 <topicname>-<subscriptionname>-RETRY
 ```
 
@@ -403,12 +408,12 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 The messages in the retry letter topic contain some special properties that are automatically created by the client.
 
-Special property | Description
-:--------------------|:-----------
-`REAL_TOPIC` | The real topic name.
-`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
-`RECONSUMETIMES`   | The number of retries to consume messages.
-`DELAY_TIME`      | Message retry interval in milliseconds.
+| Special property    | Description                                                |
+|:--------------------|:-----------------------------------------------------------|
+| `REAL_TOPIC`        | The real topic name.                                       |
+| `ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking. |
+| `RECONSUMETIMES`    | The number of retries to consume messages.                 |
+| `DELAY_TIME`        | Message retry interval in milliseconds.                    |
 
 **Example**
 
@@ -443,7 +448,7 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 
 ### Dead letter topic
 
-Dead letter topic allows you to continue message consumption even when some messages are not consumed successfully. The messages that have failed to be consumed are stored in a specific topic, which is called the dead letter topic. You can decide how to handle the messages in the dead letter topic.
+Dead letter topic allows you to continue message consumption even when some messages are not consumed successfully. The messages that have failed to be consumed are stored in a specific topic, which is called the dead letter topic. The functionality of a dead letter topic is implemented by consumers. You can decide how to handle the messages in the dead letter topic. 
 
 Enable dead letter topic in a Java client using the default dead letter topic.
 
@@ -509,12 +514,12 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 {persistent|non-persistent}://tenant/namespace/topic
 ```
 
-Topic name component | Description
-:--------------------|:-----------
-`persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](concepts-architecture-overview.md#persistent-storage) and [non-persistent](#non-persistent-topics). The default is persistent, so if you do not specify a type, the topic is persistent. With persistent topics, all messages are durably persisted on disks (if the broker is not standalone, messages are durably persisted on multiple disks), whereas data for non-persistent topics is not persisted to storage disks.
-`tenant`             | The topic tenant within the instance. Tenants are essential to multi-tenancy in Pulsar, and spread across clusters.
-`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or more namespaces.
-`topic`              | The final part of the name. Topic names have no special meaning in a Pulsar instance.
+| Topic name component            | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+|:--------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](concepts-architecture-overview.md#persistent-storage) and [non-persistent](#non-persistent-topics). The default is persistent, so if you do not specify a type, the topic is persistent. With persistent topics, all messages are durably persisted on disks (if the broker is not standalone, messages are durably persisted on multiple disks), whereas data for non-persistent topics is not persisted to storage disks. |
+| `tenant`                        | The topic tenant within the instance. Tenants are essential to multi-tenancy in Pulsar, and spread across clusters.                                                                                                                                                                                                                                                                                                                                                                                             |
+| `namespace`                     | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or more namespaces.                                                                                                                                                                                                                                                                                               |
+| `topic`                         | The final part of the name. Topic names have no special meaning in a Pulsar instance.                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 :::note
 
@@ -570,7 +575,7 @@ In the *Failover* type, multiple consumers can attach to the same subscription. 
 
 For example, a partitioned topic has 3 partitions, and 15 consumers. Each partition will have 1 active consumer and 4 stand-by consumers.
 
-In the diagram below, **Consumer A** is the master consumer while **Consumer B** would be the next consumer in line to receive messages if **Consumer B** is disconnected.
+In the diagram below, **Consumer A** is the master consumer while **Consumer B** would be the next consumer in line to receive messages if **Consumer A** is disconnected.
 
 ![Failover subscriptions](/assets/pulsar-failover-subscriptions.svg)
 
@@ -593,9 +598,156 @@ In the diagram below, **Consumer A**, **Consumer B** and **Consumer C** are all 
 
 #### Key_Shared
 
-In the *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connects or disconnects, it causes the served consumer to change some message keys.
+In the *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. 
 
 ![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.svg)
+
+There are three types of mapping algorithms dictating how to select a consumer for a given message key (or ordering key): Sticky, Auto-split Hash Range, and Auto-split Consistent Hashing. The steps for all algorithms are:
+1. The message key (or ordering key) is passed to a hash function (e.g., Murmur3 32-bit), yielding a 32-bit integer hash. 
+2. That hash number is fed to the algorithm to select a consumer from the existing connected consumers.
+
+```
+                      +--------------+                              +-----------+
+Message Key ----->  / Hash Function / ----- hash (32-bit) -------> / Algorithm / ----> Consumer   
+                   +---------------+                               +----------+
+```
+
+
+When a new consumer is connected and thus added to the list of connected consumers, the algorithm re-adjusts the mapping such that some keys currently mapped to existing consumers will be mapped to the newly added consumer. When a consumer is disconnected, thus removed from the list of connected consumers, keys mapped to it will be mapped to other consumers. The sections below will explain how a consumer is selected given the message hash and how the mapping is adjusted given a new consumer is connected or an existing consumer disconnects for each algorithm.
+
+##### Auto-split Hash Range
+
+The algorithm assumes there is a range of numbers between 0 to 2^16 (65,536). Each consumer is mapped into a single region in this range, so all mapped regions cover the entire range, and no regions overlap. A consumer is selected for a given key by running a modulo operation on the message hash by the range size (65,536). The number received ( 0 <= i < 65,536) is contained within a single region. The consumer mapped to that region is the one selected.
+
+Example:
+
+Suppose we have 4 consumers (C1, C2, C3 and C4), then:
+
+```
+ 0               16,384            32,768           49,152             65,536
+ |------- C3 ------|------- C2 ------|------- C1 ------|------- C4 ------|
+```
+
+Given a message key `Order-3459134`, its hash would be `murmur32("Order-3459134") = 3112179635`, and its index in the range would be `3112179635 mod 65536 = 6067`. That index is contained within region `[0, 16384)` thus consumer C3 will be mapped to this message key.
+
+When a new consumer is connected, the largest region is chosen and is then split in half - the lower half will be mapped to the newly added consumer and upper half will be mapped to the consumer owning that region. Here is how it looks like from 1 to 4 consumers:
+
+```
+C1 connected:
+|---------------------------------- C1 ---------------------------------|
+
+C2 connected:
+|--------------- C2 ----------------|---------------- C1 ---------------|
+
+C3 connected:
+|------- C3 ------|------- C2 ------|---------------- C1 ---------------|
+
+C4 connected:
+|------- C3 ------|------- C2 ------|------- C4 ------|------- C1 ------|
+```
+
+When a consumer is disconnected its region will be merged into the region on its right. Examples:
+
+C4 is disconnected:
+
+```
+|------- C3 ------|------- C2 ------|---------------- C1 ---------------|
+```
+
+C1 is disconnected:
+
+```
+|------- C3 ------|-------------------------- C2 -----------------------|
+```
+
+The advantages of this algorithm is that it affects only a single existing consumer upon add/delete consumer, at the expense of regions not evenly sized. Thi means some consumers gets more keys that others. The next algorithm does the other way around. 
+
+##### Auto-split Consistent Hashing
+
+This algorithm uses a Hash Ring. It's a range of number from 0 to MAX_INT (32-bit) in which if you traverse the range, when reaching MAX_INT, the next number would be zero. It is as if you took a line starting from 0 ending at MAX_INT and bent into a circle such that the end glues to the start:
+
+```
+ MAX_INT -----++--------- 0
+              ||
+         , - ~ ~ ~ - ,
+     , '               ' ,
+   ,                       ,
+  ,                         ,
+ ,                           ,
+ ,                           ,
+ ,                           ,
+  ,                         ,
+   ,                       ,
+     ,                  , '
+       ' - , _ _ _ ,  '
+```
+
+When adding a consumer, we mark 100 points on that circle and associate them to the newly added consumer. For each number between 1 and 100, we concatenate the consumer name to that number and run the hash function on it to get the location of the point on the circle that will be marked. For Example, if the consumer name is "orders-aggregator-pod-2345-consumer" then we would mark 100 points on that circle:
+```
+    murmur32("orders-aggregator-pod-2345-consumer1") = 1003084738
+    murmur32("orders-aggregator-pod-2345-consumer2") = 373317202
+    ...
+    murmur32("orders-aggregator-pod-2345-consumer100") = 320276078
+```
+
+Since the hash function has the uniform distribution attribute, those points would be uniformly distributed across the circle.
+
+```
+    C1-100                 
+         , - ~ ~ ~ - ,   C1-1
+     , '               ' ,
+   ,                       ,
+  ,                         , C1-2
+ ,                           ,
+ ,                           ,
+ ,                           ,
+  ,                         ,  C1-3
+   ,                       ,
+     ,                  , '
+       ' - , _ _ _ ,  '      ...
+ 
+```
+
+A consumer is selected for a given message key by putting its hash on the circle then continue clock-wise on the circle until you reach a marking point. The point might have more than one consumer on it (hash function might have collisions) there for, we run the following operation to get a position within the list of consumers for that point, then we take the consumer in that position: `hash % consumer_list_size = index`.
+
+When a consumer is added, we add 100 marking points to the circle as explained before. Due to the uniform distribution of the hash function, those 100 points act as if the new consumer takes a small slice of keys out of each existing consumer. It maintains the even distribution, on the trade-off that it impacts all existing consumers. [This video](https://www.youtube.com/watch?v=zaRkONvyGr8) explains the concept of Consistent Hashing quite well (the only difference is that in Pulsar's case we used K points instead of K hash functions as noted in the comments)
+
+##### Sticky
+
+The algorithm assumes there is a range of numbers between 0 to 2^16 (65,536). Each consumer is mapped to a multiple regions in this range and there is no overlap between regions. The consumer is selected by running a modulo operation on the message hash by the range size (65,536), the number received (0 <= i < 65,536), is contained within a single region. The consumer mapped to the region is the one selected.
+In this algorithm you have full control. Every newly added consumer specifies the ranges it wishes to be mapped to by using Consumer API. When the consumer object is constructed, you can specify the list of ranges. It's your responsibility to make sure there are no overlaps and all the range is covered by regions.
+
+Example:
+
+Suppose we have 2 consumers (C1 and C2) each specified their ranges, then:
+
+```
+C1 = [0, 16384), (32768, 49152]
+C2 = [16384, 32768), (49,152, 65536]
+ 
+ 0               16,384            32,768           49,152             65,536
+ |------- C1 ------|------- C2 ------|------- C1 ------|------- C2 ------|
+```
+
+Given a message key `Order-3459134`, it's hash would be `murmur32("Order-3459134") = 3112179635`, and it's index in the range would be `3112179635 mod 65536 = 6067`. That index is contained within `[0, 16384)` thus consumer C1 will map to this message key.
+
+If the newly connected consumer didn't supply their ranges, or they overlap with existing consumer ranges, it's disconnected, removed from the consumers list and reverted as if it never tried to connect.
+
+##### How to use them?
+
+When building the consumer, you can specify the Key Shared Mode: 
+* AUTO_SPLIT - Auto-split Hash Range
+* STICKY - Sticky
+
+Consistent Hashing will be used instead of Hash Range for Auto-split if the broker configuration `subscriptionKeySharedUseConsistentHashing` is enabled.
+
+##### Preserving order of processing
+
+Key Shared Subscription type guarantees a key will be processed by a *single* consumer at any given time. When a new consumer is connected, some keys will change their mapping from existing consumers to the new consumer. Once the connection has been established, the broker will record the current read position and associate it with the new consumer. The read position is a marker indicating that messages have been dispatched to the consumers up to this point, and after it, no messages have been dispatched yet. The broker will start delivering messages to the new consumer *only* when all messages up to the read position have been acknowledged. This will guarantee that a certain key is processed by a single consumer at any given time. The trade-off is that if one of the existing consumers is stuck and no time-out was defined (acknowledging for you), the new consumer won't receive any messages until the stuck consumer resumes or gets disconnected.
+
+That requirement can be relaxed by enabling `allowOutOfOrderDelivery` via the Consumer API. If set on the new consumer, then when it is connected, the broker will allow it to receive messages knowing some messages of that key may be still be processing in other consumers at the time, thus order may be affected for that short period of adding a new consumer.
+
+##### Batching for Key Shared Subscriptions
 
 :::note
 
@@ -666,10 +818,10 @@ The subscription mode indicates the cursor type.
 
 - When a consumer of the subscription restarts, it can continue consuming from the last message it consumes.
 
-Subscription mode | Description | Note
-:-----------------|:------------|:------------
-`Durable` | The cursor is durable, which retains messages and persists the current position. <br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position. | `Durable` is the **default** subscription mode.
-`NonDurable` | The cursor is non-durable. <br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position. | Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed.
+| Subscription mode | Description                                                                                                                                                                                                                                                                   | Note                                                                                                                                                                |
+|:------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Durable`         | The cursor is durable, which retains messages and persists the current position. <br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position. | `Durable` is the **default** subscription mode.                                                                                                                     |
+| `NonDurable`      | The cursor is non-durable. <br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.                                                                                    | Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. |
 
 A [subscription](#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription that does not exist before, the subscription is automatically created.
 
@@ -789,11 +941,11 @@ When publishing to partitioned topics, you must specify a *routing mode*. The ro
 
 There are three {@inject: javadoc:MessageRoutingMode:/client/org/apache/pulsar/client/api/MessageRoutingMode} available:
 
-Mode     | Description
-:--------|:------------
-`RoundRobinPartition` | If no key is provided, the producer will publish messages across all partitions in round-robin fashion to achieve maximum throughput. Please note that round-robin is not done per individual message but rather it's set to the same boundary of batching delay, to ensure batching is effective. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition. This is the default mode.
-`SinglePartition`     | If no key is provided, the producer will randomly pick one single partition and publish all the messages into that partition. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition.
-`CustomPartition`     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java.md) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
+| Mode                  | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+|:----------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `RoundRobinPartition` | If no key is provided, the producer will publish messages across all partitions in round-robin fashion to achieve maximum throughput. Please note that round-robin is not done per individual message but rather it's set to the same boundary of batching delay, to ensure batching is effective. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition. This is the default mode. |
+| `SinglePartition`     | If no key is provided, the producer will randomly pick one single partition and publish all the messages into that partition. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition.                                                                                                                                                                                                |
+| `CustomPartition`     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java.md) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.                                                                                                                                  |
 
 ### Ordering guarantee
 
@@ -801,10 +953,10 @@ The ordering of messages is related to MessageRoutingMode and Message Key. Usual
 
 If there is a key attached to message, the messages will be routed to corresponding partitions based on the hashing scheme specified by {@inject: javadoc:HashingScheme:/client/org/apache/pulsar/client/api/HashingScheme} in {@inject: javadoc:ProducerBuilder:/client/org/apache/pulsar/client/api/ProducerBuilder}, when using either `SinglePartition` or `RoundRobinPartition` mode.
 
-Ordering guarantee | Description | Routing Mode and Key
-:------------------|:------------|:------------
-Per-key-partition  | All the messages with the same key will be in order and be placed in same partition. | Use either `SinglePartition` or `RoundRobinPartition` mode, and Key is provided by each message.
-Per-producer       | All the messages from the same producer will be in order. | Use `SinglePartition` mode, and no Key is provided for each message.
+| Ordering guarantee | Description                                                                          | Routing Mode and Key                                                                             |
+|:-------------------|:-------------------------------------------------------------------------------------|:-------------------------------------------------------------------------------------------------|
+| Per-key-partition  | All the messages with the same key will be in order and be placed in same partition. | Use either `SinglePartition` or `RoundRobinPartition` mode, and Key is provided by each message. |
+| Per-producer       | All the messages from the same producer will be in order.                            | Use `SinglePartition` mode, and no Key is provided for each message.                             |
 
 ### Hashing scheme
 

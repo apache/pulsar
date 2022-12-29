@@ -4,6 +4,12 @@ title: Aerospike sink connector
 sidebar_label: "Aerospike sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Aerospike sink connector pulls messages from Pulsar topics to Aerospike clusters.
 
 ## Configuration

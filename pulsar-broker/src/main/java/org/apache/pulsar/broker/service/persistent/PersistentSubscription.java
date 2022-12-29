@@ -883,7 +883,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
-            return this.pendingAckHandle.close().thenAccept(v -> {
+            return this.pendingAckHandle.closeAsync().thenAccept(v -> {
                 IS_FENCED_UPDATER.set(this, TRUE);
                 log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
             });

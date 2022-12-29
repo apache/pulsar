@@ -245,7 +245,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void insertionDeletion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
         MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
 
         String key1 = newKey();

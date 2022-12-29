@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterMetricsStats;
@@ -159,15 +160,21 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                         pendingAckStoreFuture.completeExceptionally(exception);
                                     }
                                 }, () -> true, null);
-            });
-        }).exceptionally(e -> {
-            log.error("Failed to obtain the existence of ManagerLedger with topic and subscription : "
-                    + originPersistentTopic.getSubscriptions() + "  "
-                    + subscription.getName());
-            pendingAckStoreFuture.completeExceptionally(
-                    e.getCause());
-            return null;
-        });
+                    }).exceptionally(e -> {
+                        Throwable t = FutureUtil.unwrapCompletionException(e);
+                        log.error("[{}] [{}] Failed to get managedLedger config when init pending ack store!",
+                                originPersistentTopic, subscription, t);
+                        pendingAckStoreFuture.completeExceptionally(t);
+                        return null;
+
+                    });
+                }).exceptionally(e -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] [{}] Failed to check the pending ack topic exist when init pending ack store!",
+                            originPersistentTopic, subscription, t);
+                    pendingAckStoreFuture.completeExceptionally(t);
+                    return null;
+                });
         return pendingAckStoreFuture;
     }
 

@@ -210,7 +210,7 @@ public class AsyncHttpConnector implements Connector {
     private URI replaceWithNew(InetSocketAddress address, URI uri) {
         String originalUri = uri.toString();
         String newUri = (originalUri.split(":")[0] + "://")
-                + address.getHostName() + ":"
+                + address.getHostString() + ":"
                 + address.getPort()
                 + uri.getRawPath();
         if (uri.getRawQuery() != null) {
@@ -241,6 +241,9 @@ public class AsyncHttpConnector implements Connector {
 
                     @Override
                     public String getReasonPhrase() {
+                        if (response.hasResponseBody()) {
+                            return response.getResponseBody();
+                        }
                         return response.getStatusText();
                     }
                 });

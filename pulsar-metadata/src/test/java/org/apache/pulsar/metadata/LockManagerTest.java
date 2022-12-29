@@ -53,7 +53,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void acquireLocks(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -104,7 +104,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void cleanupOnClose(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -135,7 +135,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void updateValue(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -159,7 +159,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void updateValueWhenVersionIsOutOfSync(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -187,7 +187,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void updateValueWhenKeyDisappears(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -213,7 +213,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void revalidateLockWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService cs2 = new CoordinationServiceImpl(store);

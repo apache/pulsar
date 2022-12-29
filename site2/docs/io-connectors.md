@@ -139,7 +139,13 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 * [Configuration](io-aerospike-sink.md#configuration)
 
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/aerospike/src/main/java/org/apache/pulsar/io/aerospike/AerospikeStringSink.java)
-  
+
+### Alluxio
+
+* [Configuration](io-alluxio.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/alluxio/src/main/java/org/apache/pulsar/io/alluxio/sink/AlluxioSink.java)
+
 ### Cassandra
 
 * [Configuration](io-cassandra-sink.md#configuration)
@@ -177,6 +183,12 @@ Pulsar has various sink connectors, which are sorted alphabetically as below.
 * [Configuration](io-hdfs3-sink.md#configuration)
   
 * [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/hdfs3/src/main/java/org/apache/pulsar/io/hdfs3/AbstractHdfsConnector.java)
+
+### HTTP
+
+* [Configuration](io-http-sink.md#configuration)
+
+* [Java class](https://github.com/apache/pulsar/blob/master/pulsar-io/http/src/main/java/org/apache/pulsar/io/http/HttpSink.java)
 
 ### InfluxDB
 

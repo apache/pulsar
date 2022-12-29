@@ -28,6 +28,7 @@ import lombok.Data;
 public class OpGetChildren implements MetadataOp {
 
     private final String path;
+    public final long created = System.currentTimeMillis();
     private final CompletableFuture<List<String>> future = new CompletableFuture<>();
 
     @Override
@@ -38,5 +39,10 @@ public class OpGetChildren implements MetadataOp {
     @Override
     public int size() {
         return path.length();
+    }
+
+    @Override
+    public long created() {
+        return this.created;
     }
 }

@@ -45,12 +45,12 @@ import org.apache.pulsar.functions.worker.service.api.Workers;
 public class Worker extends AdminResource implements Supplier<WorkerService> {
 
     Workers<? extends WorkerService> workers() {
-        return pulsar().getWorkerService().getWorkers();
+        return validateAndGetWorkerService().getWorkers();
     }
 
     @Override
     public WorkerService get() {
-        return pulsar().getWorkerService();
+        return validateAndGetWorkerService();
     }
 
     @GET

@@ -81,8 +81,8 @@ Take **Admin CLI** as an example. For more information about **REST API** or **J
 
 ```bash
 bin/pulsar-admin sources create \
---processing-guarantees ATMOST_ONCE \
-# Other source configs
+    --processing-guarantees ATMOST_ONCE \
+    # Other source configs
 ```
 
 For more information about the options of `pulsar-admin sources create`, see [here](reference-connector-admin.md).
@@ -92,8 +92,8 @@ For more information about the options of `pulsar-admin sources create`, see [he
 
 ```bash
 bin/pulsar-admin sinks create \
---processing-guarantees EFFECTIVELY_ONCE \
-# Other sink configs
+    --processing-guarantees EFFECTIVELY_ONCE \
+    # Other sink configs
 ```
 
 For more information about the options of `pulsar-admin sinks create`, see [here](reference-connector-admin.md).
@@ -124,8 +124,8 @@ Take **Admin CLI** as an example. For more information about **REST API** or **J
 
 ```bash
 bin/pulsar-admin sources update \
---processing-guarantees EFFECTIVELY_ONCE \
-# Other source configs
+    --processing-guarantees EFFECTIVELY_ONCE \
+    # Other source configs
 ```
 
 For more information about the options of `pulsar-admin sources update`, see [here](reference-connector-admin.md).
@@ -135,8 +135,8 @@ For more information about the options of `pulsar-admin sources update`, see [he
 
 ```bash
 bin/pulsar-admin sinks update \
---processing-guarantees ATMOST_ONCE \
-# Other sink configs
+    --processing-guarantees ATMOST_ONCE \
+    # Other sink configs
 ```
 
 For more information about the options of `pulsar-admin sinks update`, see [here](reference-connector-admin.md).

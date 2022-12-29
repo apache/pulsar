@@ -4,6 +4,12 @@ title: NSQ source connector
 sidebar_label: "NSQ source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The NSQ source connector receives messages from NSQ topics 
 and writes messages to Pulsar topics.
 

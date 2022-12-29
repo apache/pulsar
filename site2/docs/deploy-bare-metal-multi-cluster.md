@@ -205,13 +205,13 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](refer
 
 ```shell
 bin/pulsar initialize-cluster-metadata \
---cluster us-west \
---metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
---configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
---web-service-url http://pulsar.us-west.example.com:8080/ \
---web-service-url-tls https://pulsar.us-west.example.com:8443/ \
---broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
---broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+    --cluster us-west \
+    --metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+    --configuration-metadata-store zk:zk1.us-west.example.com:2181,zk2.us-west.example.com:2181/my-chroot-path \
+    --web-service-url http://pulsar.us-west.example.com:8080/ \
+    --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
+    --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
+    --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
 ```
 
 As you can see from the example above, you need to specify the following:

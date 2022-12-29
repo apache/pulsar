@@ -39,11 +39,16 @@ public final class LedgerMetadataUtils {
             "compacted-ledger".getBytes(StandardCharsets.UTF_8);
     private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
 
+    private static final byte[] METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET =
+            "delayed-index-bucket".getBytes(StandardCharsets.UTF_8);
+
     private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
     private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
     private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
     private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
     private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
+
+    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKETID = "pulsar/delayedIndexBucketId";
 
     /**
      * Build base metadata for every ManagedLedger.
@@ -97,6 +102,20 @@ public final class LedgerMetadataUtils {
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_SCHEMA,
                 METADATA_PROPERTY_SCHEMAID, schemaId.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    /**
+     * Build additional metadata for a delayed message index bucket.
+     *
+     * @param bucketKey key of the delayed message bucket
+     * @return an immutable map which describes the schema
+     */
+    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey) {
+        return Map.of(
+                METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
+                METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
+                METADATA_PROPERTY_DELAYED_INDEX_BUCKETID, bucketKey.getBytes(StandardCharsets.UTF_8)
         );
     }
 

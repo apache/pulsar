@@ -4,6 +4,12 @@ title: Flume sink connector
 sidebar_label: "Flume sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Flume sink connector pulls messages from Pulsar topics to logs.
 
 ## Configuration

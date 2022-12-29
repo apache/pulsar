@@ -102,6 +102,12 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                                 .getBundleCount(NamespaceName.get(namespace));
                         if ((bundleCount + namespaceBundleCount.getOrDefault(namespace, 0))
                                 < maxBundleCount) {
+                            log.info("The bundle {} is considered to be unload. Topics: {}/{}, Sessions: ({}+{})/{}, "
+                                            + "Message Rate: {}/{} (msgs/s), Message Throughput: {}/{} (MB/s)",
+                                    bundle, stats.topics, maxBundleTopics, stats.producerCount, stats.consumerCount,
+                                    maxBundleSessions, totalMessageRate, maxBundleMsgRate,
+                                    totalMessageThroughput / LoadManagerShared.MIBI,
+                                    maxBundleBandwidth / LoadManagerShared.MIBI);
                             bundleCache.add(bundle);
                             int bundleNum = namespaceBundleCount.getOrDefault(namespace, 0);
                             namespaceBundleCount.put(namespace, bundleNum + 1);

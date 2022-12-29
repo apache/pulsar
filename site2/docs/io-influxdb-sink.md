@@ -4,6 +4,12 @@ title: InfluxDB sink connector
 sidebar_label: "InfluxDB sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The InfluxDB sink connector pulls messages from Pulsar topics and persists the messages to InfluxDB.
 
 The InfluxDB sink provides different configurations for InfluxDBv1 and v2 respectively.

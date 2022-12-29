@@ -12,7 +12,7 @@ All the methods in producer, consumer, and reader of a C++ client are thread-saf
 
 Pulsar C++ client is supported on **Linux** ,**MacOS** and **Windows** platforms.
 
-[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](/api/cpp).
+[Doxygen](http://www.doxygen.nl/)-generated API docs for the C++ client are available [here](@pulsar:apidoc:cpp@).
 
 
 ## Linux

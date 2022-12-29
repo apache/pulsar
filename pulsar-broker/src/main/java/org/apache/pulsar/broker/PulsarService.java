@@ -545,7 +545,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             offloadersCache.close();
 
             if (coordinationService != null) {
-                coordinationService.close();
+                try {
+                    coordinationService.close();
+                } catch (Exception e) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    if (!(cause instanceof MetadataStoreException.AlreadyClosedException)) {
+                        throw e;
+                    }
+                }
             }
 
             closeLocalMetadataStore();
@@ -779,8 +786,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
             this.brokerInterceptor = BrokerInterceptors.load(config);
-            brokerService.setInterceptor(getBrokerInterceptor());
-            this.brokerInterceptor.initialize(this);
+            // use getter to support mocking getBrokerInterceptor method in tests
+            BrokerInterceptor interceptor = getBrokerInterceptor();
+            if (interceptor != null) {
+                brokerService.setInterceptor(interceptor);
+                interceptor.initialize(this);
+            }
             brokerService.start();
 
             // Load additional servlets
@@ -1513,7 +1524,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         conf.setTlsTrustCertsFilePath(
                                 isNotBlank(this.getConfiguration().getBrokerClientTrustCertsFilePath())
                                         ? this.getConfiguration().getBrokerClientTrustCertsFilePath()
-                                        : this.getConfiguration().getTlsCertificateFilePath());
+                                        : this.getConfiguration().getTlsTrustCertsFilePath());
                         conf.setTlsKeyFilePath(this.getConfiguration().getBrokerClientKeyFilePath());
                         conf.setTlsCertificateFilePath(this.getConfiguration().getBrokerClientCertificateFilePath());
                     }

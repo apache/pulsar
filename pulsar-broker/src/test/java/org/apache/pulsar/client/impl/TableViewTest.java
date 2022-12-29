@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -57,6 +59,9 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker-impl")
 public class TableViewTest extends MockedPulsarServiceBaseTest {
+
+    private static final String ECDSA_PUBLIC_KEY = "src/test/resources/certificate/public-key.client-ecdsa.pem";
+    private static final String ECDSA_PRIVATE_KEY = "src/test/resources/certificate/private-key.client-ecdsa.pem";
 
     @BeforeClass
     @Override
@@ -79,7 +84,16 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @DataProvider(name = "topicDomain")
+    public static Object[] topicDomain() {
+       return new Object[]{ TopicDomain.persistent.value(), TopicDomain.non_persistent.value()};
+    }
+
     private Set<String> publishMessages(String topic, int count, boolean enableBatch) throws Exception {
+        return publishMessages(topic, count, enableBatch, false);
+    }
+
+    private Set<String> publishMessages(String topic, int count, boolean enableBatch, boolean enableEncryption) throws Exception {
         Set<String> keys = new HashSet<>();
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.SinglePartition);
@@ -92,6 +106,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             builder.batchingMaxMessages(count);
         } else {
             builder.enableBatching(false);
+        }
+        if (enableEncryption) {
+            builder.addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader("file:./" + ECDSA_PUBLIC_KEY);
         }
         try (Producer<byte[]> producer = builder.create()) {
             CompletableFuture<?> lastFuture = null;
@@ -155,11 +173,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30 * 1000)
-    public void testTableViewUpdatePartitions() throws Exception {
-        String topic = "persistent://public/default/tableview-test-update-partitions";
+    @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
+    public void testTableViewUpdatePartitions(String topicDomain) throws Exception {
+        String topic = topicDomain + "://public/default/tableview-test-update-partitions";
         admin.topics().createPartitionedTopic(topic, 3);
         int count = 20;
+        // For non-persistent topic, this keys will never be received.
         Set<String> keys = this.publishMessages(topic, count, false);
         @Cleanup
         TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
@@ -167,6 +186,9 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
         log.info("start tv size: {}", tv.size());
+        if (topicDomain.equals(TopicDomain.non_persistent.value())) {
+            keys = this.publishMessages(topic, count, false);
+        }
         tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
         Awaitility.await().untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
@@ -178,6 +200,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         admin.topics().updatePartitionedTopic(topic, 4);
         TopicName topicName = TopicName.get(topic);
 
+        // Make sure the new partition-3 consumer already started.
+        if (topic.startsWith(TopicDomain.non_persistent.toString())) {
+            TimeUnit.SECONDS.sleep(6);
+        }
         // Send more data to partition 3, which is not in the current TableView, need update partitions
         Set<String> keys2 =
                 this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
@@ -188,9 +214,9 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         assertEquals(tv.keySet(), keys2);
     }
 
-    @Test(timeOut = 30 * 1000)
-    public void testPublishNullValue() throws Exception {
-        String topic = "persistent://public/default/tableview-test-publish-null-value";
+    @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
+    public void testPublishNullValue(String topicDomain) throws Exception {
+        String topic = topicDomain + "://public/default/tableview-test-publish-null-value";
         admin.topics().createPartitionedTopic(topic, 3);
 
         final TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
@@ -221,8 +247,12 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
 
-        assertEquals(tv1.size(), 1);
-        assertEquals(tv.get("key2"), "value2");
+        if (topicDomain.equals(TopicDomain.persistent.value())) {
+            assertEquals(tv1.size(), 1);
+            assertEquals(tv.get("key2"), "value2");
+        } else {
+            assertEquals(tv1.size(), 0);
+        }
     }
 
     @DataProvider(name = "partitionedTopic")
@@ -276,5 +306,77 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                         -> verify(consumerBase, times(msgCount)).acknowledgeCumulativeAsync(any(MessageId.class)));
 
 
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testListen() throws Exception {
+        String topic = "persistent://public/default/tableview-listen-test";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        @Cleanup
+        TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        class MockAction implements BiConsumer<String, String> {
+            int acceptedCount = 0;
+            @Override
+            public void accept(String s, String s2) {
+                acceptedCount++;
+            }
+        }
+        MockAction mockAction = new MockAction();
+        tv.listen((k, v) -> mockAction.accept(k, v));
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .until(() -> tv.size() == 5);
+
+        assertEquals(mockAction.acceptedCount, 0);
+
+        for (int i = 5; i < 10; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .until(() -> tv.size() == 10);
+
+        assertEquals(mockAction.acceptedCount, 5);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTableViewWithEncryptedMessages() throws Exception {
+        String topic = "persistent://public/default/tableview-encryption-test";
+        admin.topics().createPartitionedTopic(topic, 3);
+
+        // publish encrypted messages
+        int count = 20;
+        Set<String> keys = this.publishMessages(topic, count, false, true);
+
+        // TableView can read them using the private key
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+            .topic(topic)
+            .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+            .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
+            .create();
+        log.info("start tv size: {}", tv.size());
+        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        Awaitility.await().untilAsserted(() -> {
+            log.info("Current tv size: {}", tv.size());
+            assertEquals(tv.size(), count);
+        });
+        assertEquals(tv.keySet(), keys);
     }
 }

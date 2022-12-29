@@ -64,12 +64,12 @@ For more information about the `localrun` command, see [`localrun`](reference-co
 
 ```bash
 ./bin/pulsar-admin sinks localrun \
---archive connectors/pulsar-io-mongo-@pulsar:version@.nar \ 
---tenant public --namespace default \
---inputs test-mongo \
---name pulsar-mongo-sink \
---sink-config-file mongo-sink-config.yaml \
---parallelism 1
+    --archive connectors/pulsar-io-mongo-@pulsar:version@.nar \ 
+    --tenant public --namespace default \
+    --inputs test-mongo \
+    --name pulsar-mongo-sink \
+    --sink-config-file mongo-sink-config.yaml \
+    --parallelism 1
 ```
 
 ### Use connector log
@@ -215,20 +215,26 @@ Pulsar admin CLI helps you debug Pulsar connectors with the following subcommand
 
 ```bash
 ./bin/pulsar-admin sinks create \
---archive pulsar-io-mongo-2.4.0.nar \
---tenant public \
---namespace default \
---inputs test-mongo \
---name pulsar-mongo-sink \
---sink-config-file mongo-sink-config.yaml \
---parallelism 1
+    --archive pulsar-io-mongo-2.4.0.nar \
+    --tenant public \
+    --namespace default \
+    --inputs test-mongo \
+    --name pulsar-mongo-sink \
+    --sink-config-file mongo-sink-config.yaml \
+    --parallelism 1
 ```
 
 ### `get`
+
 Use the `get` command to get the basic information about the Mongo sink connector, such as tenant, namespace, name, parallelism, and so on.
 
 ```bash
 ./bin/pulsar-admin sinks get --tenant public --namespace default  --name pulsar-mongo-sink
+```
+
+Output:
+
+```json
 {
   "tenant": "public",
   "namespace": "default",
@@ -267,6 +273,11 @@ Use the `status` command to get the current status about the Mongo sink connecto
 --tenant public \
 --namespace default  \
 --name pulsar-mongo-sink
+```
+
+Output:
+
+```json
 {
 "numInstances" : 1,
 "numRunning" : 1,
@@ -297,10 +308,16 @@ If there are multiple connectors running on a worker, `workerId` can locate the 
 :::
 
 ### `topics stats`
+
 Use the `topics stats` command to get the stats for a topic and its connected producer and consumer, such as whether the topic has received messages or not, whether there is a backlog of messages or not, the available permits and other key information. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
 
 ```bash
 ./bin/pulsar-admin topics stats test-mongo
+```
+
+Output:
+
+```json
 {
   "msgRateIn" : 0.0,
   "msgThroughputIn" : 0.0,

@@ -6,14 +6,14 @@ sidebar_label: "Overview"
 
 Pulsar supports the following language-specific client libraries:
 
-| Language  | Documentation                                                        | Release note                                                                      | Code repo                                                             |
-| --------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Java      | [User doc](client-libraries-java.md)   <br/> [API doc](/api/client/) | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client) |
-| C++       | [User doc](client-libraries-cpp.md)    <br/> [API doc](/api/cpp/)    | [Bundled](/release-notes/)                                                        | [Standalone](https://github.com/apache/pulsar/pulsar-client-cpp)      |
-| Python    | [User doc](client-libraries-python.md) <br/> [API doc](/api/python/) | [Bundled](/release-notes/)                                                        | [Standalone](https://github.com/apache/pulsar-client-python)          |
-| Go client | [User doc](client-libraries-go.md)                                   | [Standalone](https://github.com/apache/pulsar-client-go/releases)                 | [Standalone](https://github.com/apache/pulsar-client-go)              |
-| Node.js   | [User doc](client-libraries-node.md)                                 | [Standalone](https://github.com/apache/pulsar-client-node/releases)               | [Standalone](https://github.com/apache/pulsar-client-node)            |
-| C#        | [User doc](client-libraries-dotnet.md)                               | [Standalone](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar)              |
+| Language  | Documentation                                                                     | Release note                                                                      | Code repo                                                             |
+| --------- |-----------------------------------------------------------------------------------| --------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Java      | [User doc](client-libraries-java.md)   <br/> [API doc](/api/client/)              | [Bundled](/release-notes/)                                                        | [Bundled](https://github.com/apache/pulsar/tree/master/pulsar-client) |
+| C++       | [User doc](client-libraries-cpp.md)    <br/> [API doc](pathname:///api/cpp/3.0.0) | [Bundled](/release-notes/)                                                        | [Standalone](https://github.com/apache/pulsar-client-cpp)      |
+| Python    | [User doc](client-libraries-python.md) <br/> [API doc](@pulsar:apidoc:python@)    | [Bundled](/release-notes/)                                                        | [Standalone](https://github.com/apache/pulsar-client-python)          |
+| Go client | [User doc](client-libraries-go.md)                                                | [Standalone](https://github.com/apache/pulsar-client-go/releases)                 | [Standalone](https://github.com/apache/pulsar-client-go)              |
+| Node.js   | [User doc](client-libraries-node.md)                                              | [Standalone](https://github.com/apache/pulsar-client-node/releases)               | [Standalone](https://github.com/apache/pulsar-client-node)            |
+| C#        | [User doc](client-libraries-dotnet.md)                                            | [Standalone](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG.md) | [Standalone](https://github.com/apache/pulsar-dotpulsar)              |
 
 Pulsar supports the following language-agnostic client libraries:
 
@@ -40,10 +40,9 @@ Besides the officially released clients, multiple projects on developing Pulsar 
 
 ### Go
 
-| Project                                                         | Description                              | License                                                   | Badges                                                                                                                                                                                                                                     |
-| --------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [pulsar-client-go](https://github.com/Comcast/pulsar-client-go) | A Go client library for Apache Pulsar    | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) | ![GitHub Repo Stars](https://img.shields.io/github/stars/Comcast/pulsar-client-go?color=FEEA00&style=flat-square) ![GitHub Last Commit](https://img.shields.io/github/last-commit/Comcast/pulsar-client-go?color=7FD8BE&style=flat-square) |
-| [go-pulsar](https://github.com/t2y/go-pulsar)                   | go-pulsar is a client library for Pulsar | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) | ![GitHub Repo Stars](https://img.shields.io/github/stars/t2y/go-pulsar?color=FEEA00&style=flat-square) ![GitHub Last Commit](https://img.shields.io/github/last-commit/t2y/go-pulsar?color=7FD8BE&style=flat-square)                       |
+| Project                                                         | Description                              | License                                                   | Badges                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [pulsar-client-go](https://github.com/Comcast/pulsar-client-go) | A Go client library for Apache Pulsar    | [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0) | ![GitHub Repo Stars](https://img.shields.io/github/stars/apache/pulsar-client-go?color=FEEA00&style=flat-square) ![GitHub Last Commit](https://img.shields.io/github/last-commit/apache/pulsar-client-go?color=7FD8BE&style=flat-square) |
 
 ### Haskell
 

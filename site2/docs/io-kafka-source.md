@@ -4,6 +4,12 @@ title: Kafka source connector
 sidebar_label: "Kafka source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Kafka source connector pulls messages from Kafka topics and persists the messages to Pulsar topics.
 
 This guide explains how to configure and use the Kafka source connector.
@@ -85,12 +91,12 @@ Before using the Kafka source connector, you need to create a configuration file
 - YAML
 
    ```yaml
-     configs:
-       bootstrapServers: "pulsar-kafka:9092"
-       groupId: "test-pulsar-io"
-       topic: "my-topic"
-       sessionTimeoutMs: "10000"
-         autoCommitEnabled: false
+   configs:
+      bootstrapServers: "pulsar-kafka:9092"
+      groupId: "test-pulsar-io"
+      topic: "my-topic"
+      sessionTimeoutMs: "10000"
+      autoCommitEnabled: false
    ```
 
 ## Usage
@@ -156,15 +162,15 @@ This example describes how to use the Kafka source connector to feed data from K
 
    ```bash
    docker exec -it pulsar-kafka-standalone /bin/bash
-
+   
    ./bin/pulsar-admin source localrun \
-   --archive ./pulsar-io-kafka.nar \
-   --tenant public \
-   --namespace default \
-   --name kafka \
-   --destination-topic-name my-topic \
-   --source-config-file ./conf/kafkaSourceConfig.yaml \
-   --parallelism 1
+      --archive ./pulsar-io-kafka.nar \
+      --tenant public \
+      --namespace default \
+      --name kafka \
+      --destination-topic-name my-topic \
+      --source-config-file ./conf/kafkaSourceConfig.yaml \
+      --parallelism 1
    ```
 
 7. Open a new terminal window and run the Kafka producer locally.
@@ -195,7 +201,7 @@ This example explains how to create a Kafka source connector in an on-premises c
    cp pulsar-io-kafka-{{connector:version}}.nar $PULSAR_HOME/connectors/pulsar-io-kafka-{{connector:version}}.nar
    ```
 
-2. Reload all [built-in connectors](/io-connectors.md).
+2. Reload all [built-in connectors](io-connectors.md).
 
    ```bash
    PULSAR_HOME/bin/pulsar-admin sources reload
