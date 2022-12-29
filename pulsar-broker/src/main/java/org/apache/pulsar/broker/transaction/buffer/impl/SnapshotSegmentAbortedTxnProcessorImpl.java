@@ -28,6 +28,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Supplier;
@@ -41,6 +43,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -53,6 +56,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -119,6 +123,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     @Override
     public void trimExpiredAbortedTxns() {
         //Checking whether there are some segment expired.
+        List<PositionImpl> positionsNeedToDelete = new ArrayList<>();
         while (!segmentIndex.isEmpty() && !((ManagedLedgerImpl) topic.getManagedLedger())
                 .ledgerExists(segmentIndex.firstKey().getLedgerId())) {
             if (log.isDebugEnabled()) {
@@ -126,9 +131,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         topic.getName(), segmentIndex.firstKey());
             }
             PositionImpl positionNeedToDelete = segmentIndex.firstKey();
-            persistentWorker.appendTask(PersistentWorker.OperationType.DeleteSegment,
-                    () -> persistentWorker.deleteSnapshotSegment(positionNeedToDelete));
+            positionsNeedToDelete.add(positionNeedToDelete);
         }
+        persistentWorker.appendTask(PersistentWorker.OperationType.DeleteSegment,
+                () -> persistentWorker.deleteSnapshotSegment(positionsNeedToDelete));
     }
 
     private String buildKey(long sequenceId) {
@@ -162,7 +168,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     try {
                         //Read Index to recover the sequenceID, indexes, lastAbortedTxns and maxReadPosition.
                         while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshotIndexes> message = reader.readNext();
+                            Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
+                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes = message.getValue();
                                 if (transactionBufferSnapshotIndexes != null) {
@@ -174,6 +181,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 }
                             }
                         }
+                    } catch (TimeoutException ex) {
+                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                        String errorMessage = String.format("[%s] Transaction buffer recover fail by read "
+                                + "transactionBufferSnapshot timeout!", topic.getName());
+                        log.error(errorMessage, t);
+                        return FutureUtil.failedFuture(
+                                new BrokerServiceException.ServiceUnitNotReadyException(errorMessage, t));
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
@@ -200,7 +214,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     //Read snapshot segment to recover aborts.
                     ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
                     CompletableFuture<Void> openManagedLedgerFuture = new CompletableFuture<>();
-                    AtomicLong invalidIndex = new AtomicLong(0);
+                    AtomicBoolean hasInvalidIndex = new AtomicBoolean(false);
                     AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
                             .OpenReadOnlyManagedLedgerCallback() {
                         @Override
@@ -221,7 +235,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                             index.getMaxReadPositionLedgerID(),
                                                             index.getMaxReadPositionEntryID()));
                                                     handleSegmentFuture.complete(null);
-                                                    invalidIndex.getAndIncrement();
+                                                    hasInvalidIndex.set(true);
                                                     return;
                                                 }
                                                 handleSnapshotSegmentEntry(entry);
@@ -257,7 +271,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                     return openManagedLedgerFuture
                             .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
-                                if (invalidIndex.get() != 0) {
+                                if (hasInvalidIndex.get()) {
                                     persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
                                             -> persistentWorker
                                             .updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
@@ -310,6 +324,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 snapshotSegment.getPersistentPositionEntryId()),
                 new TxnID(lastTxn.getMostSigBits(), lastTxn.getLeastSigBits()));
         aborts.addAll(convertTypeToTxnID(snapshotSegment.getAborts()));
+    }
+
+    private long getSystemClientOperationTimeoutMs() throws Exception {
+        PulsarClientImpl pulsarClient = (PulsarClientImpl) topic.getBrokerService().getPulsar().getClient();
+        return pulsarClient.getConfiguration().getOperationTimeoutMs();
     }
 
     private <T> void  closeReader(SystemTopicClient.Reader<T> reader) {
@@ -494,32 +513,37 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             });
         }
 
-        private CompletableFuture<Void> deleteSnapshotSegment(PositionImpl positionNeedToDelete) {
-            long sequenceIdNeedToDelete = indexes.get(positionNeedToDelete).getSequenceID();
-            return snapshotSegmentsWriterFuture
-                    .thenCompose(writer -> writer.deleteAsync(buildKey(sequenceIdNeedToDelete), null))
-                    .thenRun(() -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Successes to delete the snapshot segment, "
+        private CompletableFuture<Void> deleteSnapshotSegment(List<PositionImpl> positionNeedToDeletes) {
+            List<CompletableFuture<Void>> results = new ArrayList<>();
+            for (PositionImpl positionNeedToDelete : positionNeedToDeletes) {
+                long sequenceIdNeedToDelete = indexes.get(positionNeedToDelete).getSequenceID();
+                results.add(snapshotSegmentsWriterFuture
+                        .thenCompose(writer -> writer.deleteAsync(buildKey(sequenceIdNeedToDelete), null))
+                        .thenRun(() -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Successes to delete the snapshot segment, "
+                                                + "whose sequenceId is [{}] and maxReadPosition is [{}]",
+                                        this.topic.getName(), this.sequenceID, positionNeedToDelete);
+                            }
+                            TxnID theLatestDeletedTxnID = segmentIndex.remove(positionNeedToDelete);
+                            while (!aborts.getFirst().equals(theLatestDeletedTxnID)) {
+                                aborts.removeFirst();
+                            }
+                            aborts.remove(theLatestDeletedTxnID);
+                            //The process will check whether the snapshot segment is null, and update index when
+                            // recovered.
+                            indexes.remove(positionNeedToDelete);
+                            //Keep index snapshot and update index
+                            updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
+                                    indexes.values().stream().toList());
+                        }).exceptionally(e -> {
+                            log.warn("[{}] Failed to delete the snapshot segment, "
                                             + "whose sequenceId is [{}] and maxReadPosition is [{}]",
-                                    this.topic.getName(), this.sequenceID, positionNeedToDelete);
-                        }
-                        TxnID theLatestDeletedTxnID = segmentIndex.remove(positionNeedToDelete);
-                        while (!aborts.getFirst().equals(theLatestDeletedTxnID)) {
-                            aborts.removeFirst();
-                        }
-                        aborts.remove(theLatestDeletedTxnID);
-                        //The process will check whether the snapshot segment is null, and update index when recovered.
-                        indexes.remove(positionNeedToDelete);
-                        //Keep index snapshot and update index
-                        updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
-                                indexes.values().stream().toList());
-                    }).exceptionally(e -> {
-                        log.warn("[{}] Failed to delete the snapshot segment, "
-                                        + "whose sequenceId is [{}] and maxReadPosition is [{}]",
-                                this.topic.getName(), this.sequenceID, positionNeedToDelete, e);
-                        return null;
-                    });
+                                    this.topic.getName(), this.sequenceID, positionNeedToDelete, e);
+                            return null;
+                        }));
+            }
+            return FutureUtil.waitForAll(results);
         }
 
         //Update the indexes with the giving index snapshot and index list in the transactionBufferSnapshotIndexes.
@@ -545,13 +569,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
             ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
             //Delete all segment
-            segmentIndex.keySet().forEach(positionNeedToDelete -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Topic transaction buffer clear aborted transactions, maxReadPosition : {}",
-                            topic.getName(), positionNeedToDelete);
-                }
-                completableFutures.add(persistentWorker.deleteSnapshotSegment(positionNeedToDelete));
-            });
+            completableFutures.add(persistentWorker.deleteSnapshotSegment(segmentIndex.keySet().stream().toList()));
             //Delete index
             return FutureUtil.waitForAll(completableFutures)
                     .thenCompose((ignore) -> snapshotIndexWriterFuture
