@@ -422,12 +422,14 @@ public class PersistentTopicsBase extends AdminResource {
                                                                           boolean updateLocalTopicOnly,
                                                                           boolean authoritative, boolean force) {
         if (expectPartitions <= 0) {
-            return FutureUtil.failedFuture(new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
+            return FutureUtil.failedFuture(
+                    new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
         }
         final BrokerService brokerService = pulsar().getBrokerService();
         ServiceConfiguration configuration = pulsar().getConfiguration();
         return validateTopicOwnershipAsync(topicName, authoritative)
-            .thenCompose(__ -> validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE))
+            .thenCompose(__ ->
+                    validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE))
             .thenCompose(__ -> {
                 if (!updateLocalTopicOnly && !force) {
                     return validatePartitionTopicUpdateAsync(topicName.getLocalName(), expectPartitions);
@@ -472,13 +474,15 @@ public class PersistentTopicsBase extends AdminResource {
                                     expectPartitions, force));
                 } else {
                     return tryCreateExtendedPartitionsAsync(previousPartitions, expectPartitions)
-                            .thenCompose(ignore -> updatePartitionedTopic(topicName, previousPartitions, expectPartitions, force));
+                            .thenCompose(ignore ->
+                                    updatePartitionedTopic(topicName, previousPartitions, expectPartitions, force));
                 }
             });
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
-        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+        getPartitionedTopicMetadataAsync(topicName, false, false)
+                .thenAccept(metadata -> {
             if (metadata != null) {
                 tryCreatePartitionsAsync(metadata.partitions).thenAccept(v -> {
                     asyncResponse.resume(Response.noContent().build());
@@ -4365,10 +4369,11 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName,int previousPartitions,
+    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int previousPartitions,
                                                            int expectPartitions, boolean force) {
         CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(expectPartitions, p.properties));
+                .updatePartitionedTopicAsync(topicName, p ->
+                        new PartitionedTopicMetadata(expectPartitions, p.properties));
         future.exceptionally(ex -> {
             // If the update operation fails, clean up the partitions that were created
             getPartitionedTopicMetadataAsync(topicName, false, false)
@@ -4399,7 +4404,7 @@ public class PersistentTopicsBase extends AdminResource {
      * @param ignoreConflictException : If true, ignore ConflictException: subscription already exists for topic
      *
      */
-    private CompletableFuture<Void> createSubscriptions(TopicName topicName,int previousPartitions,
+    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int previousPartitions,
                                                         int expectPartitions, boolean ignoreConflictException) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (previousPartitions < 1) {
