@@ -175,9 +175,12 @@ public interface ManagedCursor {
      * @param callback              callback object
      * @param ctx                   opaque context
      * @param maxPosition           max position can read
+     * @param skipCondition         predicate of read filter out
      */
-    void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                                  Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+    default void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                          Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+        asyncReadEntries(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -294,8 +297,10 @@ public interface ManagedCursor {
      * @param skipCondition
      *            predicate of read filter out
      */
-    void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
-                                        PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
+                                                PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, callback, ctx, maxPosition);
+    }
 
     /**
      * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
@@ -317,8 +322,11 @@ public interface ManagedCursor {
      * @param skipCondition
      *            predicate of read filter out
      */
-    void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
-                                        PositionImpl maxPosition, Predicate<PositionImpl> skipCondition);
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                                Object ctx, PositionImpl maxPosition,
+                                                Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.

@@ -4310,6 +4310,9 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(number2, readMaxNumber / 2);
 
         assertEquals(cursor.getReadPosition().getEntryId(), 20);
+
+        cursor.close();
+        ledger.close();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);

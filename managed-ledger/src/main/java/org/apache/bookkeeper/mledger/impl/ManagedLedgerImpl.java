@@ -2062,9 +2062,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long lastValidEntry = -1L;
             long entryId = firstEntry;
             for (; entryId <= lastEntry; entryId++) {
-                if (!opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
-                    firstValidEntry = entryId;
-                    break;
+                if (opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
+                    if (firstValidEntry == -1L) {
+                        firstValidEntry = entryId;
+                    }
+                } else {
+                    if (firstValidEntry != -1L) {
+                        break;
+                    }
+                }
+
+                if (firstValidEntry != -1L) {
+                    lastValidEntry = entryId;
                 }
             }
 
@@ -2074,13 +2083,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 opReadEntry.internalReadEntriesComplete(Collections.emptyList(), opReadEntry.ctx,
                         PositionImpl.get(ledger.getId(), lastEntry));
                 return;
-            }
-
-            for (; entryId <= lastEntry; entryId++) {
-                if (opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
-                    break;
-                }
-                lastValidEntry = entryId;
             }
 
             firstEntry = firstValidEntry;

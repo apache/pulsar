@@ -122,13 +122,6 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                                             Object ctx, PositionImpl maxPosition,
-                                             Predicate<PositionImpl> skipCondition) {
-
-        }
-
-        @Override
         public boolean hasMoreEntries() {
             return true;
         }
@@ -409,19 +402,6 @@ public class ManagedCursorContainerTest {
         public List<Entry> readEntriesOrWait(int maxEntries, long maxSizeBytes)
                 throws InterruptedException, ManagedLedgerException {
             return null;
-        }
-
-        @Override
-        public void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
-                                                   PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
-
-        }
-
-        @Override
-        public void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
-                                                   Object ctx, PositionImpl maxPosition,
-                                                   Predicate<PositionImpl> skipCondition) {
-
         }
 
         @Override

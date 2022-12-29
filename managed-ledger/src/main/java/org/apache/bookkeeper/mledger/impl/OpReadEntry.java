@@ -76,7 +76,7 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         cursor.updateReadStats(entriesCount, entriesSize);
 
-        if (lastPosition == null || entriesCount != 0) {
+        if (entriesCount != 0) {
             lastPosition = (PositionImpl) returnedEntries.get(entriesCount - 1).getPosition();
         }
         if (log.isDebugEnabled()) {
@@ -205,6 +205,7 @@ class OpReadEntry implements ReadEntriesCallback {
         nextReadPosition = null;
         maxPosition = null;
         recyclerHandle.recycle(this);
+        skipCondition = null;
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);
