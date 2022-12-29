@@ -4,6 +4,12 @@ title: Twitter Firehose source connector
 sidebar_label: "Twitter Firehose source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Twitter Firehose source connector receives tweets from Twitter Firehose and 
 writes the tweets to Pulsar topics.
 

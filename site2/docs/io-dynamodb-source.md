@@ -4,6 +4,12 @@ title: AWS DynamoDB source connector
 sidebar_label: "AWS DynamoDB source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The DynamoDB source connector pulls data from DynamoDB table streams and persists data into Pulsar.
 
 This connector uses the [DynamoDB Streams Kinesis Adapter](https://github.com/awslabs/dynamodb-streams-kinesis-adapter),

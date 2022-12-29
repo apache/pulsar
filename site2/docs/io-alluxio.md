@@ -4,6 +4,12 @@ title: Alluxio sink connector
 sidebar_label: Alluxio sink connector
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 ## Sink
 
 The Alluxio sink connector pulls messages from Pulsar topics and persists the messages to an Alluxio directory.

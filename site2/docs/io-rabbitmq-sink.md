@@ -4,6 +4,12 @@ title: RabbitMQ sink connector
 sidebar_label: "RabbitMQ sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The RabbitMQ sink connector pulls messages from Pulsar topics and persists the messages to RabbitMQ queues.
 
 

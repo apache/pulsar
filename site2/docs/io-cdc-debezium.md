@@ -4,6 +4,12 @@ title: Debezium source connector
 sidebar_label: "Debezium source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Debezium source connector pulls messages from MySQL or PostgreSQL and persists the messages to Pulsar topics.
 
 ## Configuration

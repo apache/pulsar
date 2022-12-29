@@ -4,6 +4,12 @@ title: Cassandra sink connector
 sidebar_label: "Cassandra sink connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Cassandra sink connector pulls messages from Pulsar topics to Cassandra clusters.
 
 ## Configuration

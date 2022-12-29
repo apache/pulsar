@@ -4,6 +4,12 @@ title: File source connector
 sidebar_label: "File source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The File source connector pulls messages from files in directories and persists the messages to Pulsar topics.
 
 ## Configuration
@@ -119,12 +125,12 @@ Here is an example of using the File source connecter.
 
    ```bash
    docker exec -it pulsar-standalone /bin/bash
-
+   
    ./bin/pulsar-admin sources localrun \
-   --archive /pulsar/connectors/pulsar-io-file-{version}.nar \
-   --name file-test \
-   --destination-topic-name  pulsar-file-test \
-   --source-config-file /pulsar/file-connector.yaml
+      --archive /pulsar/connectors/pulsar-io-file-{version}.nar \
+      --name file-test \
+      --destination-topic-name  pulsar-file-test \
+      --source-config-file /pulsar/file-connector.yaml
    ```
 
 8. Start a consumer.

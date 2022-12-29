@@ -4,6 +4,12 @@ title: Netty source connector
 sidebar_label: "Netty source connector"
 ---
 
+:::note
+
+You can download all the Pulsar connectors on [download page](https://pulsar.apache.org/download).
+
+::::
+
 The Netty source connector opens a port that accepts incoming data via the configured network protocol and publishes it to user-defined Pulsar topics.
 
 This connector can be used in a containerized (for example, k8s) deployment. Otherwise, if the connector is running in process or thread mode, the instance may be conflicting on listening to ports.
