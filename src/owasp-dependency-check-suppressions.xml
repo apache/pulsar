@@ -37,6 +37,23 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
+    <suppress>
+        <notes><![CDATA[
+       file name: snakeyaml-1.32.jar
+       ]]></notes>
+        <sha1>e80612549feb5c9191c498de628c1aa80693cf0b</sha1>
+        <cve>CVE-2022-1471</cve>
+    </suppress>
+
+    <!-- influxdb dependencies -->
+    <suppress>
+        <notes><![CDATA[
+       file name: msgpack-core-0.9.0.jar
+       ]]></notes>
+        <sha1>87d9ce0b22de48428fa32bb8ad476e18b6969548</sha1>
+        <cve>CVE-2022-41719</cve>
+    </suppress>
+
     <!-- see https://github.com/apache/pulsar/pull/16110 -->
     <suppress>
         <notes><![CDATA[
@@ -429,11 +446,8 @@
         <cve>CVE-2015-0242</cve>
         <cve>CVE-2015-0243</cve>
         <cve>CVE-2015-0244</cve>
-        <cve>CVE-2015-3165</cve>
         <cve>CVE-2015-3166</cve>
         <cve>CVE-2015-3167</cve>
-        <cve>CVE-2015-5288</cve>
-        <cve>CVE-2015-5289</cve>
         <cve>CVE-2016-0766</cve>
         <cve>CVE-2016-0768</cve>
         <cve>CVE-2016-0773</cve>
