@@ -621,7 +621,7 @@ jobs:
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
-          -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
+          -Pmain,docker -Dmaven.test.skip=true -Ddockerfile.build=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       # check full build artifacts licenses
