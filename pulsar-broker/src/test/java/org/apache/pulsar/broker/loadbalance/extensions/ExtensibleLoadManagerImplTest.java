@@ -130,9 +130,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 FieldUtils.readField(channel1, "leaderElectionService", true);
         Optional<LeaderBroker> currentLeader = leaderElectionService.getCurrentLeader();
         assertTrue(currentLeader.isPresent());
-        String webServiceUrl = brokerLookupData1.get().getWebServiceUrl();
-        assertEquals(webServiceUrl.substring(webServiceUrl.lastIndexOf('/') + 1),
-                currentLeader.get().getServiceUrl());
+        assertEquals(brokerLookupData1.get().getWebServiceUrl(), currentLeader.get().getServiceUrl());
     }
 
     @Test

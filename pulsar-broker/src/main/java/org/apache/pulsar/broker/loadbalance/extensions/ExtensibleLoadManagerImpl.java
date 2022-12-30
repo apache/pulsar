@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -61,7 +60,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private List<BrokerFilter> brokerFilterPipeline;
 
-    private final AtomicBoolean started = new AtomicBoolean(false);
+    private volatile boolean started = false;
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
             lookupRequests = ConcurrentOpenHashMap.<String,
@@ -73,6 +72,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      */
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
+        // TODO: Make brokerSelectionStrategy configurable.
         this.brokerSelectionStrategy = (brokers, bundle, context) -> {
             if (brokers.isEmpty()) {
                 return Optional.empty();
@@ -81,9 +81,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         };
     }
 
+    public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
+        return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
+    }
+
     @Override
-    public void start() throws PulsarServerException {
-        if (this.started.get()) {
+    public synchronized void start() throws PulsarServerException {
+        if (this.started) {
             return;
         }
         this.brokerRegistry = new BrokerRegistryImpl(pulsar);
@@ -101,8 +105,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         // TODO: Start load data reporter.
 
         // TODO: Start unload scheduler and bundle split scheduler
-
-        this.started.set(true);
+        this.started = true;
     }
 
     @Override
@@ -129,10 +132,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
                             if (brokerOpt.isPresent()) {
                                 log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
-                                return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get());
+                                return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get())
+                                        .thenApply(Optional::of);
                             } else {
                                 throw new IllegalStateException(
-                                        "Failed to discover(select) the new owner broker for bundle: " + bundle);
+                                        "Failed to select the new owner broker for bundle: " + bundle);
                             }
                         });
                     }
@@ -204,8 +208,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     @Override
-    public void close() throws PulsarServerException {
-        if (!this.started.get()) {
+    public synchronized void close() throws PulsarServerException {
+        if (!this.started) {
             return;
         }
         try {
@@ -214,7 +218,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             throw new PulsarServerException(e);
         }
         this.serviceUnitStateChannel.close();
-        this.started.set(false);
+        this.started = false;
     }
 
     private boolean isInternalTopic(String topic) {

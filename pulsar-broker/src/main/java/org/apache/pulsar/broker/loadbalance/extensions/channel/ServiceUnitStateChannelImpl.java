@@ -84,7 +84,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private final PulsarService pulsar;
     private final Schema<ServiceUnitStateData> schema;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests;
+    private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
     // TODO: define BrokerRegistry
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
@@ -130,13 +130,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
-                CompletableFuture<Optional<String>>>newBuilder().build();
+                CompletableFuture<String>>newBuilder().build();
         this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.leaderElectionService = new LeaderElectionService(
-                pulsar.getCoordinationService(), pulsar.getLookupServiceAddress(),
+                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
                 state -> {
                     if (state == LeaderElectionState.Leading) {
                         log.debug("This broker:{} is the leader now.", lookupServiceAddress);
@@ -242,7 +242,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     // TODO: discard this protocol prefix removal
                     //  by a util func that returns lookupServiceAddress(serviceUrl)
                     if (leader.isPresent()) {
-                        return Optional.of(leader.get().getServiceUrl());
+                        String broker = leader.get().getServiceUrl();
+                        broker = broker.substring(broker.lastIndexOf('/') + 1);
+                        return Optional.of(broker);
                     } else {
                         // When leader is empty, we should throw exception to notify is failed.
                         String msg = "There is no channel owner now.";
@@ -287,7 +289,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return CompletableFuture.completedFuture(Optional.of(data.broker()));
             }
             case Assigned, Released -> {
-                return deferGetOwnerRequest(serviceUnit);
+                return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
             }
             default -> {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
@@ -299,8 +301,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    public CompletableFuture<Optional<String>> publishAssignEventAsync(String serviceUnit, String broker) {
-        CompletableFuture<Optional<String>> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
+    public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
+        CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
         pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
@@ -385,7 +387,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleOwnEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
-            getOwnerRequest.complete(Optional.of(data.broker()));
+            getOwnerRequest.complete(data.broker());
         }
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
@@ -470,10 +472,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
     }
 
-    private CompletableFuture<Optional<String>> deferGetOwnerRequest(String serviceUnit) {
+    private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
         return getOwnerRequests
                 .computeIfAbsent(serviceUnit, k -> {
-                    CompletableFuture<Optional<String>> future = new CompletableFuture<>();
+                    CompletableFuture<String> future = new CompletableFuture<>();
                     future.orTimeout(inFlightStateWaitingTimeInMillis, TimeUnit.MILLISECONDS)
                             .whenComplete((v, e) -> {
                                         if (e != null) {

@@ -89,7 +89,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadReportUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.v1.TopicLookup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.protocol.ProtocolHandlers;
@@ -802,7 +802,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             brokerService.start();
 
-            if (this.loadManager.get() instanceof ExtensibleLoadManagerWrapper) {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
                 // Init system namespace for extensible load manager
                 this.createNamespaceIfNotExists(this.getConfiguration().getClusterName(),
                         SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
@@ -842,6 +842,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // By starting the Load manager service, the broker will also become visible
             // to the rest of the broker by creating the registration z-node. This needs
             // to be done only when the broker is fully operative.
+            //
+            // The load manager service and its service unit state channel need to be initialized first
+            // (namespace service depends on load manager)
             this.startLoadManagementService();
 
             // Initialize namespace service, after service url assigned. Should init zk and refresh self owner info.
@@ -1129,7 +1132,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     protected void startLeaderElectionService() {
-        if (this.loadManager.get() instanceof ExtensibleLoadManagerWrapper) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            LOG.info("The load manager extension is enabled. Skipping PulsarService LeaderElectionService.");
             return;
         }
         this.leaderElectionService = new LeaderElectionService(coordinationService, getSafeWebServiceAddress(),
@@ -1236,7 +1240,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Starting load management service ...");
         this.loadManager.get().start();
 
-        if (config.isLoadBalancerEnabled()) {
+        if (config.isLoadBalancerEnabled() && !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
                 long loadReportMinInterval = config.getLoadBalancerReportUpdateMinIntervalMillis();

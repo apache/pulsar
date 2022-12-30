@@ -96,42 +96,45 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception {
-        return Optional.empty();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public LoadManagerReport generateLoadReport() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void setLoadReportForceUpdateFlag() {
-        // No-op.
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void writeLoadReportOnZookeeper() throws Exception {
         // No-op, this operation is not useful, the load data reporter will automatically write.
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void writeResourceQuotasToZooKeeper() throws Exception {
         // No-op, this operation is not useful, the load data reporter will automatically write.
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
+        // TODO: Add metrics.
         return null;
     }
 
     @Override
     public void doLoadShedding() {
-        // No-op.
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public void doNamespaceBundleSplit() {
-        // No-op.
+        throw new UnsupportedOperationException();
     }
 
 }

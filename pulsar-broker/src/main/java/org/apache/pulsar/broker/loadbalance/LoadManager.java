@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
@@ -63,11 +64,11 @@ public interface LoadManager {
 
     default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
             Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     default CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -157,7 +158,7 @@ public interface LoadManager {
                 final LoadManager casted = new ModularLoadManagerWrapper((ModularLoadManager) loadManagerInstance);
                 casted.initialize(pulsar);
                 return casted;
-            } else if (loadManagerInstance instanceof ExtensibleLoadManagerImpl) {
+            } else if (loadManagerInstance instanceof ExtensibleLoadManager) {
                 final LoadManager casted =
                         new ExtensibleLoadManagerWrapper((ExtensibleLoadManagerImpl) loadManagerInstance);
                 casted.initialize(pulsar);

@@ -55,7 +55,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -172,16 +172,12 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    public boolean isExtensibleLoadManager(){
-        return loadManager.get() instanceof ExtensibleLoadManagerWrapper;
-    }
-
     public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(TopicName topic, LookupOptions options) {
         long startTime = System.nanoTime();
 
         CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
                 .thenCompose(bundle -> {
-                    if (isExtensibleLoadManager()) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
                         return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
                     } else {
                         return findBrokerServiceUrl(bundle, options);
@@ -274,7 +270,7 @@ public class NamespaceService implements AutoCloseable {
                                                                       NamespaceBundle bundle,
                                                                       LookupOptions options) {
 
-        return (isExtensibleLoadManager()
+        return (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
                 ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
                 findBrokerServiceUrl(bundle, options)).thenApply(lookupResult -> {
             if (lookupResult.isPresent()) {
@@ -1041,7 +1037,7 @@ public class NamespaceService implements AutoCloseable {
         }
 
         if (suName instanceof NamespaceBundle) {
-            if (isExtensibleLoadManager()) {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
                 return loadManager.get().checkOwnershipAsync(Optional.empty(), suName);
             }
             return CompletableFuture.completedFuture(
@@ -1066,7 +1062,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
-        if (isExtensibleLoadManager()) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
@@ -1083,7 +1079,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
-        if (isExtensibleLoadManager()) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getFullBundleAsync(fqnn)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.empty(), bundle));
         }
@@ -1092,7 +1088,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
-        if (isExtensibleLoadManager()) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getBundleAsync(topic)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topic), bundle));
         }
@@ -1100,7 +1096,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
-        if (isExtensibleLoadManager()) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
