@@ -1019,11 +1019,11 @@ public class BrokerService implements Closeable {
             if (isPersistentTopic) {
                 return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
                     if (topicName.isPartitioned()) {
-                        return this.fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                        return fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
                                 .thenCompose((metadata) -> {
                                     // Allow crate non-partitioned persistent topic that name includes `partition`
-                                    if (metadata.partitions == 0 ||
-                                            topicName.getPartitionIndex() < metadata.partitions) {
+                                    if (metadata.partitions == 0
+                                            || topicName.getPartitionIndex() < metadata.partitions) {
                                         return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
                                     }
                                     return CompletableFuture.completedFuture(Optional.empty());
