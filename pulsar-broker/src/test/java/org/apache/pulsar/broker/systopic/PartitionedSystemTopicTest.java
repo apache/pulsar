@@ -195,8 +195,6 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
                 pulsar.getConfig());
         TopicName topicName = TopicName.get("persistent", namespaceName, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-        pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                .createPartitionedTopic(topicName, new PartitionedTopicMetadata(PARTITIONS));
         for (int partition = 0; partition < PARTITIONS; partition ++) {
             pulsar.getBrokerService()
                     .getTopic(topicName.getPartition(partition).toString(), true).join();
