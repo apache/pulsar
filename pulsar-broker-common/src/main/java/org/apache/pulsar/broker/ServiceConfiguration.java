@@ -2728,7 +2728,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_METRICS,
         doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
     )
-    private boolean aggregatePublisherStatsByProducerName = true;
+    private boolean aggregatePublisherStatsByProducerName = false;
 
     /**** --- Ledger Offloading. --- ****/
     /****
