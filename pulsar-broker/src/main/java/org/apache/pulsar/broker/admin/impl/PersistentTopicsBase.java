@@ -4669,7 +4669,7 @@ public class PersistentTopicsBase extends AdminResource {
                     if (topicName.isPartitioned()) {
                         return trimNonPartitionedTopic(asyncResponse, topicName);
                     }
-                    if (metadata.partitions > 0 ) {
+                    if (metadata.partitions > 0) {
                         return trimPartitionedTopic(asyncResponse, metadata);
                     }
                     return trimNonPartitionedTopic(asyncResponse, topicName);
