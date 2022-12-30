@@ -439,7 +439,6 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_ACCEPTABLE,
                             "Number of partitions should be less than or equal to " + maxPartitions);
                 }
-                final int previousPartitions = topicMetadata.partitions;
                 // Only do the validation if it's the first hop.
                 if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
                     return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
@@ -453,25 +452,22 @@ public class PersistentTopicsBase extends AdminResource {
                                 return clusters;
                             })
                             .thenCompose(clusters ->
-                                    tryCreateExtendedPartitionsAsync(topicMetadata.partitions, expectPartitions)
-                                            .thenApply(ignore -> clusters))
+                                    tryCreatePartitionsAsync(expectPartitions).thenApply(ignore -> clusters))
                             .thenCompose(clusters -> {
                                 if (!updateLocalTopicOnly) {
-                                    return updatePartitionInOtherCluster(expectPartitions, clusters)
-                                        .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
-                                                        .updatePartitionedTopicAsync(topicName, p ->
-                                                                new PartitionedTopicMetadata(expectPartitions,
-                                                                    p.properties)
-                                                        ));
+                                    return namespaceResources().getPartitionedTopicResources()
+                                            .updatePartitionedTopicAsync(topicName, p ->
+                                                    new PartitionedTopicMetadata(expectPartitions, p.properties))
+                                            .thenCompose(__ ->
+                                                    updatePartitionInOtherCluster(expectPartitions, clusters));
                                 } else {
                                     return CompletableFuture.completedFuture(null);
                                 }
-                            }).thenCompose(clusters -> createSubscriptions(topicName, previousPartitions,
-                                    expectPartitions, force));
+                            }).thenCompose(clusters -> createSubscriptions(topicName,
+                                    expectPartitions));
                 } else {
-                    return tryCreateExtendedPartitionsAsync(previousPartitions, expectPartitions)
-                            .thenCompose(ignore ->
-                                    updatePartitionedTopic(topicName, previousPartitions, expectPartitions, force));
+                    return tryCreatePartitionsAsync(expectPartitions)
+                            .thenCompose(ignore -> updatePartitionedTopic(topicName, expectPartitions));
                 }
             });
     }
@@ -4364,8 +4360,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int previousPartitions,
-                                                           int expectPartitions, boolean force) {
+    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int expectPartitions) {
         CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
                 .updatePartitionedTopicAsync(topicName, p ->
                         new PartitionedTopicMetadata(expectPartitions, p.properties));
@@ -4387,30 +4382,21 @@ public class PersistentTopicsBase extends AdminResource {
             });
             return null;
         });
-        return future.thenCompose(__ -> createSubscriptions(topicName, previousPartitions, expectPartitions, force));
+        return future.thenCompose(__ -> createSubscriptions(topicName, expectPartitions));
     }
 
     /**
      * It creates subscriptions for new partitions of existing partitioned-topics.
      *
      * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
-     * @param previousPartitions number of previous partitions
      * @param expectPartitions : number of expected partitions
-     * @param ignoreConflictException : If true, ignore ConflictException: subscription already exists for topic
      *
      */
-    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int previousPartitions,
-                                                        int expectPartitions, boolean ignoreConflictException) {
+    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int expectPartitions) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        if (previousPartitions < 1) {
+        if (expectPartitions < 1) {
             return FutureUtil.failedFuture(new RestException(Status.CONFLICT, "Topic is not partitioned topic"));
         }
-
-        if (previousPartitions >= expectPartitions) {
-            return FutureUtil.failedFuture(new RestException(Status.CONFLICT,
-                    "number of partitions must be more than existing " + previousPartitions));
-        }
-
         PulsarAdmin admin;
         try {
             admin = pulsar().getAdminClient();
@@ -4430,7 +4416,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 boolean replicated = ss.isReplicated();
 
-                for (int i = previousPartitions; i < expectPartitions; i++) {
+                for (int i = 0; i < expectPartitions; i++) {
                     final String topicNamePartition = topicName.getPartition(i).toString();
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     admin.topics().createSubscriptionAsync(topicNamePartition,
@@ -4438,8 +4424,7 @@ public class PersistentTopicsBase extends AdminResource {
                         if (ex == null) {
                             future.complete(null);
                         } else {
-                            if (ignoreConflictException
-                                    && ex instanceof PulsarAdminException.ConflictException) {
+                            if (ex instanceof PulsarAdminException.ConflictException) {
                                 future.complete(null);
                             } else {
                                 future.completeExceptionally(ex);
