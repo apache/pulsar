@@ -144,7 +144,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -4659,23 +4658,21 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalTrimTopic(AsyncResponse asyncResponse, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC))
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
-                .thenCompose(topic -> {
-                    if (topic == null) {
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                getTopicNotFoundErrorMessage(topicName.toString())));
-                        return null;
-                    }
-                    if (!(topic instanceof PersistentTopic)) {
+                .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
+                .thenCompose(metadata -> {
+                    if (!topicName.isPersistent()) {
                         log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Trim on a non-persistent topic is not allowed"));
                         return null;
                     }
                     if (topicName.isPartitioned()) {
-                        return trimPartitionedTopic(asyncResponse, authoritative);
+                        return trimNonPartitionedTopic(asyncResponse, topicName);
                     }
-                    return trimNonPartitionedTopic(asyncResponse, (PersistentTopic) topic);
+                    if (metadata.partitions > 0 ) {
+                        return trimPartitionedTopic(asyncResponse, metadata);
+                    }
+                    return trimNonPartitionedTopic(asyncResponse, topicName);
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
@@ -4686,49 +4683,46 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    private static CompletableFuture<Void> trimNonPartitionedTopic(AsyncResponse asyncResponse,
-                                                                   PersistentTopic topic) {
-        ManagedLedger managedLedger = topic.getManagedLedger();
-        if (managedLedger == null) {
-            asyncResponse.resume(null);
-            return CompletableFuture.completedFuture(null);
-        }
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        managedLedger.trimConsumedLedgersInBackground(new CompletableFuture<>()
-                .whenComplete((v, e) -> {
-                    asyncResponse.resume(e);
-                    if (e != null) {
-                        result.completeExceptionally(e);
-                    } else {
-                        result.complete(null);
+    private CompletableFuture<Void> trimNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                            TopicName topicName) {
+        return getTopicReferenceAsync(topicName)
+                .thenCompose(topic -> {
+                    if (!(topic instanceof PersistentTopic persistentTopic)) {
+                        log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
+                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                                "Trim on a non-persistent topic is not allowed"));
+                        return CompletableFuture.completedFuture(null);
                     }
-                }));
-        return result;
+                    ManagedLedger managedLedger = persistentTopic.getManagedLedger();
+                    if (managedLedger == null) {
+                        asyncResponse.resume(null);
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    CompletableFuture<Void> result = new CompletableFuture<>();
+                    managedLedger.trimConsumedLedgersInBackground(result);
+                    return result.whenComplete((res, e) -> {
+                        if (e != null) {
+                            asyncResponse.resume(e);
+                        } else {
+                            asyncResponse.resume(res);
+                        }
+                    });
+                });
     }
 
-    private CompletableFuture<Void> trimPartitionedTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
-                .thenCompose((metadata) -> {
-                    if (metadata.partitions == 0) {
-                        String msg = "Abnormal number of partitions";
-                        log.error("[{}] [{}] {}", clientAppId(), topicName, msg);
-                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
-                        return null;
-                    } else {
-                        List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
-                        for (int i = 0; i < metadata.partitions; i++) {
-                            TopicName topicNamePartition = topicName.getPartition(i);
-                            try {
-                                futures.add(pulsar().getAdminClient().topics()
-                                        .trimTopicAsync(topicNamePartition.toString()));
-                            } catch (Exception e) {
-                                log.error("[{}] Failed to trim topic {}", clientAppId(), topicNamePartition, e);
-                                throw new RestException(e);
-                            }
-                        }
-                        return FutureUtil.waitForAll(futures).thenAccept(asyncResponse::resume);
-                    }
-                });
+    private CompletableFuture<Void> trimPartitionedTopic(AsyncResponse asyncResponse,
+                                                         PartitionedTopicMetadata metadata) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(metadata.partitions);
+        for (int i = 0; i < metadata.partitions; i++) {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            try {
+                futures.add(pulsar().getAdminClient().topics().trimTopicAsync(topicNamePartition.toString()));
+            } catch (Exception e) {
+                log.error("[{}] Failed to trim topic {}", clientAppId(), topicNamePartition, e);
+                throw new RestException(e);
+            }
+        }
+        return FutureUtil.waitForAll(futures).thenAccept(asyncResponse::resume);
     }
 
     protected CompletableFuture<DispatchRateImpl> internalGetDispatchRate(boolean applied, boolean isGlobal) {

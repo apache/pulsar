@@ -1147,7 +1147,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void trimTopic(String topic) throws PulsarAdminException {
-        sync(() -> triggerCompactionAsync(topic));
+        sync(() -> trimTopicAsync(topic));
     }
 
     @Override

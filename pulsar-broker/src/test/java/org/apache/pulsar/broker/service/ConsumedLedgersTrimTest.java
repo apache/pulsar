@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
-
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -197,6 +196,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName)
+                .enableBatching(false)
                 .producerName("producer-name")
                 .create();
         @Cleanup
@@ -210,17 +210,16 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicReference(TopicName.get(topicName).getPartition(0).toString()).get();
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
-        managedLedgerConfig.setRetentionSizeInMB(1);
-        managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
+        managedLedgerConfig.setRetentionSizeInMB(-1);
+        managedLedgerConfig.setRetentionTime(1, TimeUnit.MILLISECONDS);
         managedLedgerConfig.setMaxEntriesPerLedger(maxEntriesPerLedger);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
-        int msgNum = 10;
+        int msgNum = 50;
         for (int i = 0; i < msgNum; i++) {
-            producer.send(new byte[1024 * 1024]);
+            producer.send(new byte[0]);
         }
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(),
-                msgNum / maxEntriesPerLedger / partitionedNum);
+        Assert.assertTrue(managedLedger.getLedgersInfoAsList().size() > 1);
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
             assertNotNull(msg);
