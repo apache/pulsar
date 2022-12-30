@@ -1016,27 +1016,38 @@ public class BrokerService implements Closeable {
                 }
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
+            if (isPersistentTopic) {
+                return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
+                    if (topicName.isPartitioned()) {
+                        return this.fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                                .thenCompose((metadata) -> {
+                                    // Allow crate non-partitioned persistent topic that name includes `partition`
+                                    if (metadata.partitions == 0 ||
+                                            topicName.getPartitionIndex() < metadata.partitions) {
+                                        return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
+                                    }
+                                    return CompletableFuture.completedFuture(Optional.empty());
+                                });
+                    }
+                    return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
+                });
+            } else {
             return topics.computeIfAbsent(topicName.toString(), (name) -> {
-                    // partitioned topic
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                        return fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
+                        return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                             if (topicName.getPartitionIndex() < metadata.partitions) {
-                                return isPersistentTopic
-                                        ? loadOrCreatePersistentTopic(name, createIfMissing, properties) :
-                                        createNonPersistentTopic(name);
+                                return createNonPersistentTopic(name);
                             }
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
+                    } else if (createIfMissing) {
+                        return createNonPersistentTopic(name);
+                    } else {
+                        return CompletableFuture.completedFuture(Optional.empty());
                     }
-                    // non-partitioned topic
-                    return isPersistentTopic
-                            // persistent topic
-                            ? loadOrCreatePersistentTopic(name, createIfMissing, properties) :
-                            // non-persistent topic
-                            (createIfMissing ? createNonPersistentTopic(name) :
-                                    CompletableFuture.completedFuture(Optional.empty()));
                     });
+            }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
             return FutureUtil.failedFuture(e);
