@@ -425,8 +425,6 @@ public class PersistentTopicsBase extends AdminResource {
             return FutureUtil.failedFuture(
                     new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
         }
-        final BrokerService brokerService = pulsar().getBrokerService();
-        ServiceConfiguration configuration = pulsar().getConfiguration();
         return validateTopicOwnershipAsync(topicName, authoritative)
             .thenCompose(__ ->
                     validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE))
@@ -436,9 +434,9 @@ public class PersistentTopicsBase extends AdminResource {
                 }  else {
                     return CompletableFuture.completedFuture(null);
                 }
-            }).thenCompose(__ -> brokerService.fetchPartitionedTopicMetadataAsync(topicName))
+            }).thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
             .thenCompose(topicMetadata -> {
-                final int maxPartitions = configuration.getMaxNumPartitionsPerPartitionedTopic();
+                final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
                 if (maxPartitions > 0 && expectPartitions > maxPartitions) {
                     throw new RestException(Status.NOT_ACCEPTABLE,
                             "Number of partitions should be less than or equal to " + maxPartitions);
@@ -481,8 +479,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
-        getPartitionedTopicMetadataAsync(topicName, false, false)
-                .thenAccept(metadata -> {
+        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
             if (metadata != null) {
                 tryCreatePartitionsAsync(metadata.partitions).thenAccept(v -> {
                     asyncResponse.resume(Response.noContent().build());
