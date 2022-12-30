@@ -166,6 +166,11 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
                             return newStats;
                         })).add((NonPersistentPublisherStatsImpl) s);
             } else {
+                // Add a non-persistent publisher stat entry to this.nonPersistentPublishers
+                // if this.nonPersistentPublishers.size() is smaller than
+                // the input stats.nonPersistentPublishers.size().
+                // Here, index == this.nonPersistentPublishers.size() means
+                // this.nonPersistentPublishers.size() is smaller than the input stats.nonPersistentPublishers.size()
                 if (index == this.nonPersistentPublishers.size()) {
                     NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
                     newStats.setSupportsPartialProducer(false);

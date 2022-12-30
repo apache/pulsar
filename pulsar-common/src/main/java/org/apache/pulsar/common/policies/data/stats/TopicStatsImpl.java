@@ -254,6 +254,11 @@ public class TopicStatsImpl implements TopicStats {
                    return newStats;
                }).add((PublisherStatsImpl) s);
            } else {
+               // Add a publisher stat entry to this.publishers
+               // if this.publishers.size() is smaller than
+               // the input stats.publishers.size().
+               // Here, index == this.publishers.size() means
+               // this.publishers.size() is smaller than the input stats.publishers.size()
                if (index == this.publishers.size()) {
                    PublisherStatsImpl newStats = new PublisherStatsImpl();
                    newStats.setSupportsPartialProducer(false);
