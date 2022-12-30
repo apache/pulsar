@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.lookup.http;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -105,7 +106,7 @@ public class HttpTopicLookupv2Test {
         doReturn(auth).when(brokerService).getAuthorizationService();
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
         doReturn(CompletableFuture.completedFuture(false)).when(brokerService)
-                .isAllowAutoTopicCreationAsync(any(TopicName.class), true);
+                .isAllowAutoTopicCreationAsync(any(TopicName.class), eq(true));
     }
 
     @Test
