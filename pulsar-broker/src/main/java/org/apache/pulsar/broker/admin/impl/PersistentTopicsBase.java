@@ -68,7 +68,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
@@ -87,7 +86,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -2236,7 +2234,7 @@ public class PersistentTopicsBase extends AdminResource {
                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
                         subscriptionName, targetMessageId, authoritative, replicated, properties);
             } else {
-                pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
+                pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName, true)
                         .thenCompose(allowAutoTopicCreation -> getPartitionedTopicMetadataAsync(topicName,
                                 authoritative, allowAutoTopicCreation).thenAccept(partitionMetadata -> {
                             final int numPartitions = partitionMetadata.partitions;
@@ -2338,7 +2336,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SUBSCRIBE, subscriptionName))
-                .thenCompose(__ -> pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName))
+                .thenCompose(__ -> pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName, true))
                 .thenCompose(isAllowAutoTopicCreation -> pulsar().getBrokerService()
                         .getTopic(topicName.toString(), isAllowAutoTopicCreation))
                 .thenApply(optTopic -> {
@@ -4215,62 +4213,6 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
-    }
-
-    public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
-            PulsarService pulsar, String clientAppId, String originalPrincipal,
-            AuthenticationDataSource authenticationData, TopicName topicName) {
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
-        CompletableFuture<Void> authorizationFuture = new CompletableFuture<>();
-        checkAuthorizationAsync(pulsar, topicName, clientAppId, authenticationData)
-                .thenRun(() -> authorizationFuture.complete(null))
-                .exceptionally(e -> {
-                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
-                    if (throwable instanceof RestException) {
-                        validateAdminAccessForTenantAsync(pulsar,
-                                clientAppId, originalPrincipal, topicName.getTenant(), authenticationData)
-                                .thenRun(() -> {
-                                    authorizationFuture.complete(null);
-                                }).exceptionally(ex -> {
-                                    Throwable throwable2 = FutureUtil.unwrapCompletionException(ex);
-                                    if (throwable2 instanceof RestException) {
-                                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
-                                        authorizationFuture.completeExceptionally(new PulsarClientException(
-                                                String.format("Authorization failed %s on topic %s with error %s",
-                                                clientAppId, topicName, throwable2.getMessage())));
-                                    } else {
-                                        authorizationFuture.completeExceptionally(throwable2);
-                                    }
-                                    return null;
-                                });
-                    } else {
-                        // throw without wrapping to PulsarClientException that considers: unknown error marked as
-                        // internal server error
-                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, throwable);
-                        authorizationFuture.completeExceptionally(throwable);
-                    }
-                    return null;
-                });
-
-        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-        // producer/consumer
-        authorizationFuture.thenCompose(__ ->
-                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject()))
-                .thenCompose(res ->
-                        pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
-                .thenAccept(metadata -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
-                                metadata.partitions);
-                    }
-                    metadataFuture.complete(metadata);
-                })
-                .exceptionally(e -> {
-                    metadataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
-                    return null;
-                });
-        return metadataFuture;
     }
 
     /**
