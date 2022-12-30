@@ -157,10 +157,15 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             Map<String, BrokerLookupData> map = new ConcurrentHashMap<>();
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (String brokerId : availableBrokers) {
-                futures.add(this.lookupAsync(brokerId).thenAccept(lookupDataOpt ->
-                        lookupDataOpt.ifPresent(lookupData -> map.put(brokerId, lookupData))));
+                futures.add(this.lookupAsync(brokerId).thenAccept(lookupDataOpt -> {
+                    if (lookupDataOpt.isPresent()) {
+                        map.put(brokerId, lookupDataOpt.get());
+                    } else {
+                        log.warn("Got an empty lookup data, brokerId: {}", brokerId);
+                    }
+                }));
             }
-            return FutureUtil.waitForAll(futures).thenCompose(__ -> CompletableFuture.completedFuture(map));
+            return FutureUtil.waitForAll(futures).thenApply(__ -> map);
         });
     }
 
