@@ -150,7 +150,7 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     @Override
     public SchemaInfo getSchemaInfo() {
         if (!schemaMap.containsKey(SchemaVersion.Latest)) {
-            return SCHEMA_INFO;
+            return null;
         }
         return schemaMap.get(SchemaVersion.Latest).getSchemaInfo();
     }
@@ -161,6 +161,10 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             return schemaMap.get(sv).getSchemaInfo();
         }
         return null;
+    }
+
+    public SchemaInfo getAutoConsumeSchemaInfo() {
+        return SCHEMA_INFO;
     }
 
     @Override

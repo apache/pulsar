@@ -1243,27 +1243,28 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     public void testSubscribeWithSchemaAfterAutoConsumeNewTopic(String domain) throws Exception {
         final String topic = domain + "my-property/my-ns/testSubscribeWithSchemaAfterAutoConsume-1";
 
+        @Cleanup
         Consumer<GenericRecord> autoConsumer1 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
                 .consumerName("autoConsumer1")
                 .subscribe();
-
+        @Cleanup
         Consumer<GenericRecord> autoConsumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
                 .consumerName("autoConsumer2")
                 .subscribe();
-
+        @Cleanup
         Consumer<GenericRecord> autoConsumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub1")
                 .consumerName("autoConsumer3")
                 .subscribe();
-
+        @Cleanup
         Consumer<GenericRecord> autoConsumer4 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
@@ -1281,48 +1282,34 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             assertEquals(e.getStatusCode(), 404);
         }
 
+        @Cleanup
         Consumer<V1Data> consumerWithSchema1 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
                 .consumerName("consumerWithSchema-1")
                 .subscribe();
+        @Cleanup
         Consumer<V1Data> consumerWithSchema2 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub0")
                 .consumerName("consumerWithSchema-2")
                 .subscribe();
+        @Cleanup
         Consumer<V1Data> consumerWithSchema3 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub1")
                 .consumerName("consumerWithSchema-3")
                 .subscribe();
+        @Cleanup
         Consumer<V1Data> consumerWithSchema4 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("sub1")
                 .consumerName("consumerWithSchema-4")
                 .subscribe();
-        try {
-            log.info(admin.schemas().getSchemaInfo(topic).toString());
-            log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
-            log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
-            log.info("The autoConsumer3 isConnected: " + autoConsumer3.isConnected());
-            log.info("The autoConsumer4 isConnected: " + autoConsumer4.isConnected());
-            log.info("The consumerWithSchema-1 isConnected: " + consumerWithSchema1.isConnected());
-            log.info("The consumerWithSchema-2 isConnected: " + consumerWithSchema2.isConnected());
-            log.info("The consumerWithSchema-3 isConnected: " + consumerWithSchema3.isConnected());
-            log.info("The consumerWithSchema-4 isConnected: " + consumerWithSchema4.isConnected());
-        } catch (PulsarAdminException e) {
-            assertEquals(e.getStatusCode(), 404);
-        }
-
-        autoConsumer1.close();
-        autoConsumer2.close();
-        consumerWithSchema1.close();
-        consumerWithSchema2.close();
     }
 
     @DataProvider(name = "keyEncodingType")
