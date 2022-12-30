@@ -618,10 +618,10 @@ public class CmdSources extends CmdBase {
      */
     @Parameters(commandDescription = "List all running Pulsar IO source connectors")
     protected class ListSources extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The sink's tenant")
+        @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The sink's namespace")
+        @Parameter(names = "--namespace", description = "The source's namespace")
         protected String namespace;
 
         @Override
