@@ -769,7 +769,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
                                  Object ctx, PositionImpl maxPosition) {
-        asyncReadEntriesWithSkip(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition, null);
+        asyncReadEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, null);
     }
 
     @Override
