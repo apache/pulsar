@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.io.alluxio.sink;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.base.Preconditions;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -29,11 +33,6 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.alluxio.AlluxioAbstractConfig;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.Map;
 
 @Data
 @Setter
@@ -86,9 +85,10 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
     private String writeType = "MUST_CACHE";
 
     @FieldDoc(
-            required = false,
-            defaultValue = "false",
-            help = "Sets whether the Sink has to take into account the Schema or if it should simply copy the raw message to Alluxio"
+        required = false,
+        defaultValue = "false",
+        help = "Sets whether the Sink has to take into account the Schema or if it should simply copy the raw message"
+            + " to Alluxio"
     )
     private boolean schemaEnable = false;
 
@@ -105,8 +105,8 @@ public class AlluxioSinkConfig extends AlluxioAbstractConfig implements Serializ
     @Override
     public void validate() {
         super.validate();
-        Preconditions.checkArgument(rotationRecords > 0, "rotationRecords must be a positive long.");
-        Preconditions.checkArgument(rotationInterval == -1 || rotationInterval > 0,
+        checkArgument(rotationRecords > 0, "rotationRecords must be a positive long.");
+        checkArgument(rotationInterval == -1 || rotationInterval > 0,
             "rotationInterval must be either -1 or a positive long.");
     }
 }

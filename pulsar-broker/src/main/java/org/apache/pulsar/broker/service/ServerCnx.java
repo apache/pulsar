@@ -3015,19 +3015,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
-        try {
-            if (brokerInterceptor != null) {
+        if (brokerInterceptor != null) {
+            try {
                 brokerInterceptor.onPulsarCommand(command, this);
-            }
-            CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
-            if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
-                Consumer consumer = consumerFuture.getNow(null);
-                if (brokerInterceptor != null) {
+                CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
+                if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+                    Consumer consumer = consumerFuture.getNow(null);
                     brokerInterceptor.messageDispatched(this, consumer, ledgerId, entryId, metadataAndPayload);
                 }
+            } catch (Exception e) {
+                log.error("Exception occur when intercept messages.", e);
             }
-        } catch (Exception e) {
-            log.error("Exception occur when intercept messages.", e);
         }
         return res;
     }

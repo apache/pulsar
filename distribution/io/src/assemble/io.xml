@@ -80,5 +80,6 @@
     <file><source>${basedir}/../../pulsar-io/flume/target/pulsar-io-flume-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/solr/target/pulsar-io-solr-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/dynamodb/target/pulsar-io-dynamodb-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/alluxio/target/pulsar-io-alluxio-${project.version}.nar</source></file>
   </files>
 </assembly>

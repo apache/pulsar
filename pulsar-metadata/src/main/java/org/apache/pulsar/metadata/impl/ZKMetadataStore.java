@@ -164,6 +164,24 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @Override
+    public CompletableFuture<Void> sync(String path) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        zkc.sync(path, new AsyncCallback.VoidCallback() {
+            @Override
+            public void processResult(int rc, String s, Object o) {
+                Code code = Code.get(rc);
+                if (code == Code.OK) {
+                    result.complete(null);
+                } else {
+                    MetadataStoreException e = getException(code, path);
+                    result.completeExceptionally(e);
+                }
+            }
+        }, null);
+        return result;
+    }
+
+    @Override
     protected void batchOperation(List<MetadataOp> ops) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
@@ -424,13 +442,15 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     public void close() throws Exception {
-        if (isZkManaged) {
-            zkc.close();
+        if (isClosed.compareAndSet(false, true)) {
+            if (isZkManaged) {
+                zkc.close();
+            }
+            if (sessionWatcher != null) {
+                sessionWatcher.close();
+            }
+            super.close();
         }
-        if (sessionWatcher != null) {
-            sessionWatcher.close();
-        }
-        super.close();
     }
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {

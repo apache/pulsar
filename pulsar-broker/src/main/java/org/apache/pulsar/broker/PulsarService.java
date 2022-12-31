@@ -545,7 +545,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             offloadersCache.close();
 
             if (coordinationService != null) {
-                coordinationService.close();
+                try {
+                    coordinationService.close();
+                } catch (Exception e) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    if (!(cause instanceof MetadataStoreException.AlreadyClosedException)) {
+                        throw e;
+                    }
+                }
             }
 
             closeLocalMetadataStore();

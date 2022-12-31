@@ -547,13 +547,13 @@ jobs:
         run: |
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
-          mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,tests/docker-images/latest-version-image install \
+          mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
 
       # check full build artifacts licenses
       - name: Check binary licenses
-        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz && src/check-binary-license.sh ./distribution/shell/target/apache-pulsar-shell-*-bin.tar.gz
 
       - name: Clean up disk space
         run: |

@@ -1269,18 +1269,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     long estimateBacklogFromPosition(PositionImpl pos) {
         synchronized (this) {
+            long sizeBeforePosLedger = ledgers.headMap(pos.getLedgerId()).values()
+                    .stream().mapToLong(LedgerInfo::getSize).sum();
             LedgerInfo ledgerInfo = ledgers.get(pos.getLedgerId());
+            long sizeAfter = getTotalSize() - sizeBeforePosLedger;
             if (ledgerInfo == null) {
-                return getTotalSize(); // position no longer in managed ledger, so return total size
-            }
-            long sizeBeforePosLedger = ledgers.values().stream().filter(li -> li.getLedgerId() < pos.getLedgerId())
-                    .mapToLong(LedgerInfo::getSize).sum();
-            long size = getTotalSize() - sizeBeforePosLedger;
-
-            if (pos.getLedgerId() == currentLedger.getId()) {
-                return size - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
+                return sizeAfter;
+            } else if (pos.getLedgerId() == currentLedger.getId()) {
+                return sizeAfter - consumedLedgerSize(currentLedgerSize, currentLedgerEntries, pos.getEntryId());
             } else {
-                return size - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
+                return sizeAfter - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
             }
         }
     }
@@ -1289,7 +1287,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (ledgerEntries <= 0) {
             return 0;
         }
-        if (ledgerEntries == (consumedEntries + 1)) {
+        if (ledgerEntries <= (consumedEntries + 1)) {
             return ledgerSize;
         } else {
             long averageSize = ledgerSize / ledgerEntries;
