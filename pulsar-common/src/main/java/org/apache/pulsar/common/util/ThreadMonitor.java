@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.common.util;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.jctools.maps.NonBlockingHashMapLong;
 
 public class ThreadMonitor {
     @Data
@@ -32,8 +31,8 @@ public class ThreadMonitor {
         private String name;
     }
 
-    public static final ConcurrentMap<Long, ThreadMonitorState> THREAD_ID_TO_STATE =
-            new ConcurrentHashMap<>(1024, 0.75f, 1024);
+    public static final NonBlockingHashMapLong<ThreadMonitorState> THREAD_ID_TO_STATE =
+            new NonBlockingHashMapLong<>(4096, false);
 
     public static final String THREAD_ACTIVE_TIMESTAMP_GAUGE_NAME = "pulsar_thread_last_active_timestamp_ms";
 

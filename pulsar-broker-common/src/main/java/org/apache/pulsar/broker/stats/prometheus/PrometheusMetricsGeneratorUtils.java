@@ -105,7 +105,7 @@ public class PrometheusMetricsGeneratorUtils {
 
     public static final String THREAD_BLOCK_COUNTS = "thread_blocked_count";
     public static final String THREAD_BLOCK_TIME_MS = "thread_blocked_time_ms";
-    public static final String THREAD_WAIT_COUNTS = "thread_waited_counts";
+    public static final String THREAD_WAIT_COUNTS = "thread_waited_count";
     public static final String THREAD_WAIT_TIME_MS = "thread_waited_time_ms";
 
     public static List<Metrics> generateThreadPoolMonitorMetrics(String cluster) {
