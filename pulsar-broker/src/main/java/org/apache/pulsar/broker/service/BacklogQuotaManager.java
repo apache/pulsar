@@ -121,7 +121,7 @@ public class BacklogQuotaManager {
     private void dropBacklogForSizeLimit(PersistentTopic persistentTopic, BacklogQuota quota) {
         // Set the reduction factor to 90%. The aim is to drop down the backlog to 90% of the quota limit.
         double reductionFactor = 0.9;
-        double targetSize = reductionFactor * quota.getLimitSize();
+        double targetSize = reductionFactor * quota.getLimitSizeInBytes();
 
         // Get estimated unconsumed size for the managed ledger associated with this topic. Estimated size is more
         // useful than the actual storage size. Actual storage size gets updated only when managed ledger is trimmed.

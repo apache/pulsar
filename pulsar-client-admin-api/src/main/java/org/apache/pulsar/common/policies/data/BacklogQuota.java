@@ -42,7 +42,7 @@ public interface BacklogQuota {
      *
      * @return quota limit in bytes
      */
-    long getLimitSize();
+    long getLimitSizeInBytes();
 
     /**
      * Gets quota limit in time.

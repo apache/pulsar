@@ -48,7 +48,7 @@ public class BacklogQuotaManagerConfigurationTest {
 
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
-        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
+        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSizeInBytes(), 1717986918);
     }
 
     @Test
@@ -58,7 +58,7 @@ public class BacklogQuotaManagerConfigurationTest {
 
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
-        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
+        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSizeInBytes(), 1717986918);
     }
 
     @Test
@@ -68,7 +68,7 @@ public class BacklogQuotaManagerConfigurationTest {
 
         BacklogQuotaManager backlogQuotaManager = new BacklogQuotaManager(pulsarService);
 
-        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 123);
+        assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSizeInBytes(), 123);
     }
 
     private void initializeServiceConfiguration() {

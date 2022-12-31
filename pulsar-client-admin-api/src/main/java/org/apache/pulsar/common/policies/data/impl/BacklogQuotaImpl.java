@@ -40,7 +40,7 @@ public class BacklogQuotaImpl implements BacklogQuota {
     /**
      * backlog quota by size in byte.
      */
-    private Long limitSize;
+    private Long limitSizeInBytes;
 
     /**
      * backlog quota by time in second.
@@ -48,36 +48,36 @@ public class BacklogQuotaImpl implements BacklogQuota {
     private int limitTimeInSec;
     private RetentionPolicy policy;
 
-    public BacklogQuotaImpl(long limitSize, int limitTimeInSec, RetentionPolicy policy) {
-        this.limitSize = limitSize;
+    public BacklogQuotaImpl(long limitSizeInBytes, int limitTimeInSec, RetentionPolicy policy) {
+        this.limitSizeInBytes = limitSizeInBytes;
         this.limitTimeInSec = limitTimeInSec;
         this.policy = policy;
     }
 
     @Deprecated
     public long getLimit() {
-        if (limitSize == null) {
+        if (limitSizeInBytes == null) {
             return limit;
         }
-        return limitSize;
+        return limitSizeInBytes;
     }
 
     @Deprecated
     public void setLimit(long limit) {
         this.limit = limit;
-        this.limitSize = limit;
+        this.limitSizeInBytes = limit;
     }
 
-    public long getLimitSize() {
-        if (limitSize == null) {
+    public long getLimitSizeInBytes() {
+        if (limitSizeInBytes == null) {
             return limit;
         }
-        return limitSize;
+        return limitSizeInBytes;
     }
 
-    public void setLimitSize(long limitSize) {
-        this.limitSize = limitSize;
-        this.limit = limitSize;
+    public void setLimitSizeInBytes(long limitSizeInBytes) {
+        this.limitSizeInBytes = limitSizeInBytes;
+        this.limit = limitSizeInBytes;
     }
 
     public int getLimitTimeInSec() {

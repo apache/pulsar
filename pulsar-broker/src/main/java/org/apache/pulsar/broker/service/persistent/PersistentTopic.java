@@ -2704,7 +2704,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @return determine if backlog quota enforcement needs to be done for topic based on size limit
      */
     public boolean isSizeBacklogExceeded() {
-        long backlogQuotaLimitInBytes = getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSize();
+        long backlogQuotaLimitInBytes = getBacklogQuota(BacklogQuotaType.destination_storage).getLimitSizeInBytes();
         if (backlogQuotaLimitInBytes < 0) {
             return false;
         }

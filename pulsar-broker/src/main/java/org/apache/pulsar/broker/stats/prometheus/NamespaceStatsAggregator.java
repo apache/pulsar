@@ -160,7 +160,7 @@ public class NamespaceStatsAggregator {
             stats.managedLedgerStats.backlogSize = ml.getEstimatedBacklogSize();
             stats.managedLedgerStats.offloadedStorageUsed = ml.getOffloadedSize();
             stats.backlogQuotaLimit = topic
-                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize();
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSizeInBytes();
             stats.backlogQuotaLimitTime = topic
                     .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTimeInSec();
 

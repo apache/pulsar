@@ -55,7 +55,7 @@ public class BacklogQuotaCompatibilityTest {
         byte[] serialize = simpleType.serialize("/path", writePolicy);
         Policies policies = simpleType.deserialize("/path", serialize, null);
         BacklogQuota readBacklogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
-        Assert.assertEquals(readBacklogQuota.getLimitSize(), 1024);
+        Assert.assertEquals(readBacklogQuota.getLimitSizeInBytes(), 1024);
         Assert.assertEquals(readBacklogQuota.getLimitTimeInSec(), 60);
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
     }
@@ -64,7 +64,7 @@ public class BacklogQuotaCompatibilityTest {
     public void testV28ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();
         BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();
-        writeBacklogQuota.setLimitSize(1024);
+        writeBacklogQuota.setLimitSizeInBytes(1024);
         writeBacklogQuota.setLimitTimeInSec(60);
         writeBacklogQuota.setPolicy(testPolicy);
         HashMap<BacklogQuota.BacklogQuotaType, BacklogQuota> quotaHashMap = new HashMap<>();
@@ -83,7 +83,7 @@ public class BacklogQuotaCompatibilityTest {
     @Test
     public void testV28ClientSetV27BrokerRead() {
         BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();
-        writeBacklogQuota.setLimitSize(1024);
+        writeBacklogQuota.setLimitSizeInBytes(1024);
         Assert.assertEquals(1024, writeBacklogQuota.getLimit());
     }
 
@@ -101,7 +101,7 @@ public class BacklogQuotaCompatibilityTest {
                 + "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false,"
                 + "\"subscription_types_enabled\":[]}\n";
         Policies policies = simpleType.deserialize(null, oldPolicyStr.getBytes(), null);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSizeInBytes(),
                 1001);
         assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTimeInSec(),
                 0);
@@ -123,7 +123,7 @@ public class BacklogQuotaCompatibilityTest {
                 + "\"UNDEFINED\",\"is_allow_auto_update_schema\":true,\"schema_validation_enforced\":false,"
                 + "\"subscription_types_enabled\":[]}\n";
         Policies policies = simpleType.deserialize(null, oldPolicyStr.getBytes(), null);
-        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(),
+        assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSizeInBytes(),
                 0);
         assertEquals(policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage).getLimitTimeInSec(),
                 0);
