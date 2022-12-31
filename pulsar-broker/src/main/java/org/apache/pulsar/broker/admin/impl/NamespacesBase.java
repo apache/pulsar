@@ -38,7 +38,9 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -56,6 +58,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
@@ -876,6 +880,53 @@ public abstract class NamespacesBase extends AdminResource {
                     namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    private void validateLeaderBroker() {
+        if (!this.isLeaderBroker()) {
+            LeaderBroker leaderBroker = pulsar().getLeaderElectionService().getCurrentLeader().get();
+            String leaderBrokerUrl = leaderBroker.getServiceUrl();
+            CompletableFuture<LookupResult> result = pulsar().getNamespaceService()
+                    .createLookupResult(leaderBrokerUrl, false, null);
+            try {
+                LookupResult lookupResult = result.get(2L, TimeUnit.SECONDS);
+                String redirectUrl = isRequestHttps() ? lookupResult.getLookupData().getHttpUrlTls()
+                        : lookupResult.getLookupData().getHttpUrl();
+                if (redirectUrl == null) {
+                    log.error("Redirected broker's service url is not configured");
+                    throw new RestException(Response.Status.PRECONDITION_FAILED,
+                            "Redirected broker's service url is not configured.");
+                }
+                URL url = new URL(redirectUrl);
+                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(url.getHost())
+                        .port(url.getPort())
+                        .replaceQueryParam("authoritative",
+                                false).build();
+
+                // Redirect
+                if (log.isDebugEnabled()) {
+                    log.debug("Redirecting the request call to leader - {}", redirect);
+                }
+                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+            } catch (MalformedURLException exception) {
+                log.error("The leader broker url is malformed - {}", leaderBrokerUrl);
+                throw new RestException(exception);
+            } catch (ExecutionException | InterruptedException exception) {
+                log.error("Leader broker not found - {}", leaderBrokerUrl);
+                throw new RestException(exception.getCause());
+            } catch (TimeoutException exception) {
+                log.error("Leader broker not found within timeout - {}", leaderBrokerUrl);
+                throw new RestException(exception);
+            }
+        }
+    }
+
+    public void setNamespaceBundleAffinity (String bundleRange, String destinationBroker) {
+        if (StringUtils.isBlank(destinationBroker)) {
+            return;
+        }
+        validateLeaderBroker();
+        pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
     }
 
     public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange, boolean authoritative) {

@@ -601,7 +601,7 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
+    public CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
                                                                  final String advertisedListenerName) {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
@@ -692,6 +692,7 @@ public class NamespaceService implements AutoCloseable {
         String lookupAddress = leastLoadedBroker.get().getResourceId();
         String advertisedAddr = (String) leastLoadedBroker.get()
                 .getProperty(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME);
+
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
                     pulsar.getSafeWebServiceAddress(),
