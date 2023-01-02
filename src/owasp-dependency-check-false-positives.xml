@@ -28,6 +28,12 @@
     <cpe>cpe:/a:apache:http_server</cpe>
   </suppress>
   <suppress>
+    <notes>
+      apache:apache_http_server is not used.
+    </notes>
+    <cpe>cpe:/a:apache:apache_http_server</cpe>
+  </suppress>
+  <suppress>
     <notes>pulsar-package-bookkeeper-storage gets mixed with bookkeeper.</notes>
     <gav regex="true">org\.apache\.pulsar:.*</gav>
     <cpe>cpe:/a:apache:bookkeeper</cpe>
@@ -164,5 +170,10 @@
    ]]></notes>
     <sha1>1a754a5dd672218a2ac667d7ff2b28df7a5a240e</sha1>
     <cve>CVE-2022-25647</cve>
+  </suppress>
+
+  <suppress>
+    <notes>commons-net is not used at all and therefore commons-net vulnerability CVE-2021-37533 is a false positive.</notes>
+    <cve>CVE-2021-37533</cve>
   </suppress>
 </suppressions>
