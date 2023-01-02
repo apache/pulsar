@@ -325,7 +325,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
                     false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
-                    DEFAULT_CONSUMER_EPOCH, schemaType == null ? SchemaType.BYTES : schemaType);
+                    DEFAULT_CONSUMER_EPOCH, schemaType);
             if (isMigrated()) {
                 consumer.topicMigrated(getClusterMigrationUrl());
             }
