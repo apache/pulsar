@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service.persistent;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
     @BeforeClass
