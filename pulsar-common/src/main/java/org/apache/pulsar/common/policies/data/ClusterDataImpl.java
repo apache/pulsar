@@ -205,13 +205,15 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTlsTrustStoreType(brokerClientTlsTrustStoreType)
                 .brokerClientTlsTrustStore(brokerClientTlsTrustStore)
                 .brokerClientTlsTrustStorePassword(brokerClientTlsTrustStorePassword)
-                .brokerClientTlsKeyStoreType(brokerClientTlsTrustStoreType)
-                .brokerClientTlsKeyStore(brokerClientTlsTrustStore)
-                .brokerClientTlsKeyStorePassword(brokerClientTlsTrustStorePassword)
+                .brokerClientTlsKeyStoreType(brokerClientTlsKeyStoreType)
+                .brokerClientTlsKeyStore(brokerClientTlsKeyStore)
+                .brokerClientTlsKeyStorePassword(brokerClientTlsKeyStorePassword)
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                 .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
                 .brokerClientKeyFilePath(brokerClientKeyFilePath)
-                .listenerName(listenerName);
+                .listenerName(listenerName)
+                .migrated(migrated)
+                .migratedClusterUrl(migratedClusterUrl);
     }
 
     @Data
