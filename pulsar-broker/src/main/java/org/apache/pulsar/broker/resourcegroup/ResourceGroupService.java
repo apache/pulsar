@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCoun
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupRefTypes;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -543,7 +544,10 @@ public class ResourceGroupService implements AutoCloseable{
     protected void aggregateResourceGroupLocalUsages() {
         final Summary.Timer aggrUsageTimer = rgUsageAggregationLatency.startTimer();
         BrokerService bs = this.pulsar.getBrokerService();
-        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(false).build();
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats(getStatsOptions);
 
         for (Map.Entry<String, TopicStatsImpl> entry : topicStatsMap.entrySet()) {
             final String topicName = entry.getKey();

@@ -1230,7 +1230,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName(subName).subscribe();
-        TopicStats topicStats = admin.topics().getStats(topic, false, false, true);
+        TopicStats topicStats = admin.topics().getStats(topic, false, false, true, true);
 
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
@@ -1239,7 +1239,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         publishMessagesOnPersistentTopic(topic, 10);
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, false, true, true);
         assertTrue(topicStats.getEarliestMsgPublishTimeInBacklogs() > 0);
         assertTrue(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() > 0);
 
@@ -1249,7 +1249,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, false, true, true);
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
     }

@@ -590,21 +590,21 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public TopicStats getStats(String topic, GetStatsOptions getStatsOptions) throws PulsarAdminException {
-        boolean getPreciseBacklog = getStatsOptions.isGetPreciseBacklog();
-        boolean subscriptionBacklogSize = getStatsOptions.isSubscriptionBacklogSize();
-        boolean getEarliestTimeInBacklog = getStatsOptions.isGetEarliestTimeInBacklog();
-        return sync(() -> getStatsAsync(topic, getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog));
+        return sync(() -> getStatsAsync(topic, getStatsOptions));
     }
 
+    @Deprecated
     @Override
     public CompletableFuture<TopicStats> getStatsAsync(String topic, boolean getPreciseBacklog,
                                                        boolean subscriptionBacklogSize,
-                                                       boolean getEarliestTimeInBacklog) {
+                                                       boolean getEarliestTimeInBacklog,
+                                                       boolean getTotalNonContiguousDeletedMessagesRange) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "stats")
                 .queryParam("getPreciseBacklog", getPreciseBacklog)
                 .queryParam("subscriptionBacklogSize", subscriptionBacklogSize)
-                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog);
+                .queryParam("getEarliestTimeInBacklog", getEarliestTimeInBacklog)
+                .queryParam("getTotalNonContiguousDeletedMessagesRange", getTotalNonContiguousDeletedMessagesRange);
         final CompletableFuture<TopicStats> future = new CompletableFuture<>();
 
         InvocationCallback<TopicStats> persistentCB = new InvocationCallback<TopicStats>() {
@@ -639,6 +639,13 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<TopicStats> getStatsAsync(String topic, GetStatsOptions getStatsOptions) {
+        return getStatsAsync(topic, getStatsOptions.isGetPreciseBacklog(), getStatsOptions.isSubscriptionBacklogSize(),
+                getStatsOptions.isGetEarliestTimeInBacklog(),
+                getStatsOptions.isGetTotalNonContiguousDeletedMessagesRange());
     }
 
     @Override

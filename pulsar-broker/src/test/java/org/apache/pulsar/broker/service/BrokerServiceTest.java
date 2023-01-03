@@ -77,6 +77,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.client.admin.BrokerStats;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -231,7 +232,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -252,7 +256,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // publisher stats
@@ -290,7 +294,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
         assertEquals(stats.getOffloadedStorageSize(), 0);
 
@@ -419,13 +423,16 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         assertNotNull(topicRef);
-        assertEquals(topicRef.getStats(false, false, false).storageSize, 0);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        assertEquals(topicRef.getStats(getStatsOptions).storageSize, 0);
 
         for (int i = 0; i < 10; i++) {
             producer.send(new byte[10]);
         }
 
-        assertTrue(topicRef.getStats(false, false, false).storageSize > 0);
+        assertTrue(topicRef.getStats(getStatsOptions).storageSize > 0);
     }
 
     @Test
@@ -447,7 +454,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertNotNull(topicRef);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // subscription stats
@@ -465,7 +475,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         // publisher stats
@@ -500,7 +510,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
         assertTrue(subStats.getMsgRateRedeliver() > 0.0);
         assertEquals(subStats.getMsgRateRedeliver(), subStats.getConsumers().get(0).getMsgRateRedeliver());
@@ -514,7 +524,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         rolloverPerIntervalStats();
-        stats = topicRef.getStats(false, false, false);
+        stats = topicRef.getStats(getStatsOptions);
         subStats = stats.getSubscriptions().values().iterator().next();
 
         assertEquals(subStats.getMsgBacklog(), 0);

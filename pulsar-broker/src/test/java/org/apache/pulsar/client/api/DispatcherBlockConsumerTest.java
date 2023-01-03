@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -544,7 +545,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertNotNull(topicRef);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats(false, false, false);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+            stats = topicRef.getStats(getStatsOptions);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             // subscription stats
@@ -562,7 +566,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Thread.sleep(timeWaitToSync);
 
             rolloverPerIntervalStats();
-            stats = topicRef.getStats(false, false, false);
+            stats = topicRef.getStats(getStatsOptions);
             subStats = stats.getSubscriptions().values().iterator().next();
 
             assertTrue(subStats.getMsgBacklog() > 0);

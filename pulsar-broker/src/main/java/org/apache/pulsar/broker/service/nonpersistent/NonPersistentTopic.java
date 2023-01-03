@@ -65,6 +65,7 @@ import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -845,10 +846,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public NonPersistentTopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                                boolean getEarliestTimeInBacklog) {
+    public NonPersistentTopicStatsImpl getStats(GetStatsOptions getStatsOptions) {
         try {
-            return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getPreciseBacklog).get();
+            return asyncGetStats(getStatsOptions).get();
         } catch (InterruptedException | ExecutionException e) {
             log.error("[{}] Fail to get stats", topic, e);
             return null;
@@ -856,9 +856,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
-    public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
-                                                                        boolean subscriptionBacklogSize,
-                                                                        boolean getEarliestTimeInBacklog) {
+    public CompletableFuture<NonPersistentTopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions) {
         CompletableFuture<NonPersistentTopicStatsImpl> future = new CompletableFuture<>();
         NonPersistentTopicStatsImpl stats = new NonPersistentTopicStatsImpl();
 

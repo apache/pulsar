@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -209,7 +210,10 @@ public class PersistentTopicTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
 
         // stats are at zero before any activity
-        TopicStats stats = topic.getStats(false, false, false);
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+        TopicStats stats = topic.getStats(getStatsOptions);
         assertEquals(stats.getBytesInCounter(), 0);
         assertEquals(stats.getMsgInCounter(), 0);
         assertEquals(stats.getBytesOutCounter(), 0);
@@ -223,7 +227,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
 
         // send/receive result in non-zero stats
-        TopicStats statsBeforeUnsubscribe = topic.getStats(false, false, false);
+        TopicStats statsBeforeUnsubscribe = topic.getStats(getStatsOptions);
         assertTrue(statsBeforeUnsubscribe.getBytesInCounter() > 0);
         assertTrue(statsBeforeUnsubscribe.getMsgInCounter() > 0);
         assertTrue(statsBeforeUnsubscribe.getBytesOutCounter() > 0);
@@ -236,7 +240,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(topic.getProducers().size(), 0);
 
         // consumer unsubscribe/producer removal does not result in stats loss
-        TopicStats statsAfterUnsubscribe = topic.getStats(false, false, false);
+        TopicStats statsAfterUnsubscribe = topic.getStats(getStatsOptions);
         assertEquals(statsAfterUnsubscribe.getBytesInCounter(), statsBeforeUnsubscribe.getBytesInCounter());
         assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
         assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());

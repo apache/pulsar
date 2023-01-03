@@ -44,6 +44,7 @@ import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -432,9 +433,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
+            @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog,
+            @ApiParam(value = "If return time of the earliest message in backlog")
+            @QueryParam("getTotalNonContiguousDeletedMessagesRange") @DefaultValue("true")
+            boolean getTotalNonContiguousDeletedMessagesRange) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGetStatsAsync(authoritative, getPreciseBacklog, false, false)
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(getPreciseBacklog).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false)
+                        .getTotalNonContiguousDeletedMessagesRange(getTotalNonContiguousDeletedMessagesRange).build();
+        internalGetStatsAsync(authoritative, getStatsOptions)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -501,7 +509,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, false, false, false);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(true).build();
+
+            internalGetPartitionedStats(asyncResponse, authoritative, perPartition, getStatsOptions);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

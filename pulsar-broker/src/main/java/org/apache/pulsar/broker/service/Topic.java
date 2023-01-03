@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -265,12 +266,9 @@ public interface Topic {
 
     ConcurrentOpenHashMap<String, ? extends Replicator> getShadowReplicators();
 
-    TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                            boolean getEarliestTimeInBacklog);
+    TopicStatsImpl getStats(GetStatsOptions getStatsOptions);
 
-    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
-                                                              boolean subscriptionBacklogSize,
-                                                              boolean getEarliestTimeInBacklog);
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions);
 
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 

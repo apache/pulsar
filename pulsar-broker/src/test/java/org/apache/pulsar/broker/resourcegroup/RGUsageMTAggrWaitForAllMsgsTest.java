@@ -25,6 +25,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCoun
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.ResourceGroupMonitoringClass;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroupService.ResourceGroupUsageStatsType;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -547,7 +548,10 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
                                        boolean checkConsume) throws Exception {
 
         BrokerService bs = pulsar.getBrokerService();
-        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats();
+        GetStatsOptions getStatsOptions =
+                GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                        .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(false).build();
+        Map<String, TopicStatsImpl> topicStatsMap = bs.getTopicStats(getStatsOptions);
 
         log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
 

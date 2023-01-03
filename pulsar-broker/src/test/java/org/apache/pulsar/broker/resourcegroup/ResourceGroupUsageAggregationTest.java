@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -210,7 +211,10 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
                                                                 throws InterruptedException, PulsarAdminException {
         BrokerService bs = pulsar.getBrokerService();
         Awaitility.await().untilAsserted(() -> {
-            TopicStatsImpl topicStats = bs.getTopicStats().get(topicString);
+            GetStatsOptions getStatsOptions =
+                    GetStatsOptions.builder().getPreciseBacklog(false).subscriptionBacklogSize(false)
+                            .getEarliestTimeInBacklog(false).getTotalNonContiguousDeletedMessagesRange(false).build();
+            TopicStatsImpl topicStats = bs.getTopicStats(getStatsOptions).get(topicString);
             Assert.assertNotNull(topicStats);
             if (checkProduce) {
                 Assert.assertTrue(topicStats.bytesInCounter >= sentNumBytes);
