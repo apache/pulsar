@@ -32,6 +32,8 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionMode;
 
 @Data
 public class ReaderConfigurationData<T> implements Serializable, Cloneable {
@@ -152,6 +154,10 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
     private boolean autoAckOldestChunkedMessageOnQueueFull = false;
 
     private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
+
+    private SubscriptionMode subscriptionMode = SubscriptionMode.NonDurable;
+
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     @JsonIgnore
     public String getTopicName() {

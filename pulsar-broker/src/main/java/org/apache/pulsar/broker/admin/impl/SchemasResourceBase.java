@@ -114,6 +114,10 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
+        if (SchemaType.BYTES.name().equals(payload.getType())) {
+            return CompletableFuture.failedFuture(new RestException(Response.Status.NOT_ACCEPTABLE,
+                    "Do not upload a BYTES schema, because it's the default schema type"));
+        }
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsyncWithoutAuth())
                 .thenCompose(schemaCompatibilityStrategy -> {

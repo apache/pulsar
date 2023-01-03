@@ -586,7 +586,7 @@ public class SinkConfigUtils {
 
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
-                newConfig.getInputSpecs().put(topicName,
+                newConfig.getInputSpecs().putIfAbsent(topicName,
                         ConsumerConfig.builder().isRegexPattern(false).build());
             }));
         }

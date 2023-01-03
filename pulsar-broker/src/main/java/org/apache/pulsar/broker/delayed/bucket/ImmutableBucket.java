@@ -19,15 +19,22 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.AsyncOperationTimeoutSeconds;
+import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
+import org.roaringbitmap.RoaringBitmap;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
 @Slf4j
 class ImmutableBucket extends Bucket {
@@ -35,12 +42,16 @@ class ImmutableBucket extends Bucket {
         super(cursor, storage, startLedgerId, endLedgerId);
     }
 
-    /**
-     * Asynchronous load next bucket snapshot entry.
-     * @param isRecover whether used to recover bucket snapshot
-     * @return CompletableFuture
-     */
-    CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry(boolean isRecover) {
+    CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry() {
+        return asyncLoadNextBucketSnapshotEntry(false, null);
+    }
+
+    CompletableFuture<List<DelayedIndex>> asyncRecoverBucketSnapshotEntry(Supplier<Long> cutoffTimeSupplier) {
+        return asyncLoadNextBucketSnapshotEntry(true, cutoffTimeSupplier);
+    }
+
+    private CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry(boolean isRecover,
+                                                                                   Supplier<Long> cutoffTimeSupplier) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Load next bucket snapshot data, bucket: {}", cursor.getName(), this);
         }
@@ -52,11 +63,29 @@ class ImmutableBucket extends Bucket {
 
         return snapshotCreateFuture.thenCompose(__ -> {
             final long bucketId = getAndUpdateBucketId();
-            CompletableFuture<Integer> loadMetaDataFuture = new CompletableFuture<>();
+            final CompletableFuture<Integer> loadMetaDataFuture;
             if (isRecover) {
-                // TODO Recover bucket snapshot
+                final long cutoffTime = cutoffTimeSupplier.get();
+                // Load Metadata of bucket snapshot
+                loadMetaDataFuture = bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
+                        .thenApply(snapshotMetadata -> {
+                    List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata> metadataList =
+                            snapshotMetadata.getMetadataListList();
+
+                    // Skip all already reach schedule time snapshot segments
+                    int nextSnapshotEntryIndex = 0;
+                    while (nextSnapshotEntryIndex < metadataList.size()
+                            && metadataList.get(nextSnapshotEntryIndex).getMaxScheduleTimestamp() <= cutoffTime) {
+                        nextSnapshotEntryIndex++;
+                    }
+
+                    this.setLastSegmentEntryId(metadataList.size());
+                    this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
+
+                    return nextSnapshotEntryIndex + 1;
+                });
             } else {
-                loadMetaDataFuture.complete(currentSegmentEntryId + 1);
+                loadMetaDataFuture = CompletableFuture.completedFuture(currentSegmentEntryId + 1);
             }
 
             return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
@@ -80,6 +109,27 @@ class ImmutableBucket extends Bucket {
                         });
             });
         });
+    }
+
+    private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
+                                                    List<SnapshotSegmentMetadata> segmentMetadata) {
+        this.delayedIndexBitMap.clear();
+        MutableLong numberMessages = new MutableLong(0);
+        for (int i = startSnapshotIndex; i < segmentMetadata.size(); i++) {
+            Map<Long, ByteString> bitByteStringMap = segmentMetadata.get(i).getDelayedIndexBitMapMap();
+            bitByteStringMap.forEach((leaderId, bitSetString) -> {
+                boolean exist = this.delayedIndexBitMap.containsKey(leaderId);
+                RoaringBitmap bitSet =
+                        new ImmutableRoaringBitmap(bitSetString.asReadOnlyByteBuffer()).toRoaringBitmap();
+                numberMessages.add(bitSet.getCardinality());
+                if (!exist) {
+                    this.delayedIndexBitMap.put(leaderId, bitSet);
+                } else {
+                    this.delayedIndexBitMap.get(leaderId).or(bitSet);
+                }
+            });
+        }
+        this.setNumberBucketDelayedMessages(numberMessages.getValue());
     }
 
     void clear(boolean delete) {
