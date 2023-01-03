@@ -133,6 +133,8 @@ public class PersistentSubscription extends AbstractSubscription {
     private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
 
+    private volatile String lastLocalSubscriptionUpdatedSnapshotId;
+
     static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
         return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
@@ -404,21 +406,6 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
 
-        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
-            this.updateLastMarkDeleteAdvancedTimestamp();
-
-            // Mark delete position advance
-            ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
-            if (snapshotCache != null) {
-                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
-                        .advancedMarkDeletePosition((PositionImpl) cursor.getMarkDeletedPosition());
-                if (snapshot != null) {
-                    topic.getReplicatedSubscriptionController()
-                            .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
-                }
-            }
-        }
-
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
@@ -494,6 +481,26 @@ public class PersistentSubscription extends AbstractSubscription {
     private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
         PositionImpl oldMD = (PositionImpl) oldPosition;
         PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
+
+        if (!newMD.equals(oldMD)) {
+            this.updateLastMarkDeleteAdvancedTimestamp();
+
+            // Mark delete position advance
+            ReplicatedSubscriptionSnapshotCache snapshotCache  = this.replicatedSubscriptionSnapshotCache;
+            if (snapshotCache != null) {
+                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache.advancedMarkDeletePosition(newMD);
+                if (snapshot != null) {
+                    topic.getReplicatedSubscriptionController()
+                            .ifPresent(c -> {
+                                if (!snapshot.getSnapshotId().equals(lastLocalSubscriptionUpdatedSnapshotId)) {
+                                    c.localSubscriptionUpdated(subName, snapshot);
+                                    lastLocalSubscriptionUpdatedSnapshotId = snapshot.getSnapshotId();
+                                }
+                            });
+                }
+            }
+        }
+
         if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
             dispatcher.markDeletePositionMoveForward();
         }
