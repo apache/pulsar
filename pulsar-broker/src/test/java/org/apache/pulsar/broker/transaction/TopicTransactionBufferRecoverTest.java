@@ -723,10 +723,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         TransactionBufferSnapshotIndex transactionBufferSnapshotIndex =
                 transactionBufferTransactionBufferSnapshotIndexes.getIndexList().get(1);
-        assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionLedgerID(), 1L);
-        assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionEntryID(), 1L);
-        assertEquals(transactionBufferSnapshotIndex.getPersistentPositionLedgerID(), 1L);
-        assertEquals(transactionBufferSnapshotIndex.getPersistentPositionEntryID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getAbortedMarkLedgerID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getAbortedMarkEntryID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getSegmentLedgerID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getSegmentEntryID(), 1L);
         assertEquals(transactionBufferSnapshotIndex.getSequenceID(), 1L);
     }
 

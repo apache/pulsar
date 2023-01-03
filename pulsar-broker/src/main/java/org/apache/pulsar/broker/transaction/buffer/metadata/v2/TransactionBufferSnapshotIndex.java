@@ -29,8 +29,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TransactionBufferSnapshotIndex {
     public long sequenceID;
-    public long maxReadPositionLedgerID;
-    public long maxReadPositionEntryID;
-    public long persistentPositionLedgerID;
-    public long persistentPositionEntryID;
+    public long abortedMarkLedgerID;
+    public long abortedMarkEntryID;
+    public long segmentLedgerID;
+    public long segmentEntryID;
 }
