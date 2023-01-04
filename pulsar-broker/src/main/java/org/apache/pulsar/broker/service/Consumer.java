@@ -58,7 +58,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -143,14 +142,24 @@ public class Consumer {
 
     private long negtiveUnackedMsgsTimestamp;
 
-    private final SchemaType schemaType;
+    @Getter
+    private final boolean isAutoConsumeSchema;
 
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted,
-                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch, SchemaType schemaType) {
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+        this(subscription, subType, topicName, consumerId, priorityLevel, consumerName, isDurable, cnx, appId,
+                metadata, readCompacted, keySharedMeta, startMessageId, consumerEpoch, false);
+    }
 
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    boolean isDurable, TransportCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted,
+                    KeySharedMeta keySharedMeta, MessageId startMessageId,
+                    long consumerEpoch, boolean isAutoConsumeSchema) {
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
@@ -208,7 +217,7 @@ public class Consumer {
         this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
 
-        this.schemaType = schemaType;
+        this.isAutoConsumeSchema = isAutoConsumeSchema;
     }
 
     @VisibleForTesting
@@ -236,7 +245,7 @@ public class Consumer {
         this.clientAddress = null;
         this.startMessageId = null;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
-        this.schemaType = null;
+        this.isAutoConsumeSchema = false;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
     }
 
@@ -1102,10 +1111,6 @@ public class Consumer {
 
     public Map<String, String> getMetadata() {
         return metadata;
-    }
-
-    public SchemaType getSchemaType() {
-        return schemaType;
     }
 
     private int getStickyKeyHash(Entry entry) {

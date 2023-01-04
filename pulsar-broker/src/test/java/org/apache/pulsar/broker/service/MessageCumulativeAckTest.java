@@ -160,7 +160,7 @@ public class MessageCumulativeAckTest {
     public void testAckWithIndividualAckMode(CommandSubscribe.SubType subType) throws Exception {
         Consumer consumer = new Consumer(sub, subType, "topic-1", consumerId, 0,
             "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH, null);
+            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
@@ -175,7 +175,7 @@ public class MessageCumulativeAckTest {
     public void testAckWithNotIndividualAckMode(CommandSubscribe.SubType subType) throws Exception {
         Consumer consumer = new Consumer(sub, subType, "topic-1", consumerId, 0,
             "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH, null);
+            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
@@ -190,7 +190,7 @@ public class MessageCumulativeAckTest {
     public void testAckWithMoreThanNoneMessageIds() throws Exception {
         Consumer consumer = new Consumer(sub, Failover, "topic-1", consumerId, 0,
             "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH, null);
+            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);

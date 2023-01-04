@@ -771,7 +771,7 @@ public class Commands {
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
-        if (type.getValue() < 0 && type.getValue() != -3) {
+        if (type.getValue() < 0) {
             return Schema.Type.None;
         } else {
             return Schema.Type.valueOf(type.getValue());
@@ -779,7 +779,7 @@ public class Commands {
     }
 
     public static SchemaType getSchemaType(Schema.Type type) {
-        if (type.getValue() < 0 && type.getValue() != -3) {
+        if (type.getValue() < 0) {
             // this is unexpected
             return SchemaType.NONE;
         } else {
@@ -791,6 +791,9 @@ public class Commands {
         schema.setName(schemaInfo.getName())
                 .setSchemaData(schemaInfo.getSchema())
                 .setType(getSchemaType(schemaInfo.getType()));
+        if (schemaInfo.getType() == SchemaType.AUTO_CONSUME) {
+            schema.setIsAutoConsumeSchema(true);
+        }
 
         schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
             if (entry.getKey() != null && entry.getValue() != null) {

@@ -151,7 +151,6 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -709,7 +708,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()),
-                option.getConsumerEpoch(), option.getSchemaType());
+                option.getConsumerEpoch(), option.isAutoConsumeSchema());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -723,7 +722,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch,
-                                                          SchemaType schemaType) {
+                                                          boolean isAutoConsumeSchema) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -811,7 +810,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType);
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, isAutoConsumeSchema);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     checkBackloggedCursors();
@@ -885,11 +884,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  InitialPosition initialPosition,
                                                  long startMessageRollbackDurationSec,
                                                  boolean replicatedSubscriptionStateArg,
-                                                 KeySharedMeta keySharedMeta,
-                                                 SchemaType schemaType) {
+                                                 KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, schemaType);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, false);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -3060,7 +3058,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return hasSchema().thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
+                            .filter(consumer -> !consumer.isAutoConsumeSchema())
                             .toList().size())
                     .sum();
             if (hasSchema

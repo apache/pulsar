@@ -29,7 +29,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeyValue;
-import org.apache.pulsar.common.schema.SchemaType;
 
 @Getter
 @Builder
@@ -50,7 +49,7 @@ public class SubscriptionOption {
     private KeySharedMeta keySharedMeta;
     private Optional<Map<String, String>> subscriptionProperties;
     private long consumerEpoch;
-    private SchemaType schemaType;
+    private boolean isAutoConsumeSchema;
 
     public static Optional<Map<String, String>> getPropertiesMap(List<KeyValue> list) {
         if (list == null) {

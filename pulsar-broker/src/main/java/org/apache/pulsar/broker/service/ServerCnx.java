@@ -1021,6 +1021,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 ? subscribe.getStartMessageRollbackDurationSec()
                 : -1;
         final SchemaData schema = subscribe.hasSchema() ? getSchema(subscribe.getSchema()) : null;
+        final boolean isAutoConsumeSchema = subscribe.hasSchema() && subscribe.getSchema().isIsAutoConsumeSchema();
         final boolean isReplicated = subscribe.hasReplicateSubscriptionState()
                 && subscribe.isReplicateSubscriptionState();
         final boolean forceTopicCreation = subscribe.isForceTopicCreation();
@@ -1129,9 +1130,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
-                                    .schemaType(schema == null ? null : schema.getType())
+                                    .isAutoConsumeSchema(isAutoConsumeSchema)
                                     .build();
-                            if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
+                            if (schema != null && !isAutoConsumeSchema) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
                                         .thenCompose(v -> topic.subscribe(option));
                             } else {
