@@ -30,6 +30,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -120,6 +121,8 @@ public class Commands {
     // this present broker version don't have consumerEpoch feature,
     // so client don't need to think about consumerEpoch feature
     public static final long DEFAULT_CONSUMER_EPOCH = -1L;
+
+    private static final byte[] AUTO_CONSUME_SCHEMA_BYTES = SchemaType.AUTO_CONSUME.name().getBytes(UTF_8);
 
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
@@ -1993,5 +1996,16 @@ public class Commands {
 
     public static boolean peerSupportsBrokerMetadata(int peerVersion) {
         return peerVersion >= ProtocolVersion.v16.getValue();
+    }
+
+    public static SchemaInfo createAutoConsumeSchemaInfo() {
+        return SchemaInfo.builder().type(SchemaType.NONE)
+                .schema(AUTO_CONSUME_SCHEMA_BYTES)
+                .name("")
+                .build();
+    }
+
+    public static boolean isAutoConsumeSchema(SchemaType schemaType, byte[] data) {
+        return schemaType == SchemaType.NONE && Arrays.equals(data, AUTO_CONSUME_SCHEMA_BYTES);
     }
 }

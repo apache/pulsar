@@ -1335,4 +1335,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
         return Optional.empty();
     }
+
+    protected static boolean hasActiveNonAutoConsumeConsumers(List<? extends Subscription> subscriptions) {
+        for (Subscription subscription : subscriptions) {
+            for (Consumer consumer : subscription.getConsumers()) {
+                if (!consumer.isAutoConsume()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }

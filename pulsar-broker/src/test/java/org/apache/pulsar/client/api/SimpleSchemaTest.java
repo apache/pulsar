@@ -1326,4 +1326,25 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         producer.close();
         consumer.close();
     }
+
+    @Test(dataProvider = "topicDomain")
+    public void testTopicAutoConsumeConsumerConnected(String domain) throws Exception {
+        final String topic = domain + "my-property/my-ns/test-topic-auto-consume-consumer-connected";
+
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub")
+                .subscribe();
+
+        // Consumer with schema should be able to subscribe if an AUTO_CONSUME consumer is already connected
+        Consumer<V1Data> consumerWithSchema = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub")
+                .subscribe();
+
+        consumerWithSchema.close();
+        consumer.close();
+    }
 }

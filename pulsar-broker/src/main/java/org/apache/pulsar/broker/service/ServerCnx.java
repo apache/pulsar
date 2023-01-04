@@ -1133,6 +1133,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                         "Subscription does not exist"));
                             }
 
+                            boolean autoConsume = (schema != null)
+                                    && Commands.isAutoConsumeSchema(schema.getType(), schema.getData());
                             SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
                                     .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
@@ -1143,8 +1145,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
+                                    .autoConsume(autoConsume)
                                     .build();
-                            if (schema != null) {
+                            if (schema != null && !autoConsume) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
                                         .thenCompose(v -> topic.subscribe(option));
                             } else {

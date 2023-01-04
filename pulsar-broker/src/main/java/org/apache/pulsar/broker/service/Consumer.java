@@ -135,6 +135,8 @@ public class Consumer {
     private final String clientAddress; // IP address only, no port number included
     private final MessageId startMessageId;
     private final boolean isAcknowledgmentAtBatchIndexLevelEnabled;
+    @Getter
+    private final boolean autoConsume;
 
     @Getter
     @Setter
@@ -147,7 +149,15 @@ public class Consumer {
                     boolean isDurable, TransportCnx cnx, String appId,
                     Map<String, String> metadata, boolean readCompacted,
                     KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch) {
+        this(subscription, subType, topicName, consumerId, priorityLevel, consumerName, isDurable, cnx, appId,
+                metadata, readCompacted, keySharedMeta, startMessageId, consumerEpoch, false);
+    }
 
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    boolean isDurable, TransportCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted,
+                    KeySharedMeta keySharedMeta, MessageId startMessageId, long consumerEpoch, boolean autoConsume) {
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
@@ -204,6 +214,7 @@ public class Consumer {
         this.consumerEpoch = consumerEpoch;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = subscription.getTopic().getBrokerService()
                 .getPulsar().getConfiguration().isAcknowledgmentAtBatchIndexLevelEnabled();
+        this.autoConsume = autoConsume;
     }
 
     @VisibleForTesting
@@ -231,6 +242,7 @@ public class Consumer {
         this.clientAddress = null;
         this.startMessageId = null;
         this.isAcknowledgmentAtBatchIndexLevelEnabled = false;
+        this.autoConsume = false;
         MESSAGE_PERMITS_UPDATER.set(this, availablePermits);
     }
 
