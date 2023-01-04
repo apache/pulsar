@@ -421,14 +421,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleSplitEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
             splitServiceUnit(serviceUnit, data)
-                    .whenComplete((__, e) -> {
-                        if (e != null) {
-                            // When has exception, change the bundle state back to Splitting -> Owned .
-                            pubAsync(serviceUnit, new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker()));
-                            log(e, serviceUnit, data, null);
-                        }
-
-                    });
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         }
     }
 
