@@ -2766,19 +2766,19 @@ public class PersistentTopicsBase extends AdminResource {
             future = CompletableFuture.completedFuture(null);
         }
         return future.thenCompose(__ -> {
-            if (!topicName.isPartitioned()) {
+            if (topicName.isPartitioned()) {
+                return CompletableFuture.completedFuture(null);
+            } else {
                 return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
-                        .thenCompose(topicMetadata -> {
+                        .thenAccept(topicMetadata -> {
                             if (topicMetadata.partitions > 0) {
                                 log.warn("[{}] Not supported getMessageById operation on partitioned-topic {}",
                                         clientAppId(), topicName);
                                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                                         "GetMessageById is not allowed on partitioned-topic");
                             }
-                            return CompletableFuture.completedFuture(null);
                         });
-            } else {
-                return CompletableFuture.completedFuture(null);
+
             }
         })
         .thenCompose(ignore -> validateTopicOwnershipAsync(topicName, authoritative))
