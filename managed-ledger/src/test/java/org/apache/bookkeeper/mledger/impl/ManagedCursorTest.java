@@ -4277,10 +4277,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 try {
                     entries.forEach(entry -> {
-                        assertNotEquals(entry.getEntryId() % 2, 0);
+                        assertEquals(entry.getEntryId() % 2, 0L);
                     });
                     completableFuture.complete(entries.size());
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     completableFuture.completeExceptionally(e);
                 }
             }
@@ -4296,7 +4296,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         int number = completableFuture.get();
         assertEquals(number, readMaxNumber / 2);
 
-        assertEquals(cursor.getReadPosition().getEntryId(), 10);
+        assertEquals(cursor.getReadPosition().getEntryId(), 10L);
 
         CompletableFuture<Integer> completableFuture2 = new CompletableFuture<>();
         cursor.asyncReadEntriesWithSkipOrWait(sendNumber, new ReadEntriesCallback() {
@@ -4304,10 +4304,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 try {
                     entries.forEach(entry -> {
-                        assertEquals(entry.getEntryId() % 2, 0);
+                        assertEquals(entry.getEntryId() % 2, 0L);
                     });
                     completableFuture2.complete(entries.size());
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     completableFuture2.completeExceptionally(e);
                 }
             }
@@ -4323,7 +4323,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         int number2 = completableFuture2.get();
         assertEquals(number2, readMaxNumber / 2);
 
-        assertEquals(cursor.getReadPosition().getEntryId(), 20);
+        assertEquals(cursor.getReadPosition().getEntryId(), 20L);
 
         cursor.seek(PositionImpl.EARLIEST);
         CompletableFuture<Integer> completableFuture3 = new CompletableFuture<>();
@@ -4341,7 +4341,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         int number3 = completableFuture3.get();
         assertEquals(number3, sendNumber);
-        assertEquals(cursor.getReadPosition().getEntryId(), 20);
+        assertEquals(cursor.getReadPosition().getEntryId(), 20L);
 
         cursor.seek(PositionImpl.EARLIEST);
         CompletableFuture<Integer> completableFuture4 = new CompletableFuture<>();
@@ -4359,7 +4359,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         int number4 = completableFuture4.get();
         assertEquals(number4, 0);
-        assertEquals(cursor.getReadPosition().getEntryId(), 20);
+        assertEquals(cursor.getReadPosition().getEntryId(), 20L);
 
         cursor.close();
         ledger.close();
