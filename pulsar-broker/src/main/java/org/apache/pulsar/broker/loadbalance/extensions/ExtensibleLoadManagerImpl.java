@@ -181,7 +181,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         try {
                             filter.filter(availableBrokerCandidates, context);
                         } catch (BrokerFilterException e) {
-                            availableBrokerCandidates = availableBrokers;
+                            log.error("Failed to filter out brokers.", e);
+                            return CompletableFuture.completedFuture(Optional.empty());
                         }
                     }
                     if (availableBrokerCandidates.isEmpty()) {
