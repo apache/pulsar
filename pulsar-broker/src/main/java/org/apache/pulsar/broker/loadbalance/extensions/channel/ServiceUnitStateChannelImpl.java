@@ -246,10 +246,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         broker = broker.substring(broker.lastIndexOf('/') + 1);
                         return Optional.of(broker);
                     } else {
-                        // When leader is empty, we should throw exception to notify is failed.
-                        String msg = "There is no channel owner now.";
-                        log.error(msg);
-                        throw new IllegalStateException(msg);
+                        return Optional.empty();
                     }
                 }
         );

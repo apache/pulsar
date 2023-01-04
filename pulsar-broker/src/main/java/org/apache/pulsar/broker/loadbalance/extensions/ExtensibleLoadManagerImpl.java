@@ -56,9 +56,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private final BrokerSelectionStrategy brokerSelectionStrategy;
 
     @Getter
-    private List<BrokerFilter> brokerFilterPipeline;
+    private final List<BrokerFilter> brokerFilterPipeline;
 
-    private volatile boolean started = false;
+    private boolean started = false;
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
             lookupRequests = ConcurrentOpenHashMap.<String,
@@ -107,7 +107,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     @Override
-    public void initialize(PulsarService pulsar) {
+    public synchronized void initialize(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
     }
