@@ -169,7 +169,8 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         if (metadataCache instanceof MetadataCacheImpl) {
             FieldUtils.writeField(metadataCache, "store", this, true);
         } else {
-            throw new UnsupportedOperationException("Metadata cache implementation not supported by FaultInjectionMetadataStore");
+            throw new UnsupportedOperationException("Metadata cache implementation "
+                    + metadataCache.getClass().getName() + " not supported by FaultInjectionMetadataStore");
         }
         return metadataCache;
     }
