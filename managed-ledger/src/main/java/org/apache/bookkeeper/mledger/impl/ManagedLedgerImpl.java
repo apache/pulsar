@@ -2068,9 +2068,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (firstValidEntry == -1L) {
                         firstValidEntry = entryId;
                     }
-                }
 
-                if (firstValidEntry != -1L) {
                     lastValidEntry = entryId;
                 }
             }
