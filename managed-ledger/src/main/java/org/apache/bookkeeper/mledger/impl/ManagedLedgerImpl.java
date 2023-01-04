@@ -2060,13 +2060,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             long lastValidEntry = -1L;
             long entryId = firstEntry;
             for (; entryId <= lastEntry; entryId++) {
-                if (!opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
-                    if (firstValidEntry == -1L) {
-                        firstValidEntry = entryId;
-                    }
-                } else {
+                if (opReadEntry.skipCondition.test(PositionImpl.get(ledger.getId(), entryId))) {
                     if (firstValidEntry != -1L) {
                         break;
+                    }
+                } else {
+                    if (firstValidEntry == -1L) {
+                        firstValidEntry = entryId;
                     }
                 }
 
