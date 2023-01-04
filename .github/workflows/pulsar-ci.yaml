@@ -75,6 +75,8 @@ jobs:
   build-and-license-check:
     needs: preconditions
     name: Build and License check
+    env:
+      JOB_NAME: Build and License check
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -84,6 +86,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -145,6 +152,8 @@ jobs:
 
   unit-tests:
     name: CI - Unit - ${{ matrix.name }}
+    env:
+      JOB_NAME: CI - Unit - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -179,6 +188,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -281,6 +295,11 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
+
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -338,6 +357,7 @@ jobs:
     needs: ['preconditions', 'pulsar-java-test-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
+      JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
     strategy:
       fail-fast: false
@@ -378,6 +398,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -486,6 +511,11 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
+
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
@@ -507,6 +537,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -598,6 +633,7 @@ jobs:
     needs: ['preconditions', 'pulsar-test-latest-version-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
+      JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
     strategy:
       fail-fast: false
@@ -633,6 +669,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -726,6 +767,7 @@ jobs:
     needs: [ 'preconditions', 'pulsar-test-latest-version-image' ]
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
+      JOB_NAME: CI Flaky - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
     strategy:
       fail-fast: false
@@ -744,6 +786,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -847,6 +894,11 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
+
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
@@ -866,6 +918,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
@@ -898,6 +955,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
