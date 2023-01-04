@@ -197,16 +197,17 @@ public class BrokerRegistryImpl implements BrokerRegistry {
             return;
         }
         try {
+            this.listeners.clear();
             this.unregister();
             this.brokerLookupDataLockManager.close();
-            this.listeners.clear();
-            this.state = State.Closed;
         } catch (Exception ex) {
             if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
                 throw new PulsarServerException.NotFoundException(MetadataStoreException.unwrap(ex));
             } else {
                 throw new PulsarServerException(MetadataStoreException.unwrap(ex));
             }
+        } finally {
+            this.state = State.Closed;
         }
     }
 
