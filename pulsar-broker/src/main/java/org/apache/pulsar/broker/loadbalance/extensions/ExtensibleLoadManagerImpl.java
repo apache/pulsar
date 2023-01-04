@@ -212,11 +212,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
         try {
             this.brokerRegistry.close();
-        } catch (Exception e) {
-            throw new PulsarServerException(e);
+        } finally {
+            try {
+                this.serviceUnitStateChannel.close();
+            } finally {
+                this.started = false;
+            }
         }
-        this.serviceUnitStateChannel.close();
-        this.started = false;
     }
 
     private boolean isInternalTopic(String topic) {
