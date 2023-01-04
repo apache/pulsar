@@ -4254,10 +4254,10 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testReadEntriesWithFilterOut() throws ManagedLedgerException, InterruptedException, ExecutionException {
+    public void testReadEntriesWithSkip() throws ManagedLedgerException, InterruptedException, ExecutionException {
         int readMaxNumber = 10;
         int sendNumber = 20;
-        ManagedLedger ledger = factory.open("testReadEntriesWithFilter");
+        ManagedLedger ledger = factory.open("testReadEntriesWithSkip");
         ManagedCursor cursor = ledger.openCursor("c");
         Position position = PositionImpl.EARLIEST;
         Position maxCanReadPosition = PositionImpl.EARLIEST;
