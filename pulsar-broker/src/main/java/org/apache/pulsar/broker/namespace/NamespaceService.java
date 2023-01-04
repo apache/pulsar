@@ -180,6 +180,7 @@ public class NamespaceService implements AutoCloseable {
                     if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
                         return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
                     } else {
+                        // TODO: Add unit tests cover it.
                         return findBrokerServiceUrl(bundle, options);
                     }
                 });
@@ -272,6 +273,7 @@ public class NamespaceService implements AutoCloseable {
 
         return (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
                 ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
+                // TODO: Add unit tests cover it.
                 findBrokerServiceUrl(bundle, options)).thenApply(lookupResult -> {
             if (lookupResult.isPresent()) {
                 try {
@@ -1040,6 +1042,7 @@ public class NamespaceService implements AutoCloseable {
             if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
                 return loadManager.get().checkOwnershipAsync(Optional.empty(), suName);
             }
+            // TODO: Add unit tests cover it.
             return CompletableFuture.completedFuture(
                     ownershipCache.isNamespaceBundleOwned((NamespaceBundle) suName));
         }
@@ -1062,6 +1065,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
+        // TODO: Add unit tests cover it.
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
@@ -1079,6 +1083,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
+        // TODO: Add unit tests cover it.
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getFullBundleAsync(fqnn)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.empty(), bundle));
@@ -1088,6 +1093,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
+        // TODO: Add unit tests cover it.
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getBundleAsync(topic)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topic), bundle));
@@ -1096,6 +1102,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
+        // TODO: Add unit tests cover it.
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
