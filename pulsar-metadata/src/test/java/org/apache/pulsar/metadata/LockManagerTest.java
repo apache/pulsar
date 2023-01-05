@@ -241,19 +241,16 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(url,
-                MetadataStoreConfig.builder().build());
-        @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(url,
+        MetadataStoreExtended store = MetadataStoreExtended.create(url,
                 MetadataStoreConfig.builder().build());
 
         @Cleanup
-        CoordinationService cs1 = new CoordinationServiceImpl(store1);
+        CoordinationService cs1 = new CoordinationServiceImpl(store);
         @Cleanup
         LockManager<String> lm1 = cs1.getLockManager(String.class);
 
         @Cleanup
-        CoordinationService cs2 = new CoordinationServiceImpl(store2);
+        CoordinationService cs2 = new CoordinationServiceImpl(store);
         @Cleanup
         LockManager<String> lm2 = cs2.getLockManager(String.class);
 
