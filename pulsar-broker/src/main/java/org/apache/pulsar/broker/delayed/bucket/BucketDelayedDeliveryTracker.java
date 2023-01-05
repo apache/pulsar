@@ -33,10 +33,12 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -126,16 +128,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         List<CompletableFuture<Void>> futures = new ArrayList<>(immutableBuckets.asMapOfRanges().size());
-        for (ImmutableBucket immutableBucket : immutableBuckets.asMapOfRanges().values()) {
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new ConcurrentHashMap<>();
+        for (Map.Entry<Range<Long>, ImmutableBucket> entry :immutableBuckets.asMapOfRanges().entrySet()) {
+            Range<Long> key = entry.getKey();
+            ImmutableBucket immutableBucket = entry.getValue();
             CompletableFuture<Void> future =
                     immutableBucket.asyncRecoverBucketSnapshotEntry(this::getCutoffTime).thenAccept(indexList -> {
                         if (CollectionUtils.isEmpty(indexList)) {
                             // Delete bucket snapshot if indexList is empty
-                            synchronized (immutableBuckets) {
-                                immutableBuckets.remove(
-                                        Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId));
-                            }
-                            immutableBucket.asyncDeleteBucketSnapshot();
+                            toBeDeletedBucketMap.put(key, immutableBucket);
                             return;
                         }
                         DelayedIndex lastDelayedIndex = indexList.get(indexList.size() - 1);
@@ -154,7 +155,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         try {
-            FutureUtil.waitForAll(futures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            FutureUtil.waitForAll(futures).whenComplete((__, ex) -> {
+                toBeDeletedBucketMap.forEach((k, immutableBucket) -> {
+                    immutableBuckets.remove(k);
+                    immutableBucket.asyncDeleteBucketSnapshot();
+                });
+            }).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
