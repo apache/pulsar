@@ -1212,8 +1212,8 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
-                throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] " +
-                        "and [--bookkeeper-ack-quorum] must greater than 0.");
+                throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
+                        + "and [--bookkeeper-ack-quorum] must greater than 0.");
             }
             if (managedLedgerMaxMarkDeleteRate < 0) {
                 throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
