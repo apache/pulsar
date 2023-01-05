@@ -22,10 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
-import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Sets;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -97,9 +95,7 @@ import org.apache.pulsar.broker.resourcegroup.ResourceGroupService;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager;
 import org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager;
 import org.apache.pulsar.broker.resources.ClusterResources;
-import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
@@ -142,11 +138,8 @@ import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
@@ -802,12 +795,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             brokerService.start();
 
-            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
-                // Init system namespace for extensible load manager
-                this.createNamespaceIfNotExists(this.getConfiguration().getClusterName(),
-                        SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
-            }
-
             // Load additional servlets
             this.brokerAdditionalServlets = AdditionalServlets.load(config);
 
@@ -939,36 +926,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             throw new PulsarServerException(e);
         } finally {
             mutex.unlock();
-        }
-    }
-
-    protected void createNamespaceIfNotExists(String cluster, String publicTenant, NamespaceName ns) throws Exception {
-        ClusterResources cr = this.getPulsarResources().getClusterResources();
-        TenantResources tr = this.getPulsarResources().getTenantResources();
-        NamespaceResources nsr = this.getPulsarResources().getNamespaceResources();
-
-        if (!cr.clusterExists(cluster)) {
-            cr.createCluster(cluster,
-                    ClusterData.builder()
-                            .serviceUrl(this.getWebServiceAddress())
-                            .serviceUrlTls(this.getWebServiceAddressTls())
-                            .brokerServiceUrl(this.getBrokerServiceUrl())
-                            .brokerServiceUrlTls(this.getBrokerServiceUrlTls())
-                            .build());
-        }
-
-        if (!tr.tenantExists(publicTenant)) {
-            tr.createTenant(publicTenant,
-                    TenantInfo.builder()
-                            .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
-                            .allowedClusters(Sets.newHashSet(cluster))
-                            .build());
-        }
-
-        if (!nsr.namespaceExists(ns)) {
-            Policies nsp = new Policies();
-            nsp.replication_clusters = Collections.singleton(config.getClusterName());
-            nsr.createPolicies(ns, nsp);
         }
     }
 

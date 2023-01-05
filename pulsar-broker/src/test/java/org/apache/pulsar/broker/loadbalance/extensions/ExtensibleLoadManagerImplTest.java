@@ -28,8 +28,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import java.net.URL;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -49,10 +51,17 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -66,6 +75,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     private PulsarService pulsar1;
     private PulsarService pulsar2;
+
+    private MetadataStoreExtended localStore;
+
+    private MetadataStoreExtended configStore;
 
     private ExtensibleLoadManagerImpl primaryLoadManager;
 
@@ -103,8 +116,39 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+        this.localStore = this.localStore == null ? createLocalMetadataStore() : this.localStore;
+        this.configStore = this.configStore == null ? createConfigurationMetadataStore() : this.configStore;
+        PulsarResources resources = new PulsarResources(this.localStore, this.configStore);
+        this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
+                NamespaceName.SYSTEM_NAMESPACE);
+    }
+
+    protected void createNamespaceIfNotExists(PulsarResources resources,
+                                              String publicTenant,
+                                              NamespaceName ns) throws Exception {
+        TenantResources tr = resources.getTenantResources();
+        NamespaceResources nsr = resources.getNamespaceResources();
+
+        if (!tr.tenantExists(publicTenant)) {
+            tr.createTenant(publicTenant,
+                    TenantInfo.builder()
+                            .adminRoles(Sets.newHashSet(conf.getSuperUserRoles()))
+                            .allowedClusters(Sets.newHashSet(conf.getClusterName()))
+                            .build());
+        }
+
+        if (!nsr.namespaceExists(ns)) {
+            Policies nsp = new Policies();
+            nsp.replication_clusters = Collections.singleton(conf.getClusterName());
+            nsr.createPolicies(ns, nsp);
+        }
+    }
+
     @Override
     protected void cleanup() throws Exception {
+        this.localStore.close();
+        this.configStore.close();
         pulsar1 = null;
         pulsar2.close();
         super.internalCleanup();
