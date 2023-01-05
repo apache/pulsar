@@ -230,5 +230,10 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
+
+    protected boolean shouldPrintErrorLog(Throwable ex) {
+        return !isRedirectException(ex) && !isNotFoundException(ex);
+    }
+
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
 }
