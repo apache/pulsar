@@ -73,7 +73,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        elasticSearchConfig = ElasticSearchConfig.load(config);
+        elasticSearchConfig = ElasticSearchConfig.load(config, sinkContext);
         elasticSearchConfig.validate();
         elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
         if (!Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
