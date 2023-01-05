@@ -846,6 +846,13 @@ public abstract class AdminResource extends PulsarWebResource {
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
 
+    protected static boolean isNotFoundException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.NOT_FOUND.getStatusCode();
+    }
+
     protected static String getTopicNotFoundErrorMessage(String topic) {
         return String.format("Topic %s not found", topic);
     }
