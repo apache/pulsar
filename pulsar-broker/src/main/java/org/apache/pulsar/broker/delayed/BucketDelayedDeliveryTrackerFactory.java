@@ -24,9 +24,14 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
+import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 
-public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
+
+    BucketSnapshotStorage bucketSnapshotStorage;
 
     private Timer timer;
 
@@ -34,29 +39,38 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     private boolean isDelayedDeliveryDeliverAtTimeStrict;
 
-    private long fixedDelayDetectionLookahead;
+    private int delayedDeliveryMaxNumBuckets;
+
+    private long delayedDeliveryMinIndexCountPerBucket;
+
+    private long delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds;
 
     @Override
-    public void initialize(PulsarService pulsarService) {
+    public void initialize(PulsarService pulsarService) throws Exception {
         ServiceConfiguration config = pulsarService.getConfig();
+        bucketSnapshotStorage = new BookkeeperBucketSnapshotStorage(pulsarService);
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
         this.isDelayedDeliveryDeliverAtTimeStrict = config.isDelayedDeliveryDeliverAtTimeStrict();
-        this.fixedDelayDetectionLookahead = config.getDelayedDeliveryFixedDelayDetectionLookahead();
+        this.delayedDeliveryMinIndexCountPerBucket = config.getDelayedDeliveryMinIndexCountPerBucket();
+        this.delayedDeliveryMaxNumBuckets = config.getDelayedDeliveryMaxNumBuckets();
+        this.delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds =
+                config.getDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds();
     }
 
     @Override
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
-                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+        return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
+                bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
+                delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds,
+                delayedDeliveryMaxNumBuckets);
     }
 
     @Override
-    public void close() {
-        if (timer != null) {
-            timer.stop();
+    public void close() throws Exception {
+        if (bucketSnapshotStorage != null) {
+            bucketSnapshotStorage.close();
         }
     }
-
 }

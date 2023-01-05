@@ -377,7 +377,7 @@ public class BrokerService implements Closeable {
         }
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
-                .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
+                .loadDelayedDeliveryTrackerFactory(pulsar);
 
         this.defaultServerBootstrap = defaultServerBootstrap();
 
@@ -833,7 +833,7 @@ public class BrokerService implements Closeable {
                                 pulsarStats.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
-                                } catch (IOException e) {
+                                } catch (Exception e) {
                                     log.warn("Error in closing delayedDeliveryTrackerFactory", e);
                                 }
 
