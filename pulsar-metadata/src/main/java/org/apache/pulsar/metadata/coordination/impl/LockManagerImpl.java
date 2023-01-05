@@ -106,7 +106,9 @@ class LockManagerImpl<T> implements LockManager<T> {
     private void handleSessionEvent(SessionEvent se) {
         if (se == SessionEvent.SessionReestablished) {
             log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
-            locks.values().forEach(ResourceLockImpl::revalidate);
+            for (ResourceLockImpl<T> lock : locks.values()) {
+                lock.revalidate(true);
+            }
         } else if (se == SessionEvent.Reconnected) {
             log.info("Metadata store connection has been re-established. Revalidating locks that were pending.");
             locks.values().forEach(ResourceLockImpl::revalidateIfNeededAfterReconnection);
