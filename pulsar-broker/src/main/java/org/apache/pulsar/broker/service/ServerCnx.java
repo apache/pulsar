@@ -2406,7 +2406,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
 
-                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId, txnID.getMostSigBits(),
+                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
+                                txnID.getLeastSigBits(),
+                                txnID.getMostSigBits(),
                                 BrokerServiceException.getClientErrorCode(ex),
                                 ex.getMessage()));
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
@@ -2655,7 +2657,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
 
-                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getLeastSigBits(),
                                 txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
                                 ex.getMessage()));
                         transactionMetadataStoreService.handleOpFail(ex, tcId);

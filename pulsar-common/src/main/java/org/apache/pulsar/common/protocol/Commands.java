@@ -1367,12 +1367,13 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
+    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits, ServerError error,
            String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
         CommandAddPartitionToTxnResponse response = cmd.setAddPartitionToTxnResponse()
                 .setRequestId(requestId)
                 .setError(error)
+                .setTxnidLeastBits(txnIdLeastBits)
                 .setTxnidMostBits(txnIdMostBits);
 
         if (errorMsg != null) {
@@ -1401,12 +1402,13 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdMostBits, ServerError error,
-          String errorMsg) {
+    public static ByteBuf newAddSubscriptionToTxnResponse(long requestId, long txnIdLeastBits,
+                                                          long txnIdMostBits, ServerError error, String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_SUBSCRIPTION_TO_TXN_RESPONSE);
         CommandAddSubscriptionToTxnResponse response = cmd.setAddSubscriptionToTxnResponse()
                 .setRequestId(requestId)
                 .setTxnidMostBits(txnIdMostBits)
+                .setTxnidLeastBits(txnIdLeastBits)
                 .setError(error);
         if (errorMsg != null) {
             response.setMessage(errorMsg);

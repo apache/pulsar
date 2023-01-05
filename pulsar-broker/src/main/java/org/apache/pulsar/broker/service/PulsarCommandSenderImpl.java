@@ -331,8 +331,8 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendNewTxnErrorResponse(long requestId, long txnID, ServerError error, String message) {
-        BaseCommand command = Commands.newTxnResponse(requestId, txnID, error, message);
+    public void sendNewTxnErrorResponse(long requestId, long tcID, ServerError error, String message) {
+        BaseCommand command = Commands.newTxnResponse(requestId, tcID, error, message);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
