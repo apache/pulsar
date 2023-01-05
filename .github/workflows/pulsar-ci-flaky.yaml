@@ -83,6 +83,7 @@ jobs:
         # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 

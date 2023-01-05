@@ -121,8 +121,22 @@ runs:
             tmux set -t upterm window-size largest
             echo '::endgroup::'  
             echo -e "\nSSH connection information"
+            # wait up to 10 seconds for upterm admin socket to appear
+            for i in {1..10}; do
+              ADMIN_SOCKET=$(find $HOME/.upterm -name "*.sock")
+              if [ ! -S "$ADMIN_SOCKET" ]; then
+                echo "Waiting for upterm admin socket to appear in ~/.upterm/*.sock ..."
+                sleep 1
+              else
+                echo "upterm admin socket available in $ADMIN_SOCKET"
+                break
+              fi
+            done
             shopt -s nullglob
-            upterm session current --admin-socket ~/.upterm/*.sock
+            upterm session current --admin-socket ~/.upterm/*.sock || {
+              echo "Starting upterm failed."
+              exit 0
+            }
         elif [[ "${{ inputs.action }}" == "wait" ]]; then
             # only wait if upterm was installed
             if command -v upterm &>/dev/null; then
