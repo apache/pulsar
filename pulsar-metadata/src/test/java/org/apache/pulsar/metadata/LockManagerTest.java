@@ -232,7 +232,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
-    public void testCleanUpStateWhenRevalidationGotLockBusy(String provider, Supplier<String> urlSupplier)
+    public void testCleanUpStateWhenRevalidationGotLockBusy(String provider, String url)
             throws Exception {
 
         if (provider.equals("Memory") || provider.equals("RocksDB")) {
@@ -241,10 +241,10 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         }
 
         @Cleanup
-        MetadataStoreExtended store1 = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store1 = MetadataStoreExtended.create(url,
                 MetadataStoreConfig.builder().build());
         @Cleanup
-        MetadataStoreExtended store2 = MetadataStoreExtended.create(urlSupplier.get(),
+        MetadataStoreExtended store2 = MetadataStoreExtended.create(url,
                 MetadataStoreConfig.builder().build());
 
         @Cleanup
