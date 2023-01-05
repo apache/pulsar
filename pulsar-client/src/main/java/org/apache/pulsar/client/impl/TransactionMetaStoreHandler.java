@@ -465,9 +465,9 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     void handleEndTxnResponse(CommandEndTxnResponse response) {
-        boolean hasError = response.hasError();
-        ServerError error;
-        String message;
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
         if (hasError) {
             error = response.getError();
             message = response.getMessage();
@@ -475,21 +475,20 @@ public class TransactionMetaStoreHandler extends HandlerState
             error = null;
             message = null;
         }
-        TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
-        long requestId = response.getRequestId();
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
         internalPinnedExecutor.execute(() -> {
             OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
             if (op == null) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response for timeout {} - {}", txnID.getMostSigBits(),
-                            txnID.getLeastSigBits());
+                    LOG.debug("Got end txn response for transaction but no requests pending for txn {}", txnID);
                 }
                 return;
             }
 
             if (!hasError) {
                 if (LOG.isDebugEnabled()) {
-                    LOG.debug("Got end txn response success for request {}", requestId);
+                    LOG.debug("Got end txn response success for request {}, txn {}", requestId, txnID);
                 }
                 op.callback.complete(null);
             } else {
