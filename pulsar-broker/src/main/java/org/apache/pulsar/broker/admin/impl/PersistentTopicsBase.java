@@ -439,36 +439,56 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_ACCEPTABLE,
                             "Number of partitions should be less than or equal to " + maxPartitions);
                 }
-                // Only do the validation if it's the first hop.
-                if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
-                    return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
-                            .thenApply(clusters -> {
-                                if (!clusters.contains(pulsar().getConfig().getClusterName())) {
-                                    log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
-                                    clientAppId(), topicName);
-                                    throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate"
-                                            + " cluster list");
-                                }
-                                return clusters;
-                            })
-                            .thenCompose(clusters ->
-                                    tryCreatePartitionsAsync(expectPartitions).thenApply(ignore -> clusters))
-                            .thenCompose(clusters -> {
-                                if (!updateLocalTopicOnly) {
-                                    return namespaceResources().getPartitionedTopicResources()
-                                            .updatePartitionedTopicAsync(topicName, p ->
-                                                    new PartitionedTopicMetadata(expectPartitions, p.properties))
-                                            .thenCompose(__ ->
-                                                    updatePartitionInOtherCluster(expectPartitions, clusters));
-                                } else {
-                                    return CompletableFuture.completedFuture(null);
-                                }
-                            }).thenCompose(clusters -> createSubscriptions(topicName,
-                                    expectPartitions));
-                } else {
-                    return tryCreatePartitionsAsync(expectPartitions)
-                            .thenCompose(ignore -> updatePartitionedTopic(topicName, expectPartitions));
+                final PulsarAdmin adminClient;
+                try {
+                    adminClient = pulsar().getAdminClient();
+                } catch (PulsarServerException e) {
+                    throw new RuntimeException(e);
                 }
+                return adminClient.topics().getListAsync(topicName.getNamespace())
+                        .thenCompose(topics -> {
+                            long existPartitions = topics.stream()
+                                    .filter(t -> t.startsWith(topicName.getPartitionedTopicName()))
+                                    .count();
+                            if (existPartitions >= expectPartitions) {
+                                throw new RestException(Status.CONFLICT,
+                                        "Number of new partitions must be greater than existing number of partitions");
+                            }
+                            // Only do the validation if it's the first hop.
+                            if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
+                                return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
+                                        .thenApply(clusters -> {
+                                            if (!clusters.contains(pulsar().getConfig().getClusterName())) {
+                                                log.error("[{}] local cluster is not part of"
+                                                                + " replicated cluster for namespace {}",
+                                                        clientAppId(), topicName);
+                                                throw new RestException(Status.FORBIDDEN,
+                                                        "Local cluster is not part of replicate cluster list");
+                                            }
+                                            return clusters;
+                                        })
+                                        .thenCompose(clusters ->
+                                                tryCreatePartitionsAsync(expectPartitions)
+                                                        .thenApply(ignore -> clusters))
+                                        .thenCompose(clusters -> {
+                                            if (!updateLocalTopicOnly) {
+                                                return namespaceResources().getPartitionedTopicResources()
+                                                        .updatePartitionedTopicAsync(topicName, p ->
+                                                                new PartitionedTopicMetadata(expectPartitions,
+                                                                        p.properties))
+                                                        .thenCompose(__ ->
+                                                                updatePartitionInOtherCluster(expectPartitions,
+                                                                        clusters));
+                                            } else {
+                                                return CompletableFuture.completedFuture(null);
+                                            }
+                                        }).thenCompose(clusters -> createSubscriptions(topicName,
+                                                expectPartitions));
+                            } else {
+                                return tryCreatePartitionsAsync(expectPartitions)
+                                        .thenCompose(ignore -> updatePartitionedTopic(topicName, expectPartitions));
+                            }
+                        });
             });
     }
 
@@ -4424,10 +4444,11 @@ public class PersistentTopicsBase extends AdminResource {
                         if (ex == null) {
                             future.complete(null);
                         } else {
-                            if (ex instanceof PulsarAdminException.ConflictException) {
+                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            if (realCause instanceof PulsarAdminException.ConflictException) {
                                 future.complete(null);
                             } else {
-                                future.completeExceptionally(ex);
+                                future.completeExceptionally(realCause);
                             }
                         }
                     });
