@@ -964,8 +964,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         webService.addRestResource("/lookup",
                 true, attributeMap, true,  TopicLookup.class,
                 org.apache.pulsar.broker.lookup.v2.TopicLookup.class);
-        webService.addRestResource("/topics",
-                true, attributeMap, true, Topics.class);
 
         // Add metrics servlet
         webService.addServlet("/metrics",
