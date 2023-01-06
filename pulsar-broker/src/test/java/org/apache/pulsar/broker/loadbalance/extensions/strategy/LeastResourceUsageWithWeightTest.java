@@ -24,7 +24,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,7 +47,7 @@ import org.testng.annotations.Test;
 public class LeastResourceUsageWithWeightTest {
 
     // Test that least resource usage with weight works correctly.
-
+    ServiceConfiguration conf = new ServiceConfiguration();
     ServiceUnitId bundleData = new ServiceUnitId() {
         @Override
         public NamespaceName getNamespaceObject() {
@@ -65,10 +64,10 @@ public class LeastResourceUsageWithWeightTest {
         var ctx = getContext();
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(10, 100));
-        brokerLoadDataStore.pushAsync("broker2", initBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker3", initBrokerData(60, 100));
-        brokerLoadDataStore.pushAsync("broker4", initBrokerData(5, 100));
+        brokerLoadDataStore.pushAsync("broker1", createBrokerData(10, 100));
+        brokerLoadDataStore.pushAsync("broker2", createBrokerData(30, 100));
+        brokerLoadDataStore.pushAsync("broker3", createBrokerData(60, 100));
+        brokerLoadDataStore.pushAsync("broker4", createBrokerData(5, 100));
 
         return ctx;
     }
@@ -77,13 +76,7 @@ public class LeastResourceUsageWithWeightTest {
 
         var ctx = setupContext();
         ServiceConfiguration conf = ctx.brokerConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(1.0);
-        conf.setLoadBalancerMemoryResourceWeight(0.1);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
-        conf.setLoadBalancerHistoryResourcePercentage(0.5);
-        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
+
 
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
@@ -102,28 +95,28 @@ public class LeastResourceUsageWithWeightTest {
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(20, 100));
-        brokerLoadDataStore.pushAsync("broker2", initBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker3", initBrokerData(50, 100));
+        brokerLoadDataStore.pushAsync("broker1", createBrokerData(20, 100));
+        brokerLoadDataStore.pushAsync("broker2", createBrokerData(30, 100));
+        brokerLoadDataStore.pushAsync("broker3", createBrokerData(50, 100));
         brokerLoadDataStore.pushAsync("broker4", null);
 
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
 
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker2", initBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker3", initBrokerData(40, 100));
+        brokerLoadDataStore.get("broker1").get().update(createBrokerData(30, 100), conf);
+        brokerLoadDataStore.get("broker2").get().update(createBrokerData(30, 100), conf);
+        brokerLoadDataStore.get("broker3").get().update(createBrokerData(40, 100), conf);
 
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
 
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker2", initBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker3", initBrokerData(40, 100));
+        brokerLoadDataStore.get("broker1").get().update(createBrokerData(30, 100), conf);
+        brokerLoadDataStore.get("broker2").get().update(createBrokerData(30, 100), conf);
+        brokerLoadDataStore.get("broker3").get().update(createBrokerData(40, 100), conf);
 
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
 
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(35, 100));
-        brokerLoadDataStore.pushAsync("broker2", initBrokerData(20, 100));
-        brokerLoadDataStore.pushAsync("broker3", initBrokerData(45, 100));
+        brokerLoadDataStore.get("broker1").get().update(createBrokerData(35, 100), conf);
+        brokerLoadDataStore.get("broker2").get().update(createBrokerData(20, 100), conf);
+        brokerLoadDataStore.get("broker3").get().update(createBrokerData(45, 100), conf);
 
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker2"));
     }
@@ -131,15 +124,7 @@ public class LeastResourceUsageWithWeightTest {
     public void testArithmeticException()
             throws NoSuchFieldException, IllegalAccessException {
         var ctx = setupContext();
-        var conf = ctx.brokerConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(1.0);
-        conf.setLoadBalancerMemoryResourceWeight(0.1);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
-        conf.setLoadBalancerHistoryResourcePercentage(0.5);
-        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
-
+        var brokerLoadStore = ctx.brokerLoadDataStore();
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
         // Should choice broker from broker1 2 3.
@@ -147,13 +132,10 @@ public class LeastResourceUsageWithWeightTest {
         candidates.add("broker1");
         candidates.add("broker2");
         candidates.add("broker3");
-        Field strategyUpdater = LeastResourceUsageWithWeight.class.getDeclaredField("brokerAvgResourceUsageWithWeight");
-        strategyUpdater.setAccessible(true);
-        Map<String, Double> brokerAvgResourceUsageWithWeight = new HashMap<>();
-        brokerAvgResourceUsageWithWeight.put("broker1", 0.1d);
-        brokerAvgResourceUsageWithWeight.put("broker2", 0.3d);
-        brokerAvgResourceUsageWithWeight.put("broker4", 0.05d);
-        strategyUpdater.set(strategy, brokerAvgResourceUsageWithWeight);
+
+        brokerLoadStore.get("broker1").get().setWeightedMaxEMA(0.1d);
+        brokerLoadStore.get("broker2").get().setWeightedMaxEMA(0.3d);
+        brokerLoadStore.get("broker4").get().setWeightedMaxEMA(0.05d);
         assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
     }
 
@@ -164,8 +146,8 @@ public class LeastResourceUsageWithWeightTest {
 
         List<String> candidates = new ArrayList<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(50, 100));
-        brokerLoadDataStore.pushAsync("broker2", initBrokerData(100, 100));
+        brokerLoadDataStore.pushAsync("broker1", createBrokerData(50, 100));
+        brokerLoadDataStore.pushAsync("broker2", createBrokerData(100, 100));
         brokerLoadDataStore.pushAsync("broker3", null);
         brokerLoadDataStore.pushAsync("broker4", null);
         candidates.add("broker1");
@@ -175,7 +157,7 @@ public class LeastResourceUsageWithWeightTest {
         assertEquals(result, "broker1");
 
         strategy = new LeastResourceUsageWithWeight();
-        brokerLoadDataStore.pushAsync("broker1", initBrokerData(100, 100));
+        brokerLoadDataStore.pushAsync("broker1", createBrokerData(100, 100));
         result = strategy.select(candidates, bundleData, ctx).get();
         assertThat(result, anyOf(equalTo("broker1"), equalTo("broker2"), equalTo("broker5")));
 
@@ -187,19 +169,27 @@ public class LeastResourceUsageWithWeightTest {
     }
 
 
-    private BrokerLoadData initBrokerData(double usage, double limit) {
+    private BrokerLoadData createBrokerData(double usage, double limit) {
         var brokerLoadData = new BrokerLoadData();
         brokerLoadData.setCpu(new ResourceUsage(usage, limit));
         brokerLoadData.setMemory(new ResourceUsage(usage, limit));
         brokerLoadData.setDirectMemory(new ResourceUsage(usage, limit));
         brokerLoadData.setBandwidthIn(new ResourceUsage(usage, limit));
         brokerLoadData.setBandwidthOut(new ResourceUsage(usage, limit));
+        brokerLoadData.updateWeightedMaxEMA(conf);
         return brokerLoadData;
     }
 
     public LoadManagerContext getContext() {
         var ctx = mock(LoadManagerContext.class);
         var conf = new ServiceConfiguration();
+        conf.setLoadBalancerCPUResourceWeight(1.0);
+        conf.setLoadBalancerMemoryResourceWeight(0.1);
+        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
+        conf.setLoadBalancerBandwithInResourceWeight(1.0);
+        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerHistoryResourcePercentage(0.5);
+        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
             Map<String, BrokerLoadData> map = new HashMap<>();
             @Override

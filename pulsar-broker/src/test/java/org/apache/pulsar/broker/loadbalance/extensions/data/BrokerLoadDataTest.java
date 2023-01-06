@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.data;
 
 import static org.testng.Assert.assertEquals;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.testng.annotations.Test;
 
@@ -47,5 +48,42 @@ public class BrokerLoadDataTest {
         assertEquals(
                 data.getMaxResourceUsageWithWeight(
                         weight, weight, weight, weight, weight), 2.0, epsilon);
+        assertEquals(
+                data.getWeightedMaxEMA(), null);
+    }
+
+    @Test
+    public void testWeightedMaxEMA() {
+        BrokerLoadData data = new BrokerLoadData();
+        assertEquals(
+                data.getWeightedMaxEMA(), null);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setLoadBalancerCPUResourceWeight(0.5);
+        conf.setLoadBalancerMemoryResourceWeight(0.5);
+        conf.setLoadBalancerDirectMemoryResourceWeight(0.5);
+        conf.setLoadBalancerBandwithInResourceWeight(0.5);
+        conf.setLoadBalancerBandwithOutResourceWeight(0.5);
+        conf.setLoadBalancerHistoryResourcePercentage(0.75);
+
+        BrokerLoadData data2 = new BrokerLoadData();
+        data2.setCpu(new ResourceUsage(1.0, 100.0));
+        data2.setMemory(new ResourceUsage(800.0, 200.0));
+        data2.setDirectMemory(new ResourceUsage(2.0, 100.0));
+        data2.setBandwidthIn(new ResourceUsage(3.0, 100.0));
+        data2.setBandwidthOut(new ResourceUsage(4.0, 100.0));
+        data.update(data2, conf);
+        assertEquals(
+                data.getWeightedMaxEMA(), 2);
+
+        BrokerLoadData data3 = new BrokerLoadData();
+        data3.setCpu(new ResourceUsage(300.0, 100.0));
+        data3.setMemory(new ResourceUsage(200.0, 200.0));
+        data3.setDirectMemory(new ResourceUsage(2.0, 100.0));
+        data3.setBandwidthIn(new ResourceUsage(3.0, 100.0));
+        data3.setBandwidthOut(new ResourceUsage(4.0, 100.0));
+        data.update(data3, conf);
+        assertEquals(
+                data.getWeightedMaxEMA(), 1.875);
+
     }
 }
