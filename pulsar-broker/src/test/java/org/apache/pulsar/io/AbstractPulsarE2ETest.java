@@ -186,7 +186,12 @@ public abstract class AbstractPulsarE2ETest {
         primaryHost = String.format("http://%s:%d", "localhost", pulsar.getListenPortHTTP().get());
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getBrokerServiceUrlTls()).build();
+        ClusterData clusterData = ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .serviceUrlTls(pulsar.getWebServiceAddressTls())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
+                .build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
