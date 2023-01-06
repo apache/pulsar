@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.util;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkNotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.function.Predicate;
@@ -84,8 +84,8 @@ public class URIPreconditions {
     public static void checkURI(@Nonnull String uri,
                                 @Nonnull Predicate<URI> predicate,
                                 @Nullable String errorMessage) throws IllegalArgumentException {
-        Preconditions.checkNotNull(uri, "uri");
-        Preconditions.checkNotNull(predicate, "predicate");
+        checkNotNull(uri, "uri");
+        checkNotNull(predicate, "predicate");
         try {
             URI u = new URI(uri);
             if (!predicate.test(u)) {
