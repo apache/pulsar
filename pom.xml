@@ -806,16 +806,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jettison.version}</version>
       </dependency>
 
-<<<<<<< HEAD
-=======
       <dependency>
         <groupId>com.fasterxml.woodstox</groupId>
         <artifactId>woodstox-core</artifactId>
         <version>${woodstox.version}</version>
       </dependency>
 
-
->>>>>>> 39429dc519d ([fix][sec] Upgrade woodstox to 5.4.0 (#19041))
       <dependency>
         <groupId>org.hdrhistogram</groupId>
         <artifactId>HdrHistogram</artifactId>
