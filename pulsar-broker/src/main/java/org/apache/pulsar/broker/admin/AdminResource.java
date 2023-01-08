@@ -394,7 +394,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         // time based quota is in second
         if (retention.getRetentionTimeInMinutes() > 0
-                && quota.getLimitTimeInSec() >= retention.getRetentionTimeInMinutes() * 60) {
+                && quota.getLimitTime() >= retention.getRetentionTimeInMinutes() * 60) {
             return false;
         }
         return true;

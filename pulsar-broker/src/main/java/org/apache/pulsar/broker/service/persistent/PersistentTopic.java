@@ -2729,7 +2729,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
-        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTimeInSec();
+        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
         // If backlog quota by time is not set and we have no durable cursor.
         if (backlogQuotaLimitInSecond <= 0
@@ -2785,7 +2785,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<Boolean> slowestReaderTimeBasedBacklogQuotaCheck(PositionImpl slowestPosition)
             throws ExecutionException, InterruptedException {
-        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTimeInSec();
+        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
         Long ledgerId = slowestPosition.getLedgerId();
         if (((ManagedLedgerImpl) ledger).getLedgersInfo().lastKey().equals(ledgerId)) {
             return CompletableFuture.completedFuture(false);
