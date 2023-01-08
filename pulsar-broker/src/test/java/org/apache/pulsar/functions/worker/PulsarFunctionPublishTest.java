@@ -179,7 +179,7 @@ public class PulsarFunctionPublishTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrlTls(urlTls.toString()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
