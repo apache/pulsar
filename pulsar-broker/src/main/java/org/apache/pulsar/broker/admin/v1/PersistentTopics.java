@@ -834,14 +834,18 @@ public class PersistentTopics extends PersistentTopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic, @PathParam("ledgerId") Long ledgerId,
                                @PathParam("entryId") Long entryId,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetMessageById(asyncResponse, ledgerId, entryId, authoritative);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalGetMessageById(ledgerId, entryId, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
+                                clientAppId(), ledgerId, entryId, topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+        });
     }
 
     @GET
