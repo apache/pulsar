@@ -66,7 +66,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final ScheduledExecutorService executor;
     private final long interval;
-    private ObjectMapper objectMapper = null;
     private final AsyncHttpClient httpClient;
     private final BoundRequestBuilder requestBuilder;
 
@@ -166,7 +165,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             int statusCode = response.getStatusCode();
             if (statusCode == 200) {
                 String content = response.getResponseBody(StandardCharsets.UTF_8);
-                return getObjectMapper().readValue(content, ControlledConfiguration.class);
+                return ObjectMapperFactory.getThreadLocal().readValue(content, ControlledConfiguration.class);
             }
             log.warn("Failed to fetch controlled configuration, status code: {}", statusCode);
         } catch (InterruptedException | ExecutionException e) {
@@ -174,13 +173,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         }
 
         return null;
-    }
-
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
     }
 
     @Data

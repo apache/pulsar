@@ -34,6 +34,7 @@ import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * A schema implementation to deal with json data.
@@ -68,7 +69,7 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     public SchemaInfo getBackwardsCompatibleJsonSchemaInfo() {
         SchemaInfo backwardsCompatibleSchemaInfo;
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
+            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = SchemaInfoImpl.builder()

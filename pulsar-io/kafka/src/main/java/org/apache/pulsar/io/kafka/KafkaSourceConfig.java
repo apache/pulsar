@@ -161,6 +161,6 @@ public class KafkaSourceConfig implements Serializable {
     public static KafkaSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         mapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), KafkaSourceConfig.class);
     }
 }

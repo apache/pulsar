@@ -78,7 +78,7 @@ public class MongoSourceConfig extends MongoAbstractConfig {
     public static MongoSourceConfig load(Map<String, Object> map) throws IOException {
         final ObjectMapper mapper = new ObjectMapper();
         final MongoSourceConfig cfg =
-                mapper.readValue(new ObjectMapper().writeValueAsString(map), MongoSourceConfig.class);
+                mapper.readValue(mapper.writeValueAsString(map), MongoSourceConfig.class);
 
         return cfg;
     }

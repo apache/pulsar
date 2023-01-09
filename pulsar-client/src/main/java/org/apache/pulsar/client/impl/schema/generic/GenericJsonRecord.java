@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Generic json record.
@@ -113,7 +114,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             if (field == null) {
                 return false;
             }
-            ObjectMapper objectMapper = new ObjectMapper();
+            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
             for (JsonNode node : jsonNode) {
                 JsonNode jn = node.get("type");
