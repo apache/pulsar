@@ -2679,6 +2679,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
                     MessageId.earliest);
+            fail("Unexpected behaviour");
         } catch (PulsarAdminException.PreconditionFailedException ex) {
             // OK
         }

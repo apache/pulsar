@@ -448,7 +448,8 @@ public class PersistentTopicsBase extends AdminResource {
                 return adminClient.topics().getListAsync(topicName.getNamespace())
                         .thenCompose(topics -> {
                             long existPartitions = topics.stream()
-                                    .filter(t -> t.startsWith(topicName.getPartitionedTopicName()))
+                                    .filter(t -> TopicName.get(t).getPartitionedTopicName()
+                                            .equals(topicName.getPartitionedTopicName()))
                                     .count();
                             if (existPartitions >= expectPartitions) {
                                 throw new RestException(Status.CONFLICT,
