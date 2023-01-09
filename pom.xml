@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>23</version>
+    <version>29</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
@@ -269,12 +269,12 @@ flexible messaging model and an intuitive client API.</description>
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
     <surefire.version>3.0.0-M3</surefire.version>
-    <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
+    <maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+    <maven-dependency-plugin.version>3.4.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.4.0</maven-shade-plugin>
-    <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
+    <maven-shade-plugin>3.4.1</maven-shade-plugin>
+    <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.3.4</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
