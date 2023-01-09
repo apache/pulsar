@@ -286,6 +286,7 @@ flexible messaging model and an intuitive client API.</description>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <lombok.plugin.version>1.18.20.0</lombok.plugin.version>
+    <oshi.version>6.4.0</oshi.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -1343,6 +1344,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.roaringbitmap</groupId>
         <artifactId>RoaringBitmap</artifactId>
         <version>${roaringbitmap.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.oshi</groupId>
+        <artifactId>oshi-core-java11</artifactId>
+        <version>${oshi.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
