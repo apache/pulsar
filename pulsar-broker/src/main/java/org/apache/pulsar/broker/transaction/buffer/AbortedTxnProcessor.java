@@ -58,7 +58,7 @@ public interface AbortedTxnProcessor {
      * Delete the transaction buffer aborted transaction snapshot.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> deleteAbortedTxnSnapshot();
+    CompletableFuture<Void> clearAbortedTxnSnapshot();
 
     /**
      * Take aborted transactions snapshot.

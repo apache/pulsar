@@ -306,7 +306,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public CompletableFuture<Void> deleteAbortedTxnSnapshot() {
+    public CompletableFuture<Void> clearAbortedTxnSnapshot() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.Clear,
                 () -> persistentWorker.clearSnapshotSegmentAndIndexes()
@@ -369,7 +369,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private enum OperationState {
             None,
-            Operating
+            Operating,
+            Closed
         }
         private static final AtomicReferenceFieldUpdater<PersistentWorker, PersistentWorker.OperationState>
                 STATE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(PersistentWorker.class,
@@ -409,6 +410,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 // instead of taking in queue. If the task queue is not empty, execute the task from the queue.
                 case UpdateIndex -> {
                     if (!taskQueue.isEmpty()) {
+                        task.get().complete(null);
                         topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                                 .getExecutor(this).submit(this::executeTask);
                     } else if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
@@ -423,12 +425,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                 }
                 case WriteSegment, DeleteSegment -> {
-                    taskQueue.add(new MutablePair<>(operationType, task));
-                    executeTask();
+                    if (!STATE_UPDATER.get(this).equals(OperationState.Closed)) {
+                        taskQueue.add(new MutablePair<>(operationType, task));
+                        executeTask();
+                    }
                 }
                 //If the operation type is clear, all the operation in the queue is meaningless.
                 case Clear -> {
-                    STATE_UPDATER.set(this, OperationState.Operating);
+                    STATE_UPDATER.set(this, OperationState.Closed);
+                    taskQueue.forEach(pair -> {
+                        pair.getRight().get().completeExceptionally(
+                                new BrokerServiceException.TransactionBufferClosedException(
+                                        String.format("Cancel the operation [%s] due to the"
+                                        + " transaction buffer of the topic[%s] already closed",
+                                                pair.getLeft().name(), this.topic.getName())));
+                    });
                     taskQueue.clear();
                 }
             }

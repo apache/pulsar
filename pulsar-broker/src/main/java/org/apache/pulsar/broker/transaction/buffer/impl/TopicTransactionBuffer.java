@@ -459,7 +459,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> clearSnapshot() {
-        return snapshotAbortedTxnProcessor.deleteAbortedTxnSnapshot();
+        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot();
     }
 
     @Override
