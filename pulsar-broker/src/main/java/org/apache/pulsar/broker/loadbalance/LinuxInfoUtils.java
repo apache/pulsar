@@ -79,7 +79,6 @@ public class LinuxInfoUtils {
      * @return Total cpu limit
      */
     public static double getTotalCpuLimit(boolean isCGroupsEnabled) {
-
         if (isCGroupsEnabled) {
             try {
                 long quota = readLongFromFile(Paths.get(CGROUPS_CPU_LIMIT_QUOTA_PATH));
