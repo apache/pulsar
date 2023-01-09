@@ -21,10 +21,12 @@ package org.apache.pulsar.common.policies.data;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.util.URIPreconditions;
 
 /**
  * The configuration data for a cluster.
@@ -399,5 +401,31 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     migrated,
                     migratedClusterUrl);
         }
+    }
+
+    /**
+     * Check cluster data properties by rule, if some property is illegal, it will throw
+     * {@link IllegalArgumentException}.
+     *
+     * @throws IllegalArgumentException exist illegal property.
+     */
+    public void checkPropertiesIfPresent() throws IllegalArgumentException {
+        URIPreconditions.checkURIIfPresent(getServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "http"),
+                "Illegal service url, example: http://pulsar.example.com:8080");
+        URIPreconditions.checkURIIfPresent(getServiceUrlTls(),
+                uri -> Objects.equals(uri.getScheme(), "https"),
+                "Illegal service tls url, example: https://pulsar.example.com:8443");
+        URIPreconditions.checkURIIfPresent(getBrokerServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar"),
+                "Illegal broker service url, example: pulsar://pulsar.example.com:6650");
+        URIPreconditions.checkURIIfPresent(getBrokerServiceUrlTls(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                "Illegal broker service tls url, example: pulsar+ssl://pulsar.example.com:6651");
+        URIPreconditions.checkURIIfPresent(getProxyServiceUrl(),
+                uri -> Objects.equals(uri.getScheme(), "pulsar")
+                        || Objects.equals(uri.getScheme(), "pulsar+ssl"),
+                "Illegal proxy service url, example: pulsar+ssl://ats-proxy.example.com:4443 "
+                        + "or pulsar://ats-proxy.example.com:4080");
     }
 }
