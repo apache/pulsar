@@ -19,10 +19,7 @@
 package org.apache.pulsar.broker.service.utils;
 
 import java.util.Queue;
-
-import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxn;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
