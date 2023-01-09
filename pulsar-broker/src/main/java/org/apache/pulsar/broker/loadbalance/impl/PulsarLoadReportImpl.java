@@ -49,7 +49,7 @@ public class PulsarLoadReportImpl implements LoadReport {
 
     public static LoadReport parse(String loadReportJson) {
         PulsarLoadReportImpl pulsarLoadReport = new PulsarLoadReportImpl();
-        ObjectMapper mapper = ObjectMapperFactory.create();
+        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
         try {
             org.apache.pulsar.policies.data.loadbalancer.LoadReport report = mapper.readValue(loadReportJson,
                     org.apache.pulsar.policies.data.loadbalancer.LoadReport.class);

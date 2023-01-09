@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * {@link SchemaCompatibilityCheck} for {@link SchemaType#JSON}.
@@ -73,17 +74,9 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
         }
     }
 
-    private ObjectMapper objectMapper;
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
-    }
-
     private void isCompatibleJsonSchema(SchemaData from, SchemaData to) throws IncompatibleSchemaException {
         try {
-            ObjectMapper objectMapper = getObjectMapper();
+            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             JsonSchema fromSchema = objectMapper.readValue(from.getData(), JsonSchema.class);
             JsonSchema toSchema = objectMapper.readValue(to.getData(), JsonSchema.class);
             if (!fromSchema.getId().equals(toSchema.getId())) {
@@ -108,7 +101,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     }
 
     private boolean isJsonSchema(SchemaData schemaData) {
-        ObjectMapper objectMapper = getObjectMapper();
+        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         try {
             JsonSchema fromSchema = objectMapper.readValue(schemaData.getData(), JsonSchema.class);
             return true;

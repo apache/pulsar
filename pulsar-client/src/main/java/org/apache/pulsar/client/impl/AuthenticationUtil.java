@@ -32,7 +32,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class AuthenticationUtil {
     public static Map<String, String> configureFromJsonString(String authParamsString) throws IOException {
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        ObjectMapper jsonMapper = ObjectMapperFactory.getThreadLocal();
         return jsonMapper.readValue(authParamsString, new TypeReference<HashMap<String, String>>() {
         });
     }
