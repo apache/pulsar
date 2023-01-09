@@ -832,14 +832,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         LinkedMap<Transaction, MessageId> ongoingTxns = new LinkedMap<>();
         LinkedList<MessageId> abortedTxns = new LinkedList<>();
-        // 0. Modify the configurations
+        // 0. Modify the configurations, enabling the segment snapshot and set the size of the snapshot segment.
         int theSizeOfSegment = 10;
         int theCountOfSnapshotMaxTxnCount = 3;
         this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotSegmentSize(theSizeOfSegment);
         this.getPulsarServiceList().get(0).getConfig()
                 .setTransactionBufferSnapshotMaxTransactionCount(theCountOfSnapshotMaxTxnCount);
-        // 1. Build prodcuer and consumer
+        // 1. Build producer and consumer
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(false)
@@ -852,17 +852,17 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .subscribe();
 
         // 2. Check the AbortedTxnProcessor workflow 10 times
+        int messageSize = theSizeOfSegment * 4;
         for (int i = 0; i < 10; i++) {
             MessageId maxReadMessage = null;
             int abortedTxnSize = 0;
-            // The number of aborted transaction = 30 / 2, that is more than the size of snapshot segment 10.
-            for (int j = 0; j < theSizeOfSegment * 4; j++) {
+            for (int j = 0; j < messageSize; j++) {
                 Transaction transaction = pulsarClient.newTransaction()
                         .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
                 //Half common message and half transaction message.
-                //And the transaction message have a half which are aborted.
-                if (RandomUtils.nextInt() % 2 == 0) {
+                if (j % 2 == 0) {
                     MessageId messageId = producer.newMessage(transaction).value(i * 10 + j).send();
+                    //And the transaction message have a half which are aborted.
                     if (RandomUtils.nextInt() % 2 == 0) {
                         transaction.abort().get();
                         abortedTxns.add(messageId);
@@ -876,11 +876,11 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                         }
                     }
                 } else {
-                    MessageId messageId = producer.newMessage().value(i * 10 + j).send();
+                    producer.newMessage().value(i * 10 + j).send();
                     transaction.commit().get();
                 }
             }
-            // 2.1 Check the updating of the maxReadPosition
+            // 2.1 Receive all message before the maxReadPosition to verify the correctness of the max read position.
             int hasReceived = 0;
             while (true) {
                 Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
@@ -891,26 +891,27 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     break;
                 }
             }
-
+            //2.2 Commit all ongoing transaction and verify that the consumer can receive all rest message
+            // expect for aborted txn message.
             for (Transaction ongoingTxn: ongoingTxns.keySet()) {
                 ongoingTxn.commit().get();
             }
             ongoingTxns.clear();
-            // 2.2 Check the aborted txn
-            for (int k = hasReceived; k < theSizeOfSegment * 4 - abortedTxnSize; k++) {
+            for (int k = hasReceived; k < messageSize - abortedTxnSize; k++) {
                 Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
                 assertNotNull(message);
                 assertFalse(abortedTxns.contains(message.getMessageId()));
             }
         }
-        // 3. Test recover
+        // 3. After the topic unload, the consumer can receive all the messages in the 10 tests
+        // expect for the aborted transaction messages.
         admin.topics().unload(topic);
-
-        for (int i = 0; i < 200 - abortedTxns.size(); i++) {
+        for (int i = 0; i < messageSize * 10 - abortedTxns.size(); i++) {
             Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
             assertNotNull(message);
             assertFalse(abortedTxns.contains(message.getMessageId()));
         }
+        assertNull(consumer.receive(2, TimeUnit.SECONDS));
     }
 
 }

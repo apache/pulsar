@@ -86,8 +86,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     private volatile long lastSnapshotTimestamps;
 
-    private final int takeSnapshotIntervalTime;
-
     private final int transactionBufferMaxAbortedTxnsOfSnapshotSegment;
     private final PersistentWorker persistentWorker;
 
@@ -96,8 +94,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
         this.persistentWorker = new PersistentWorker(topic);
-        this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.transactionBufferMaxAbortedTxnsOfSnapshotSegment =  topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize();
         this.unsealedAbortedTxnIdSegment = new LinkedList<>();
@@ -156,6 +152,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         TransactionBufferSnapshotIndexesMetadata metadata = new TransactionBufferSnapshotIndexesMetadata(
                 maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(),
                 convertTypeToTxnIDData(unsealedAbortedTxnIdSegment));
+        return updateSnapshotIndexMetadata(metadata);
+    }
+
+    private CompletableFuture<Void> updateSnapshotIndexMetadata(TransactionBufferSnapshotIndexesMetadata metadata) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
                 () -> persistentWorker
