@@ -2453,7 +2453,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = command.getRequestId();
         final String topic = command.getTopic();
         final int txnAction = command.getTxnAction().getValue();
-        TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
+        final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final long lowWaterMark = command.getTxnidLeastBitsOfLowWatermark();
 
         if (log.isDebugEnabled()) {
@@ -2489,7 +2489,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
                                         ServerError.ServiceNotReady,
                                         "The topic " + topic + " does not exist in broker.",
-                                        txnID.getMostSigBits(), txnID.getLeastSigBits()));
+                                        txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             } else {
                                 log.warn("handleEndTxnOnPartition fail ! The topic {} has not been created, "
                                                 + "txnId: [{}], txnAction: [{}]",
@@ -2498,13 +2498,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             }
                         }).exceptionally(e -> {
-                    log.error("handleEndTxnOnPartition fail ! topic {}, "
-                                    + "txnId: [{}], txnAction: [{}]", topic, txnID,
-                            TxnAction.valueOf(txnAction), e.getCause());
-                    ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
-                            requestId, ServerError.ServiceNotReady,
-                            e.getMessage(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
-                    return null;
+                            log.error("handleEndTxnOnPartition fail ! topic {}, "
+                                            + "txnId: [{}], txnAction: [{}]", topic, txnID,
+                                    TxnAction.valueOf(txnAction), e.getCause());
+                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                    requestId, ServerError.ServiceNotReady,
+                                    e.getMessage(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
+                            return null;
                 });
             }
         }).exceptionally(e -> {
@@ -2558,7 +2558,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                                 requestId, txnidLeastBits, txnidMostBits,
                                 BrokerServiceException.getClientErrorCode(e),
-                                "Handle end txn on subscription failed."));
+                                "Handle end txn on subscription failed: " + e.getMessage()));
                         return;
                     }
                     ctx.writeAndFlush(
@@ -2571,7 +2571,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (b) {
                                 log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, "
                                                 + "subscription: {}, txnId: [{}], txnAction: [{}]", topic, subName,
-                                        new TxnID(txnidMostBits, txnidLeastBits), TxnAction.valueOf(txnAction));
+                                        txnID, TxnAction.valueOf(txnAction));
                                 ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                                         requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
                                         ServerError.ServiceNotReady,
@@ -2584,13 +2584,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             }
                         }).exceptionally(e -> {
-                    log.error("handleEndTxnOnSubscription fail ! topic {}, subscription: {}"
-                                    + "txnId: [{}], txnAction: [{}]", topic, subName,
-                            txnID, TxnAction.valueOf(txnAction), e.getCause());
-                    ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
-                            requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
-                            ServerError.ServiceNotReady, e.getMessage()));
-                    return null;
+                            log.error("handleEndTxnOnSubscription fail ! topic {}, subscription: {}"
+                                            + "txnId: [{}], txnAction: [{}]", topic, subName,
+                                    txnID, TxnAction.valueOf(txnAction), e.getCause());
+                            ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                    requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                                    ServerError.ServiceNotReady, e.getMessage()));
+                            return null;
                 });
             }
         }).exceptionally(e -> {
@@ -2600,7 +2600,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
                     requestId, txnidLeastBits, txnidMostBits,
                     ServerError.ServiceNotReady,
-                    "Handle end txn on subscription failed."));
+                    "Handle end txn on subscription failed: " + e.getMessage()));
             return null;
         });
     }
