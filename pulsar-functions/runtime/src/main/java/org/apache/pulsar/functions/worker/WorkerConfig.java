@@ -230,15 +230,6 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperCacheExpirySeconds = -1;
 
-    @Deprecated
-    @FieldContext(
-            category = CATEGORY_WORKER,
-            deprecated = true,
-            doc = "Is zookeeper allow read-only operations. "
-                    + "@deprecated - Use metadataStoreAllowReadOnlyOperations instead."
-    )
-    private boolean zooKeeperAllowReadOnlyOperations;
-
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -919,9 +910,5 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
-    }
-
-    public boolean isMetadataStoreAllowReadOnlyOperations() {
-        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 }

@@ -163,15 +163,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int zooKeeperCacheExpirySeconds = -1;
 
-    @Deprecated
-    @FieldContext(
-            category = CATEGORY_BROKER_DISCOVERY,
-            deprecated = true,
-            doc = "Is zookeeper allow read-only operations. "
-                    + "@deprecated - Use metadataStoreAllowReadOnlyOperations instead."
-    )
-    private boolean zooKeeperAllowReadOnlyOperations;
-
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
@@ -924,9 +915,5 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
-    }
-
-    public boolean isMetadataStoreAllowReadOnlyOperations() {
-        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 }

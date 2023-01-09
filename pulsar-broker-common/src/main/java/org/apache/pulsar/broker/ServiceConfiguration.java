@@ -467,15 +467,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         )
     private int zooKeeperCacheExpirySeconds = -1;
 
-    @Deprecated
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            deprecated = true,
-            doc = "Is zookeeper allow read-only operations. "
-            + "@deprecated - Use metadataStoreAllowReadOnlyOperations instead."
-    )
-    private boolean zooKeeperAllowReadOnlyOperations;
-
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -3247,10 +3238,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getMetadataStoreOperationTimeoutSeconds() {
         return zooKeeperOperationTimeoutSeconds > 0 ? zooKeeperOperationTimeoutSeconds
                 : metadataStoreOperationTimeoutSeconds;
-    }
-
-    public boolean isMetadataStoreAllowReadOnlyOperations() {
-        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 
     public int getMetadataStoreCacheExpirySeconds() {
