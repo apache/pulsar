@@ -37,7 +37,6 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
  */
 @Slf4j
 public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
-    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Set<String> noLoadDataBrokers;
@@ -52,6 +51,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
                                                  final ServiceConfiguration conf, boolean debugMode) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final var maxUsageWithWeight = brokerLoadData.getWeightedMaxEMA();
+
         if (maxUsageWithWeight > overloadThreshold) {
             log.warn(
                     "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
@@ -128,8 +128,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
                     log.warn("There is no broker load data for broker:{}. Skipping this broker. Phase two", broker);
                     continue;
                 }
-                Double avgResUsageObj = brokerLoadDataOptional.get().getWeightedMaxEMA();
-                double avgResUsage = avgResUsageObj == null ? MAX_RESOURCE_USAGE : avgResUsageObj.doubleValue();
+                double avgResUsage = brokerLoadDataOptional.get().getWeightedMaxEMA();
                 if ((avgResUsage + diffThreshold <= avgUsage && !noLoadDataBrokers.contains(broker))) {
                     bestBrokers.add(broker);
                 }

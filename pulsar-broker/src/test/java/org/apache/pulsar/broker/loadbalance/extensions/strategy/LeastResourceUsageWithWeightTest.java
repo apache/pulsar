@@ -32,7 +32,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -41,13 +41,13 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
+import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class LeastResourceUsageWithWeightTest {
 
     // Test that least resource usage with weight works correctly.
-    ServiceConfiguration conf = new ServiceConfiguration();
     ServiceUnitId bundleData = new ServiceUnitId() {
         @Override
         public NamespaceName getNamespaceObject() {
@@ -64,10 +64,10 @@ public class LeastResourceUsageWithWeightTest {
         var ctx = getContext();
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("broker1", createBrokerData(10, 100));
-        brokerLoadDataStore.pushAsync("broker2", createBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker3", createBrokerData(60, 100));
-        brokerLoadDataStore.pushAsync("broker4", createBrokerData(5, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 10, 100));
+        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 30, 100));
+        brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 60, 100));
+        brokerLoadDataStore.pushAsync("4", createBrokerData(ctx, 5, 100));
 
         return ctx;
     }
@@ -75,50 +75,47 @@ public class LeastResourceUsageWithWeightTest {
     public void testSelect() {
 
         var ctx = setupContext();
-        ServiceConfiguration conf = ctx.brokerConfiguration();
-
-
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
-
-
-        var brokers = ctx.brokerLoadDataStore().entrySet().stream()
-                .map(e -> e.getKey()).collect(Collectors.toList());
-        // Make brokerAvgResourceUsageWithWeight contain broker4.
-        strategy.select(brokers, bundleData, ctx);
 
         // Should choice broker from broker1 2 3.
         List<String> candidates = new ArrayList<>();
-        candidates.add("broker1");
-        candidates.add("broker2");
-        candidates.add("broker3");
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("3");
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("broker1", createBrokerData(20, 100));
-        brokerLoadDataStore.pushAsync("broker2", createBrokerData(30, 100));
-        brokerLoadDataStore.pushAsync("broker3", createBrokerData(50, 100));
-        brokerLoadDataStore.pushAsync("broker4", null);
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx, 20, 100));
+        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx, 30, 100));
+        brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 50, 100));
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        brokerLoadDataStore.get("broker1").get().update(createBrokerData(30, 100), conf);
-        brokerLoadDataStore.get("broker2").get().update(createBrokerData(30, 100), conf);
-        brokerLoadDataStore.get("broker3").get().update(createBrokerData(40, 100), conf);
+        updateLoad(ctx, "1", 30);
+        updateLoad(ctx, "2", 30);
+        updateLoad(ctx, "3", 40);
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        brokerLoadDataStore.get("broker1").get().update(createBrokerData(30, 100), conf);
-        brokerLoadDataStore.get("broker2").get().update(createBrokerData(30, 100), conf);
-        brokerLoadDataStore.get("broker3").get().update(createBrokerData(40, 100), conf);
+        updateLoad(ctx, "1", 30);
+        updateLoad(ctx, "2", 30);
+        updateLoad(ctx, "3", 40);
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
 
-        brokerLoadDataStore.get("broker1").get().update(createBrokerData(35, 100), conf);
-        brokerLoadDataStore.get("broker2").get().update(createBrokerData(20, 100), conf);
-        brokerLoadDataStore.get("broker3").get().update(createBrokerData(45, 100), conf);
+        updateLoad(ctx, "1", 35);
+        updateLoad(ctx, "2", 20);
+        updateLoad(ctx, "3", 45);
 
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker2"));
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("2"));
+
+        // test restart broker can load bundle as one of the best brokers.
+        updateLoad(ctx, "1", 35);
+        updateLoad(ctx, "2", 20);
+        brokerLoadDataStore.pushAsync("3", createBrokerData(ctx, 0, 100));
+
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("3"));
     }
 
     public void testArithmeticException()
@@ -129,14 +126,14 @@ public class LeastResourceUsageWithWeightTest {
 
         // Should choice broker from broker1 2 3.
         List<String> candidates = new ArrayList<>();
-        candidates.add("broker1");
-        candidates.add("broker2");
-        candidates.add("broker3");
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("3");
 
-        brokerLoadStore.get("broker1").get().setWeightedMaxEMA(0.1d);
-        brokerLoadStore.get("broker2").get().setWeightedMaxEMA(0.3d);
-        brokerLoadStore.get("broker4").get().setWeightedMaxEMA(0.05d);
-        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("broker1"));
+        FieldUtils.writeDeclaredField(brokerLoadStore.get("1").get(), "weightedMaxEMA", 0.1d, true);
+        FieldUtils.writeDeclaredField(brokerLoadStore.get("2").get(), "weightedMaxEMA", 0.3d, true);
+        FieldUtils.writeDeclaredField(brokerLoadStore.get("4").get(), "weightedMaxEMA", 0.05d, true);
+        assertEquals(strategy.select(candidates, bundleData, ctx), Optional.of("1"));
     }
 
     public void testNoLoadDataBrokers() {
@@ -146,38 +143,50 @@ public class LeastResourceUsageWithWeightTest {
 
         List<String> candidates = new ArrayList<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
-        brokerLoadDataStore.pushAsync("broker1", createBrokerData(50, 100));
-        brokerLoadDataStore.pushAsync("broker2", createBrokerData(100, 100));
-        brokerLoadDataStore.pushAsync("broker3", null);
-        brokerLoadDataStore.pushAsync("broker4", null);
-        candidates.add("broker1");
-        candidates.add("broker2");
-        candidates.add("broker5");
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
+        brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
+        brokerLoadDataStore.pushAsync("3", null);
+        brokerLoadDataStore.pushAsync("4", null);
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("5");
         var result = strategy.select(candidates, bundleData, ctx).get();
-        assertEquals(result, "broker1");
+        assertEquals(result, "1");
 
         strategy = new LeastResourceUsageWithWeight();
-        brokerLoadDataStore.pushAsync("broker1", createBrokerData(100, 100));
+        brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,100, 100));
         result = strategy.select(candidates, bundleData, ctx).get();
-        assertThat(result, anyOf(equalTo("broker1"), equalTo("broker2"), equalTo("broker5")));
+        assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
 
-        brokerLoadDataStore.pushAsync("broker1", null);
-        brokerLoadDataStore.pushAsync("broker2", null);
+        brokerLoadDataStore.pushAsync("1", null);
+        brokerLoadDataStore.pushAsync("2", null);
 
         result = strategy.select(candidates, bundleData, ctx).get();
-        assertThat(result, anyOf(equalTo("broker1"), equalTo("broker2"), equalTo("broker5")));
+        assertThat(result, anyOf(equalTo("1"), equalTo("2"), equalTo("5")));
     }
 
 
-    private BrokerLoadData createBrokerData(double usage, double limit) {
+    private BrokerLoadData createBrokerData(LoadManagerContext ctx, double usage, double limit) {
         var brokerLoadData = new BrokerLoadData();
-        brokerLoadData.setCpu(new ResourceUsage(usage, limit));
-        brokerLoadData.setMemory(new ResourceUsage(usage, limit));
-        brokerLoadData.setDirectMemory(new ResourceUsage(usage, limit));
-        brokerLoadData.setBandwidthIn(new ResourceUsage(usage, limit));
-        brokerLoadData.setBandwidthOut(new ResourceUsage(usage, limit));
-        brokerLoadData.updateWeightedMaxEMA(conf);
+        SystemResourceUsage usages = createUsage(usage, limit);
+        brokerLoadData.update(usages, 1, 1, 1, 1,
+                ctx.brokerConfiguration());
         return brokerLoadData;
+    }
+
+    private SystemResourceUsage createUsage(double usage, double limit) {
+        SystemResourceUsage usages = new SystemResourceUsage();
+        usages.setCpu(new ResourceUsage(usage, limit));
+        usages.setMemory(new ResourceUsage(usage, limit));
+        usages.setDirectMemory(new ResourceUsage(usage, limit));
+        usages.setBandwidthIn(new ResourceUsage(usage, limit));
+        usages.setBandwidthOut(new ResourceUsage(usage, limit));
+        return usages;
+    }
+
+    private void updateLoad(LoadManagerContext ctx, String broker, double usage) {
+        ctx.brokerLoadDataStore().get(broker).get().update(createUsage(usage, 100.0),
+                1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
     public LoadManagerContext getContext() {
