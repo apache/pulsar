@@ -1367,8 +1367,11 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newAddPartitionToTxnResponse(long requestId, long txnIdLeastBits, long txnIdMostBits, ServerError error,
-           String errorMsg) {
+    public static ByteBuf newAddPartitionToTxnResponse(long requestId,
+                                                       long txnIdLeastBits,
+                                                       long txnIdMostBits,
+                                                       ServerError error,
+                                                       String errorMsg) {
         BaseCommand cmd = localCmd(Type.ADD_PARTITION_TO_TXN_RESPONSE);
         CommandAddPartitionToTxnResponse response = cmd.setAddPartitionToTxnResponse()
                 .setRequestId(requestId)
