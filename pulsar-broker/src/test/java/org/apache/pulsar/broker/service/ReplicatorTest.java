@@ -53,6 +53,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import net.bytebuddy.implementation.bytecode.Throw;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -70,6 +71,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -1188,19 +1190,27 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subscriberName)
                 .replicateSubscriptionState(true)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscribe();
 
         admin1.topics().updatePartitionedTopic(topicName, newPartitions);
 
         assertEquals(admin1.topics().getPartitionedTopicMetadata(topicName).partitions, newPartitions);
 
-        Map<String, Boolean> replicatedSubscriptionStatus =
-                admin1.topics().getReplicatedSubscriptionStatus(topicName, subscriberName);
-        assertEquals(replicatedSubscriptionStatus.size(), newPartitions);
-        for (Map.Entry<String, Boolean> replicatedStatusForPartition : replicatedSubscriptionStatus.entrySet()) {
-            assertTrue(replicatedStatusForPartition.getValue(),
-                    "Replicated status is invalid for " + replicatedStatusForPartition.getKey());
-        }
+        Awaitility.await().untilAsserted(() -> {
+            final Map<String, Boolean> replicatedSubscriptionStatus;
+            try {
+                replicatedSubscriptionStatus = admin1.topics().getReplicatedSubscriptionStatus(topicName, subscriberName);
+            } catch (PulsarAdminException.NotFoundException ex) {
+                fail("unexpected behaviour");
+                return;
+            }
+            assertEquals(replicatedSubscriptionStatus.size(), newPartitions);
+            for (Map.Entry<String, Boolean> replicatedStatusForPartition : replicatedSubscriptionStatus.entrySet()) {
+                assertTrue(replicatedStatusForPartition.getValue(),
+                        "Replicated status is invalid for " + replicatedStatusForPartition.getKey());
+            }
+        });
         consumer1.close();
     }
 

@@ -236,10 +236,12 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+                .subscriptionType(SubscriptionType.Shared)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS).subscribe();
         assertEquals(admin.topics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
         Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+                .subscriptionType(SubscriptionType.Shared)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS).subscribe();
         assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
                 Set.of(subName1, subName2));
 
@@ -252,6 +254,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String newPartitionTopicName = TopicName.get(partitionedTopicName).getPartition(startPartitions + 1)
                 .toString();
 
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
+                        Set.of(subName1, subName2)));
         // (3) produce messages to all partitions including newly created partitions (RoundRobin)
         Producer<byte[]> producer = client.newProducer()
             .topic(partitionedTopicName)
@@ -268,9 +273,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // newly created partition topics
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
-                Set.of(subName1, subName2));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
+                Set.of(subName1, subName2)));
 
         assertEquals(new HashSet<>(admin.topics().getList("prop-xyz/ns1")).size(), newPartitions);
 
@@ -300,7 +307,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer1.close();
-        consumer2.close();
         consumer2.close();
     }
 
@@ -2668,9 +2674,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
-        Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
+        @Cleanup
+        Consumer<byte[]> consumer1 = client.newConsumer()
+                .topic(partitionedTopicName).subscriptionName(subName1)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        consumer1.close();
 
         // validate partition topic is created
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, startPartitions);
@@ -2685,11 +2693,14 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, true);
-        // validate subscription is created for new partition.
-        for (int i = startPartitions; i < newPartitions; i++) {
-            assertNotNull(
-                    admin.topics().getStats(partitionedTopicName + "-partition-" + i).getSubscriptions().get(subName1));
-        }
+        Awaitility.await().untilAsserted(() -> {
+            // validate subscription is created for new partition.
+            for (int i = startPartitions; i < newPartitions; i++) {
+                assertNotNull(
+                        admin.topics().getStats(partitionedTopicName + "-partition-" + i)
+                                .getSubscriptions().get(subName1));
+            }
+        });
 
         // validate update partition is success
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, newPartitions);
