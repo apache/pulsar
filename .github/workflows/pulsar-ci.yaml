@@ -46,7 +46,7 @@ jobs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
       need_owasp: ${{ steps.changes.outputs.need_owasp }}
-      
+
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -180,6 +180,7 @@ jobs:
             group: PROXY
           - name: Pulsar IO
             group: PULSAR_IO
+            timeout: 75
           - name: Pulsar Client
             group: CLIENT
 
