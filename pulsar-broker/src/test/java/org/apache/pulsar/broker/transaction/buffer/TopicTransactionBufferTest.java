@@ -18,10 +18,18 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.TopicName;
@@ -30,10 +38,14 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 public class TopicTransactionBufferTest extends TransactionTestBase {
@@ -86,4 +98,50 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         FieldUtils.writeField(persistentTopic.getManagedLedger(), "state", ManagedLedgerImpl.State.WriteFailed, true);
         txn.commit().get();
     }
+
+    @Test
+    public void testCheckDeduplicationFailedWhenCreatePersistentTopic() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/test_" + UUID.randomUUID();
+        TopicName topicName = TopicName.get(topic);
+        PulsarService pulsar = pulsarServiceList.get(0);
+        BrokerService brokerService = pulsar.getBrokerService();
+
+        CompletableFuture<ManagedLedgerConfig> configFuture = brokerService.getManagedLedgerConfig(topicName);
+
+        CompletableFuture<ManagedLedger> ledgerFuture = new CompletableFuture<>();
+        pulsar.getManagedLedgerFactory().asyncOpen(topicName.getPersistenceNamingEncoding(), configFuture.get(),
+                new AsyncCallbacks.OpenLedgerCallback() {
+                    @Override
+                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                        ledgerFuture.complete(ledger);
+                    }
+
+                    @Override
+                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                        ledgerFuture.completeExceptionally(exception);
+                    }
+                }, () -> brokerService.isTopicNsOwnedByBroker(topicName), null);
+
+        PersistentTopic persistentTopic0 = new PersistentTopic(topic, ledgerFuture.get(), brokerService);
+        PersistentTopic persistentTopic = Mockito.spy(persistentTopic0);
+        Mockito.doReturn(CompletableFuture.failedFuture(new ManagedLedgerException("This is an exception")))
+                .when(persistentTopic).checkDeduplicationStatus();
+
+        persistentTopic.initialize()
+                .thenCompose(v -> persistentTopic.checkDeduplicationStatus())
+                .exceptionally(ex -> {
+                    persistentTopic.getTransactionBuffer().closeAsync();
+                    persistentTopic.stopReplProducers();
+                    return null;
+                });
+
+        TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
+        Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
+
+        TopicTransactionBuffer ttb = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
+        Awaitility.waitAtMost(1, TimeUnit.MINUTES)
+                .until(() -> ttb.getState().equals(expectState));
+    }
+
 }
