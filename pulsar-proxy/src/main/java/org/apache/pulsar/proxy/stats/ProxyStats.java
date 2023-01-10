@@ -73,6 +73,20 @@ public class ProxyStats {
     }
 
     @GET
+    @Path("/clients")
+    @ApiOperation(value = "Proxy stats api to get info for clients",
+            response = Map.class, responseContainer = "Map")
+    @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy logging should be > 0 to capture client stats"),
+            @ApiResponse(code = 503, message = "Proxy service is not initialized") })
+    public Map<String, ClientStats> clients() {
+        Optional<Integer> logLevel = proxyService().getConfiguration().getProxyLogLevel();
+        if (logLevel.isEmpty() || logLevel.get() == 0) {
+            throw new RestException(Status.PRECONDITION_FAILED, "Proxy doesn't have logging level > 0");
+        }
+        return proxyService().getClientStats();
+    }
+
+    @GET
     @Path("/topics")
     @ApiOperation(value = "Proxy topic stats api", response = Map.class, responseContainer = "Map")
     @ApiResponses(value = { @ApiResponse(code = 412, message = "Proxy logging should be > 2 to capture topic stats"),

@@ -36,6 +36,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.proxy.stats.ClientStats;
 import org.apache.pulsar.proxy.stats.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,6 +124,14 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     }
                     logging(ctx.channel(), cmd.getType(), "{producer:" + producerName
                             + ",topic:" + cmd.getProducer().getTopic() + "}", null);
+                    String producerAddress = ctx.channel().remoteAddress().toString();
+                    this.service.getClientStats().put(producerAddress, new ClientStats(
+                            ctx.channel().id().toString(),
+                            ClientStats.PRODUCER,
+                            cmd.getProducer().getProducerId(),
+                            producerName,
+                            cmd.getProducer().getTopic()
+                    ));
                     break;
 
                 case SEND:
@@ -151,6 +160,14 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
                     logging(ctx.channel(), cmd.getType(), "{consumer:" + cmd.getSubscribe().getConsumerName()
                             + ",topic:" + cmd.getSubscribe().getTopic() + "}", null);
+                    String consumerAddress = ctx.channel().remoteAddress().toString();
+                    this.service.getClientStats().put(consumerAddress, new ClientStats(
+                            ctx.channel().id().toString(),
+                            ClientStats.CONSUMER,
+                            cmd.getSubscribe().getConsumerId(),
+                            cmd.getSubscribe().getConsumerName(),
+                            cmd.getSubscribe().getTopic()
+                    ));
                     break;
 
                 case MESSAGE:
