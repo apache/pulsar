@@ -29,9 +29,12 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 /**
  * The MessageRedeliveryController is a non-thread-safe container for maintaining the redelivery messages.
  */
+@NotThreadSafe
 public class MessageRedeliveryController {
 
     private final boolean allowOutOfOrderDelivery;
@@ -65,7 +68,7 @@ public class MessageRedeliveryController {
             } else {
                 // Return -1 means the key was not present
                 long stored = hashesRefCount.get(stickyKeyHash);
-                hashesRefCount.put(stickyKeyHash, stored > 0 ? ++ stored : 1);
+                hashesRefCount.put(stickyKeyHash, stored > 0 ? ++stored : 1);
             }
         }
         messagesToRedeliver.add(ledgerId, entryId);
