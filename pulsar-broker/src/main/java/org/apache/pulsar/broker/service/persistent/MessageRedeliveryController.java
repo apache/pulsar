@@ -23,13 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.Set;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
-
-import javax.annotation.concurrent.NotThreadSafe;
 
 /**
  * The MessageRedeliveryController is a non-thread-safe container for maintaining the redelivery messages.
