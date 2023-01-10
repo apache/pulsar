@@ -103,6 +103,10 @@ public class PulsarStandalone implements AutoCloseable {
         this.configFile = configFile;
     }
 
+    public void setBkConfigFile(String bkConfigFile) {
+        this.bkConfigFile = bkConfigFile;
+    }
+
     public void setWipeData(boolean wipeData) {
         this.wipeData = wipeData;
     }
@@ -153,6 +157,10 @@ public class PulsarStandalone implements AutoCloseable {
 
     public String getConfigFile() {
         return configFile;
+    }
+
+    public String getBkConfigFile() {
+        return bkConfigFile;
     }
 
     public boolean isWipeData() {
@@ -213,6 +221,9 @@ public class PulsarStandalone implements AutoCloseable {
 
     @Parameter(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
+
+    @Parameter(names = { "--bk-config" }, description = "Bookkeeper Configuration file path")
+    private String bkConfigFile;
 
     @Parameter(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
     private boolean wipeData = false;
@@ -445,7 +456,7 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();
-        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        bkServerConf.loadConf(new File(bkConfigFile).toURI().toURL());
         calculateCacheSize(bkServerConf);
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
@@ -462,7 +473,7 @@ public class PulsarStandalone implements AutoCloseable {
     private void startBookieWithZookeeper() throws Exception {
         log.info("Starting BK & ZK cluster");
         ServerConfiguration bkServerConf = new ServerConfiguration();
-        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        bkServerConf.loadConf(new File(bkConfigFile).toURI().toURL());
         calculateCacheSize(bkServerConf);
         // Start LocalBookKeeper
         bkEnsemble = new LocalBookkeeperEnsemble(
