@@ -42,10 +42,9 @@ public interface AbortedTxnProcessor {
     /**
      * Check whether the transaction ID is an aborted transaction ID.
      * @param txnID the transaction ID that needs to be checked.
-     * @param readPosition the read position of the transaction message, can be used to find the segment.
      * @return a boolean, whether the transaction ID is an aborted transaction ID.
      */
-    boolean checkAbortedTransaction(TxnID txnID, Position readPosition);
+    boolean checkAbortedTransaction(TxnID txnID);
 
     /**
      * Recover transaction buffer by transaction buffer snapshot.

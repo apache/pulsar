@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.Timer;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -31,12 +30,11 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
@@ -57,7 +55,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
@@ -71,7 +69,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private LinkedList<TxnID> unsealedAbortedTxnIdSegment;
 
     //A mapping form the latest txn mark persistent position in a segment to its latest txn ID.
-    //This is mainly used to trim expired snapshot segment.
+    //This is mainly used to trim expired snapshot segment and remove them form aborts.
     private final LinkedMap<PositionImpl, TxnID> segmentIndex = new LinkedMap<>();
 
     //Store all aborted txn IDs check whether a txn is an aborted txn.
@@ -107,14 +105,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             LinkedList<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
             segmentIndex.put(abortedMarkerPersistentPosition, abortedTxnId);
-            persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
+            persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, (cancel) ->
                     persistentWorker.takeSnapshotSegmentAsync(abortedSegment, abortedMarkerPersistentPosition));
             this.unsealedAbortedTxnIdSegment = new LinkedList<>();
         }
     }
 
     @Override
-    public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
+    public boolean checkAbortedTransaction(TxnID txnID) {
         return aborts.containsKey(txnID);
     }
 
@@ -131,15 +129,23 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             }
             PositionImpl positionNeedToDelete = segmentIndex.firstKey();
             positionsNeedToDelete.add(positionNeedToDelete);
+
+            TxnID theLatestDeletedTxnID = segmentIndex.remove(positionNeedToDelete);
+            //The position is already deleted.
+            if (theLatestDeletedTxnID == null) {
+                continue;
+            }
+            while (!aborts.firstKey().equals(theLatestDeletedTxnID)) {
+                aborts.remove(aborts.firstKey());
+            }
+            aborts.remove(theLatestDeletedTxnID);
         }
         //Batch delete the expired segment and then update segment index.
         if (!positionsNeedToDelete.isEmpty()) {
             persistentWorker.appendTask(PersistentWorker.OperationType.DeleteSegment,
-                    () -> persistentWorker.deleteSnapshotSegment(positionsNeedToDelete)
-                            .thenRun(() -> {
-                                persistentWorker.updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
-                                        indexes.values().stream().toList());
-                            }));
+                    (cancel) -> persistentWorker.deleteSnapshotSegment(positionsNeedToDelete)
+                            .thenRun(() -> persistentWorker.updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
+                                    indexes.values().stream().toList())));
         }
     }
 
@@ -157,14 +163,20 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     private CompletableFuture<Void> updateSnapshotIndexMetadata(TransactionBufferSnapshotIndexesMetadata metadata) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
-                () -> persistentWorker
+        persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, (cancel) -> {
+            if (!cancel) {
+                return persistentWorker
                         .updateSnapshotIndex(metadata, persistentSnapshotIndexes.getIndexList())
                         .thenRun(() -> completableFuture.complete(null))
                         .exceptionally(e -> {
                             completableFuture.completeExceptionally(e);
                             return null;
-                        }));
+                        });
+                } else {
+                    completableFuture.complete(null);
+                    return completableFuture;
+                }
+        });
         return completableFuture;
     }
 
@@ -278,7 +290,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                     TopicName snapshotIndexTopicName = TopicName.get(TopicDomain.persistent.toString(),
                             TopicName.get(topic.getName()).getNamespaceObject(),
-                            EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS.toString());
+                            SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
                     this.topic.getBrokerService().getPulsar().getManagedLedgerFactory()
                             .asyncOpenReadOnlyManagedLedger(snapshotIndexTopicName
                                             .getPersistenceNamingEncoding(), callback,
@@ -289,12 +301,20 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                     return openManagedLedgerFuture
                             .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
+                                //This is a compensation mechanism for deleting the segment
+                                // but not successfully updating the index.
                                 if (hasInvalidIndex.get()) {
-                                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
+                                    persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, (cancel)
                                             -> persistentWorker
                                             .updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
                                             indexes.values().stream().toList()));
                                 }
+                                //Append the aborted txn IDs in the index metadata
+                                //can keep the order of the aborted txn in the aborts.
+                                //So that we can trim the expired snapshot segment in aborts
+                                // according to the latest txn IDs
+                                convertTypeToTxnID(persistentSnapshotIndexes.getSnapshot().getAborts())
+                                        .forEach(txnID -> aborts.put(txnID, txnID));
                                 return CompletableFuture.completedFuture(finalStartReadCursorPosition);
                             })).exceptionally(ex -> {
                                 log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
@@ -309,7 +329,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public CompletableFuture<Void> clearAbortedTxnSnapshot() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         persistentWorker.appendTask(PersistentWorker.OperationType.Clear,
-                () -> persistentWorker.clearSnapshotSegmentAndIndexes()
+                (cancel) -> persistentWorker.clearSnapshotSegmentAndIndexes()
                         .thenRun(() -> {
                             completableFuture.thenCompose(null);
                         }).exceptionally(e -> {
@@ -356,7 +376,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         });
     }
 
-    private class PersistentWorker {
+    public class PersistentWorker {
         protected final AtomicLong sequenceID = new AtomicLong(0);
 
         private final PersistentTopic topic;
@@ -385,7 +405,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private volatile OperationState operationState = OperationState.None;
 
-        ConcurrentLinkedDeque<Pair<OperationType, Supplier<CompletableFuture<Void>>>> taskQueue =
+        ConcurrentLinkedDeque<Pair<OperationType, Function<Boolean, CompletableFuture<Void>>>> taskQueue =
                 new ConcurrentLinkedDeque<>();
         private CompletableFuture<Void> lastOperationFuture;
 
@@ -404,22 +424,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     });;
         }
 
-        public void appendTask(OperationType operationType, Supplier<CompletableFuture<Void>> task) {
+        public void appendTask(OperationType operationType, Function<Boolean, CompletableFuture<Void>> task) {
             switch (operationType) {
                 //Update index is can be canceled when the task queue is not empty, so it should be executed immediately
                 // instead of taking in queue. If the task queue is not empty, execute the task from the queue.
                 case UpdateIndex -> {
                     if (!taskQueue.isEmpty()) {
-                        task.get().complete(null);
+                        task.apply(Boolean.TRUE);
                         topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                                 .getExecutor(this).submit(this::executeTask);
                     } else if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
-                        lastOperationFuture = task.get();
+                        lastOperationFuture = task.apply(Boolean.FALSE);
                         lastOperationFuture.whenComplete((ignore, throwable) -> {
                             if (throwable != null && log.isDebugEnabled()) {
                                 log.debug("[{}] Failed to update index snapshot", topic.getName(), throwable);
                             }
-
                             STATE_UPDATER.compareAndSet(this, OperationState.Operating, OperationState.None);
                         });
                     }
@@ -434,7 +453,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 case Clear -> {
                     STATE_UPDATER.set(this, OperationState.Closed);
                     taskQueue.forEach(pair -> {
-                        pair.getRight().get().completeExceptionally(
+                        pair.getRight().apply(Boolean.FALSE).completeExceptionally(
                                 new BrokerServiceException.TransactionBufferClosedException(
                                         String.format("Cancel the operation [%s] due to the"
                                         + " transaction buffer of the topic[%s] already closed",
@@ -452,7 +471,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 case WriteSegment -> {
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
                         if (taskQueue.getFirst().getKey() == OperationType.WriteSegment) {
-                            lastOperationFuture = taskQueue.getFirst().getValue().get();
+                            lastOperationFuture = taskQueue.getFirst().getValue().apply(Boolean.FALSE);
                             lastOperationFuture.whenComplete((ignore, throwable) -> {
                                 if (throwable != null) {
                                     if (log.isDebugEnabled()) {
@@ -471,7 +490,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 case DeleteSegment -> {
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
                         if (taskQueue.getFirst().getKey() == OperationType.DeleteSegment) {
-                            lastOperationFuture = taskQueue.getFirst().getValue().get();
+                            lastOperationFuture = taskQueue.getFirst().getValue().apply(Boolean.FALSE);
                             lastOperationFuture.whenComplete((ignore, throwable) -> {
                                 if (throwable != null) {
                                     if (log.isDebugEnabled()) {
@@ -552,15 +571,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                 + "whose sequenceId is [{}] and maxReadPosition is [{}]",
                                         this.topic.getName(), this.sequenceID, positionNeedToDelete);
                             }
-                            TxnID theLatestDeletedTxnID = segmentIndex.remove(positionNeedToDelete);
-                            //The position is already deleted.
-                            if (theLatestDeletedTxnID == null) {
-                                return;
-                            }
-                            while (!aborts.firstKey().equals(theLatestDeletedTxnID)) {
-                                aborts.remove(aborts.firstKey());
-                            }
-                            aborts.remove(theLatestDeletedTxnID);
                             //The process will check whether the snapshot segment is null,
                             // and update index when recovered.
                             indexes.remove(positionNeedToDelete);

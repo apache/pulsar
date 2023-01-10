@@ -825,6 +825,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
     }
 
+    //Verify the snapshotSegmentProcessor end to end
     @Test
     public void testSnapshotSegment() throws Exception {
         String topic = NAMESPACE1 + "/testSnapshotSegment";
@@ -870,7 +871,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                     } else {
                         ongoingTxns.put(transaction, messageId);
                         if (maxReadMessage == null) {
-                            log.info("Max read Position in test: [{}]", messageId);
                             //The except number of the messages that can be read
                             maxReadMessage = messageId;
                         }

@@ -279,7 +279,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
         if (!ongoingTxns.containsKey(txnId) && !this.snapshotAbortedTxnProcessor
-                .checkAbortedTransaction(txnId, position)) {
+                .checkAbortedTransaction(txnId)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
@@ -470,7 +470,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
-        return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID, readPosition);
+        return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
     }
 
     @Override

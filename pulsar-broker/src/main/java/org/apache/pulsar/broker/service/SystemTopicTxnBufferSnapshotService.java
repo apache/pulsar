@@ -72,7 +72,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
         }
         return CompletableFuture.completedFuture(clients.computeIfAbsent(systemTopicName,
                 (v) -> namespaceEventsSystemTopicFactory
-                        .createTransactionBufferSystemTopicClient(topicName.getNamespaceObject(),
+                        .createTransactionBufferSystemTopicClient(systemTopicName,
                                 this, schemaType)));
     }
 

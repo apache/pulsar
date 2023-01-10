@@ -83,7 +83,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
+    public boolean checkAbortedTransaction(TxnID txnID) {
         return aborts.containsKey(txnID);
     }
 
