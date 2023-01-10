@@ -3057,6 +3057,73 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         BookKeeper bk = mock(BookKeeper.class);
         doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+        AtomicReference<ManagedLedgerException> responseException1 = new AtomicReference<>();
+        String ctxStr = "timeoutCtx";
+        CompletableFuture<LedgerEntries> entriesFuture = new CompletableFuture<>();
+        ReadHandle ledgerHandle = mock(ReadHandle.class);
+        doReturn(entriesFuture).when(ledgerHandle).readAsync(PositionImpl.EARLIEST.getLedgerId(),
+                PositionImpl.EARLIEST.getEntryId());
+
+        // (1) test read-timeout for: ManagedLedger.asyncReadEntry(..)
+        ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                responseException1.set(null);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                assertEquals(ctxStr, (String) ctx);
+                responseException1.set(exception);
+            }
+        }, ctxStr);
+        ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
+        retryStrategically((test) -> responseException1.get() != null, 5, 1000);
+        assertNotNull(responseException1.get());
+        assertTrue(responseException1.get().getMessage()
+                .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+
+        // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
+        AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
+        PositionImpl readPositionRef = PositionImpl.EARLIEST;
+        ManagedCursorImpl cursor = new ManagedCursorImpl(bk, config, ledger, "cursor1");
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
+
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                assertEquals(ctxStr, (String) ctx);
+                responseException2.set(exception);
+            }
+
+        }, null, PositionImpl.LATEST);
+        ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST.getEntryId(), PositionImpl.EARLIEST.getEntryId(),
+                opReadEntry, ctxStr);
+        retryStrategically((test) -> {
+            return responseException2.get() != null;
+        }, 5, 1000);
+        assertNotNull(responseException2.get());
+        assertTrue(responseException2.get().getMessage()
+                .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+
+        ledger.close();
+    }
+
+    /**
+     * It verifies that multi asyncRead timesout if it doesn't receive response from bk-client in configured timeout
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testManagedLedgerWithMulitReadEntryTimeOut() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
+
+        BookKeeper bk = mock(BookKeeper.class);
+        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
 
         String ctxStr = "timeoutCtx";
         CompletableFuture<LedgerEntries> entriesFuture = new CompletableFuture<>();
