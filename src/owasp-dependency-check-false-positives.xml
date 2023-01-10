@@ -181,4 +181,9 @@
     <notes>fredsmith utils library is not used at all. CVE-2021-4277 is a false positive.</notes>
     <cve>CVE-2021-4277</cve>
   </suppress>
+
+  <suppress>
+    <notes>yaml_project is not used at all. Any CVEs reported for yaml_project are false positives.</notes>
+    <cpe>cpe:/a:yaml_project:yaml</cpe>
+  </suppress>
 </suppressions>
