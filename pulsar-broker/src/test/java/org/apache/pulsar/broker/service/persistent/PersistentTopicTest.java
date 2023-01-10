@@ -442,7 +442,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         // Check this topic has no partition metadata.
         Assert.assertThrows(PulsarAdminException.NotFoundException.class,
                 () -> admin.topics().getPartitionedTopicMetadata(topicName));
-        // Reconnect to the broker, expect successful, because the topic is existed in the broker.
+        // Reconnect to the broker and expect successful because the topic has existed in the broker.
         producer = pulsarClient.newProducer()
                 .topic(partition2)
                 .create();
