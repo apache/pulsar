@@ -176,4 +176,9 @@
     <notes>commons-net is not used at all and therefore commons-net vulnerability CVE-2021-37533 is a false positive.</notes>
     <cve>CVE-2021-37533</cve>
   </suppress>
+
+  <suppress>
+    <notes>fredsmith utils library is not used at all. CVE-2021-4277 is a false positive.</notes>
+    <cve>CVE-2021-4277</cve>
+  </suppress>
 </suppressions>
