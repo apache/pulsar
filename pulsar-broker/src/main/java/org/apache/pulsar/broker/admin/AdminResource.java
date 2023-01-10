@@ -394,7 +394,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         // time based quota is in second
         if (retention.getRetentionTimeInMinutes() > 0
-                && quota.getLimitTimeInSec() >= retention.getRetentionTimeInMinutes() * 60) {
+                && quota.getLimitTime() >= retention.getRetentionTimeInMinutes() * 60) {
             return false;
         }
         return true;
@@ -844,6 +844,13 @@ public abstract class AdminResource extends PulsarWebResource {
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
+    }
+
+    protected static boolean isNotFoundException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.NOT_FOUND.getStatusCode();
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {

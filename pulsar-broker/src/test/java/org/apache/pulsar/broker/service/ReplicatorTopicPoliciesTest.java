@@ -83,7 +83,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         // set BacklogQuota
         BacklogQuotaImpl backlogQuota = new BacklogQuotaImpl();
         backlogQuota.setLimitSize(1);
-        backlogQuota.setLimitTimeInSec(2);
+        backlogQuota.setLimitTime(2);
         // local
         admin1.topicPolicies().setBacklogQuota(topic, backlogQuota);
         Awaitility.await().untilAsserted(() ->
