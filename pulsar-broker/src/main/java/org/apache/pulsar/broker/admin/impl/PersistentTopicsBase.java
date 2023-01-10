@@ -4655,8 +4655,8 @@ public class PersistentTopicsBase extends AdminResource {
                     return null;
         });
     }
-    protected void internalTrimTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        validateTopicOwnershipAsync(topicName, authoritative)
+    protected CompletableFuture<Void> internalTrimTopic(AsyncResponse asyncResponse, boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC))
                 .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
                 .thenCompose(metadata -> {
@@ -4673,13 +4673,6 @@ public class PersistentTopicsBase extends AdminResource {
                         return trimPartitionedTopic(asyncResponse, metadata);
                     }
                     return trimNonPartitionedTopic(asyncResponse, topicName);
-                }).exceptionally(ex -> {
-                    // If the exception is not redirect exception we need to log it.
-                    if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to trim topic {}", clientAppId(), topicName, ex);
-                    }
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
                 });
     }
 
