@@ -480,7 +480,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.debug("[{}] Failed lookup topic {} due to pulsar service is not ready: {} state", remoteAddress,
                         topicName, this.service.getPulsar().getState().toString());
             }
-            ctx.writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
+            writeAndFlushVoidPromise(newLookupErrorResponse(ServerError.ServiceNotReady,
                     "Failed due to pulsar service is not ready", requestId));
             return;
         }
@@ -491,7 +491,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 final String msg = "Valid Proxy Client role should be provided for lookup ";
                 log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
                         originalPrincipal, topicName);
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                writeAndFlushVoidPromise(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
                 return;
             }
@@ -502,12 +502,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             getPrincipal(), getAuthenticationData(),
                             requestId, advertisedListenerName).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
-                                    ctx.writeAndFlush(lookupResponse);
+                                    writeAndFlushVoidPromise(lookupResponse);
                                 } else {
                                     // it should never happen
                                     log.warn("[{}] lookup failed with error {}, {}", remoteAddress, topicName,
                                             ex.getMessage(), ex);
-                                    ctx.writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                    writeAndFlushVoidPromise(newLookupErrorResponse(ServerError.ServiceNotReady,
                                             ex.getMessage(), requestId));
                                 }
                                 lookupSemaphore.release();
@@ -516,14 +516,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 } else {
                     final String msg = "Client is not authorized to Lookup";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
-                    ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                    writeAndFlushVoidPromise(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                     lookupSemaphore.release();
                 }
                 return null;
             }).exceptionally(ex -> {
                 logAuthException(remoteAddress, "lookup", getPrincipal(), Optional.of(topicName), ex);
                 final String msg = "Exception occurred while trying to authorize lookup";
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                writeAndFlushVoidPromise(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
                 return null;
             });
@@ -531,9 +531,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed lookup due to too many lookup-requests {}", remoteAddress, topicName);
             }
-            ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
+            writeAndFlushVoidPromise(newLookupErrorResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
         }
+    }
+
+    private void writeAndFlushVoidPromise(ByteBuf cmd) {
+        ctx.writeAndFlush(cmd, ctx.voidPromise());
     }
 
     @Override
@@ -557,7 +561,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         partitionMetadata.getTopic(), remoteAddress, requestId,
                         this.service.getPulsar().getState().toString());
             }
-            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+            writeAndFlushVoidPromise(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
                     "Failed due to pulsar service is not ready", requestId));
             return;
         }
@@ -607,15 +611,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 } else {
                     final String msg = "Client is not authorized to Get Partition Metadata";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
-                    ctx.writeAndFlush(
-                            Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
+                    writeAndFlushVoidPromise(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                     lookupSemaphore.release();
                 }
                 return null;
             }).exceptionally(ex -> {
                 logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName), ex);
                 final String msg = "Exception occurred while trying to authorize get Partition Metadata";
-                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg,
+                writeAndFlushVoidPromise(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg,
                         requestId));
                 lookupSemaphore.release();
                 return null;
@@ -657,7 +660,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             msg = createConsumerStatsResponse(consumer, requestId);
         }
 
-        ctx.writeAndFlush(msg);
+        writeAndFlushVoidPromise(msg);
     }
 
     ByteBuf createConsumerStatsResponse(Consumer consumer, long requestId) {
@@ -687,7 +690,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion, boolean supportsTopicWatchers) {
-        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, supportsTopicWatchers));
+        writeAndFlushVoidPromise(Commands.newConnected(clientProtoVersion, maxMessageSize, supportsTopicWatchers));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         if (log.isDebugEnabled()) {
@@ -763,7 +766,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         // auth not complete, continue auth with client side.
-        ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, clientProtocolVersion));
+        writeAndFlushVoidPromise(Commands.newAuthChallenge(authMethod, brokerData, clientProtocolVersion));
         if (log.isDebugEnabled()) {
             log.debug("[{}] Authentication in progress client by method {}.",
                 remoteAddress, authMethod);
@@ -813,7 +816,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             try {
                 AuthData brokerData = authState.refreshAuthentication();
 
-                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData,
+                writeAndFlushVoidPromise(Commands.newAuthChallenge(authMethod, brokerData,
                         getRemoteEndpointProtocolVersion()));
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
@@ -849,8 +852,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.debug("Failed CONNECT from {} due to pulsar service is not ready: {} state", remoteAddress,
                         this.service.getPulsar().getState().toString());
             }
-            ctx.writeAndFlush(
-                    Commands.newError(-1, ServerError.ServiceNotReady, "Failed due to pulsar service is not ready"));
+            writeAndFlushVoidPromise(Commands.newError(-1, ServerError.ServiceNotReady, "Failed due to pulsar service is not ready"));
             close();
             return;
         }
@@ -961,7 +963,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             service.getPulsarStats().recordConnectionCreateFail();
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
             String msg = "Unable to authenticate";
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
+            writeAndFlushVoidPromise(Commands.newError(-1, ServerError.AuthenticationError, msg));
             close();
         }
     }
@@ -985,13 +987,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } catch (AuthenticationException e) {
             service.getPulsarStats().recordConnectionCreateFail();
             log.warn("[{}] Authentication failed: {} ", remoteAddress, e.getMessage());
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
+            writeAndFlushVoidPromise(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
             close();
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
             String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.UnknownError, msg));
+            writeAndFlushVoidPromise(Commands.newError(-1, ServerError.UnknownError, msg));
             close();
         }
     }
@@ -1211,7 +1213,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
                 consumers.remove(consumerId, consumerFuture);
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                writeAndFlushVoidPromise(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
         }).exceptionally(ex -> {
@@ -1288,7 +1290,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (!isAuthorized) {
                 String msg = "Client is not authorized to Produce";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+                writeAndFlushVoidPromise(Commands.newError(requestId, ServerError.AuthorizationError, msg));
                 return null;
             }
 
@@ -1658,7 +1660,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             Consumer consumer = consumerFuture.getNow(null);
             consumer.messageAcked(ack).thenRun(() -> {
                 if (hasRequestId) {
-                    ctx.writeAndFlush(Commands.newAckResponse(
+                    writeAndFlushVoidPromise(Commands.newAckResponse(
                             requestId, null, null, consumerId));
                 }
                 if (brokerInterceptor != null) {
@@ -1666,7 +1668,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }).exceptionally(e -> {
                 if (hasRequestId) {
-                    ctx.writeAndFlush(Commands.newAckResponse(requestId,
+                    writeAndFlushVoidPromise(Commands.newAckResponse(requestId,
                             BrokerServiceException.getClientErrorCode(e),
                             e.getMessage(), consumerId));
                 }
@@ -1825,7 +1827,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> producerFuture = producers.get(producerId);
         if (producerFuture == null) {
             log.info("[{}] Producer {} was not registered on the connection", remoteAddress, producerId);
-            ctx.writeAndFlush(Commands.newSuccess(requestId));
+            writeAndFlushVoidPromise(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1874,7 +1876,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Consumer> consumerFuture = consumers.get(consumerId);
         if (consumerFuture == null) {
             log.info("[{}] Consumer was not registered on the connection: {}", consumerId, remoteAddress);
-            ctx.writeAndFlush(Commands.newSuccess(requestId));
+            writeAndFlushVoidPromise(Commands.newSuccess(requestId));
             return;
         }
 
@@ -1941,7 +1943,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     consumer.getSubscription().getName());
 
         } else {
-            ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+            writeAndFlushVoidPromise(Commands.newError(getLastMessageId.getRequestId(),
                     ServerError.MetadataError, "Consumer not found"));
         }
     }
@@ -1994,7 +1996,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
                             markDeletePosition);
                 } else {
-                    ctx.writeAndFlush(Commands.newError(
+                    writeAndFlushVoidPromise(Commands.newError(
                             requestId, ServerError.MetadataError,
                             "Failed to get batch size for entry " + e.getMessage()));
                 }
@@ -2006,7 +2008,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             topic.getName(), subscriptionName, lastPosition, partitionIndex);
                 }
 
-                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
+                writeAndFlushVoidPromise(Commands.newGetLastMessageIdResponse(requestId, lastPosition.getLedgerId(),
                         lastPosition.getEntryId(), partitionIndex, largestBatchIndex,
                         markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                         markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
@@ -2026,12 +2028,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 try {
                     largestBatchIndex = calculateTheLastBatchIndexInBatch(metadata, payload);
                 } catch (IOException ioEx){
-                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError,
+                    writeAndFlushVoidPromise(Commands.newError(requestId, ServerError.MetadataError,
                             "Failed to deserialize batched message from the last entry of the compacted Ledger: "
                                     + ioEx.getMessage()));
                     return;
                 }
-                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                writeAndFlushVoidPromise(Commands.newGetLastMessageIdResponse(requestId,
                         entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
                         markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                         markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
@@ -2039,13 +2041,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else {
                 // in this case, the ledgers been removed except the current ledger
                 // and current ledger without any data
-                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                writeAndFlushVoidPromise(Commands.newGetLastMessageIdResponse(requestId,
                         -1, -1, partitionIndex, -1,
                         markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
                         markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
             }
         }).exceptionally(ex -> {
-            ctx.writeAndFlush(Commands.newError(
+            writeAndFlushVoidPromise(Commands.newError(
                     requestId, ServerError.MetadataError,
                     "Failed to read last entry of the compacted Ledger "
                             + ex.getCause().getMessage()));
@@ -2401,12 +2403,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (log.isDebugEnabled()) {
                             log.debug("Send response success for add published partition to txn request {}", requestId);
                         }
-                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
+                        writeAndFlushVoidPromise(Commands.newAddPartitionToTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.ADD_PARTITION_TO_TXN.name(), requestId);
 
-                        ctx.writeAndFlush(Commands.newAddPartitionToTxnResponse(requestId,
+                        writeAndFlushVoidPromise(Commands.newAddPartitionToTxnResponse(requestId,
                                 txnID.getLeastSigBits(),
                                 txnID.getMostSigBits(),
                                 BrokerServiceException.getClientErrorCode(ex),
@@ -2468,13 +2470,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             if (throwable != null) {
                                 log.error("handleEndTxnOnPartition fail!, topic {}, txnId: [{}], "
                                         + "txnAction: [{}]", topic, txnID, TxnAction.valueOf(txnAction), throwable);
-                                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                                writeAndFlushVoidPromise(Commands.newEndTxnOnPartitionResponse(
                                         requestId, BrokerServiceException.getClientErrorCode(throwable),
                                         throwable.getMessage(),
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                                 return;
                             }
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                            writeAndFlushVoidPromise(Commands.newEndTxnOnPartitionResponse(requestId,
                                     txnID.getLeastSigBits(), txnID.getMostSigBits()));
                         });
 
@@ -2486,7 +2488,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.error("handleEndTxnOnPartition fail ! The topic {} does not exist in broker, "
                                                 + "txnId: [{}], txnAction: [{}]", topic,
                                         txnID, TxnAction.valueOf(txnAction));
-                                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                                writeAndFlushVoidPromise(Commands.newEndTxnOnPartitionResponse(requestId,
                                         ServerError.ServiceNotReady,
                                         "The topic " + topic + " does not exist in broker.",
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
@@ -2494,14 +2496,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.warn("handleEndTxnOnPartition fail ! The topic {} has not been created, "
                                                 + "txnId: [{}], txnAction: [{}]",
                                         topic, txnID, TxnAction.valueOf(txnAction));
-                                ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(requestId,
+                                writeAndFlushVoidPromise(Commands.newEndTxnOnPartitionResponse(requestId,
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             }
                         }).exceptionally(e -> {
                             log.error("handleEndTxnOnPartition fail ! topic {}, "
                                             + "txnId: [{}], txnAction: [{}]", topic, txnID,
                                     TxnAction.valueOf(txnAction), e.getCause());
-                            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+                            writeAndFlushVoidPromise(Commands.newEndTxnOnPartitionResponse(
                                     requestId, ServerError.ServiceNotReady,
                                     e.getMessage(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             return null;
@@ -2511,7 +2513,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.error("handleEndTxnOnPartition fail ! topic {}, "
                             + "txnId: [{}], txnAction: [{}]", topic, txnID,
                     TxnAction.valueOf(txnAction), e.getCause());
-            ctx.writeAndFlush(Commands.newEndTxnOnPartitionResponse(
+            writeAndFlushVoidPromise(Commands.newEndTxnOnPartitionResponse(
                     requestId, ServerError.ServiceNotReady,
                     e.getMessage(), txnID.getLeastSigBits(), txnID.getMostSigBits()));
             return null;
@@ -2543,8 +2545,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     log.warn("handleEndTxnOnSubscription fail! "
                                     + "topic {} subscription {} does not exist. txnId: [{}], txnAction: [{}]",
                             optionalTopic.get().getName(), subName, txnID, TxnAction.valueOf(txnAction));
-                    ctx.writeAndFlush(
-                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+                    writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                     return;
                 }
 
@@ -2555,14 +2556,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         log.error("handleEndTxnOnSubscription fail ! topic: {}, subscription: {}"
                                         + "txnId: [{}], txnAction: [{}]", topic, subName,
                                 txnID, TxnAction.valueOf(txnAction), e.getCause());
-                        ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                        writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(
                                 requestId, txnidLeastBits, txnidMostBits,
                                 BrokerServiceException.getClientErrorCode(e),
                                 "Handle end txn on subscription failed: " + e.getMessage()));
                         return;
                     }
-                    ctx.writeAndFlush(
-                            Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
+                    writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(requestId, txnidLeastBits, txnidMostBits));
                 });
             } else {
                 getBrokerService().getManagedLedgerFactory()
@@ -2572,7 +2572,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.error("handleEndTxnOnSubscription fail! The topic {} does not exist in broker, "
                                                 + "subscription: {}, txnId: [{}], txnAction: [{}]", topic, subName,
                                         txnID, TxnAction.valueOf(txnAction));
-                                ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                                writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(
                                         requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
                                         ServerError.ServiceNotReady,
                                         "The topic " + topic + " does not exist in broker."));
@@ -2580,14 +2580,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 log.warn("handleEndTxnOnSubscription fail ! The topic {} has not been created, "
                                                 + "subscription: {} txnId: [{}], txnAction: [{}]",
                                         topic, subName, txnID, TxnAction.valueOf(txnAction));
-                                ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(requestId,
+                                writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(requestId,
                                         txnID.getLeastSigBits(), txnID.getMostSigBits()));
                             }
                         }).exceptionally(e -> {
                             log.error("handleEndTxnOnSubscription fail ! topic {}, subscription: {}"
                                             + "txnId: [{}], txnAction: [{}]", topic, subName,
                                     txnID, TxnAction.valueOf(txnAction), e.getCause());
-                            ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+                            writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(
                                     requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
                                     ServerError.ServiceNotReady, e.getMessage()));
                             return null;
@@ -2597,7 +2597,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.error("handleEndTxnOnSubscription fail ! topic: {}, subscription: {}"
                             + "txnId: [{}], txnAction: [{}]", topic, subName,
                     txnID, TxnAction.valueOf(txnAction), e.getCause());
-            ctx.writeAndFlush(Commands.newEndTxnOnSubscriptionResponse(
+            writeAndFlushVoidPromise(Commands.newEndTxnOnSubscriptionResponse(
                     requestId, txnidLeastBits, txnidMostBits,
                     ServerError.ServiceNotReady,
                     "Handle end txn on subscription failed: " + e.getMessage()));
@@ -2652,12 +2652,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             log.debug("Send response success for add published partition to txn request {}",
                                     requestId);
                         }
-                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId,
+                        writeAndFlushVoidPromise(Commands.newAddSubscriptionToTxnResponse(requestId,
                                 txnID.getLeastSigBits(), txnID.getMostSigBits()));
                     } else {
                         ex = handleTxnException(ex, BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name(), requestId);
-
-                        ctx.writeAndFlush(Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getLeastSigBits(),
+                        writeAndFlushVoidPromise(
+                                Commands.newAddSubscriptionToTxnResponse(requestId, txnID.getLeastSigBits(),
                                 txnID.getMostSigBits(), BrokerServiceException.getClientErrorCode(ex),
                                 ex.getMessage()));
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
@@ -2743,7 +2743,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // removes producer-connection from map and send close command to producer
         safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            ctx.writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            writeAndFlushVoidPromise(Commands.newCloseProducer(producer.getProducerId(), -1L));
         } else {
             close();
         }
@@ -2755,7 +2755,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // removes consumer-connection from map and send close command to consumer
         safelyRemoveConsumer(consumer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-            ctx.writeAndFlush(Commands.newCloseConsumer(consumer.consumerId(), -1L));
+            writeAndFlushVoidPromise(Commands.newCloseConsumer(consumer.consumerId(), -1L));
         } else {
             close();
         }
@@ -2998,13 +2998,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             if (requestCommand instanceof CommandLookupTopic) {
-                ctx.writeAndFlush(Commands.newLookupErrorResponse(ServerError.InvalidTopicName,
+                writeAndFlushVoidPromise(Commands.newLookupErrorResponse(ServerError.InvalidTopicName,
                         "Invalid topic name: " + t.getMessage(), requestId));
             } else if (requestCommand instanceof CommandPartitionedTopicMetadata) {
-                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.InvalidTopicName,
+                writeAndFlushVoidPromise(Commands.newPartitionMetadataResponse(ServerError.InvalidTopicName,
                         "Invalid topic name: " + t.getMessage(), requestId));
             } else {
-                ctx.writeAndFlush(Commands.newError(requestId, ServerError.InvalidTopicName,
+                writeAndFlushVoidPromise(Commands.newError(requestId, ServerError.InvalidTopicName,
                         "Invalid topic name: " + t.getMessage()));
             }
 
