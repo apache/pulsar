@@ -116,7 +116,7 @@ public class MessageRedeliveryController {
     }
 
     public void clear() {
-        if (hashesToBeBlocked != null) {
+        if (!allowOutOfOrderDelivery) {
             hashesToBeBlocked.clear();
             hashesRefCount.clear();
         }
