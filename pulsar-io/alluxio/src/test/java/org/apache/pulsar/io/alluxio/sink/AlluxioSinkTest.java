@@ -64,6 +64,7 @@ public class AlluxioSinkTest {
 
     protected Map<String, Object> map;
     protected AlluxioSink sink;
+    protected LocalAlluxioCluster cluster;
 
     @Mock
     protected Record<GenericObject> mockRecord;
@@ -86,10 +87,16 @@ public class AlluxioSinkTest {
     }
 
     @BeforeMethod
-    public final void setUp() {
+    public final void setUp() throws Exception {
+        cluster = setupSingleMasterCluster();
+
         map = new HashMap<>();
-        map.put("alluxioMasterHost", "localhost");
-        map.put("alluxioMasterPort", "19998");
+        // alluxioMasterHost should be set via LocalAlluxioCluster#getHostname
+        // instead of using a fixed value "localhost", since it seems that
+        // LocalAlluxioCluster may bind other address than localhost
+        // when the node has multiple network interfaces.
+        map.put("alluxioMasterHost", cluster.getHostname());
+        map.put("alluxioMasterPort", cluster.getMasterRpcPort());
         map.put("alluxioDir", "/pulsar");
         map.put("filePrefix", "prefix");
         map.put("schemaEnable", "true");
@@ -127,8 +134,6 @@ public class AlluxioSinkTest {
 
         String alluxioDir = "/pulsar";
 
-        LocalAlluxioCluster cluster = setupSingleMasterCluster();
-
         sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
 
@@ -155,8 +160,6 @@ public class AlluxioSinkTest {
         map.put("alluxioDir", "/pulsar");
 
         String alluxioDir = "/pulsar";
-
-        LocalAlluxioCluster cluster = setupSingleMasterCluster();
 
         sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
