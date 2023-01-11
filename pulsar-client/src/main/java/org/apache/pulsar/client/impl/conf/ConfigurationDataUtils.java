@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Utils for loading configuration data.
@@ -31,7 +32,7 @@ import java.util.Map;
 public final class ConfigurationDataUtils {
 
     public static ObjectMapper create() {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = ObjectMapperFactory.create();
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, false);
