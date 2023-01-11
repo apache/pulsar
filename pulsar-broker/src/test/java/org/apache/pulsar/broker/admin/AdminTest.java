@@ -444,9 +444,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         try {
             asyncRequests(ctx -> clusters.createCluster(ctx, "auth", ClusterDataImpl.builder()
                     .serviceUrl("http://dummy.web.example.com")
-                    .serviceUrlTls("")
-                    .brokerServiceUrl("http://dummy.messaging.example.com")
-                    .brokerServiceUrlTls("")
+                    .brokerServiceUrl("pulsar://dummy.messaging.example.com")
                     .authenticationPlugin("authenticationPlugin")
                     .authenticationParameters("authenticationParameters")
                     .listenerName("listenerName")
@@ -775,7 +773,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl admin = TenantInfoImpl.builder()
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
-        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl(cluster).build();
+        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl("http://example.pulsar").build();
         asyncRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData ));
         asyncRequests(ctx -> properties.createTenant(ctx, property, admin));
 

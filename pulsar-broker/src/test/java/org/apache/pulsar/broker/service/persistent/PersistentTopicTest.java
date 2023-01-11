@@ -29,6 +29,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +47,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
@@ -401,5 +403,23 @@ public class PersistentTopicTest extends BrokerTestBase {
         // `removeConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
         assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
+    }
+
+
+    @Test
+    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop/ns-abc/testCreateNonExistentPartitions";
+        admin.topics().createPartitionedTopic(topicName, 4);
+        TopicName partition = TopicName.get(topicName).getPartition(4);
+        try {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(partition.toString())
+                    .create();
+            fail("unexpected behaviour");
+        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+
+        }
+        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 }

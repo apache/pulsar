@@ -1941,7 +1941,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // update
         cluster = ClusterData.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
-                .proxyServiceUrl("proxy")
+                .proxyServiceUrl("pulsar://example.com")
                 .proxyProtocol(ProxyProtocol.SNI)
                 .build();
         admin.clusters().updateCluster(clusterName, cluster);
@@ -2676,15 +2676,13 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, startPartitions);
 
         // create a subscription for few new partition which can fail
-        admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
-                MessageId.earliest);
-
         try {
-            admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, false);
-        } catch (PulsarAdminException.PreconditionFailedException e) {
-            // Ok
+            admin.topics().createSubscription(partitionedTopicName + "-partition-" + startPartitions, subName1,
+                    MessageId.earliest);
+            fail("Unexpected behaviour");
+        } catch (PulsarAdminException.PreconditionFailedException ex) {
+            // OK
         }
-        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, startPartitions);
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions, false, true);
         // validate subscription is created for new partition.
