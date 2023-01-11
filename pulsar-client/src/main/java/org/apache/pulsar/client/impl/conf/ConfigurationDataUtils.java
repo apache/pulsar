@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.conf;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,31 +39,21 @@ public final class ConfigurationDataUtils {
         return mapper;
     }
 
-    private static final FastThreadLocal<ObjectMapper> mapper = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return create();
-        }
-    };
-
-    public static ObjectMapper getThreadLocal() {
-        return mapper.get();
-    }
+    private static final ObjectMapper MAPPER = create();
 
     private ConfigurationDataUtils() {}
 
     public static <T> T loadData(Map<String, Object> config,
                                  T existingData,
                                  Class<T> dataCls) {
-        ObjectMapper mapper = getThreadLocal();
         try {
-            String existingConfigJson = mapper.writeValueAsString(existingData);
-            Map<String, Object> existingConfig = mapper.readValue(existingConfigJson, Map.class);
+            String existingConfigJson = MAPPER.writeValueAsString(existingData);
+            Map<String, Object> existingConfig = MAPPER.readValue(existingConfigJson, Map.class);
             Map<String, Object> newConfig = new HashMap<>();
             newConfig.putAll(existingConfig);
             newConfig.putAll(config);
-            String configJson = mapper.writeValueAsString(newConfig);
-            return mapper.readValue(configJson, dataCls);
+            String configJson = MAPPER.writeValueAsString(newConfig);
+            return MAPPER.readValue(configJson, dataCls);
         } catch (IOException e) {
             throw new RuntimeException("Failed to load config into existing configuration data", e);
         }
