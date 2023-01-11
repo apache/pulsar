@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.client.impl.schema.generic;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -32,12 +31,8 @@ public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
     private final ObjectWriter objectWriter;
 
     public GenericJsonWriter() {
-        objectWriter = ObjectMapperFactory.getInstance()
-                // make a copy so that serialization inclusion can be changed
-                .copy()
-                // use Include.ALWAYS because of backwards compatibility
-                .setSerializationInclusion(JsonInclude.Include.ALWAYS)
-                .writer();
+        // use ObjectMapper with Include.ALWAYS setting
+        objectWriter = ObjectMapperFactory.getInstanceWithIncludeAlways().writer();
     }
 
     @Override

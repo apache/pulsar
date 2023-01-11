@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.util.Timeout;
@@ -107,7 +106,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     private void init(ConsumerConfigurationData<?> conf) {
-        ObjectWriter w = ObjectMapperFactory.getInstanceWithIncludeAll().writer()
+        ObjectWriter w = ObjectMapperFactory.getInstanceWithIncludeAlways().writer()
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {

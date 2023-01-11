@@ -109,7 +109,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 public class ObjectMapperFactory {
     private static final ObjectMapper INSTANCE = createObjectMapperInstance();
 
-    private static final ObjectMapper INSTANCE_WITH_INCLUDE_ALL = INSTANCE
+    private static final ObjectMapper INSTANCE_WITH_INCLUDE_ALWAYS = INSTANCE
             .copy()
             .setSerializationInclusion(Include.ALWAYS);
     private static final ObjectMapper YAML_INSTANCE = createYamlInstance();
@@ -144,8 +144,8 @@ public class ObjectMapperFactory {
         return INSTANCE;
     }
 
-    public static ObjectMapper getInstanceWithIncludeAll() {
-        return INSTANCE_WITH_INCLUDE_ALL;
+    public static ObjectMapper getInstanceWithIncludeAlways() {
+        return INSTANCE_WITH_INCLUDE_ALWAYS;
     }
 
     @Deprecated
