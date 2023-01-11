@@ -27,8 +27,8 @@
     <allowUntrusted>false</allowUntrusted>
   </server>
   <buildScan>
-    <captureGoalInputFiles>true</captureGoalInputFiles>
     <capture>
+      <goalInputFiles>true</goalInputFiles>
       <buildLogging>true</buildLogging>
       <testLogging>true</testLogging>
     </capture>
