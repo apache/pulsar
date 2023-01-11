@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.delayed;
+package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.pulsar.broker.delayed.bucket.DelayedIndexQueue.COMPARATOR;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.delayed.bucket.CombinedSegmentDelayedIndexQueue;
-import org.apache.pulsar.broker.delayed.bucket.TripleLongPriorityDelayedIndexQueue;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;

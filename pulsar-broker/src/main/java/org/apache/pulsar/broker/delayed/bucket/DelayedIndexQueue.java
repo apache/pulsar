@@ -22,8 +22,7 @@ import java.util.Comparator;
 import java.util.Objects;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 
-public interface DelayedIndexQueue {
-
+interface DelayedIndexQueue {
     Comparator<DelayedMessageIndexBucketSnapshotFormat.DelayedIndex> COMPARATOR = (o1, o2) ->  {
         if (!Objects.equals(o1.getTimestamp(), o2.getTimestamp())) {
             return Long.compare(o1.getTimestamp(), o2.getTimestamp());

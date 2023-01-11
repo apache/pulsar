@@ -62,12 +62,13 @@ public class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
     }
 
     private DelayedIndex getValue(boolean needAdvanceCursor) {
+        // skip empty segment
         while (segmentListACursor < segmentListA.size()
-                && segmentACursor >= segmentListA.get(segmentListACursor).getIndexesCount()) {
+                && segmentListA.get(segmentListACursor).getIndexesCount() == 0) {
             segmentListACursor++;
         }
         while (segmentListBCursor < segmentListB.size()
-                && segmentBCursor >= segmentListB.get(segmentListBCursor).getIndexesCount()) {
+                && segmentListB.get(segmentListBCursor).getIndexesCount() == 0) {
             segmentListBCursor++;
         }
 

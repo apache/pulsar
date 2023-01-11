@@ -23,7 +23,7 @@ import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotF
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @NotThreadSafe
-public class TripleLongPriorityDelayedIndexQueue implements DelayedIndexQueue {
+class TripleLongPriorityDelayedIndexQueue implements DelayedIndexQueue {
 
     private final TripleLongPriorityQueue queue;
 
