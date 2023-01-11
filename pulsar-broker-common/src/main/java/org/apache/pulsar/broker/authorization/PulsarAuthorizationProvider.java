@@ -72,9 +72,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
         this.pulsarResources = pulsarResources;
-
-        // For compatibility, call the old deprecated initialize
-        initialize(conf, (ConfigurationCacheService) null);
     }
 
     /**

@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -90,31 +89,12 @@ public interface AuthorizationProvider extends Closeable {
      *
      * @param conf
      *            broker config object
-     * @param configCache
-     *            pulsar zk configuration cache service
-     * @throws IOException
-     *             if the initialization fails
-     *
-     * @deprecated ConfigurationCacheService is not supported anymore as a way to get access to metadata.
-     * @see #initialize(ServiceConfiguration, PulsarResources)
-     */
-    @Deprecated
-    default void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
-    }
-
-    /**
-     * Perform initialization for the authorization provider.
-     *
-     * @param conf
-     *            broker config object
      * @param pulsarResources
      *            Resources component for access to metadata
      * @throws IOException
      *             if the initialization fails
      */
     default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        // For compatibility, call the old deprecated initialize
-        initialize(conf, (ConfigurationCacheService) null);
     }
 
     /**
