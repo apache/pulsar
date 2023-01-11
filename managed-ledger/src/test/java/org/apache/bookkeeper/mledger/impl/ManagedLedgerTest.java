@@ -48,6 +48,7 @@ import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -74,6 +75,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
@@ -3039,6 +3041,105 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertNotNull(responseException2.get());
         assertTrue(responseException2.get().getMessage()
                 .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+
+        ledger.close();
+    }
+
+    /**
+     * It verifies that asyncRead timesout if it doesn't receive response from bk-client in configured timeout
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testManagedLedgerWithMultiReadEntryTimeOut() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
+
+        BookKeeper bk = mock(BookKeeper.class);
+        doNothing().when(bk).asyncCreateLedger(anyInt(), anyInt(), anyInt(), any(), any(), any(), any(), any());
+
+        String ctxStr = "timeoutCtx";
+        CompletableFuture<LedgerEntries> entriesFuture = new CompletableFuture<>();
+        ReadHandle ledgerHandle = mock(ReadHandle.class);
+        doReturn(entriesFuture).when(ledgerHandle).readAsync(PositionImpl.EARLIEST.getLedgerId(),
+                PositionImpl.EARLIEST.getEntryId());
+
+        // create 100 async read
+        CompletableFuture[] readOps = IntStream.range(0, 100).mapToObj((i) -> {
+            CompletableFuture<Exception> expectException = new CompletableFuture<>();
+            ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST, new ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    expectException.complete(null);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    assertEquals(ctxStr, (String) ctx);
+                    expectException.complete(exception);
+                }
+            }, ctxStr);
+
+            return expectException;
+        }).toArray(CompletableFuture[]::new);
+
+
+        // (1) test read-timeout for: ManagedLedger.asyncReadEntry(..)
+        ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
+
+        Awaitility.with()
+                .pollInterval(Duration.ofSeconds(1))
+                .await()
+                .atMost(Duration.ofSeconds(5))
+                .until(() -> CompletableFuture.allOf(readOps).isDone());
+
+        for (int i = 0; i < readOps.length; i++) {
+            Exception readOpsException = (Exception) readOps[i].get();
+            assertNotNull(readOpsException);
+            assertTrue(readOpsException.getMessage()
+                    .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+        }
+
+        // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
+        PositionImpl readPositionRef = PositionImpl.EARLIEST;
+        ManagedCursorImpl cursor = new ManagedCursorImpl(bk, config, ledger, "cursor1");
+
+        CompletableFuture[] readOps2 = IntStream.range(0, 100).mapToObj((i) -> {
+            CompletableFuture<Exception> expectException = new CompletableFuture<>();
+            OpReadEntry opReadEntry = OpReadEntry.create(cursor, readPositionRef, 1, new ReadEntriesCallback() {
+
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    expectException.complete(null);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    assertEquals(ctxStr, (String) ctx);
+                    expectException.complete(exception);
+                }
+
+            }, null, PositionImpl.LATEST, null);
+            ledger.asyncReadEntry(ledgerHandle,
+                    PositionImpl.EARLIEST.getEntryId(),
+                    PositionImpl.EARLIEST.getEntryId(),
+                    opReadEntry,
+                    ctxStr);
+            return expectException;
+        }).toArray(CompletableFuture[]::new);
+
+        Awaitility.with()
+                .pollInterval(Duration.ofSeconds(1))
+                .await()
+                .atMost(Duration.ofSeconds(5))
+                .until(() -> CompletableFuture.allOf(readOps2).isDone());
+
+        for (int i = 0; i < readOps2.length; i++) {
+            Exception readOpsException = (Exception) readOps2[i].get();
+            assertNotNull(readOpsException);
+            assertTrue(readOpsException.getMessage()
+                    .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+        }
 
         ledger.close();
     }
