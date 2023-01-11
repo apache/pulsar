@@ -92,7 +92,7 @@ public class AlluxioSink implements Sink<GenericObject> {
         // initialize FileSystem
         String alluxioMasterHost = alluxioSinkConfig.getAlluxioMasterHost();
         int alluxioMasterPort = alluxioSinkConfig.getAlluxioMasterPort();
-        InstancedConfiguration.defaults().set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
+        configuration.set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
         configuration.set(PropertyKey.MASTER_RPC_PORT, alluxioMasterPort);
         if (alluxioSinkConfig.getSecurityLoginUser() != null) {
             configuration.set(PropertyKey.SECURITY_LOGIN_USERNAME, alluxioSinkConfig.getSecurityLoginUser());
