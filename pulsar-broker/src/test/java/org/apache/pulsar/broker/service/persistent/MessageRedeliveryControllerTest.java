@@ -30,6 +30,7 @@ import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
 import org.testng.annotations.DataProvider;
@@ -56,16 +57,23 @@ public class MessageRedeliveryControllerTest {
         ConcurrentLongLongPairHashMap hashesToBeBlocked = (ConcurrentLongLongPairHashMap) hashesToBeBlockedField
                 .get(controller);
 
+        Field hashesRefCountField = MessageRedeliveryController.class.getDeclaredField("hashesRefCount");
+        hashesRefCountField.setAccessible(true);
+        ConcurrentLongLongHashMap hashesRefCount = (ConcurrentLongLongHashMap) hashesRefCountField.get(controller);
+
         if (allowOutOfOrderDelivery) {
             assertNull(hashesToBeBlocked);
+            assertNull(hashesRefCount);
         } else {
             assertNotNull(hashesToBeBlocked);
+            assertNotNull(hashesRefCount);
         }
 
         assertTrue(controller.isEmpty());
         assertEquals(messagesToRedeliver.size(), 0);
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
+            assertEquals(hashesRefCount.size(), 0);
         }
 
         controller.add(1, 1);
@@ -79,6 +87,7 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.size(), 0);
             assertFalse(hashesToBeBlocked.containsKey(1, 1));
             assertFalse(hashesToBeBlocked.containsKey(1, 2));
+            assertEquals(hashesRefCount.size(), 0);
         }
 
         controller.remove(1, 1);
@@ -90,6 +99,7 @@ public class MessageRedeliveryControllerTest {
         assertFalse(messagesToRedeliver.contains(1, 2));
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
+            assertEquals(hashesRefCount.size(), 0);
         }
 
         controller.add(2, 1, 100);
@@ -106,6 +116,20 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.get(2, 1).first, 100);
             assertEquals(hashesToBeBlocked.get(2, 2).first, 101);
             assertEquals(hashesToBeBlocked.get(2, 3).first, 101);
+            assertEquals(hashesRefCount.size(), 2);
+            assertEquals(hashesRefCount.get(100), 1);
+            assertEquals(hashesRefCount.get(101), 2);
+        }
+
+        controller.remove(2, 1);
+        controller.remove(2, 2);
+
+        if (!allowOutOfOrderDelivery) {
+            assertEquals(hashesToBeBlocked.size(), 1);
+            assertEquals(hashesToBeBlocked.get(2, 3).first, 101);
+            assertEquals(hashesRefCount.size(), 1);
+            assertEquals(hashesRefCount.get(100), -1);
+            assertEquals(hashesRefCount.get(101), 1);
         }
 
         controller.clear();
@@ -115,6 +139,8 @@ public class MessageRedeliveryControllerTest {
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
             assertTrue(hashesToBeBlocked.isEmpty());
+            assertEquals(hashesRefCount.size(), 0);
+            assertTrue(hashesRefCount.isEmpty());
         }
 
         controller.add(2, 2, 201);
@@ -137,6 +163,11 @@ public class MessageRedeliveryControllerTest {
             assertEquals(hashesToBeBlocked.get(2, 2).first, 201);
             assertEquals(hashesToBeBlocked.get(3, 1).first, 300);
             assertEquals(hashesToBeBlocked.get(3, 2).first, 301);
+            assertEquals(hashesRefCount.size(), 4);
+            assertEquals(hashesRefCount.get(200), 1);
+            assertEquals(hashesRefCount.get(201), 1);
+            assertEquals(hashesRefCount.get(300), 1);
+            assertEquals(hashesRefCount.get(301), 1);
         }
 
         controller.removeAllUpTo(3, 1);
@@ -145,6 +176,8 @@ public class MessageRedeliveryControllerTest {
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 1);
             assertEquals(hashesToBeBlocked.get(3, 2).first, 301);
+            assertEquals(hashesRefCount.size(), 1);
+            assertEquals(hashesRefCount.get(301), 1);
         }
 
         controller.removeAllUpTo(5, 10);
@@ -152,6 +185,7 @@ public class MessageRedeliveryControllerTest {
         assertEquals(messagesToRedeliver.size(), 0);
         if (!allowOutOfOrderDelivery) {
             assertEquals(hashesToBeBlocked.size(), 0);
+            assertEquals(hashesRefCount.size(), 0);
         }
     }
 
