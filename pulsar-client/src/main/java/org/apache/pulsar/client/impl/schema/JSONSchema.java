@@ -41,14 +41,14 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  */
 @Slf4j
 public class JSONSchema<T> extends AvroBaseStructSchema<T> {
-    // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
-    // return shaded version of object mapper
-    private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> {
+    private static final ObjectMapper JSON_MAPPER = createObjectMapper();
+
+    private static ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
-    });
+    }
 
     private final Class<T> pojo;
 
@@ -86,9 +86,9 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         SchemaReader<T> reader = schemaDefinition.getSchemaReaderOpt()
-                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
+                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER, schemaDefinition.getPojo()));
         SchemaWriter<T> writer = schemaDefinition.getSchemaWriterOpt()
-                .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER.get()));
+                .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER));
         return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(),
                 reader, writer);
     }
