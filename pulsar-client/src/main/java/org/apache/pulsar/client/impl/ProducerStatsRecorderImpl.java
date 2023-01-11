@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,9 +99,8 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     }
 
     private void init(ProducerConfigurationData conf) {
-        ObjectMapper m = new ObjectMapper();
-        m.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        ObjectWriter w = m.writer();
+        ObjectWriter w = ObjectMapperFactory.getInstanceWithIncludeAll().writer()
+                .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {
             log.info("Starting Pulsar producer perf with config: {}", w.writeValueAsString(conf));
