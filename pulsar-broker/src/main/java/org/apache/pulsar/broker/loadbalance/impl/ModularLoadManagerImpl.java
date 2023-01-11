@@ -748,10 +748,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         synchronized (bundleSplitStrategy) {
-            final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
+            final Map<String, String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
             int splitCount = 0;
-            for (String bundleName : bundlesToBeSplit) {
+            for (String bundleName : bundlesToBeSplit.keySet()) {
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
@@ -768,9 +768,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             .invalidateBundleCache(NamespaceName.get(namespaceName));
                     deleteBundleDataFromMetadataStore(bundleName);
 
-                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
+                    // Check NamespacePolicies and AntiAffinityNamespace support unload bundle.
+                    boolean isUnload = false;
+                    String broker = bundlesToBeSplit.get(bundleName);
+                    if (unloadSplitBundles
+                            && shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)
+                            && shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
+                        isUnload = true;
+                    }
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, isUnload);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-                        unloadSplitBundles, null);
+                            isUnload, null);
 
                     splitCount++;
                     log.info("Successfully split namespace bundle {}", bundleName);
