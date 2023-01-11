@@ -148,6 +148,9 @@ public class ObjectMapperFactory {
         return INSTANCE_WITH_INCLUDE_ALWAYS;
     }
 
+    /**
+     * This method is deprecated. Use {@link #getInstance()}
+     */
     @Deprecated
     public static ObjectMapper getThreadLocal() {
         return getInstance();
@@ -157,6 +160,9 @@ public class ObjectMapperFactory {
         return YAML_INSTANCE;
     }
 
+    /**
+     * This method is deprecated. Use {@link #getYamlInstance()}
+     */
     @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
         return getYamlInstance();
