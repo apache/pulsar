@@ -55,7 +55,7 @@ class StructSchemaDataValidator implements SchemaDataValidator {
                 // we used JsonSchema for storing the definition of a JSON schema
                 // hence for backward compatibility consideration, we need to try
                 // to use JsonSchema to decode the schema data
-                ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+                ObjectMapper objectMapper = ObjectMapperFactory.getInstance();
                 try {
                     objectMapper.readValue(data, JsonSchema.class);
                 } catch (IOException ioe) {

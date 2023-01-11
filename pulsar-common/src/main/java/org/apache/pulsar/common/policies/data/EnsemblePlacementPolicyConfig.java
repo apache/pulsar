@@ -68,7 +68,7 @@ public class EnsemblePlacementPolicyConfig {
 
     public byte[] encode() throws ParseEnsemblePlacementPolicyConfigException {
         try {
-            return ObjectMapperFactory.getThreadLocal()
+            return ObjectMapperFactory.getInstance()
                 .writerWithDefaultPrettyPrinter()
                 .writeValueAsString(this)
                 .getBytes(StandardCharsets.UTF_8);
@@ -79,7 +79,7 @@ public class EnsemblePlacementPolicyConfig {
 
     public static EnsemblePlacementPolicyConfig decode(byte[] data) throws ParseEnsemblePlacementPolicyConfigException {
         try {
-            return ObjectMapperFactory.getThreadLocal()
+            return ObjectMapperFactory.getInstance()
                 .readValue(new String(data, StandardCharsets.UTF_8), EnsemblePlacementPolicyConfig.class);
         } catch (JsonProcessingException e) {
             throw new ParseEnsemblePlacementPolicyConfigException("Failed to decode from json", e);

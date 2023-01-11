@@ -30,7 +30,7 @@ import org.apache.pulsar.common.util.RestException;
 public final class RestUtils {
 
     public static ObjectNode createBaseMessage(String message) {
-        final ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        final ObjectMapper mapper = ObjectMapperFactory.getInstance();
         return mapper.createObjectNode().put("message", message);
     }
 

@@ -157,7 +157,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
+                        .sendString(ObjectMapperFactory.getInstance().writeValueAsString(dm), new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
@@ -207,7 +207,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = ObjectMapperFactory.getInstance().readValue(message, ConsumerCommand.class);
             if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
                 return;
@@ -230,7 +230,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            String msg = ObjectMapperFactory.getInstance().writeValueAsString(
                     new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
             getSession().getRemote()
                     .sendString(msg, new WriteCallback() {

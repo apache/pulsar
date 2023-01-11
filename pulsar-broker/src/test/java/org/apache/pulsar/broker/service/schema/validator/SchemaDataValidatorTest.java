@@ -124,7 +124,7 @@ public class SchemaDataValidatorTest {
 
     @Test
     public void testJsonSchemaTypeWithJsonSchemaData() throws Exception {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper mapper = ObjectMapperFactory.getInstance();
         SchemaData data = SchemaData.builder()
             .type(SchemaType.JSON)
             .data(

@@ -136,7 +136,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         byte[] rawPayload = null;
         String requestContext = null;
         try {
-            sendRequest = ObjectMapperFactory.getThreadLocal().readValue(message, ProducerMessage.class);
+            sendRequest = ObjectMapperFactory.getInstance().readValue(message, ProducerMessage.class);
             requestContext = sendRequest.context;
             rawPayload = Base64.getDecoder().decode(sendRequest.payload);
         } catch (IOException e) {
@@ -244,7 +244,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     private void sendAckResponse(ProducerAck response) {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
+            String msg = ObjectMapperFactory.getInstance().writeValueAsString(response);
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {

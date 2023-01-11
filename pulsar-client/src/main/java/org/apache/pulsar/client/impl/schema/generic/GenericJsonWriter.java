@@ -32,7 +32,7 @@ public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
     private final ObjectWriter objectWriter;
 
     public GenericJsonWriter() {
-        objectWriter = ObjectMapperFactory.getThreadLocal()
+        objectWriter = ObjectMapperFactory.getInstance()
                 // make a copy so that serialization inclusion can be changed
                 .copy()
                 // use Include.ALWAYS because of backwards compatibility

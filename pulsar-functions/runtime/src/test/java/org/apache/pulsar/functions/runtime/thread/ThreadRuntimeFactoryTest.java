@@ -116,7 +116,7 @@ public class ThreadRuntimeFactoryTest {
 
             WorkerConfig workerConfig = new WorkerConfig();
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
-            workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getThreadLocal().convertValue(threadRuntimeFactoryConfig, Map.class));
+            workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getInstance().convertValue(threadRuntimeFactoryConfig, Map.class));
             workerConfig.setPulsarServiceUrl("pulsar://broker.pulsar:6650");
 
             ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory();

@@ -58,7 +58,7 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
         this.schemaVersion = schemaVersion;
         this.schemaInfo = schemaInfo;
         this.objectReader =
-                ObjectMapperFactory.getThreadLocal().reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+                ObjectMapperFactory.getInstance().reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
     @Override

@@ -76,7 +76,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
 
     private void isCompatibleJsonSchema(SchemaData from, SchemaData to) throws IncompatibleSchemaException {
         try {
-            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+            ObjectMapper objectMapper = ObjectMapperFactory.getInstance();
             JsonSchema fromSchema = objectMapper.readValue(from.getData(), JsonSchema.class);
             JsonSchema toSchema = objectMapper.readValue(to.getData(), JsonSchema.class);
             if (!fromSchema.getId().equals(toSchema.getId())) {
@@ -101,7 +101,7 @@ public class JsonSchemaCompatibilityCheck extends AvroSchemaBasedCompatibilityCh
     }
 
     private boolean isJsonSchema(SchemaData schemaData) {
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getInstance();
         try {
             JsonSchema fromSchema = objectMapper.readValue(schemaData.getData(), JsonSchema.class);
             return true;

@@ -165,7 +165,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder =
                     post(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
                             .path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getInstance()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -250,12 +250,12 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     put(functions.path(functionConfig.getTenant())
                             .path(functionConfig.getNamespace())
                             .path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getInstance()
                             .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
-                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getThreadLocal()
+                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getInstance()
                         .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
@@ -303,13 +303,13 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
             mp.bodyPart(new FormDataBodyPart(
                     "functionConfig",
-                    ObjectMapperFactory.getThreadLocal().writeValueAsString(functionConfig),
+                    ObjectMapperFactory.getInstance().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
+                        ObjectMapperFactory.getInstance().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
@@ -699,7 +699,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder =
                     post(functions.path(tenant).path(namespace).path(function)
                             .path("state").path(state.getKey()).getUri().toASCIIString());
-            builder.addBodyPart(new StringPart("state", ObjectMapperFactory.getThreadLocal()
+            builder.addBodyPart(new StringPart("state", ObjectMapperFactory.getInstance()
                     .writeValueAsString(state), MediaType.APPLICATION_JSON));
             asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
                     .toCompletableFuture()

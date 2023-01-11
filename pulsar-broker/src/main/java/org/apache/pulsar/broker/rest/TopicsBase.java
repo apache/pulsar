@@ -551,7 +551,7 @@ public class TopicsBase extends PersistentTopicsBase {
         try {
             SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
                     ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() :
-                    ObjectMapperFactory.getThreadLocal()
+                    ObjectMapperFactory.getInstance()
                             .readValue(valueSchema, SchemaInfoImpl.class);
             if (null == valueSchemaInfo.getName()) {
                 valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
@@ -568,7 +568,7 @@ public class TopicsBase extends PersistentTopicsBase {
                         .build();
             } else {
                 // Key_Value schema
-                SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getThreadLocal()
+                SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getInstance()
                         .readValue(keySchema, SchemaInfoImpl.class);
                 if (null == keySchemaInfo.getName()) {
                     keySchemaInfo.setName(keySchemaInfo.getType().toString());
@@ -712,7 +712,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 case JSON:
                     GenericJsonWriter jsonWriter = new GenericJsonWriter();
                     return jsonWriter.write(new GenericJsonRecord(null, null,
-                          ObjectMapperFactory.getThreadLocal().readTree(input), schema.getSchemaInfo()));
+                          ObjectMapperFactory.getInstance().readTree(input), schema.getSchemaInfo()));
                 case AVRO:
                     AvroBaseStructSchema avroSchema = ((AvroBaseStructSchema) schema);
                     Decoder decoder = DecoderFactory.get().jsonDecoder(avroSchema.getAvroSchema(), input);

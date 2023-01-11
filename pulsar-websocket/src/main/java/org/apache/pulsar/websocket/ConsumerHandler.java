@@ -166,7 +166,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
+                        .sendString(ObjectMapperFactory.getInstance().writeValueAsString(dm), new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(), subscription,
@@ -220,7 +220,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = ObjectMapperFactory.getInstance().readValue(message, ConsumerCommand.class);
             if ("permit".equals(command.type)) {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
@@ -245,7 +245,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, getRemote().getInetSocketAddress().toString());
         }
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            String msg = ObjectMapperFactory.getInstance().writeValueAsString(
                     new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
             getSession().getRemote()
             .sendString(msg, new WriteCallback() {

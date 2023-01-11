@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.netty.util.concurrent.FastThreadLocal;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
@@ -108,7 +107,14 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 @SuppressWarnings("checkstyle:JavadocType")
 @Slf4j
 public class ObjectMapperFactory {
-    public static ObjectMapper create() {
+    private static final ObjectMapper INSTANCE = createObjectMapperInstance();
+
+    private static final ObjectMapper INSTANCE_WITH_INCLUDE_ALL = INSTANCE
+            .copy()
+            .setSerializationInclusion(Include.ALWAYS);
+    private static final ObjectMapper YAML_INSTANCE = createYamlInstance();
+
+    private static ObjectMapper createObjectMapperInstance() {
         ObjectMapper mapper = new ObjectMapper();
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -118,7 +124,11 @@ public class ObjectMapperFactory {
         return mapper;
     }
 
-    public static ObjectMapper createYaml() {
+    public static ObjectMapper create() {
+        return INSTANCE.copy();
+    }
+
+    private static ObjectMapper createYamlInstance() {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -128,26 +138,31 @@ public class ObjectMapperFactory {
         return mapper;
     }
 
-    private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return create();
-        }
-    };
-
-    private static final FastThreadLocal<ObjectMapper> YAML_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return createYaml();
-        }
-    };
-
-    public static ObjectMapper getThreadLocal() {
-        return JSON_MAPPER.get();
+    public static ObjectMapper createYaml() {
+        return YAML_INSTANCE.copy();
     }
 
+
+    public static ObjectMapper getInstance() {
+        return INSTANCE;
+    }
+
+    public static ObjectMapper getInstanceWithIncludeAll() {
+        return INSTANCE_WITH_INCLUDE_ALL;
+    }
+
+    @Deprecated
+    public static ObjectMapper getThreadLocal() {
+        return getInstance();
+    }
+
+    public static ObjectMapper getYamlInstance() {
+        return YAML_INSTANCE;
+    }
+
+    @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
-        return YAML_MAPPER.get();
+        return getYamlInstance();
     }
 
     private static void setAnnotationsModule(ObjectMapper mapper) {

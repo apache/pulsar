@@ -2697,7 +2697,7 @@ public class Namespaces extends NamespacesBase {
                             } else {
                                 first = true;
                             }
-                            String json = ObjectMapperFactory.getThreadLocal().writeValueAsString(data);
+                            String json = ObjectMapperFactory.getInstance().writeValueAsString(data);
                             out.write(json);
                         }
 

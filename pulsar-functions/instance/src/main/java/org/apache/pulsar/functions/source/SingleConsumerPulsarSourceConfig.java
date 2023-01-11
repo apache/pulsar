@@ -32,7 +32,7 @@ public class SingleConsumerPulsarSourceConfig extends PulsarSourceConfig {
     private ConsumerConfig consumerConfig;
 
     public static SingleConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper mapper = ObjectMapperFactory.getInstance();
         return mapper.readValue(mapper.writeValueAsString(map), SingleConsumerPulsarSourceConfig.class);
     }
 }

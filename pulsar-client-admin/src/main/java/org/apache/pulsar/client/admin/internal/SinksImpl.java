@@ -139,7 +139,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             RequestBuilder builder =
                     post(sink.path(sinkConfig.getTenant())
                             .path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getInstance()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -221,13 +221,13 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             RequestBuilder builder =
                     put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
                             .path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getInstance()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
-                        ObjectMapperFactory.getThreadLocal()
+                        ObjectMapperFactory.getInstance()
                                 .writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
@@ -291,7 +291,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
+                        ObjectMapperFactory.getInstance().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
