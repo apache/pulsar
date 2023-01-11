@@ -1199,8 +1199,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
             isAuthorizedFuture =
                     isAuthorizedFuture.thenCombine(
-                            isTopicOperationAllowed(topicName, TopicOperation.SUBSCRIBE, authenticationData,
-                                    originalAuthData),
+                            isTopicOperationAllowed(topicName, initialSubscriptionName, TopicOperation.SUBSCRIBE),
                             (canProduce, canSubscribe) -> canProduce && canSubscribe);
         }
 
