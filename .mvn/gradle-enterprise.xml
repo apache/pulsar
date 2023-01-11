@@ -43,5 +43,8 @@
     <local>
       <enabled>#{isFalse(env['GITHUB_ACTIONS'])}</enabled>
     </local>
+    <remote>
+      <enabled>false</enabled>
+    </remote>
   </buildCache>
 </gradleEnterprise>
