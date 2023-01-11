@@ -3046,12 +3046,12 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     /**
-     * It verifies that asyncRead timesout if it doesn't receive response from bk-client in configured timeout
+     * It verifies that multi asyncRead timesout if it doesn't receive response from bk-client in configured timeout
      *
      * @throws Exception
      */
     @Test
-    public void testManagedLedgerWithMultiReadEntryTimeOut() throws Exception {
+    public void testManagedLedgerWithMulitReadEntryTimeOut() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setReadEntryTimeoutSeconds(1);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_ledger_test", config);
 
@@ -3064,7 +3064,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doReturn(entriesFuture).when(ledgerHandle).readAsync(PositionImpl.EARLIEST.getLedgerId(),
                 PositionImpl.EARLIEST.getEntryId());
 
-        // create 100 async read
+        // generate 100 read request and collect all read request in array.
         CompletableFuture[] readOps = IntStream.range(0, 100).mapToObj((i) -> {
             CompletableFuture<Exception> expectException = new CompletableFuture<>();
             ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST, new ReadEntryCallback() {
@@ -3087,14 +3087,16 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // (1) test read-timeout for: ManagedLedger.asyncReadEntry(..)
         ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
 
+        // wait until all read request is done by time.
         Awaitility.with()
                 .pollInterval(Duration.ofSeconds(1))
                 .await()
                 .atMost(Duration.ofSeconds(5))
                 .until(() -> CompletableFuture.allOf(readOps).isDone());
 
-        for (int i = 0; i < readOps.length; i++) {
-            Exception readOpsException = (Exception) readOps[i].get();
+        // check if all read request is finished by timeout.
+        for (CompletableFuture readOp : readOps) {
+            Exception readOpsException = (Exception) readOp.get();
             assertNotNull(readOpsException);
             assertTrue(readOpsException.getMessage()
                     .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
