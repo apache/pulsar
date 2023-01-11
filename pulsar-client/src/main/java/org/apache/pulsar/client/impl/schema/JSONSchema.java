@@ -69,7 +69,7 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     public SchemaInfo getBackwardsCompatibleJsonSchemaInfo() {
         SchemaInfo backwardsCompatibleSchemaInfo;
         try {
-            ObjectMapper objectMapper = ObjectMapperFactory.getInstance();
+            ObjectMapper objectMapper = ObjectMapperFactory.getInstanceWithIncludeAlways();
             JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = SchemaInfoImpl.builder()

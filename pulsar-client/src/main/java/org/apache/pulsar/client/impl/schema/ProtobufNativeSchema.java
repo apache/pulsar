@@ -89,7 +89,7 @@ public class ProtobufNativeSchema<T extends GeneratedMessageV3> extends Abstract
         });
 
         try {
-            return ObjectMapperFactory.getInstance().writeValueAsString(protoBufParsingInfos);
+            return ObjectMapperFactory.getInstanceWithIncludeAlways().writeValueAsString(protoBufParsingInfos);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

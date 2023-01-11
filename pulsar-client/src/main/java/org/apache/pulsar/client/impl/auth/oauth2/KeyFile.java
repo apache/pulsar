@@ -51,7 +51,7 @@ public class KeyFile {
     private String issuerUrl;
 
     public String toJson() throws IOException {
-        return ObjectMapperFactory.getInstance().writeValueAsString(this);
+        return ObjectMapperFactory.getInstanceWithIncludeAlways().writeValueAsString(this);
     }
 
     public static KeyFile fromJson(String value) throws IOException {

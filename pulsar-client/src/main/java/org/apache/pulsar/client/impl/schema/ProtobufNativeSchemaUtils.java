@@ -56,7 +56,7 @@ public class ProtobufNativeSchemaUtils {
             ProtobufNativeSchemaData schemaData = ProtobufNativeSchemaData.builder()
                     .fileDescriptorSet(fileDescriptorSet)
                     .rootFileDescriptorName(rootFileDescriptorName).rootMessageTypeName(rootMessageTypeName).build();
-            schemaDataBytes = ObjectMapperFactory.getInstance().writeValueAsBytes(schemaData);
+            schemaDataBytes = ObjectMapperFactory.getInstanceWithIncludeAlways().writeValueAsBytes(schemaData);
             logger.debug("descriptor '{}' serialized to '{}'.", descriptor.getFullName(), schemaDataBytes);
         } catch (Exception e) {
             e.printStackTrace();
