@@ -41,7 +41,7 @@
   </buildScan>
   <buildCache>
     <local>
-      <enabled>true</enabled>
+      <enabled>#{isFalse(env['GITHUB_ACTIONS'])}</enabled>
     </local>
   </buildCache>
 </gradleEnterprise>
