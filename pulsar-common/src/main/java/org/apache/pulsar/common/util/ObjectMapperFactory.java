@@ -115,13 +115,7 @@ public class ObjectMapperFactory {
     private static final ObjectMapper YAML_INSTANCE = createYamlInstance();
 
     private static ObjectMapper createObjectMapperInstance() {
-        ObjectMapper mapper = new ObjectMapper();
-        // forward compatibility for the properties may go away in the future
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
-        mapper.setSerializationInclusion(Include.NON_NULL);
-        setAnnotationsModule(mapper);
-        return mapper;
+        return configureObjectMapper(new ObjectMapper());
     }
 
     public static ObjectMapper create() {
@@ -129,7 +123,10 @@ public class ObjectMapperFactory {
     }
 
     private static ObjectMapper createYamlInstance() {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return configureObjectMapper(new ObjectMapper(new YAMLFactory()));
+    }
+
+    private static ObjectMapper configureObjectMapper(ObjectMapper mapper) {
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
