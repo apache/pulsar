@@ -16,8 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.client.impl.schema.generic;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -26,13 +29,21 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
 
+    private final ObjectWriter objectWriter;
+
     public GenericJsonWriter() {
+        objectWriter = ObjectMapperFactory.getThreadLocal()
+                // make a copy so that serialization inclusion can be changed
+                .copy()
+                // use Include.ALWAYS because of backwards compatibility
+                .setSerializationInclusion(JsonInclude.Include.ALWAYS)
+                .writer();
     }
 
     @Override
     public byte[] write(GenericRecord message) {
         try {
-            return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(((GenericJsonRecord) message).getJsonNode());
+            return objectWriter.writeValueAsBytes(((GenericJsonRecord) message).getJsonNode());
         } catch (IOException ioe) {
             throw new SchemaSerializationException(ioe);
         }
