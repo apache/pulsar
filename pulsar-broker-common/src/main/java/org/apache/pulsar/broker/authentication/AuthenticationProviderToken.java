@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -39,6 +41,7 @@ import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -158,6 +161,20 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     exception.getMessage());
             throw exception;
         }
+    }
+
+    @Override
+    public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        HttpServletRequestWrapper wrappedRequest = new HttpServletRequestWrapper(request);
+        String httpHeaderValue = wrappedRequest.getHeader(HTTP_HEADER_NAME);
+        if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+            throw new AuthenticationException("Invalid HTTP Authorization header");
+        }
+        AuthenticationDataSource authenticationDataSource = new AuthenticationDataHttps(wrappedRequest);
+        String role = authenticate(authenticationDataSource);
+        request.setAttribute(AuthenticatedRoleAttributeName, role);
+        request.setAttribute(AuthenticatedDataAttributeName, authenticationDataSource);
+        return true;
     }
 
     @Override
