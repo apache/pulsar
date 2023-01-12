@@ -137,9 +137,9 @@ public class ObjectMapperFactory {
 
     private static final MapperReference MAPPER_REFERENCE = new MapperReference(createObjectMapperInstance());
 
-    private static final MapperReference INSTANCE_WITH_INCLUDE_ALWAYS = new MapperReference(MAPPER_REFERENCE
+    private static final ObjectMapper INSTANCE_WITH_INCLUDE_ALWAYS = MAPPER_REFERENCE
             .getObjectMapper().copy()
-            .setSerializationInclusion(Include.ALWAYS));
+            .setSerializationInclusion(Include.ALWAYS);
     private static final MapperReference YAML_MAPPER_REFERENCE = new MapperReference(createYamlInstance());
 
     private static ObjectMapper createObjectMapperInstance() {
@@ -164,11 +164,11 @@ public class ObjectMapperFactory {
     }
 
     public static ObjectMapper createYaml() {
-        return YAML_MAPPER_REFERENCE.getObjectMapper().copy();
+        return getYamlMapper().getObjectMapper().copy();
     }
 
     public static ObjectMapper getObjectMapper() {
-        return MAPPER_REFERENCE.getObjectMapper();
+        return getMapper().getObjectMapper();
     }
 
     public static MapperReference getMapper() {
@@ -176,7 +176,7 @@ public class ObjectMapperFactory {
     }
 
     public static ObjectMapper getObjectMapperWithIncludeAlways() {
-        return INSTANCE_WITH_INCLUDE_ALWAYS.getObjectMapper();
+        return INSTANCE_WITH_INCLUDE_ALWAYS;
     }
 
     /**
