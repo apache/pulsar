@@ -350,7 +350,8 @@ public class SinkConfigUtils {
             Map<String, Object> configMap;
             try {
                 configMap =
-                        ObjectMapperFactory.getObjectMapper().readValue(functionDetails.getSink().getConfigs(), typeRef);
+                        ObjectMapperFactory.getObjectMapper()
+                                .readValue(functionDetails.getSink().getConfigs(), typeRef);
             } catch (IOException e) {
                 log.error("Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails),
                         e);
