@@ -718,7 +718,8 @@ public class SinkConfigUtils {
     public static void validateSinkConfig(SinkConfig sinkConfig, Class configClass) {
         try {
             Object configObject =
-                    ObjectMapperFactory.getMapper().getObjectMapper().convertValue(sinkConfig.getConfigs(), configClass);
+                    ObjectMapperFactory.getMapper().getObjectMapper()
+                            .convertValue(sinkConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }
