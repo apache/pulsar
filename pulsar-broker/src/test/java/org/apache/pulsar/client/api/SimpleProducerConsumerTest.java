@@ -4556,4 +4556,26 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         admin.topics().delete(topic, false);
     }
+
+    @Test(timeOut = 30000)
+    public void testSendMsgGreaterThanBatchingMaxBytes() throws Exception {
+        final String topic = "persistent://my-property/my-ns/testSendMsgGreaterThanBatchingMaxBytes";
+        final int batchingMaxBytes = 1024;
+        final int timeoutSec = 10;
+        final byte[] msg = new byte[batchingMaxBytes * 2];
+        new Random().nextBytes(msg);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
+                .batchingMaxBytes(batchingMaxBytes)
+                .batchingMaxMessages(1000)
+                .sendTimeout(timeoutSec, TimeUnit.SECONDS)
+                .create();
+
+        // sendAsync should complete in time
+        assertNotNull(producer.sendAsync(msg).get(timeoutSec, TimeUnit.SECONDS));
+    }
 }
