@@ -68,7 +68,7 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     private static final String NAME = "kinesis";
     private static final int LOCALSTACK_SERVICE_PORT = 4566;
     public static final String STREAM_NAME = "my-stream-1";
-    public static final ObjectReader READER = ObjectMapperFactory.getInstance().reader();
+    public static final ObjectReader READER = ObjectMapperFactory.getMapper().reader();
     private final boolean withSchema;
     private KinesisAsyncClient client;
 
