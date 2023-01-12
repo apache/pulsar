@@ -789,8 +789,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             } else {
                 // auth not complete, continue auth with client side.
-                ctx.writeAndFlush(
-                        Commands.newAuthChallenge(authMethod, nextAuthData, clientProtocolVersion));
+                writeAndFlush(Commands.newAuthChallenge(authMethod, nextAuthData, clientProtocolVersion));
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Authentication in progress client by method {}, using original auth state: {}",
                             remoteAddress, authMethod, useOriginalAuthState);
@@ -3184,7 +3183,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Throwable unwrapEx = FutureUtil.unwrapCompletionException(e);
         service.getPulsarStats().recordConnectionCreateFail();
         logAuthException(remoteAddress, operation, getPrincipal(), Optional.empty(), unwrapEx);
-        ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, unwrapEx.getMessage()));
+        writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, unwrapEx.getMessage()));
         close();
     }
 
