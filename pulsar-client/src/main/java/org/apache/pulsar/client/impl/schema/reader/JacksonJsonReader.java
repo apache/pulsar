@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.schema.reader;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.io.InputStream;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -33,17 +34,17 @@ import org.slf4j.LoggerFactory;
  */
 public class JacksonJsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
-    private final ObjectMapper objectMapper;
+    private final ObjectReader objectReader;
 
     public JacksonJsonReader(ObjectMapper objectMapper, Class<T> pojo) {
         this.pojo = pojo;
-        this.objectMapper = objectMapper;
+        this.objectReader = pojo != null ? objectMapper.readerFor(pojo) : objectMapper.reader();
     }
 
     @Override
     public T read(byte[] bytes, int offset, int length) {
         try {
-            return objectMapper.readValue(bytes, offset, length, this.pojo);
+            return objectReader.readValue(bytes, offset, length);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         }
@@ -52,7 +53,7 @@ public class JacksonJsonReader<T> implements SchemaReader<T> {
     @Override
     public T read(InputStream inputStream) {
         try {
-            return objectMapper.readValue(inputStream, pojo);
+            return objectReader.readValue(inputStream, pojo);
         } catch (IOException e) {
             throw new SchemaSerializationException(e);
         } finally {
