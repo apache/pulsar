@@ -448,6 +448,7 @@ public class TransactionMetadataStoreService {
     private static boolean isRetryableException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return (realCause instanceof TransactionMetadataStoreStateException
+                || realCause instanceof CoordinatorNotFoundException
                 || realCause instanceof RequestTimeoutException
                 || realCause instanceof ManagedLedgerException
                 || realCause instanceof BrokerPersistenceException
