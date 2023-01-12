@@ -31,23 +31,46 @@ import org.slf4j.LoggerFactory;
 public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SingletonCleanerListener.class);
     private static final Method OBJECTMAPPERFACTORY_CLEANCACHES_METHOD;
+    private static final Method OBJECTMAPPERFACTORY_REFRESH_METHOD;
 
     static {
-        Method method;
+        Class<?> objectMapperFactoryClazz =
+                null;
         try {
-            method =
-                    ClassUtils.getClass("org.apache.pulsar.common.util.ObjectMapperFactory")
-                            .getMethod("clearCaches");
-        } catch (ClassNotFoundException | NoSuchMethodException e) {
-            LOG.warn("Cannot find class or method for cleaning singleton ObjectMapper caches", e);
-            method = null;
+            objectMapperFactoryClazz = ClassUtils.getClass("org.apache.pulsar.common.util.ObjectMapperFactory");
+        } catch (ClassNotFoundException e) {
+            LOG.warn("Cannot find ObjectMapperFactory class", e);
         }
-        OBJECTMAPPERFACTORY_CLEANCACHES_METHOD = method;
+
+        Method clearCachesMethod = null;
+        try {
+            if (objectMapperFactoryClazz != null) {
+                clearCachesMethod =
+                        objectMapperFactoryClazz
+                                .getMethod("clearCaches");
+            }
+        } catch (NoSuchMethodException e) {
+            LOG.warn("Cannot find method for cleaning singleton ObjectMapper caches", e);
+        }
+        OBJECTMAPPERFACTORY_CLEANCACHES_METHOD = clearCachesMethod;
+
+        Method refreshMethod = null;
+        try {
+            if (objectMapperFactoryClazz != null) {
+                refreshMethod =
+                        objectMapperFactoryClazz
+                                .getMethod("refresh");
+            }
+        } catch (NoSuchMethodException e) {
+            LOG.warn("Cannot find method for refreshing singleton ObjectMapper instances", e);
+        }
+        OBJECTMAPPERFACTORY_REFRESH_METHOD = refreshMethod;
     }
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
         cleanObjectMapperFactoryCaches();
+        refreshObjectMapperFactory();
     }
 
     // Call ObjectMapperFactory.clearCaches() using reflection to clear up classes held in
@@ -58,6 +81,18 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
                 OBJECTMAPPERFACTORY_CLEANCACHES_METHOD.invoke(null);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 LOG.warn("Cannot clean singleton ObjectMapper caches", e);
+            }
+        }
+    }
+
+    // Call ObjectMapperFactory.refresh() using reflection to release ObjectMapper instances
+    // that might be holding on classloaders and classes
+    private static void refreshObjectMapperFactory() {
+        if (OBJECTMAPPERFACTORY_REFRESH_METHOD != null) {
+            try {
+                OBJECTMAPPERFACTORY_REFRESH_METHOD.invoke(null);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                LOG.warn("Cannot refresh ObjectMapper instances", e);
             }
         }
     }

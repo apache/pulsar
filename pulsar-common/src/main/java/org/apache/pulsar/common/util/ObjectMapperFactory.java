@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
@@ -134,15 +135,23 @@ public class ObjectMapperFactory {
         }
     }
 
-    private static final MapperReference MAPPER_REFERENCE = new MapperReference(createObjectMapperInstance());
+    private static final AtomicReference<MapperReference> MAPPER_REFERENCE =
+            new AtomicReference<>(new MapperReference(createObjectMapperInstance()));
 
-    private static final MapperReference INSTANCE_WITH_INCLUDE_ALWAYS = new MapperReference(MAPPER_REFERENCE
-            .getObjectMapper().copy()
-            .setSerializationInclusion(Include.ALWAYS));
-    private static final MapperReference YAML_MAPPER_REFERENCE = new MapperReference(createYamlInstance());
+    private static final AtomicReference<MapperReference> INSTANCE_WITH_INCLUDE_ALWAYS =
+            new AtomicReference<>(new MapperReference(createObjectMapperWithIncludeAlways()));
+
+    private static final AtomicReference<MapperReference> YAML_MAPPER_REFERENCE =
+            new AtomicReference<>(new MapperReference(createYamlInstance()));
 
     private static ObjectMapper createObjectMapperInstance() {
         return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper()));
+    }
+
+    private static ObjectMapper createObjectMapperWithIncludeAlways() {
+        return MAPPER_REFERENCE
+                .get().getObjectMapper().copy()
+                .setSerializationInclusion(Include.ALWAYS);
     }
 
     public static ObjectMapper create() {
@@ -167,13 +176,14 @@ public class ObjectMapperFactory {
     }
 
     public static MapperReference getMapper() {
-        return MAPPER_REFERENCE;
+        return MAPPER_REFERENCE.get();
     }
 
 
     public static MapperReference getMapperWithIncludeAlways() {
-        return INSTANCE_WITH_INCLUDE_ALWAYS;
+        return INSTANCE_WITH_INCLUDE_ALWAYS.get();
     }
+
     /**
      * This method is deprecated. Use {@link #getMapper()} and {@link MapperReference#getObjectMapper()}
      */
@@ -183,7 +193,7 @@ public class ObjectMapperFactory {
     }
 
     public static MapperReference getYamlMapper() {
-        return YAML_MAPPER_REFERENCE;
+        return YAML_MAPPER_REFERENCE.get();
     }
 
     /**
@@ -257,9 +267,25 @@ public class ObjectMapperFactory {
 
     /**
      * Clears the caches tied to the ObjectMapper instances.
+     * This is used in tests to ensure that classloaders and class references don't leak between tests.
+     * Jackson's ObjectMapper doesn't expose a public API for clearing all caches so this solution is partial.
      */
     public static void clearCaches() {
-        getMapper().getObjectMapper().getTypeFactory().clearCache();
-        getYamlMapper().getObjectMapper().getTypeFactory().clearCache();
+        clearCachesForObjectMapper(getMapper().getObjectMapper());
+        clearCachesForObjectMapper(getYamlMapper().getObjectMapper());
+    }
+
+    private static void clearCachesForObjectMapper(ObjectMapper objectMapper) {
+        objectMapper.getTypeFactory().clearCache();
+    }
+
+    /**
+     * Replaces the existing singleton ObjectMapper instances with new instances.
+     * This is used in tests to ensure that classloaders and class references don't leak between tests.
+     */
+    public static void refresh() {
+        MAPPER_REFERENCE.set(new MapperReference(createObjectMapperInstance()));
+        INSTANCE_WITH_INCLUDE_ALWAYS.set(new MapperReference(createObjectMapperWithIncludeAlways()));
+        YAML_MAPPER_REFERENCE.set(new MapperReference(createYamlInstance()));
     }
 }
