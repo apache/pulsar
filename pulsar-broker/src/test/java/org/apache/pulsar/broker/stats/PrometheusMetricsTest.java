@@ -94,6 +94,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     protected void setup() throws Exception {
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
+        conf.setManagedLedgerCacheSizeMB(100);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
     }
@@ -535,6 +536,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     }
 
+
+
     @Test
     public void testBundlesMetrics() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
@@ -578,6 +581,27 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
+    }
+
+    @Test
+    public void testManagedCacheMetrics() throws Exception {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_ml_cache_total_size");
+        assertTrue(metrics.containsKey("pulsar_ml_count"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_used_size"));
+        assertEquals(cm.get(0).value, 100 * 1024 * 1024d);
+        assertTrue(metrics.containsKey("pulsar_ml_cache_inserted_entries_total"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_evicted_entries_total"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_entries"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_evictions"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_hits_rate"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_misses_rate"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_misses_throughput"));
+        assertTrue(metrics.containsKey("pulsar_ml_cache_hits_throughput"));
+
     }
 
     @Test
