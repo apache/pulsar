@@ -18,12 +18,25 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import java.util.HashMap;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+@Slf4j
 public class MetadataStoreFactoryImpl {
+
+    public static final String METADATASTORE_PROVIDERS_PROPERTY = "pulsar.metadatastore.providers";
+
+    private static Map<String, MetadataStoreProvider> providers;
+
+    static {
+        loadProviders();
+    }
 
     public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws
             MetadataStoreException {
@@ -45,7 +58,7 @@ public class MetadataStoreFactoryImpl {
     private static MetadataStore newInstance(String metadataURL, MetadataStoreConfig metadataStoreConfig,
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
-
+        MetadataStoreProvider provider;
         if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
             return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
         } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
@@ -55,9 +68,40 @@ public class MetadataStoreFactoryImpl {
         } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
             return new ZKMetadataStore(metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()),
                     metadataStoreConfig, enableSessionWatcher);
+        } else if ((provider = findProvider(metadataURL)) != null){
+            return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
         } else {
             return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         }
+    }
+
+    static void loadProviders() {
+        String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY);
+        providers = new HashMap<>();
+        if (factoryClasses == null) {
+            return;
+        }
+        String[] classNames = factoryClasses.split(",");
+        for (String className : classNames) {
+            try {
+                Class<? extends MetadataStoreProvider> clazz =
+                        (Class<? extends MetadataStoreProvider>) Class.forName(className);
+                MetadataStoreProvider provider = clazz.getConstructor().newInstance();
+                String scheme = provider.urlScheme();
+                providers.put(scheme, provider);
+            } catch (Exception e) {
+                log.warn("Failed to load metadata store provider class for name '{}'", className, e);
+            }
+        }
+    }
+
+    private static MetadataStoreProvider findProvider(String metadataURL) {
+        for (Map.Entry<String, MetadataStoreProvider> entry : providers.entrySet()) {
+            if (metadataURL.startsWith(entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /**
@@ -70,6 +114,7 @@ public class MetadataStoreFactoryImpl {
      * @return
      */
     public static String removeIdentifierFromMetadataURL(String metadataURL) {
+        MetadataStoreProvider provider;
         if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
             return metadataURL.substring(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER.length());
         } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
@@ -78,6 +123,8 @@ public class MetadataStoreFactoryImpl {
             return metadataURL.substring(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER.length());
         } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
             return metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
+        } else if ((provider = findProvider(metadataURL)) != null) {
+            return metadataURL.substring(provider.urlScheme().length());
         }
         return metadataURL;
     }
