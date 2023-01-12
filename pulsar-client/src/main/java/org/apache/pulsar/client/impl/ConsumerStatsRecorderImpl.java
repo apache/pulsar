@@ -106,7 +106,7 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     }
 
     private void init(ConsumerConfigurationData<?> conf) {
-        ObjectWriter w = ObjectMapperFactory.getObjectMapperWithIncludeAlways().writer()
+        ObjectWriter w = ObjectMapperFactory.getMapperWithIncludeAlways().writer()
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {

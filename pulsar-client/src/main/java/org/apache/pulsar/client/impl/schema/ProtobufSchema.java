@@ -83,7 +83,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         });
 
         try {
-            return ObjectMapperFactory.getObjectMapperWithIncludeAlways().writeValueAsString(protoBufParsingInfos);
+            return ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsString(protoBufParsingInfos);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

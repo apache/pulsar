@@ -95,7 +95,7 @@ public class JsonRecordBuilderImpl implements GenericRecordBuilder {
 
     @Override
     public GenericRecord build() {
-        JsonNode jn = ObjectMapperFactory.getObjectMapperWithIncludeAlways().valueToTree(map);
+        JsonNode jn = ObjectMapperFactory.getMapperWithIncludeAlways().getObjectMapper().valueToTree(map);
         return new GenericJsonRecord(
                 null,
                 genericSchema.getFields(),

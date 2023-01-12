@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.util.Map;
@@ -69,14 +70,14 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     public SchemaInfo getBackwardsCompatibleJsonSchemaInfo() {
         SchemaInfo backwardsCompatibleSchemaInfo;
         try {
-            ObjectMapper objectMapper = ObjectMapperFactory.getObjectMapperWithIncludeAlways();
-            JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
+            ObjectWriter objectWriter = ObjectMapperFactory.getMapperWithIncludeAlways().writer();
+            JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectWriter);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = SchemaInfoImpl.builder()
                     .name("")
                     .properties(schemaInfo.getProperties())
                     .type(SchemaType.JSON)
-                    .schema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema))
+                    .schema(objectWriter.writeValueAsBytes(jsonBackwardsCompatibleSchema))
                     .build();
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
