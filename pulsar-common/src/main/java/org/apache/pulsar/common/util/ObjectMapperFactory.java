@@ -22,6 +22,8 @@ package org.apache.pulsar.common.util;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -108,20 +110,44 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 @SuppressWarnings("checkstyle:JavadocType")
 @Slf4j
 public class ObjectMapperFactory {
-    private static final ObjectMapper OBJECT_MAPPER = createObjectMapperInstance();
+    public static class MapperReference {
+        private final ObjectMapper objectMapper;
+        private final ObjectWriter objectWriter;
+        private final ObjectReader objectReader;
 
-    private static final ObjectMapper OBJECT_MAPPER_WITH_INCLUDE_ALWAYS = OBJECT_MAPPER
-            .copy()
-            .setSerializationInclusion(Include.ALWAYS);
-    private static final ObjectMapper YAML_OBJECT_MAPPER = createYamlInstance();
+        MapperReference(ObjectMapper objectMapper) {
+            this.objectMapper = objectMapper;
+            this.objectWriter = objectMapper.writer();
+            this.objectReader = objectMapper.reader();
+        }
 
+        ObjectMapper getObjectMapper() {
+            return objectMapper;
+        }
+
+        public ObjectWriter getWriter() {
+            return objectWriter;
+        }
+
+        public ObjectReader getReader() {
+            return objectReader;
+        }
+    }
+
+
+    private static final MapperReference MAPPER_REFERENCE = new MapperReference(createObjectMapperInstance());
+
+    private static final MapperReference INSTANCE_WITH_INCLUDE_ALWAYS = new MapperReference(MAPPER_REFERENCE
+            .getObjectMapper().copy()
+            .setSerializationInclusion(Include.ALWAYS));
+    private static final MapperReference YAML_MAPPER_REFERENCE = new MapperReference(createYamlInstance());
 
     private static ObjectMapper createObjectMapperInstance() {
         return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper()));
     }
 
     public static ObjectMapper create() {
-        return OBJECT_MAPPER.copy();
+        return MAPPER_REFERENCE.getObjectMapper().copy();
     }
 
     private static ObjectMapper createYamlInstance() {
@@ -138,16 +164,19 @@ public class ObjectMapperFactory {
     }
 
     public static ObjectMapper createYaml() {
-        return YAML_OBJECT_MAPPER.copy();
+        return YAML_MAPPER_REFERENCE.getObjectMapper().copy();
     }
 
-
     public static ObjectMapper getObjectMapper() {
-        return OBJECT_MAPPER;
+        return MAPPER_REFERENCE.getObjectMapper();
+    }
+
+    public static MapperReference getMapper() {
+        return MAPPER_REFERENCE;
     }
 
     public static ObjectMapper getObjectMapperWithIncludeAlways() {
-        return OBJECT_MAPPER_WITH_INCLUDE_ALWAYS;
+        return INSTANCE_WITH_INCLUDE_ALWAYS.getObjectMapper();
     }
 
     /**
@@ -158,16 +187,20 @@ public class ObjectMapperFactory {
         return getObjectMapper();
     }
 
-    public static ObjectMapper getYamlMapper() {
-        return YAML_OBJECT_MAPPER;
+    public static ObjectMapper getYamlObjectMapper() {
+        return YAML_MAPPER_REFERENCE.getObjectMapper();
+    }
+
+    public static MapperReference getYamlMapper() {
+        return YAML_MAPPER_REFERENCE;
     }
 
     /**
-     * This method is deprecated. Use {@link #getYamlMapper()}
+     * This method is deprecated. Use {@link #getYamlObjectMapper()}
      */
     @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
-        return getYamlMapper();
+        return getYamlObjectMapper();
     }
 
     private static void setAnnotationsModule(ObjectMapper mapper) {

@@ -48,7 +48,7 @@ public class AdditionalServletWithPulsarServiceTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getYamlMapper().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlObjectMapper().writeValueAsString(def));
         Class additionalServletClass = MockAdditionalServletWithClassLoader.class;
         when(mockLoader.loadClass(eq(MockAdditionalServletWithClassLoader.class.getName())))
                 .thenReturn(additionalServletClass);

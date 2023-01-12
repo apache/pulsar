@@ -61,7 +61,7 @@ public class BrokerInterceptorUtils {
     private BrokerInterceptorDefinition getBrokerInterceptorDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(BROKER_INTERCEPTOR_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getYamlMapper().readValue(
+        return ObjectMapperFactory.getYamlObjectMapper().readValue(
                 configStr, BrokerInterceptorDefinition.class
         );
     }
