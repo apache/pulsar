@@ -752,6 +752,11 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 assertNotEquals(pulsar2.getNamespaceService().getBundle(topicName), bundleInBroker2);
             });
 
+            // Unload the NamespacePolicies and AntiAffinity check.
+            String currentBroker = String.format("%s:%d", "localhost", pulsar.getListenPortHTTP().get());
+            assertTrue(loadManager.shouldNamespacePoliciesUnload(namespace,"0x00000000_0xffffffff", currentBroker));
+            assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace,"0x00000000_0xffffffff", currentBroker));
+
             // (7) Make lookup request again to Broker-2 which should succeed.
             final String topic3 = "persistent://" + namespace + "/topic3";
             @Cleanup
