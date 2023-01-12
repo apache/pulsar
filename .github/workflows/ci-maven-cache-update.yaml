@@ -96,6 +96,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' || steps.changes.outputs.poms == 'true' }}
         id: cache
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
