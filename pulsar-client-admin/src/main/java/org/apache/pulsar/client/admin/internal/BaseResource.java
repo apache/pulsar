@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import com.fasterxml.jackson.databind.ObjectReader;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
