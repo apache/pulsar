@@ -1168,7 +1168,7 @@ public class NamespaceService implements AutoCloseable {
                 return pulsar.getBrokerService()
                         .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
                         .thenCompose(metadata -> {
-                            // Allow crate non-partitioned persistent topic that name includes `-partition-`
+                            // Allow creating the non-partitioned persistent topic that name includes `-partition-`
                             if (metadata.partitions == 0
                                     || topic.getPartitionIndex() < metadata.partitions) {
                                 return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
