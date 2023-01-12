@@ -38,7 +38,7 @@ public class JacksonJsonReader<T> implements SchemaReader<T> {
 
     public JacksonJsonReader(ObjectMapper objectMapper, Class<T> pojo) {
         this.pojo = pojo;
-        this.objectReader = objectMapper.readerFor(pojo);
+        this.objectReader = pojo != null ? objectMapper.readerFor(pojo) : objectMapper.reader();
     }
 
     @Override
