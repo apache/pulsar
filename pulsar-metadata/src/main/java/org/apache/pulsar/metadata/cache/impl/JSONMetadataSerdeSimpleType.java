@@ -33,7 +33,7 @@ public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
 
     public JSONMetadataSerdeSimpleType(JavaType typeRef) {
         this.objectReader = ObjectMapperFactory.getMapper().getReader().forType(typeRef);
-        this.objectWriter = ObjectMapperFactory.getMapper().getWriter();
+        this.objectWriter = ObjectMapperFactory.getMapper().getWriter().forType(typeRef);
     }
 
     @Override

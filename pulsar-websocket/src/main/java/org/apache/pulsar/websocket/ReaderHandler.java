@@ -20,6 +20,7 @@ package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -72,6 +73,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     private volatile long msgDeliveredCounter = 0;
     private static final AtomicLongFieldUpdater<ReaderHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ReaderHandler.class, "msgDeliveredCounter");
+
+    private final ObjectReader consumerCommandReader =
+            ObjectMapperFactory.getMapper().getReader().forType(ConsumerCommand.class);
 
     public ReaderHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -157,7 +161,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getMapper().getWriter().writeValueAsString(dm), new WriteCallback() {
+                        .sendString(ObjectMapperFactory.getMapper().getWriter().writeValueAsString(dm),
+                                new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
@@ -207,7 +212,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getMapper().getReader().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = consumerCommandReader.readValue(message);
             if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
                 return;

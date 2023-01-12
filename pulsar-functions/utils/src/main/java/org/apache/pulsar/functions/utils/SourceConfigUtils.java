@@ -456,7 +456,7 @@ public class SourceConfigUtils {
                     new TypeReference<HashMap<String, Object>>() {
             };
             try {
-                return ObjectMapperFactory.getMapper().getReader().readValue(sourceSpec.getConfigs(), typeRef);
+                return ObjectMapperFactory.getMapper().getReader().forType(typeRef).readValue(sourceSpec.getConfigs());
             } catch (IOException e) {
                 log.error("Failed to read configs for source {}", fqfn, e);
                 throw new RuntimeException(e);

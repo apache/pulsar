@@ -327,7 +327,8 @@ public abstract class BaseResource {
                         e.getResponse().getEntity().toString(), ErrorData.class).reason;
             } catch (Exception ex1) {
                 try {
-                    return ObjectMapperFactory.getMapper().getReader().readValue(e.getMessage(), ErrorData.class).reason;
+                    return ObjectMapperFactory.getMapper().getReader()
+                            .readValue(e.getMessage(), ErrorData.class).reason;
                 } catch (Exception ex2) {
                     // could not parse output to ErrorData class
                     return e.getMessage();

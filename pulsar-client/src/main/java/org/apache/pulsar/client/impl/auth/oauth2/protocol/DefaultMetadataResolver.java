@@ -43,7 +43,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
 
     public DefaultMetadataResolver(URL metadataUrl) {
         this.metadataUrl = metadataUrl;
-        this.objectReader = ObjectMapperFactory.getMapper().getReader().readerFor(Metadata.class);
+        this.objectReader = ObjectMapperFactory.getMapper().getReader().forType(Metadata.class);
         // set a default timeout to ensure that this doesn't block
         this.connectTimeout = Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS);
         this.readTimeout = Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS);

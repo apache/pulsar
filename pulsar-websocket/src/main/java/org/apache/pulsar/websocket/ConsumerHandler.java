@@ -20,6 +20,7 @@ package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.cache.Cache;
@@ -90,6 +91,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
+    private final ObjectReader consumerCommandReader =
+            ObjectMapperFactory.getMapper().getReader().forType(ConsumerCommand.class);
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -166,25 +169,28 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getMapper().getWriter().writeValueAsString(dm), new WriteCallback() {
-                            @Override
-                            public void writeFailed(Throwable th) {
-                                log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(), subscription,
-                                        getRemote().getInetSocketAddress().toString(), th.getMessage());
-                                pendingMessages.decrementAndGet();
-                                // schedule receive as one of the delivery failed
-                                service.getExecutor().execute(() -> receiveMessage());
-                            }
+                        .sendString(ObjectMapperFactory.getMapper().getWriter().writeValueAsString(dm),
+                                new WriteCallback() {
+                                    @Override
+                                    public void writeFailed(Throwable th) {
+                                        log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(),
+                                                subscription,
+                                                getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                        pendingMessages.decrementAndGet();
+                                        // schedule receive as one of the delivery failed
+                                        service.getExecutor().execute(() -> receiveMessage());
+                                    }
 
-                            @Override
-                            public void writeSuccess() {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
-                                            subscription, getRemote().getInetSocketAddress().toString());
-                                }
-                                updateDeliverMsgStat(msgSize);
-                            }
-                        });
+                                    @Override
+                                    public void writeSuccess() {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}/{}] message is delivered successfully to {} ",
+                                                    consumer.getTopic(),
+                                                    subscription, getRemote().getInetSocketAddress().toString());
+                                        }
+                                        updateDeliverMsgStat(msgSize);
+                                    }
+                                });
             } catch (JsonProcessingException e) {
                 close(WebSocketError.FailedToSerializeToJSON);
             }
@@ -220,7 +226,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getMapper().getReader().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = consumerCommandReader.readValue(message);
             if ("permit".equals(command.type)) {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
