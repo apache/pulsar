@@ -323,11 +323,11 @@ public abstract class BaseResource {
             return e.getResponse().readEntity(ErrorData.class).reason.toString();
         } catch (Exception ex) {
             try {
-                return ObjectMapperFactory.getMapper().getReader().readValue(
+                return ObjectMapperFactory.getMapper().reader().readValue(
                         e.getResponse().getEntity().toString(), ErrorData.class).reason;
             } catch (Exception ex1) {
                 try {
-                    return ObjectMapperFactory.getMapper().getReader()
+                    return ObjectMapperFactory.getMapper().reader()
                             .readValue(e.getMessage(), ErrorData.class).reason;
                 } catch (Exception ex2) {
                     // could not parse output to ErrorData class

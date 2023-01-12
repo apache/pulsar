@@ -153,9 +153,9 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         }
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -179,7 +179,7 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
-        return ObjectMapperFactory.getMapper().getReader()
+        return ObjectMapperFactory.getMapper().reader()
                 .forType(new TypeReference<List<ProducerMessage>>() {
                 }).readValue(message);
     }

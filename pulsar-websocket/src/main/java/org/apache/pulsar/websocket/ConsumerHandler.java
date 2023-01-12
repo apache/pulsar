@@ -92,7 +92,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
     private final ObjectReader consumerCommandReader =
-            ObjectMapperFactory.getMapper().getReader().forType(ConsumerCommand.class);
+            ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -169,7 +169,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getMapper().getWriter().writeValueAsString(dm),
+                        .sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(dm),
                                 new WriteCallback() {
                                     @Override
                                     public void writeFailed(Throwable th) {
@@ -251,7 +251,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, getRemote().getInetSocketAddress().toString());
         }
         try {
-            String msg = ObjectMapperFactory.getMapper().getWriter().writeValueAsString(
+            String msg = ObjectMapperFactory.getMapper().writer().writeValueAsString(
                     new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
             getSession().getRemote()
             .sendString(msg, new WriteCallback() {

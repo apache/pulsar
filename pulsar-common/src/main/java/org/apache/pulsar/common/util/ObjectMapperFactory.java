@@ -121,15 +121,15 @@ public class ObjectMapperFactory {
             this.objectReader = objectMapper.reader();
         }
 
-        ObjectMapper getObjectMapper() {
+        public ObjectMapper getObjectMapper() {
             return objectMapper;
         }
 
-        public ObjectWriter getWriter() {
+        public ObjectWriter writer() {
             return objectWriter;
         }
 
-        public ObjectReader getReader() {
+        public ObjectReader reader() {
             return objectReader;
         }
     }
@@ -147,7 +147,7 @@ public class ObjectMapperFactory {
     }
 
     public static ObjectMapper create() {
-        return MAPPER_REFERENCE.getObjectMapper().copy();
+        return getMapper().getObjectMapper().copy();
     }
 
     private static ObjectMapper createYamlInstance() {
@@ -167,10 +167,6 @@ public class ObjectMapperFactory {
         return getYamlMapper().getObjectMapper().copy();
     }
 
-    public static ObjectMapper getObjectMapper() {
-        return getMapper().getObjectMapper();
-    }
-
     public static MapperReference getMapper() {
         return MAPPER_REFERENCE;
     }
@@ -180,15 +176,15 @@ public class ObjectMapperFactory {
     }
 
     /**
-     * This method is deprecated. Use {@link #getObjectMapper()}
+     * This method is deprecated. Use {@link #getMapper()} and {@link MapperReference#getObjectMapper()}
      */
     @Deprecated
     public static ObjectMapper getThreadLocal() {
-        return getObjectMapper();
+        return getMapper().getObjectMapper();
     }
 
     public static ObjectMapper getYamlObjectMapper() {
-        return YAML_MAPPER_REFERENCE.getObjectMapper();
+        return getYamlMapper().getObjectMapper();
     }
 
     public static MapperReference getYamlMapper() {
@@ -196,7 +192,7 @@ public class ObjectMapperFactory {
     }
 
     /**
-     * This method is deprecated. Use {@link #getYamlObjectMapper()}
+     * This method is deprecated. Use {@link #getYamlMapper()} and {@link MapperReference#getObjectMapper()}
      */
     @Deprecated
     public static ObjectMapper getThreadLocalYaml() {

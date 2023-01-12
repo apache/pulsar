@@ -32,7 +32,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class AuthenticationUtil {
     private static final ObjectReader HASHMAP_READER =
-            ObjectMapperFactory.getMapper().getReader().forType(new TypeReference<HashMap<String, String>>() {
+            ObjectMapperFactory.getMapper().reader().forType(new TypeReference<HashMap<String, String>>() {
             });
 
     public static Map<String, String> configureFromJsonString(String authParamsString) throws IOException {

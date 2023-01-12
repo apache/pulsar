@@ -47,7 +47,7 @@ public class PulsarLoadReportImpl implements LoadReport {
         return requestPerServiceUnit;
     }
 
-    private static final ObjectReader LOAD_REPORT_READER = ObjectMapperFactory.getMapper().getReader()
+    private static final ObjectReader LOAD_REPORT_READER = ObjectMapperFactory.getMapper().reader()
             .forType(org.apache.pulsar.policies.data.loadbalancer.LoadReport.class);
     public static LoadReport parse(String loadReportJson) {
         PulsarLoadReportImpl pulsarLoadReport = new PulsarLoadReportImpl();

@@ -34,7 +34,7 @@ public class ConfigurationResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response release() throws JsonProcessingException {
-        final ObjectMapper mapper = ObjectMapperFactory.getObjectMapper();
+        final ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         final ObjectNode node = mapper.createObjectNode();
         node.put("version", "version.number");
 

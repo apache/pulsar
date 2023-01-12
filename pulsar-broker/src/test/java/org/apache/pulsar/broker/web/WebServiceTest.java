@@ -308,7 +308,7 @@ public class WebServiceTest {
         TenantInfo info1 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)))
                 .build();
-        builder.setBody(ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(info1));
+        builder.setBody(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(info1));
         Response res = builder.execute().get();
 
         // This should have failed
@@ -321,7 +321,7 @@ public class WebServiceTest {
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
                 .build();
-        builder.setBody(ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(info2));
+        builder.setBody(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(info2));
 
         Response res2 = builder.execute().get();
         assertEquals(res2.getStatusCode(), 204);

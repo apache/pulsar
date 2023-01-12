@@ -548,7 +548,7 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     private static final ObjectReader SCHEMA_INFO_READER =
-            ObjectMapperFactory.getMapper().getReader().forType(SchemaInfoImpl.class);
+            ObjectMapperFactory.getMapper().reader().forType(SchemaInfoImpl.class);
 
     // Build schemaData from passed in schema string.
     private SchemaData getSchemaData(String keySchema, String valueSchema) {
@@ -714,7 +714,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 case JSON:
                     GenericJsonWriter jsonWriter = new GenericJsonWriter();
                     return jsonWriter.write(new GenericJsonRecord(null, null,
-                          ObjectMapperFactory.getMapper().getReader().readTree(input), schema.getSchemaInfo()));
+                          ObjectMapperFactory.getMapper().reader().readTree(input), schema.getSchemaInfo()));
                 case AVRO:
                     AvroBaseStructSchema avroSchema = ((AvroBaseStructSchema) schema);
                     Decoder decoder = DecoderFactory.get().jsonDecoder(avroSchema.getAvroSchema(), input);

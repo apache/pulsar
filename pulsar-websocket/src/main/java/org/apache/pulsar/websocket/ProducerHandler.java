@@ -79,7 +79,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     public static final List<Long> ENTRY_LATENCY_BUCKETS_USEC = Collections.unmodifiableList(Arrays.asList(
             500L, 1_000L, 5_000L, 10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 1000_000L));
     private final ObjectReader producerMessageReader =
-            ObjectMapperFactory.getMapper().getReader().forType(ProducerMessage.class);
+            ObjectMapperFactory.getMapper().reader().forType(ProducerMessage.class);
 
     public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -247,7 +247,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     private void sendAckResponse(ProducerAck response) {
         try {
-            String msg = ObjectMapperFactory.getMapper().getWriter().writeValueAsString(response);
+            String msg = ObjectMapperFactory.getMapper().writer().writeValueAsString(response);
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {

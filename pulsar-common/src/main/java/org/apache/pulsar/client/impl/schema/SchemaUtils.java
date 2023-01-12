@@ -339,13 +339,13 @@ public final class SchemaUtils {
      */
     public static String convertKeyValueSchemaInfoDataToString(
             KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
-        ObjectReader objectReader = ObjectMapperFactory.getMapper().getReader();
+        ObjectReader objectReader = ObjectMapperFactory.getMapper().reader();
         KeyValue<Object, Object> keyValue = new KeyValue<>(
                 SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
                         : objectReader.readTree(kvSchemaInfo.getKey().getSchema()),
                 SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ? ""
                         : objectReader.readTree(kvSchemaInfo.getValue().getSchema()));
-        return ObjectMapperFactory.getMapper().getWriter().writeValueAsString(keyValue);
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {

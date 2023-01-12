@@ -119,7 +119,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                     post(source.path(sourceConfig.getTenant())
                             .path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getMapper()
-                            .getWriter().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+                            .writer().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -190,12 +190,12 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
                     put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
                             .path(sourceConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getMapper()
-                            .getWriter().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+                            .writer().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
-                        ObjectMapperFactory.getMapper().getWriter().writeValueAsString(options),
+                        ObjectMapperFactory.getMapper().writer().writeValueAsString(options),
                         MediaType.APPLICATION_JSON));
             }
 
@@ -256,7 +256,7 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getMapper().getWriter().writeValueAsString(options),
+                        ObjectMapperFactory.getMapper().writer().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())

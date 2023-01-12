@@ -120,13 +120,13 @@ public class TokenClient implements ClientCredentialsExchanger {
 
             switch (res.getStatusCode()) {
             case 200:
-                return ObjectMapperFactory.getMapper().getReader().readValue(res.getResponseBodyAsBytes(),
+                return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
                         TokenResult.class);
 
             case 400: // Bad request
             case 401: // Unauthorized
                 throw new TokenExchangeException(
-                        ObjectMapperFactory.getMapper().getReader().readValue(res.getResponseBodyAsBytes(),
+                        ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
                                 TokenError.class));
 
             default:

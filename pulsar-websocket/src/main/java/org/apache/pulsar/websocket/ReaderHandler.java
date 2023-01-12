@@ -75,7 +75,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             AtomicLongFieldUpdater.newUpdater(ReaderHandler.class, "msgDeliveredCounter");
 
     private final ObjectReader consumerCommandReader =
-            ObjectMapperFactory.getMapper().getReader().forType(ConsumerCommand.class);
+            ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
 
     public ReaderHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -161,7 +161,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getMapper().getWriter().writeValueAsString(dm),
+                        .sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(dm),
                                 new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
@@ -235,7 +235,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = ObjectMapperFactory.getMapper().getWriter().writeValueAsString(
+            String msg = ObjectMapperFactory.getMapper().writer().writeValueAsString(
                     new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
             getSession().getRemote()
                     .sendString(msg, new WriteCallback() {

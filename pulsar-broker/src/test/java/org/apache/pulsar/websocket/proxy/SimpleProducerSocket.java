@@ -61,7 +61,7 @@ public class SimpleProducerSocket {
         ProducerMessage msg = new ProducerMessage();
         msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
         msg.key = Integer.toString(index);
-        return ObjectMapperFactory.getMapper().getWriter().writeValueAsString(msg);
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {

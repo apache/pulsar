@@ -131,9 +131,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -158,7 +158,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
-        return ObjectMapperFactory.getMapper().getReader()
+        return ObjectMapperFactory.getMapper().reader()
                 .forType(new TypeReference<List<ProducerMessage>>() {
                 }).readValue(message);
     }
@@ -170,9 +170,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -215,9 +215,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -270,9 +270,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 AsyncResponse asyncResponse = mock(AsyncResponse.class);
                 Schema<String> schema = StringSchema.utf8();
                 ProducerMessages producerMessages = new ProducerMessages();
-                producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+                producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                         writeValueAsString(schema.getSchemaInfo()));
-                producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+                producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                         writeValueAsString(schema.getSchemaInfo()));
                 String message = "[" +
                         "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -328,7 +328,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.setPulsar(pulsar2);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(createMessages(message));
@@ -355,7 +355,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(createMessages(message));
@@ -375,7 +375,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(nameSpaceService).when(pulsar).getNamespaceService();
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[]";
         producerMessages.setMessages(createMessages(message));
@@ -399,7 +399,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(Schema.INT64.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"111111111111\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -523,14 +523,14 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(jsonSchema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\""
-                + ObjectMapperFactory.getMapper().getWriter().writeValueAsString(pc).replace("\"", "\\\"")
+                + ObjectMapperFactory.getMapper().writer().writeValueAsString(pc).replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":1},"
                 + "{\"key\":\"my-key\",\"payload\":\""
-                + ObjectMapperFactory.getMapper().getWriter().writeValueAsString(anotherPc).replace("\"", "\\\"")
+                + ObjectMapperFactory.getMapper().writer().writeValueAsString(anotherPc).replace("\"", "\\\"")
                 + "\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         producerMessages.setMessages(createMessages(message));
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace,
@@ -555,7 +555,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         // Assert all messages published by REST producer can be received by consumer in expected order.
         for (int i = 0; i < 2; i++) {
             msg = consumer.receive(2, TimeUnit.SECONDS);
-            PC msgPc = ObjectMapperFactory.getObjectMapper().
+            PC msgPc = ObjectMapperFactory.getMapper().getObjectMapper().
                     treeToValue(((GenericJsonRecord)jsonSchema.decode(msg.getData())).getJsonNode(), PC.class);
             Assert.assertEquals(msgPc.brand, expected.get(i).brand);
             Assert.assertEquals(msgPc.model, expected.get(i).model);
@@ -586,7 +586,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(avroSchema.getSchemaInfo()));
 
         ReflectDatumWriter<PC> datumWriter = new ReflectDatumWriter(avroSchema.getAvroSchema());
@@ -665,9 +665,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(StringSchema.utf8().getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -716,9 +716,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(StringSchema.utf8().getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
@@ -794,9 +794,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             producer.send("message");
         }
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(StringSchema.utf8().getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(StringSchema.utf8().getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +

@@ -79,7 +79,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Override
     public void initialize(Map<String, Object> config) {
         if (config != null) {
-            RuntimeOpts opts = ObjectMapperFactory.getObjectMapper().convertValue(config, RuntimeOpts.class);
+            RuntimeOpts opts = ObjectMapperFactory.getMapper().getObjectMapper().convertValue(config, RuntimeOpts.class);
             if (opts != null) {
                 runtimeOpts = opts.toBuilder().build();
             }

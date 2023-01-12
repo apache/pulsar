@@ -140,7 +140,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     post(sink.path(sinkConfig.getTenant())
                             .path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getMapper()
-                            .getWriter().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+                            .writer().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -222,13 +222,13 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                     put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
                             .path(sinkConfig.getName()).getUri().toASCIIString())
                     .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getMapper()
-                            .getWriter().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+                            .writer().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
                         ObjectMapperFactory.getMapper()
-                                .getWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
+                                .writer().writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -291,7 +291,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getMapper().getWriter().writeValueAsString(options),
+                        ObjectMapperFactory.getMapper().writer().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())

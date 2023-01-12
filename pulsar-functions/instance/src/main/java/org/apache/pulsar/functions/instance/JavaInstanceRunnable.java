@@ -851,7 +851,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 this.source.open(new HashMap<>(), contextImpl);
             } else {
                 this.source.open(
-                        ObjectMapperFactory.getMapper().getReader().forType(new TypeReference<Map<String, Object>>() {
+                        ObjectMapperFactory.getMapper().reader().forType(new TypeReference<Map<String, Object>>() {
                         }).readValue(sourceSpec.getConfigs())
                         , contextImpl);
             }
@@ -933,7 +933,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec,
                             contextImpl.toString());
                 }
-                this.sink.open(ObjectMapperFactory.getMapper().getReader().forType(
+                this.sink.open(ObjectMapperFactory.getMapper().reader().forType(
                         new TypeReference<Map<String, Object>>() {
                         }).readValue(sinkSpec.getConfigs()), contextImpl);
             }

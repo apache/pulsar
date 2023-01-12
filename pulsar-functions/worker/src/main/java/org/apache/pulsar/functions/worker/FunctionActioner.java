@@ -439,7 +439,7 @@ public class FunctionActioner {
                     if (sub != null) {
                         try {
                             finalErrorMsg = String.format("%s - existing consumers: %s",
-                              errorMsg, ObjectMapperFactory.getMapper().getWriter().writeValueAsString(sub));
+                              errorMsg, ObjectMapperFactory.getMapper().writer().writeValueAsString(sub));
                         } catch (JsonProcessingException jsonProcessingException) {
                             finalErrorMsg = errorMsg;
                         }
@@ -482,7 +482,7 @@ public class FunctionActioner {
                     if (stats != null) {
                         try {
                             finalErrorMsg = String.format("%s - topic stats: %s",
-                              errorMsg, ObjectMapperFactory.getMapper().getWriter().writeValueAsString(stats));
+                              errorMsg, ObjectMapperFactory.getMapper().writer().writeValueAsString(stats));
                         } catch (JsonProcessingException jsonProcessingException) {
                             finalErrorMsg = errorMsg;
                         }

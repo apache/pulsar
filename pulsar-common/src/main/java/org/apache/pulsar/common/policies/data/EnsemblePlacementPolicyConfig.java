@@ -71,7 +71,7 @@ public class EnsemblePlacementPolicyConfig {
     public byte[] encode() throws ParseEnsemblePlacementPolicyConfigException {
         try {
             return ObjectMapperFactory.getMapper()
-                .getWriter().withDefaultPrettyPrinter()
+                .writer().withDefaultPrettyPrinter()
                 .writeValueAsString(this)
                 .getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
@@ -80,7 +80,7 @@ public class EnsemblePlacementPolicyConfig {
     }
 
     private static final ObjectReader ENSEMBLE_PLACEMENT_CONFIG_READER = ObjectMapperFactory.getMapper()
-            .getReader().forType(EnsemblePlacementPolicyConfig.class);
+            .reader().forType(EnsemblePlacementPolicyConfig.class);
 
     public static EnsemblePlacementPolicyConfig decode(byte[] data) throws ParseEnsemblePlacementPolicyConfigException {
         try {

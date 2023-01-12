@@ -113,7 +113,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             if (field == null) {
                 return false;
             }
-            JsonNode jsonNode = ObjectMapperFactory.getMapper().getReader().readTree(field.schema().toString());
+            JsonNode jsonNode = ObjectMapperFactory.getMapper().reader().readTree(field.schema().toString());
             for (JsonNode node : jsonNode) {
                 JsonNode jn = node.get("type");
                 if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {

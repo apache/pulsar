@@ -447,11 +447,11 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected ObjectWriter objectWriter() {
-        return ObjectMapperFactory.getMapper().getWriter();
+        return ObjectMapperFactory.getMapper().writer();
     }
 
     protected ObjectReader objectReader() {
-        return ObjectMapperFactory.getMapper().getReader();
+        return ObjectMapperFactory.getMapper().reader();
     }
 
     protected Set<String> clusters() {

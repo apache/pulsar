@@ -350,7 +350,7 @@ public class SinkConfigUtils {
             Map<String, Object> configMap;
             try {
                 configMap =
-                        ObjectMapperFactory.getObjectMapper()
+                        ObjectMapperFactory.getMapper().getObjectMapper()
                                 .readValue(functionDetails.getSink().getConfigs(), typeRef);
             } catch (IOException e) {
                 log.error("Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails),
@@ -553,8 +553,8 @@ public class SinkConfigUtils {
 
     @SneakyThrows
     public static SinkConfig clone(SinkConfig sinkConfig) {
-        return ObjectMapperFactory.getMapper().getReader().readValue(
-                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(sinkConfig), SinkConfig.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(sinkConfig), SinkConfig.class);
     }
 
     public static SinkConfig validateUpdate(SinkConfig existingConfig, SinkConfig newConfig) {
@@ -718,7 +718,7 @@ public class SinkConfigUtils {
     public static void validateSinkConfig(SinkConfig sinkConfig, Class configClass) {
         try {
             Object configObject =
-                    ObjectMapperFactory.getObjectMapper().convertValue(sinkConfig.getConfigs(), configClass);
+                    ObjectMapperFactory.getMapper().getObjectMapper().convertValue(sinkConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

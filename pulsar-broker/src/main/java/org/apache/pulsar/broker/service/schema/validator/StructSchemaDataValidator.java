@@ -43,7 +43,7 @@ class StructSchemaDataValidator implements SchemaDataValidator {
     private StructSchemaDataValidator() {}
 
     private static final ObjectReader JSON_SCHEMA_READER =
-            ObjectMapperFactory.getMapper().getReader().forType(JsonSchema.class);
+            ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
     @Override
     public void validate(SchemaData schemaData) throws InvalidSchemaDataException {
         byte[] data = schemaData.getData();

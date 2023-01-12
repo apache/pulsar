@@ -1070,7 +1070,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             FunctionState stateRepr =
-                    ObjectMapperFactory.getMapper().getReader().readValue(state, FunctionState.class);
+                    ObjectMapperFactory.getMapper().reader().readValue(state, FunctionState.class);
             getAdmin().functions()
                     .putFunctionState(tenant, namespace, functionName, stateRepr);
         }
