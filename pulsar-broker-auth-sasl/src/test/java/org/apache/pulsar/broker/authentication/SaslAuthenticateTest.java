@@ -262,7 +262,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
                 .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME));
         AuthenticationProviderSasl saslServer =
             (AuthenticationProviderSasl) providerList.getProviders().get(0);
-        AuthenticationState authState = saslServer.newAuthState(null, null, null);
+        AuthenticationState authState = saslServer.newAuthState(null, null);
 
         // auth between server and client.
         // first time auth
@@ -288,7 +288,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
 
         // another server could not serve old client
         try {
-            AuthenticationState authState2 = saslServer.newAuthState(null, null, null);
+            AuthenticationState authState2 = saslServer.newAuthState(null, null);
             AuthData serverData3 = authState2.authenticate(initData1);
             fail("Expected fail. server is auth old client data");
         } catch (Exception e) {

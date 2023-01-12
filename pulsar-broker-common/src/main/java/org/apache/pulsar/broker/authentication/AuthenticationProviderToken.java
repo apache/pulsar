@@ -161,6 +161,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
+    public AuthenticationState newAuthState(SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
+        return new TokenAuthenticationState(this, remoteAddress, sslSession);
+    }
+
+    @Override
     public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
             throws AuthenticationException {
         return new TokenAuthenticationState(this, authData, remoteAddress, sslSession);
@@ -314,21 +320,45 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     private static final class TokenAuthenticationState implements AuthenticationState {
         private final AuthenticationProviderToken provider;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
         private long expiration;
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
+                SocketAddress remoteAddress,
+                SSLSession sslSession) {
+            this.provider = provider;
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
+        }
+
+        /**
+         * @deprecated this class no longer stores the {@link AuthData} passed in on initialization, so this constructor
+         * is deprecated. In order to maintain some backwards compatibility, this constructor validates the
+         * parameterized {@link AuthData}.
+         */
+        @Deprecated(since = "2.12.0")
+        TokenAuthenticationState(
+                AuthenticationProviderToken provider,
                 AuthData authData,
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
-            this.provider = provider;
+            this(provider, remoteAddress, sslSession);
             String token = new String(authData.getBytes(), UTF_8);
             this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             this.checkExpiration(token);
         }
 
+        /**
+         * @deprecated method was only ever used for
+         * {@link AuthenticationProvider#newHttpAuthState(HttpServletRequest)}. That state object wasn't used other than
+         * to retrieve the {@link AuthenticationDataSource}, so this constructor is deprecated now. In order to maintain
+         * some backwards compatibility, this constructor validates the parameterized {@link AuthData}.
+         */
+        @Deprecated(since = "2.12.0")
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
                 HttpServletRequest request) throws AuthenticationException {
@@ -342,10 +372,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
             this.authenticationDataSource = new AuthenticationDataHttps(request);
             this.checkExpiration(token);
+
+            // These are not used when this constructor is invoked, set them to null.
+            this.sslSession = null;
+            this.remoteAddress = null;
         }
 
         @Override
         public String getAuthRole() throws AuthenticationException {
+            if (jwt == null) {
+                throw new AuthenticationException("Must authenticate before calling getAuthRole");
+            }
             return provider.getPrincipal(jwt);
         }
 
@@ -358,6 +395,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             String token = new String(authData.getBytes(), UTF_8);
             checkExpiration(token);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             return null;
         }
 
@@ -378,8 +416,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public boolean isComplete() {
-            // The authentication of tokens is always done in one single stage
-            return true;
+            return jwt != null;
         }
 
         @Override

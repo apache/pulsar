@@ -519,7 +519,7 @@ public class ProxyConnection extends PulsarHandler {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
 
-            authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
+            authState = authenticationProvider.newAuthState(remoteAddress, sslSession);
             authenticationData = authState.getAuthDataSource();
             doAuthentication(clientData);
         } catch (Exception e) {

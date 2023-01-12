@@ -92,8 +92,20 @@ public interface AuthenticationProvider extends Closeable {
     }
 
     /**
-     * Create an authentication data State use passed in AuthenticationDataSource.
+     * Create an {@link AuthenticationState} for the given connection information.
+     * @return an {@link AuthenticationState} object without any configured {@link AuthData}.
      */
+    default AuthenticationState newAuthState(SocketAddress remoteAddress,
+                                             SSLSession sslSession) throws AuthenticationException {
+        return new OneStageAuthenticationState(remoteAddress, sslSession, this);
+    }
+
+    /**
+     * Create an authentication data State use passed in AuthenticationDataSource.
+     * @deprecated use {@link #newAuthState(SocketAddress, SSLSession)}, and note that the implementation requires
+     * users call {@link AuthenticationState#authenticate(AuthData)}.
+     */
+    @Deprecated(since = "2.12.0")
     default AuthenticationState newAuthState(AuthData authData,
                                              SocketAddress remoteAddress,
                                              SSLSession sslSession)

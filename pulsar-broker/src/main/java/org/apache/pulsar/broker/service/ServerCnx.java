@@ -902,18 +902,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
 
-            authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
-
-            if (log.isDebugEnabled()) {
-                String role = "";
-                if (authState != null && authState.isComplete()) {
-                    role = authState.getAuthRole();
-                } else {
-                    role = "authentication incomplete or null";
-                }
-                log.debug("[{}] Authenticate role : {}", remoteAddress, role);
-            }
-
+            authState = authenticationProvider.newAuthState(remoteAddress, sslSession);
             state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
 
             // This will fail the check if:
@@ -939,10 +928,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     + " using auth method [%s] is not available", originalAuthMethod));
                 }
 
-                originalAuthState = originalAuthenticationProvider.newAuthState(
-                        AuthData.of(connect.getOriginalAuthData().getBytes()),
-                        remoteAddress,
-                        sslSession);
+                originalAuthState = originalAuthenticationProvider.newAuthState(remoteAddress, sslSession);
+                originalAuthState.authenticate(AuthData.of(connect.getOriginalAuthData().getBytes()));
                 originalAuthData = originalAuthState.getAuthDataSource();
                 originalPrincipal = originalAuthState.getAuthRole();
 

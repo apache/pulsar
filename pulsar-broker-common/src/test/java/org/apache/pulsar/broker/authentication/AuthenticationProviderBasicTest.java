@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import com.google.common.io.Resources;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,9 +40,15 @@ public class AuthenticationProviderBasicTest {
     public AuthenticationProviderBasicTest() throws IOException {
     }
 
+    @SuppressWarnings("deprecation")
     private void testAuthenticate(AuthenticationProviderBasic provider) throws AuthenticationException {
         AuthData authData = AuthData.of("superUser2:superpassword".getBytes(StandardCharsets.UTF_8));
+        // Test legacy newAuthState method, which authenticated data
         provider.newAuthState(authData, null, null);
+        // Test new newAuthState method, which requires calling authenticate method to authenticate data
+        AuthenticationState authState = provider.newAuthState(null, null);
+        AuthData challenge = authState.authenticate(authData);
+        assertNull(challenge, "Should not produce a challenge result");
     }
 
     @Test

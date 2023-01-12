@@ -18,22 +18,31 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Interface for authentication state.
- *
- * It tell broker whether the authentication is completed or not,
- * if completed, what is the AuthRole is.
+ * <p>
+ * Pulsar integrates with this class in the following order:
+ * 1. Initializing the class by calling {@link AuthenticationProvider#newAuthState(SocketAddress, SSLSession)}
+ * 2. Calling {@link #authenticate(AuthData)} in a loop until the result is null.
+ * 3. Calling {@link #getAuthRole()} and {@link #getAuthDataSource()} to use for authentication.
+ * 4. Calling {@link #refreshAuthentication()} when {@link #isExpired()} returns true.
+ * 5. GoTo step 3.
  */
 public interface AuthenticationState {
     /**
      * After the authentication between client and broker completed,
      * get authentication role represent for the client.
      * It should throw exception if auth not complete.
+     *
+     * <p>Users of this interface must call {@link #authenticateAsync(AuthData)} or {@link #authenticate(AuthData)}
+     * before calling this method.</p>
      */
     String getAuthRole() throws AuthenticationException;
 
@@ -71,7 +80,9 @@ public interface AuthenticationState {
     }
 
     /**
-     * Return AuthenticationDataSource.
+     * <p>Users of this interface must call {@link #authenticateAsync(AuthData)} or {@link #authenticate(AuthData)}
+     * before calling this method.</p>
+     * @return AuthenticationDataSource.
      */
     AuthenticationDataSource getAuthDataSource();
 

@@ -125,6 +125,12 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
     public AuthenticationState newAuthState(AuthData authData,
                                             SocketAddress remoteAddress,
                                             SSLSession sslSession) throws AuthenticationException {
+        return newAuthState(remoteAddress, sslSession);
+    }
+
+    @Override
+    public AuthenticationState newAuthState(SocketAddress remoteAddress,
+                                            SSLSession sslSession) throws AuthenticationException {
         try {
             PulsarSaslServer server = new PulsarSaslServer(jaasCredentialsContainer.getSubject(), allowedIdsPattern);
             return new SaslAuthenticationState(server);
@@ -269,7 +275,7 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
             // no role token, do sasl auth
             // need new authState
             if (state == null || request.getHeader(SASL_HEADER_STATE).equalsIgnoreCase(SASL_STATE_CLIENT_INIT)) {
-                state = newAuthState(null, null, null);
+                state = newAuthState(null, null);
                 authStates.put(state.getStateId(), state);
             }
             checkState(request.getHeader(SASL_AUTH_TOKEN) != null,
