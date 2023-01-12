@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.common.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -114,8 +115,9 @@ public class ObjectMapperFactory {
             .setSerializationInclusion(Include.ALWAYS);
     private static final ObjectMapper YAML_INSTANCE = createYamlInstance();
 
+
     private static ObjectMapper createObjectMapperInstance() {
-        return configureObjectMapper(new ObjectMapper());
+        return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper()));
     }
 
     public static ObjectMapper create() {
@@ -123,7 +125,7 @@ public class ObjectMapperFactory {
     }
 
     private static ObjectMapper createYamlInstance() {
-        return configureObjectMapper(new ObjectMapper(new YAMLFactory()));
+        return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper(new YAMLFactory())));
     }
 
     private static ObjectMapper configureObjectMapper(ObjectMapper mapper) {
