@@ -165,8 +165,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder =
                     post(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
                             .path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getObjectMapper()
-                            .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getMapper()
+                            .getWriter().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -250,13 +250,13 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     put(functions.path(functionConfig.getTenant())
                             .path(functionConfig.getNamespace())
                             .path(functionConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getObjectMapper()
-                            .writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("functionConfig", ObjectMapperFactory.getMapper()
+                            .getWriter().writeValueAsString(functionConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
-                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getObjectMapper()
-                        .writeValueAsString(options), MediaType.APPLICATION_JSON));
+                builder.addBodyPart(new StringPart("updateOptions", ObjectMapperFactory.getMapper()
+                        .getWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -699,8 +699,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder =
                     post(functions.path(tenant).path(namespace).path(function)
                             .path("state").path(state.getKey()).getUri().toASCIIString());
-            builder.addBodyPart(new StringPart("state", ObjectMapperFactory.getObjectMapper()
-                    .writeValueAsString(state), MediaType.APPLICATION_JSON));
+            builder.addBodyPart(new StringPart("state", ObjectMapperFactory.getMapper()
+                    .getWriter().writeValueAsString(state), MediaType.APPLICATION_JSON));
             asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {

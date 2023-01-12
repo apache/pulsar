@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.handler.codec.http.HttpRequest;
@@ -184,9 +183,8 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         private String authParamsString;
 
         public String toJson() {
-            ObjectMapper objectMapper = ObjectMapperFactory.getObjectMapper();
             try {
-                return objectMapper.writeValueAsString(this);
+                return ObjectMapperFactory.getMapper().getWriter().writeValueAsString(this);
             } catch (JsonProcessingException e) {
                 log.warn("Failed to write as json. ", e);
                 return null;

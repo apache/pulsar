@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import static com.google.protobuf.DescriptorProtos.FileDescriptorSet;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.protobuf.Descriptors;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -84,11 +85,13 @@ public class ProtobufNativeSchemaUtils {
         }
     }
 
+    private static final ObjectReader PROTOBUF_NATIVE_SCHEMADATA_READER = ObjectMapperFactory.getMapper().getReader()
+            .forType(ProtobufNativeSchemaData.class);
+
     public static Descriptors.Descriptor deserialize(byte[] schemaDataBytes) {
         Descriptors.Descriptor descriptor;
         try {
-            ProtobufNativeSchemaData schemaData = ObjectMapperFactory.getObjectMapper()
-                    .readValue(schemaDataBytes, ProtobufNativeSchemaData.class);
+            ProtobufNativeSchemaData schemaData = PROTOBUF_NATIVE_SCHEMADATA_READER.readValue(schemaDataBytes);
 
             Map<String, FileDescriptorProto> fileDescriptorProtoCache = new HashMap<>();
             Map<String, Descriptors.FileDescriptor> fileDescriptorCache = new HashMap<>();

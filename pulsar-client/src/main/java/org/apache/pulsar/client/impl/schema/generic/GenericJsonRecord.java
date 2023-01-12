@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
@@ -114,8 +113,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             if (field == null) {
                 return false;
             }
-            ObjectMapper objectMapper = ObjectMapperFactory.getObjectMapper();
-            JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
+            JsonNode jsonNode = ObjectMapperFactory.getMapper().getReader().readTree(field.schema().toString());
             for (JsonNode node : jsonNode) {
                 JsonNode jn = node.get("type");
                 if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {

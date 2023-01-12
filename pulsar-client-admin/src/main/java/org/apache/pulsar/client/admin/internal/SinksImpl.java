@@ -139,8 +139,8 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             RequestBuilder builder =
                     post(sink.path(sinkConfig.getTenant())
                             .path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getObjectMapper()
-                            .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getMapper()
+                            .getWriter().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -221,14 +221,14 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             RequestBuilder builder =
                     put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
                             .path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getObjectMapper()
-                            .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getMapper()
+                            .getWriter().writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
-                        ObjectMapperFactory.getObjectMapper()
-                                .writeValueAsString(options), MediaType.APPLICATION_JSON));
+                        ObjectMapperFactory.getMapper()
+                                .getWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {

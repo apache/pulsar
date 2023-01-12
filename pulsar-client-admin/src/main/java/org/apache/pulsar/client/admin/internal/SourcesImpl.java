@@ -118,8 +118,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             RequestBuilder builder =
                     post(source.path(sourceConfig.getTenant())
                             .path(sourceConfig.getNamespace()).path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getObjectMapper()
-                            .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getMapper()
+                            .getWriter().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
                 // If the function code is built in, we don't need to submit here
@@ -189,8 +189,8 @@ public class SourcesImpl extends ComponentResource implements Sources, Source {
             RequestBuilder builder =
                     put(source.path(sourceConfig.getTenant()).path(sourceConfig.getNamespace())
                             .path(sourceConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getObjectMapper()
-                            .writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
+                    .addBodyPart(new StringPart("sourceConfig", ObjectMapperFactory.getMapper()
+                            .getWriter().writeValueAsString(sourceConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
