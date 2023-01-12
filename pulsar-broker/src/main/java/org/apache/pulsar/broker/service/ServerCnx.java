@@ -740,7 +740,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         CompletableFuture<AuthData> authFuture = CompletableFuture.completedFuture(null);
         if (!useOriginalAuthState && !authState.isComplete()) {
-            authFuture = authState.authenticateAsync(clientData);
+            try {
+                authFuture = CompletableFuture.completedFuture(authState.authenticate(clientData));
+            } catch (AuthenticationException e) {
+                authFuture = CompletableFuture.failedFuture(e);
+            }
         }
         return authFuture.thenCompose(nextAuthData -> {
             if (nextAuthData == null) {
