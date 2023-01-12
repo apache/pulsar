@@ -710,8 +710,8 @@ public abstract class PulsarWebResource {
                                     // Replace the host and port of the current request and redirect
                                     URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
                                             .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
-                                                    newAuthoritative).build();
-
+                                                    newAuthoritative).replaceQueryParam("destinationBroker",
+                                                    null).build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
@@ -1224,14 +1224,6 @@ public abstract class PulsarWebResource {
                     });
         }
         return CompletableFuture.completedFuture(null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
-        validateTopicOperation(topicName, operation, null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
-        sync(()-> validateTopicOperationAsync(topicName, operation, subscription));
     }
 
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {

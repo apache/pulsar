@@ -157,7 +157,7 @@ public abstract class PerformanceBaseArguments {
             } catch (IllegalArgumentException e) {
                 System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
                 e.printStackTrace();
-                exit(-1);
+                exit(1);
             }
 
         }

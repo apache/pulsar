@@ -195,12 +195,12 @@ public class PerformanceTransaction {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         arguments.fillArgumentsFromProperties();
 
@@ -235,7 +235,7 @@ public class PerformanceTransaction {
                             log.error(
                                     "Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
                                     topic, partitionedTopicMetadata.partitions, arguments.partitions);
-                            PerfClientUtils.exit(-1);
+                            PerfClientUtils.exit(1);
                         }
                     }
                 }
@@ -292,7 +292,7 @@ public class PerformanceTransaction {
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();
-                        PerfClientUtils.exit(-1);
+                        PerfClientUtils.exit(1);
                     }
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
@@ -330,7 +330,7 @@ public class PerformanceTransaction {
                                         } catch (PulsarClientException e) {
                                             log.error("Receive message failed", e);
                                             executorService.shutdownNow();
-                                            PerfClientUtils.exit(-1);
+                                            PerfClientUtils.exit(1);
                                         }
                                         long receiveTime = System.nanoTime();
                                         if (!arguments.isDisableTransaction) {

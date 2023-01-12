@@ -159,22 +159,24 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     @Override
     public void close() throws Exception {
-        super.close();
+        if (isClosed.compareAndSet(false, true)) {
+            super.close();
 
-        if (sessionWatcher != null) {
-            sessionWatcher.close();
+            if (sessionWatcher != null) {
+                sessionWatcher.close();
+            }
+
+            if (leaseClient != null) {
+                leaseClient.close();
+            }
+
+            if (leaseId != 0) {
+                client.getLeaseClient().revoke(leaseId);
+            }
+
+            kv.close();
+            client.close();
         }
-
-        if (leaseClient != null) {
-            leaseClient.close();
-        }
-
-        if (leaseId != 0) {
-            client.getLeaseClient().revoke(leaseId);
-        }
-
-        kv.close();
-        client.close();
     }
 
     private static final GetOption EXISTS_GET_OPTION = GetOption.newBuilder().withCountOnly(true).build();

@@ -280,16 +280,25 @@ public class PerformanceProducer {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (isBlank(arguments.authPluginClassName) && !isBlank(arguments.deprecatedAuthPluginClassName)) {
             arguments.authPluginClassName = arguments.deprecatedAuthPluginClassName;
+        }
+
+        for (String arg : arguments.topics) {
+            if (arg.startsWith("-")) {
+                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
+                        + "please use a fully qualified topic name\n", arg, arg);
+                jc.usage();
+                PerfClientUtils.exit(1);
+            }
         }
 
         if (arguments.topics != null && arguments.topics.size() != arguments.numTopics) {
@@ -304,7 +313,7 @@ public class PerformanceProducer {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topic");
                 jc.usage();
-                PerfClientUtils.exit(-1);
+                PerfClientUtils.exit(1);
             }
         }
 
@@ -370,7 +379,7 @@ public class PerformanceProducer {
                             log.error("Topic {} already exists but it has a wrong number of partitions: {}, "
                                             + "expecting {}",
                                     topic, partitionedTopicMetadata.partitions, arguments.partitions);
-                            PerfClientUtils.exit(-1);
+                            PerfClientUtils.exit(1);
                         }
                     }
                 }
@@ -683,7 +692,7 @@ public class PerformanceProducer {
                         log.warn("Write message error with exception", ex);
                         messagesFailed.increment();
                         if (arguments.exitOnFailure) {
-                            PerfClientUtils.exit(-1);
+                            PerfClientUtils.exit(1);
                         }
                         return null;
                     });
@@ -744,7 +753,7 @@ public class PerformanceProducer {
             if (null != client) {
                 try {
                     client.close();
-                    PerfClientUtils.exit(-1);
+                    PerfClientUtils.exit(1);
                 } catch (PulsarClientException e) {
                     log.error("Failed to close test client", e);
                 }

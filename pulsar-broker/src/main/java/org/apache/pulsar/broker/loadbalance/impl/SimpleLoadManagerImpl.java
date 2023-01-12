@@ -40,12 +40,14 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -186,6 +188,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     private volatile Future<?> updateRankingHandle;
 
+    private Map<String, String> bundleBrokerAffinityMap;
+
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
         scheduler = Executors.newSingleThreadScheduledExecutor(
@@ -251,6 +255,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     }
                 });
         this.pulsar = pulsar;
+        this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
     }
 
     public SimpleLoadManagerImpl(PulsarService pulsar) {
@@ -1441,6 +1446,15 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
             }
             this.setLoadReportForceUpdateFlag();
         }
+    }
+
+    @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        if (StringUtils.isBlank(broker)) {
+            return this.bundleBrokerAffinityMap.remove(bundle);
+        }
+        broker = broker.replaceFirst("http[s]?://", "");
+        return this.bundleBrokerAffinityMap.put(bundle, broker);
     }
 
     @Override

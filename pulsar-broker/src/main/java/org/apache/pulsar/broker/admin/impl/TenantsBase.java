@@ -78,7 +78,7 @@ public class TenantsBase extends PulsarWebResource {
 
     @GET
     @Path("/{tenant}")
-    @ApiOperation(value = "Get the admin configuration for a given tenant.")
+    @ApiOperation(value = "Get the admin configuration for a given tenant.", response = TenantInfo.class)
     @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant does not exist")})
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,

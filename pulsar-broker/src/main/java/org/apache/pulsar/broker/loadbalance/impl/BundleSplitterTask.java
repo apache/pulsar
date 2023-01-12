@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BundleSplitStrategy;
@@ -38,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BundleSplitterTask implements BundleSplitStrategy {
     private static final Logger log = LoggerFactory.getLogger(BundleSplitStrategy.class);
-    private final Set<String> bundleCache;
+    private final Map<String, String> bundleCache;
 
     private final Map<String, Integer> namespaceBundleCount;
 
@@ -48,7 +46,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
      *
      */
     public BundleSplitterTask() {
-        bundleCache = new HashSet<>();
+        bundleCache = new HashMap<>();
         namespaceBundleCount = new HashMap<>();
     }
 
@@ -61,10 +59,10 @@ public class BundleSplitterTask implements BundleSplitStrategy {
      * @param pulsar
      *            Service to use.
      * @return All bundles who have exceeded configured thresholds in number of topics, number of sessions, total
-     *         message rates, or total throughput.
+     *         message rates, or total throughput and the brokers on which they reside.
      */
     @Override
-    public Set<String> findBundlesToSplit(final LoadData loadData, final PulsarService pulsar) {
+    public Map<String, String> findBundlesToSplit(final LoadData loadData, final PulsarService pulsar) {
         bundleCache.clear();
         namespaceBundleCount.clear();
         final ServiceConfiguration conf = pulsar.getConfiguration();
@@ -102,7 +100,13 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                                 .getBundleCount(NamespaceName.get(namespace));
                         if ((bundleCount + namespaceBundleCount.getOrDefault(namespace, 0))
                                 < maxBundleCount) {
-                            bundleCache.add(bundle);
+                            log.info("The bundle {} is considered to be unload. Topics: {}/{}, Sessions: ({}+{})/{}, "
+                                            + "Message Rate: {}/{} (msgs/s), Message Throughput: {}/{} (MB/s)",
+                                    bundle, stats.topics, maxBundleTopics, stats.producerCount, stats.consumerCount,
+                                    maxBundleSessions, totalMessageRate, maxBundleMsgRate,
+                                    totalMessageThroughput / LoadManagerShared.MIBI,
+                                    maxBundleBandwidth / LoadManagerShared.MIBI);
+                            bundleCache.put(bundle, broker);
                             int bundleNum = namespaceBundleCount.getOrDefault(namespace, 0);
                             namespaceBundleCount.put(namespace, bundleNum + 1);
                         } else {
