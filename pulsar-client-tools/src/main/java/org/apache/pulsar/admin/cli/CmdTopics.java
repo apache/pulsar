@@ -1169,7 +1169,7 @@ public class CmdTopics extends CmdBase {
             Map<Integer, MessageId> messageIds = getTopics().terminatePartitionedTopic(persistentTopic);
             for (Map.Entry<Integer, MessageId> entry: messageIds.entrySet()) {
                 String topicName = persistentTopic + "-partition-" + entry.getKey();
-                System.out.println("Topic " + topicName +  " succesfully terminated at " + entry.getValue());
+                System.out.println("Topic " + topicName +  " successfully terminated at " + entry.getValue());
             }
         }
     }
