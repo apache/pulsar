@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
 import java.io.Closeable;
 import java.io.IOException;
@@ -130,6 +131,7 @@ public class AuthenticationService implements Closeable {
             if (!providers.isEmpty()) {
                 if (StringUtils.isNotBlank(anonymousUserRole)) {
                     request.setAttribute(AuthenticatedRoleAttributeName, anonymousUserRole);
+                    request.setAttribute(AuthenticatedDataAttributeName, new AuthenticationDataHttps(request));
                     return true;
                 }
                 // If at least a provider was configured, then the authentication needs to be provider
