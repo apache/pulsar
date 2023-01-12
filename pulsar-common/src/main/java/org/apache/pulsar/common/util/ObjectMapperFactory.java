@@ -183,10 +183,6 @@ public class ObjectMapperFactory {
         return getMapper().getObjectMapper();
     }
 
-    public static ObjectMapper getYamlObjectMapper() {
-        return getYamlMapper().getObjectMapper();
-    }
-
     public static MapperReference getYamlMapper() {
         return YAML_MAPPER_REFERENCE;
     }
@@ -196,7 +192,7 @@ public class ObjectMapperFactory {
      */
     @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
-        return getYamlObjectMapper();
+        return getYamlMapper().getObjectMapper();
     }
 
     private static void setAnnotationsModule(ObjectMapper mapper) {
