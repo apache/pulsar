@@ -247,7 +247,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     private void sendAckResponse(ProducerAck response) {
         try {
-            String msg = ObjectMapperFactory.getMapper().writer().writeValueAsString(response);
+            String msg = objectWriter().writeValueAsString(response);
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {

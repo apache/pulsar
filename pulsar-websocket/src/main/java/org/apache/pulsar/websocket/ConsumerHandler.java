@@ -20,7 +20,6 @@ package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 import com.google.common.cache.Cache;
@@ -47,7 +46,6 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
@@ -91,8 +89,6 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private Cache<String, MessageId> messageIdCache = CacheBuilder.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS)
             .build();
-    private final ObjectReader consumerCommandReader =
-            ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -169,7 +165,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(dm),
+                        .sendString(objectWriter().writeValueAsString(dm),
                                 new WriteCallback() {
                                     @Override
                                     public void writeFailed(Throwable th) {
@@ -251,7 +247,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, getRemote().getInetSocketAddress().toString());
         }
         try {
-            String msg = ObjectMapperFactory.getMapper().writer().writeValueAsString(
+            String msg = objectWriter().writeValueAsString(
                     new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
             getSession().getRemote()
             .sendString(msg, new WriteCallback() {

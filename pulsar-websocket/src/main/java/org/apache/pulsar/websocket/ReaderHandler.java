@@ -20,7 +20,6 @@ package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,7 +39,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
@@ -73,9 +71,6 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     private volatile long msgDeliveredCounter = 0;
     private static final AtomicLongFieldUpdater<ReaderHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ReaderHandler.class, "msgDeliveredCounter");
-
-    private final ObjectReader consumerCommandReader =
-            ObjectMapperFactory.getMapper().reader().forType(ConsumerCommand.class);
 
     public ReaderHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -161,7 +156,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(dm),
+                        .sendString(objectWriter().writeValueAsString(dm),
                                 new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
@@ -235,7 +230,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = ObjectMapperFactory.getMapper().writer().writeValueAsString(
+            String msg = objectWriter().writeValueAsString(
                     new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
             getSession().getRemote()
                     .sendString(msg, new WriteCallback() {
