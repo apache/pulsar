@@ -4446,7 +4446,7 @@ public class PersistentTopicsBase extends AdminResource {
                     final String topicNamePartition = topicName.getPartition(i).toString();
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     admin.topics().createSubscriptionAsync(topicNamePartition,
-                                    subscription, MessageId.latest, replicated).whenComplete((__, ex) -> {
+                                    subscription, MessageId.earliest, replicated).whenComplete((__, ex) -> {
                         if (ex == null) {
                             future.complete(null);
                         } else {
