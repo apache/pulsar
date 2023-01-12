@@ -91,7 +91,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(
+                ObjectMapperFactory.getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -183,7 +183,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(
+                ObjectMapperFactory.getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -285,7 +285,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(
+                ObjectMapperFactory.getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -423,7 +423,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(
+                ObjectMapperFactory.getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -536,7 +536,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(
+                ObjectMapperFactory.getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -684,7 +684,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance()
+                ObjectMapperFactory.getObjectMapper()
                         .convertValue(new KubernetesRuntimeFactoryConfig()
                                 .setSubmittingInsidePod(false), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
@@ -868,7 +868,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setWorkerId("worker-1");
             workerConfig.setFunctionRuntimeFactoryClassName("foo");
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                    ObjectMapperFactory.getInstance().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+                    ObjectMapperFactory.getObjectMapper().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
             workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -894,7 +894,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setWorkerId("worker-1");
             workerConfig.setFunctionRuntimeFactoryClassName(FunctionRuntimeManagerTest.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                    ObjectMapperFactory.getInstance().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+                    ObjectMapperFactory.getObjectMapper().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
             workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -921,7 +921,7 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setWorkerId("worker-1");
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                    ObjectMapperFactory.getInstance().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+                    ObjectMapperFactory.getObjectMapper().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
             workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -1063,7 +1063,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(
+                ObjectMapperFactory.getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");

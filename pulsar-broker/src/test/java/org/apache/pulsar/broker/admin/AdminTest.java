@@ -239,9 +239,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
 
         final Map<String, Object> oldDataJson = ObjectMapperFactory
-                .getInstance().convertValue(oldDataModel, Map.class);
+                .getObjectMapper().convertValue(oldDataModel, Map.class);
 
-        final InternalConfigurationData newData = ObjectMapperFactory.getInstance()
+        final InternalConfigurationData newData = ObjectMapperFactory.getObjectMapper()
                 .convertValue(oldDataJson, InternalConfigurationData.class);
 
         assertEquals(newData.getMetadataStoreUrl(), conf.getMetadataStoreUrl());

@@ -380,8 +380,8 @@ public class SourceConfigUtils {
 
     @SneakyThrows
     public static SourceConfig clone(SourceConfig sourceConfig) {
-        return ObjectMapperFactory.getInstance().readValue(
-                ObjectMapperFactory.getInstance().writeValueAsBytes(sourceConfig), SourceConfig.class);
+        return ObjectMapperFactory.getObjectMapper().readValue(
+                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(sourceConfig), SourceConfig.class);
     }
 
     public static SourceConfig validateUpdate(SourceConfig existingConfig, SourceConfig newConfig) {
@@ -456,7 +456,7 @@ public class SourceConfigUtils {
                     new TypeReference<HashMap<String, Object>>() {
             };
             try {
-                return ObjectMapperFactory.getInstance().readValue(sourceSpec.getConfigs(), typeRef);
+                return ObjectMapperFactory.getObjectMapper().readValue(sourceSpec.getConfigs(), typeRef);
             } catch (IOException e) {
                 log.error("Failed to read configs for source {}", fqfn, e);
                 throw new RuntimeException(e);
@@ -531,7 +531,7 @@ public class SourceConfigUtils {
     public static void validateSourceConfig(SourceConfig sourceConfig, Class configClass) {
         try {
             Object configObject =
-                    ObjectMapperFactory.getInstance().convertValue(sourceConfig.getConfigs(), configClass);
+                    ObjectMapperFactory.getObjectMapper().convertValue(sourceConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

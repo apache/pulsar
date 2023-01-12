@@ -112,7 +112,7 @@ public class ClusterMetadataSetupTest {
                 .connectString("127.0.0.1:" + localZkS.getZookeeperPort())
                 .build()) {
             Policies policies =
-                    ObjectMapperFactory.getInstance().readValue(
+                    ObjectMapperFactory.getObjectMapper().readValue(
                             zk.getData("/admin/policies/public/default", false, null),
                             TypeFactory.defaultInstance().constructSimpleType(Policies.class, null));
             assertNotNull(policies);

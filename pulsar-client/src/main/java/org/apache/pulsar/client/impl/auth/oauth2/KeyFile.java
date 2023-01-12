@@ -51,14 +51,14 @@ public class KeyFile {
     private String issuerUrl;
 
     public String toJson() throws IOException {
-        return ObjectMapperFactory.getInstanceWithIncludeAlways().writeValueAsString(this);
+        return ObjectMapperFactory.getObjectMapperWithIncludeAlways().writeValueAsString(this);
     }
 
     public static KeyFile fromJson(String value) throws IOException {
-        return ObjectMapperFactory.getInstance().readValue(value, KeyFile.class);
+        return ObjectMapperFactory.getObjectMapper().readValue(value, KeyFile.class);
     }
 
     public static KeyFile fromJson(Reader value) throws IOException {
-        return ObjectMapperFactory.getInstance().readValue(value, KeyFile.class);
+        return ObjectMapperFactory.getObjectMapper().readValue(value, KeyFile.class);
     }
 }

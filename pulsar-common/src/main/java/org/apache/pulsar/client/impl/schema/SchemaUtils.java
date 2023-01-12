@@ -339,7 +339,7 @@ public final class SchemaUtils {
      */
     public static String convertKeyValueSchemaInfoDataToString(
             KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
-        ObjectMapper objectMapper = ObjectMapperFactory.getInstance();
+        ObjectMapper objectMapper = ObjectMapperFactory.getObjectMapper();
         KeyValue<Object, Object> keyValue = new KeyValue<>(
                 SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
                         : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()),

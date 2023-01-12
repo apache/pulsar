@@ -86,7 +86,7 @@ public class ProducerHandlerTest {
         ServletUpgradeResponse response = mock(ServletUpgradeResponse.class);
 
         ProducerHandler producerHandler = new ProducerHandler(service, httpServletRequest, response);
-        producerHandler.onWebSocketText(ObjectMapperFactory.getInstance().writeValueAsString(produceRequest));
+        producerHandler.onWebSocketText(ObjectMapperFactory.getObjectMapper().writeValueAsString(produceRequest));
 
         verify(messageBuilder, times(1)).deliverAfter(11111, TimeUnit.MILLISECONDS);
         verify(messageBuilder, times(1)).deliverAt(22222);

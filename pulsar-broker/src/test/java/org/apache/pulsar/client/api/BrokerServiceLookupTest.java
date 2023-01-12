@@ -870,7 +870,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                         return;
                     }
 
-                    PartitionedTopicMetadata data = ObjectMapperFactory.getInstance()
+                    PartitionedTopicMetadata data = ObjectMapperFactory.getObjectMapper()
                             .readValue(response.getResponseBodyAsBytes(), PartitionedTopicMetadata.class);
                     future.complete(data);
                 } catch (Exception e) {

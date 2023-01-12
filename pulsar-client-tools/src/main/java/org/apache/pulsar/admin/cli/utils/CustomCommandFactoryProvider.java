@@ -134,7 +134,7 @@ public class CustomCommandFactoryProvider {
             configStr = ncl.getServiceDefinition(COMMAND_FACTORY_ENTRY + ".yml");
         }
 
-        return ObjectMapperFactory.getYamlInstance().readValue(
+        return ObjectMapperFactory.getYamlMapper().readValue(
                 configStr, CustomCommandFactoryDefinition.class
         );
     }

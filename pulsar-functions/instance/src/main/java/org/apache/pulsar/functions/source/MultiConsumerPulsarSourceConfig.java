@@ -32,7 +32,7 @@ public class MultiConsumerPulsarSourceConfig extends PulsarSourceConfig {
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
 
     public static MultiConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = ObjectMapperFactory.getInstance();
+        ObjectMapper mapper = ObjectMapperFactory.getObjectMapper();
         return mapper.readValue(mapper.writeValueAsString(map), MultiConsumerPulsarSourceConfig.class);
     }
 }

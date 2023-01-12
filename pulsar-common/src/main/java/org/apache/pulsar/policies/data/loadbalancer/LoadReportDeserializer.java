@@ -34,8 +34,8 @@ public class LoadReportDeserializer extends JsonDeserializer<LoadManagerReport> 
     @Override
     public LoadManagerReport deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
             throws IOException, JsonProcessingException {
-        ObjectMapper mapper = ObjectMapperFactory.getInstance();
-        ObjectNode root = ObjectMapperFactory.getInstance().readTree(jsonParser);
+        ObjectMapper mapper = ObjectMapperFactory.getObjectMapper();
+        ObjectNode root = ObjectMapperFactory.getObjectMapper().readTree(jsonParser);
         if ((root.has("loadReportType") && root.get("loadReportType").asText().equals(LoadReport.loadReportType))
                 || (root.has("underLoaded"))) {
             return mapper.readValue(root.toString(), LoadReport.class);

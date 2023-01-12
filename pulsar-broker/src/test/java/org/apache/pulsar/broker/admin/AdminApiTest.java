@@ -684,7 +684,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
 
         pulsar.getLocalMetadataStore().put("/admin/configuration",
-                ObjectMapperFactory.getInstance().writeValueAsBytes(configMap),
+                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
         Awaitility.await().until(() -> pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == newValue);
@@ -1211,11 +1211,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-            ObjectMapperFactory.getInstance().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getObjectMapper().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-            ObjectMapperFactory.getInstance().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getObjectMapper().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
 
-        String expectedResult = ObjectMapperFactory.getInstance().writeValueAsString(partitionedManagedLedgerInfo);
+        String expectedResult = ObjectMapperFactory.getObjectMapper().writeValueAsString(partitionedManagedLedgerInfo);
 
         String partitionTopicInfoResponse = admin.topics().getInternalInfo(partitionedTopicName);
         assertEquals(partitionTopicInfoResponse, expectedResult);
@@ -1293,8 +1293,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // partitioned internal stats
         PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(partitionedTopicName);
 
-        String expectedResult = ObjectMapperFactory.getInstance().writeValueAsString(expectedInternalStats);
-        String result = ObjectMapperFactory.getInstance().writeValueAsString(partitionedInternalStats);
+        String expectedResult = ObjectMapperFactory.getObjectMapper().writeValueAsString(expectedInternalStats);
+        String result = ObjectMapperFactory.getObjectMapper().writeValueAsString(partitionedInternalStats);
 
         assertEquals(result, expectedResult);
     }
@@ -2271,7 +2271,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testJacksonWithTypeDifferences() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"test\"]}";
-        IncompatibleTenantAdmin r1 = ObjectMapperFactory.getInstance().readerFor(IncompatibleTenantAdmin.class)
+        IncompatibleTenantAdmin r1 = ObjectMapperFactory.getObjectMapper().readerFor(IncompatibleTenantAdmin.class)
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Set.of("test", "usw"));
         assertEquals(r1.someNewIntField, 0);

@@ -163,7 +163,7 @@ public class ProcessRuntimeTest {
 
         workerConfig.setFunctionRuntimeFactoryClassName(ProcessRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getInstance().convertValue(processRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getObjectMapper().convertValue(processRuntimeFactoryConfig, Map.class));
         processRuntimeFactory.initialize(workerConfig, null, new TestSecretsProviderConfigurator(),
                 Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(),
                 Optional.empty());

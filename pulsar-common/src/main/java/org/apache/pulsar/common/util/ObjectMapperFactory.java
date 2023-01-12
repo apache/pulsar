@@ -108,12 +108,12 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 @SuppressWarnings("checkstyle:JavadocType")
 @Slf4j
 public class ObjectMapperFactory {
-    private static final ObjectMapper INSTANCE = createObjectMapperInstance();
+    private static final ObjectMapper OBJECT_MAPPER = createObjectMapperInstance();
 
-    private static final ObjectMapper INSTANCE_WITH_INCLUDE_ALWAYS = INSTANCE
+    private static final ObjectMapper OBJECT_MAPPER_WITH_INCLUDE_ALWAYS = OBJECT_MAPPER
             .copy()
             .setSerializationInclusion(Include.ALWAYS);
-    private static final ObjectMapper YAML_INSTANCE = createYamlInstance();
+    private static final ObjectMapper YAML_OBJECT_MAPPER = createYamlInstance();
 
 
     private static ObjectMapper createObjectMapperInstance() {
@@ -121,7 +121,7 @@ public class ObjectMapperFactory {
     }
 
     public static ObjectMapper create() {
-        return INSTANCE.copy();
+        return OBJECT_MAPPER.copy();
     }
 
     private static ObjectMapper createYamlInstance() {
@@ -138,36 +138,36 @@ public class ObjectMapperFactory {
     }
 
     public static ObjectMapper createYaml() {
-        return YAML_INSTANCE.copy();
+        return YAML_OBJECT_MAPPER.copy();
     }
 
 
-    public static ObjectMapper getInstance() {
-        return INSTANCE;
+    public static ObjectMapper getObjectMapper() {
+        return OBJECT_MAPPER;
     }
 
-    public static ObjectMapper getInstanceWithIncludeAlways() {
-        return INSTANCE_WITH_INCLUDE_ALWAYS;
+    public static ObjectMapper getObjectMapperWithIncludeAlways() {
+        return OBJECT_MAPPER_WITH_INCLUDE_ALWAYS;
     }
 
     /**
-     * This method is deprecated. Use {@link #getInstance()}
+     * This method is deprecated. Use {@link #getObjectMapper()}
      */
     @Deprecated
     public static ObjectMapper getThreadLocal() {
-        return getInstance();
+        return getObjectMapper();
     }
 
-    public static ObjectMapper getYamlInstance() {
-        return YAML_INSTANCE;
+    public static ObjectMapper getYamlMapper() {
+        return YAML_OBJECT_MAPPER;
     }
 
     /**
-     * This method is deprecated. Use {@link #getYamlInstance()}
+     * This method is deprecated. Use {@link #getYamlMapper()}
      */
     @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
-        return getYamlInstance();
+        return getYamlMapper();
     }
 
     private static void setAnnotationsModule(ObjectMapper mapper) {

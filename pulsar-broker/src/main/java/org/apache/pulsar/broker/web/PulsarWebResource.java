@@ -1111,7 +1111,7 @@ public abstract class PulsarWebResource {
     }
 
     public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getInstance();
+        return ObjectMapperFactory.getObjectMapper();
     }
 
     public void validatePoliciesReadOnlyAccess() {

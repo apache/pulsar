@@ -152,14 +152,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         }
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getInstance().
+        producerMessages.setKeySchema(ObjectMapperFactory.getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getInstance().
+        producerMessages.setValueSchema(ObjectMapperFactory.getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getInstance().readValue(message,
+        producerMessages.setMessages(ObjectMapperFactory.getObjectMapper().readValue(message,
                 new TypeReference<List<ProducerMessage>>() {
                 }));
 

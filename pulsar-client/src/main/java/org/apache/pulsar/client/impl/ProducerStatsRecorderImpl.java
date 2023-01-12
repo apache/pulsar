@@ -98,7 +98,7 @@ public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
     }
 
     private void init(ProducerConfigurationData conf) {
-        ObjectWriter w = ObjectMapperFactory.getInstanceWithIncludeAlways().writer()
+        ObjectWriter w = ObjectMapperFactory.getObjectMapperWithIncludeAlways().writer()
                 .without(SerializationFeature.FAIL_ON_EMPTY_BEANS);
 
         try {

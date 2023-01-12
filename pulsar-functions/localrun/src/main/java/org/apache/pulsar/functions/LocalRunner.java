@@ -114,7 +114,7 @@ public class LocalRunner implements AutoCloseable {
         @Override
         public FunctionConfig convert(String value) {
             try {
-                return ObjectMapperFactory.getInstance().readValue(value, FunctionConfig.class);
+                return ObjectMapperFactory.getObjectMapper().readValue(value, FunctionConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse function config:", e);
             }
@@ -125,7 +125,7 @@ public class LocalRunner implements AutoCloseable {
         @Override
         public SourceConfig convert(String value) {
             try {
-                return ObjectMapperFactory.getInstance().readValue(value, SourceConfig.class);
+                return ObjectMapperFactory.getObjectMapper().readValue(value, SourceConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse source config:", e);
             }
@@ -136,7 +136,7 @@ public class LocalRunner implements AutoCloseable {
         @Override
         public SinkConfig convert(String value) {
             try {
-                return ObjectMapperFactory.getInstance().readValue(value, SinkConfig.class);
+                return ObjectMapperFactory.getObjectMapper().readValue(value, SinkConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse sink config:", e);
             }

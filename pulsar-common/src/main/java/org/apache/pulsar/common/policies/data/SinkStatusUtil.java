@@ -24,7 +24,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class SinkStatusUtil {
 
     public static SinkStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getInstance().readValue(json, SinkStatus.class);
+        return ObjectMapperFactory.getObjectMapper().readValue(json, SinkStatus.class);
     }
 
 }

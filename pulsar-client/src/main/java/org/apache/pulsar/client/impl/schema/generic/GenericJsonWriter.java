@@ -32,7 +32,7 @@ public class GenericJsonWriter implements SchemaWriter<GenericRecord> {
 
     public GenericJsonWriter() {
         // use ObjectMapper with Include.ALWAYS setting
-        objectWriter = ObjectMapperFactory.getInstanceWithIncludeAlways().writer();
+        objectWriter = ObjectMapperFactory.getObjectMapperWithIncludeAlways().writer();
     }
 
     @Override

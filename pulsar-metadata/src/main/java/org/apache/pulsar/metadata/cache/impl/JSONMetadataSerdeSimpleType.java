@@ -34,11 +34,11 @@ public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
 
     @Override
     public byte[] serialize(String path, T value) throws IOException {
-        return ObjectMapperFactory.getInstance().writeValueAsBytes(value);
+        return ObjectMapperFactory.getObjectMapper().writeValueAsBytes(value);
     }
 
     @Override
     public T deserialize(String path, byte[] content, Stat stat) throws IOException {
-        return ObjectMapperFactory.getInstance().readValue(content, typeRef);
+        return ObjectMapperFactory.getObjectMapper().readValue(content, typeRef);
     }
 }

@@ -446,7 +446,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getInstance();
+        return ObjectMapperFactory.getObjectMapper();
     }
 
     protected Set<String> clusters() {

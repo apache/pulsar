@@ -165,7 +165,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             int statusCode = response.getStatusCode();
             if (statusCode == 200) {
                 String content = response.getResponseBody(StandardCharsets.UTF_8);
-                return ObjectMapperFactory.getInstance().readValue(content, ControlledConfiguration.class);
+                return ObjectMapperFactory.getObjectMapper().readValue(content, ControlledConfiguration.class);
             }
             log.warn("Failed to fetch controlled configuration, status code: {}", statusCode);
         } catch (InterruptedException | ExecutionException e) {
@@ -184,7 +184,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         private String authParamsString;
 
         public String toJson() {
-            ObjectMapper objectMapper = ObjectMapperFactory.getInstance();
+            ObjectMapper objectMapper = ObjectMapperFactory.getObjectMapper();
             try {
                 return objectMapper.writeValueAsString(this);
             } catch (JsonProcessingException e) {

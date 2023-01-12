@@ -479,7 +479,7 @@ public class CmdProduce {
             ProducerMessage msg = new ProducerMessage();
             msg.payload = Base64.getEncoder().encodeToString(content);
             msg.key = Integer.toString(index);
-            return ObjectMapperFactory.getInstance().writeValueAsString(msg);
+            return ObjectMapperFactory.getObjectMapper().writeValueAsString(msg);
         }
 
         public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {

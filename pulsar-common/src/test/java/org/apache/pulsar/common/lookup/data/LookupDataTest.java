@@ -49,7 +49,7 @@ public class LookupDataTest {
     public void serializeToJsonTest() throws Exception {
         LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
                                          "http://localhost:8081");
-        ObjectMapper mapper = ObjectMapperFactory.getInstance();
+        ObjectMapper mapper = ObjectMapperFactory.getObjectMapper();
         String json = mapper.writeValueAsString(data);
 
         Map<String, String> jsonMap = mapper.readValue(json, Map.class);
@@ -87,10 +87,10 @@ public class LookupDataTest {
 
         LocalBrokerData modularReport = getModularLoadManagerLoadReport(modularLmBrokerUrl, resource);
 
-        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getInstance().readValue(
-                ObjectMapperFactory.getInstance().writeValueAsBytes(simpleReport), LoadManagerReport.class);
-        LoadManagerReport modularLoadReport = ObjectMapperFactory.getInstance().readValue(
-                ObjectMapperFactory.getInstance().writeValueAsBytes(modularReport), LoadManagerReport.class);
+        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getObjectMapper().readValue(
+                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(simpleReport), LoadManagerReport.class);
+        LoadManagerReport modularLoadReport = ObjectMapperFactory.getObjectMapper().readValue(
+                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(modularReport), LoadManagerReport.class);
 
         assertEquals(simpleLoadReport.getWebServiceUrl(), simpleLmBrokerUrl);
         assertTrue(simpleLoadReport instanceof LoadReport);

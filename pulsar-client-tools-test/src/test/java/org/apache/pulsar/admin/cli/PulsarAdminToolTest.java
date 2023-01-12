@@ -2197,7 +2197,7 @@ public class PulsarAdminToolTest {
         final String keyFilePath = "/my-file:role=name.key";
         paramMap.put("tlsCertFile", certFilePath);
         paramMap.put("tlsKeyFile", keyFilePath);
-        final String paramStr = ObjectMapperFactory.getInstance().writeValueAsString(paramMap);
+        final String paramStr = ObjectMapperFactory.getObjectMapper().writeValueAsString(paramMap);
         properties.put("authParams", paramStr);
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
