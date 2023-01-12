@@ -28,7 +28,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class CmdUtils {
     public static <T> T loadConfig(String file, Class<T> clazz) throws IOException {
         try {
-            return ObjectMapperFactory.getYamlObjectMapper().readValue(new File(file), clazz);
+            return ObjectMapperFactory.getYamlMapper().getReader().readValue(new File(file), clazz);
         } catch (Exception ex) {
             if (ex instanceof UnrecognizedPropertyException) {
                 UnrecognizedPropertyException unrecognizedPropertyException = (UnrecognizedPropertyException) ex;

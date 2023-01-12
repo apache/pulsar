@@ -66,7 +66,7 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     public CompletableFuture<Void> setLocalPoliciesWithVersion(NamespaceName ns, LocalPolicies policies,
                                                                Optional<Long> version) {
         try {
-            byte[] content = ObjectMapperFactory.getObjectMapper().writeValueAsBytes(policies);
+            byte[] content = ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(policies);
             return getStore().put(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), content, version)
                     .thenApply(__ -> null);
         } catch (JsonProcessingException e) {

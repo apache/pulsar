@@ -1071,7 +1071,7 @@ public class CmdFunctions extends CmdBase {
         @Override
         void runCmd() throws Exception {
             TypeReference<FunctionState> typeRef = new TypeReference<FunctionState>() {};
-            FunctionState stateRepr = ObjectMapperFactory.getObjectMapper().readValue(state, typeRef);
+            FunctionState stateRepr = ObjectMapperFactory.getMapper().getReader().readValue(state, typeRef);
             getAdmin().functions()
                     .putFunctionState(tenant, namespace, functionName, stateRepr);
         }

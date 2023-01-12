@@ -171,7 +171,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bundleList.forEach(b -> {
             try {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
-                NamespaceEphemeralData node = ObjectMapperFactory.getObjectMapper().readValue(data,
+                NamespaceEphemeralData node = ObjectMapperFactory.getMapper().getReader().readValue(data,
                         NamespaceEphemeralData.class);
                 Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
@@ -359,12 +359,12 @@ public class NamespaceServiceTest extends BrokerTestBase {
         String path2 = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri2.getHost(), uri2.getPort());
 
         pulsar.getLocalMetadataStore().put(path1,
-                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(lr),
+                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(lr),
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)
                 ).join();
         pulsar.getLocalMetadataStore().put(path2,
-                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(ld),
+                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(ld),
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)
         ).join();
@@ -394,7 +394,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         String path = String.format("%s/%s:%s", LoadManager.LOADBALANCE_BROKERS_ROOT, uri.getHost(), uri.getPort());
 
         pulsar.getLocalMetadataStore().put(path,
-                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(ld),
+                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(ld),
                 Optional.empty(),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
@@ -458,7 +458,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         bundleList.forEach(b -> {
             try {
                 byte[] data = this.pulsar.getLocalMetadataStore().get(ServiceUnitUtils.path(b)).join().get().getValue();
-                NamespaceEphemeralData node = ObjectMapperFactory.getObjectMapper().readValue(data,
+                NamespaceEphemeralData node = ObjectMapperFactory.getMapper().getReader().readValue(data,
                         NamespaceEphemeralData.class);
                 Assert.assertEquals(node.getNativeUrl(), this.pulsar.getBrokerServiceUrl());
             } catch (Exception e) {
@@ -655,7 +655,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         defaultStats.msgThroughputOut = 100000;
         BundleData bd = new BundleData(10, 19, defaultStats);
         bd.setTopics(10);
-        byte[] data = ObjectMapperFactory.getObjectMapper().writeValueAsBytes(bd);
+        byte[] data = ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(bd);
         pulsar.getLocalMetadataStore().put(path, data, Optional.empty());
 
         LoadManager loadManager = pulsar.getLoadManager().get();

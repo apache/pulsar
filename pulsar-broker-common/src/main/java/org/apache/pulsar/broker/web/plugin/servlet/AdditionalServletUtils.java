@@ -60,7 +60,7 @@ public class AdditionalServletUtils {
 
     private AdditionalServletDefinition getAdditionalServletDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(ADDITIONAL_SERVLET_FILE);
-        return ObjectMapperFactory.getYamlObjectMapper().readValue(
+        return ObjectMapperFactory.getYamlMapper().getReader().readValue(
                 configStr, AdditionalServletDefinition.class
         );
     }

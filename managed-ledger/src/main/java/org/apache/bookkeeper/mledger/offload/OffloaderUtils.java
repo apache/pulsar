@@ -120,7 +120,7 @@ public class OffloaderUtils {
                 .build()) {
             String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
-            return ObjectMapperFactory.getYamlObjectMapper().readValue(configStr, OffloaderDefinition.class);
+            return ObjectMapperFactory.getYamlMapper().getReader().readValue(configStr, OffloaderDefinition.class);
         }
     }
 

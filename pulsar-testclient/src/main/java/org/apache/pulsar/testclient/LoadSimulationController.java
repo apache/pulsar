@@ -431,7 +431,7 @@ public class LoadSimulationController {
                                 mangledNamespace);
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, oldAPITargetPath,
-                                    ObjectMapperFactory.getObjectMapper().writeValueAsBytes(quota),
+                                    ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(quota),
                                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
@@ -441,7 +441,7 @@ public class LoadSimulationController {
                         // Put the bundle data in the new ZooKeeper.
                         try {
                             ZkUtils.createFullPathOptimistic(targetZKClient, newAPITargetPath,
-                                    ObjectMapperFactory.getObjectMapper().writeValueAsBytes(bundleData),
+                                    ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(bundleData),
                                     ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                         } catch (KeeperException.NodeExistsException e) {
                             // Ignore already created nodes.
@@ -492,12 +492,12 @@ public class LoadSimulationController {
                     // Put the bundle data in the new ZooKeeper.
                     try {
                         ZkUtils.createFullPathOptimistic(zkClient, newAPIPath,
-                                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(bundleData),
+                                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(bundleData),
                                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
                     } catch (KeeperException.NodeExistsException e) {
                         try {
                             zkClient.setData(newAPIPath,
-                                    ObjectMapperFactory.getObjectMapper().writeValueAsBytes(bundleData), -1);
+                                    ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(bundleData), -1);
                         } catch (Exception ex) {
                             throw new RuntimeException(ex);
                         }

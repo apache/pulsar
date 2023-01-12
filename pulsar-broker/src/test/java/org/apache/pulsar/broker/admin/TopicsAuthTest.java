@@ -159,7 +159,7 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getObjectMapper().readValue(message,
+        producerMessages.setMessages(ObjectMapperFactory.getMapper().getReader().readValue(message,
                 new TypeReference<List<ProducerMessage>>() {
                 }));
 

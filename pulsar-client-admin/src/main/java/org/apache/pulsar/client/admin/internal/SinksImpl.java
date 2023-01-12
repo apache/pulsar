@@ -291,7 +291,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getObjectMapper().writeValueAsString(options),
+                        ObjectMapperFactory.getMapper().getWriter().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())

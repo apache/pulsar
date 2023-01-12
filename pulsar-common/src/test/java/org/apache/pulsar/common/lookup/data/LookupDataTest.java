@@ -87,10 +87,10 @@ public class LookupDataTest {
 
         LocalBrokerData modularReport = getModularLoadManagerLoadReport(modularLmBrokerUrl, resource);
 
-        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getObjectMapper().readValue(
-                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(simpleReport), LoadManagerReport.class);
-        LoadManagerReport modularLoadReport = ObjectMapperFactory.getObjectMapper().readValue(
-                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(modularReport), LoadManagerReport.class);
+        LoadManagerReport simpleLoadReport = ObjectMapperFactory.getMapper().getReader().readValue(
+                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(simpleReport), LoadManagerReport.class);
+        LoadManagerReport modularLoadReport = ObjectMapperFactory.getMapper().getReader().readValue(
+                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(modularReport), LoadManagerReport.class);
 
         assertEquals(simpleLoadReport.getWebServiceUrl(), simpleLmBrokerUrl);
         assertTrue(simpleLoadReport instanceof LoadReport);

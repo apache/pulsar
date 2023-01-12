@@ -55,10 +55,10 @@ public class KeyFile {
     }
 
     public static KeyFile fromJson(String value) throws IOException {
-        return ObjectMapperFactory.getObjectMapper().readValue(value, KeyFile.class);
+        return ObjectMapperFactory.getMapper().getReader().readValue(value, KeyFile.class);
     }
 
     public static KeyFile fromJson(Reader value) throws IOException {
-        return ObjectMapperFactory.getObjectMapper().readValue(value, KeyFile.class);
+        return ObjectMapperFactory.getMapper().getReader().readValue(value, KeyFile.class);
     }
 }

@@ -553,8 +553,8 @@ public class SinkConfigUtils {
 
     @SneakyThrows
     public static SinkConfig clone(SinkConfig sinkConfig) {
-        return ObjectMapperFactory.getObjectMapper().readValue(
-                ObjectMapperFactory.getObjectMapper().writeValueAsBytes(sinkConfig), SinkConfig.class);
+        return ObjectMapperFactory.getMapper().getReader().readValue(
+                ObjectMapperFactory.getMapper().getWriter().writeValueAsBytes(sinkConfig), SinkConfig.class);
     }
 
     public static SinkConfig validateUpdate(SinkConfig existingConfig, SinkConfig newConfig) {

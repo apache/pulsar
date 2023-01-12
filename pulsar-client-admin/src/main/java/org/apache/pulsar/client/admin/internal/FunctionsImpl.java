@@ -303,13 +303,13 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             mp.bodyPart(new FormDataBodyPart("url", pkgUrl, MediaType.TEXT_PLAIN_TYPE));
             mp.bodyPart(new FormDataBodyPart(
                     "functionConfig",
-                    ObjectMapperFactory.getObjectMapper().writeValueAsString(functionConfig),
+                    ObjectMapperFactory.getMapper().getWriter().writeValueAsString(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getObjectMapper().writeValueAsString(options),
+                        ObjectMapperFactory.getMapper().getWriter().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace())
