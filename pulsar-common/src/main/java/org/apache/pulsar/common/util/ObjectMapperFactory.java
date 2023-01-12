@@ -134,7 +134,6 @@ public class ObjectMapperFactory {
         }
     }
 
-
     private static final MapperReference MAPPER_REFERENCE = new MapperReference(createObjectMapperInstance());
 
     private static final MapperReference INSTANCE_WITH_INCLUDE_ALWAYS = new MapperReference(MAPPER_REFERENCE
@@ -256,5 +255,11 @@ public class ObjectMapperFactory {
         mapper.registerModule(module);
     }
 
-
+    /**
+     * Clears the caches tied to the ObjectMapper instances.
+     */
+    public static void clearCaches() {
+        getMapper().getObjectMapper().getTypeFactory().clearCache();
+        getYamlMapper().getObjectMapper().getTypeFactory().clearCache();
+    }
 }
