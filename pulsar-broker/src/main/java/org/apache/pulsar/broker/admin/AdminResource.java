@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -445,8 +446,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 .build();
     }
 
-    public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getThreadLocal();
+    protected ObjectWriter objectWriter() {
+        return ObjectMapperFactory.getMapper().writer();
+    }
+
+    protected ObjectReader objectReader() {
+        return ObjectMapperFactory.getMapper().reader();
     }
 
     protected Set<String> clusters() {

@@ -69,6 +69,8 @@ jobs:
   build-and-test:
     needs: preconditions
     name: Flaky tests suite
+    env:
+      JOB_NAME: Flaky tests suite
     runs-on: ubuntu-20.04
     timeout-minutes: 100
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -78,6 +80,11 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -89,6 +96,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*

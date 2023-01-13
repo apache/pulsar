@@ -47,6 +47,8 @@ env:
 jobs:
   update-maven-dependencies-cache:
     name: Update Maven dependency cache for ${{ matrix.name }}
+    env:
+      JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
 
@@ -75,6 +77,11 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
+
       - name: Detect changed files
         if: ${{ github.event_name != 'schedule' }}
         id:   changes
@@ -89,6 +96,7 @@ jobs:
         if: ${{ github.event_name == 'schedule' || steps.changes.outputs.poms == 'true' }}
         id: cache
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*

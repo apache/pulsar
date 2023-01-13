@@ -1301,7 +1301,7 @@ public abstract class NamespacesBase extends AdminResource {
             policies.retention_policies = retention;
             namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated retention configuration: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(retention));
+                    namespaceName, objectWriter().writeValueAsString(retention));
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
@@ -1540,7 +1540,7 @@ public abstract class NamespacesBase extends AdminResource {
                 return policies;
             });
             log.info("[{}] Successfully updated subscription auth mode: namespace={}, map={}", clientAppId(),
-                    namespaceName, jsonMapper().writeValueAsString(authMode));
+                    namespaceName, objectWriter().writeValueAsString(authMode));
 
         } catch (RestException pfe) {
             throw pfe;
@@ -1590,7 +1590,7 @@ public abstract class NamespacesBase extends AdminResource {
             field.set(policies, value);
             namespaceResources().setPolicies(namespaceName, p -> policies);
             log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(), fieldName,
-                    namespaceName, jsonMapper().writeValueAsString(value));
+                    namespaceName, objectWriter().writeValueAsString(value));
 
         } catch (RestException pfe) {
             throw pfe;

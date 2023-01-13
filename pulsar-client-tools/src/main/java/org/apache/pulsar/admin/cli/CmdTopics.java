@@ -594,6 +594,10 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = { "-ulo",
+                "--update-local-only"}, description = "Update partitions number for topic in local cluster only")
+        private boolean updateLocalOnly = false;
+
         @Parameter(names = { "-f",
                 "--force" }, description = "Update forcefully without validating existing partitioned topic")
         private boolean force;
@@ -601,7 +605,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().updatePartitionedTopic(topic, numPartitions, false, force);
+            getTopics().updatePartitionedTopic(topic, numPartitions, updateLocalOnly, force);
         }
     }
 
@@ -1073,7 +1077,7 @@ public class CmdTopics extends CmdBase {
             String topic = validateTopicName(params);
             Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
             // Ensure we are using JSON and not Java toString()
-            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
+            System.out.println(ObjectMapperFactory.getMapper().writer().writeValueAsString(result));
         }
     }
 
@@ -1165,7 +1169,7 @@ public class CmdTopics extends CmdBase {
             Map<Integer, MessageId> messageIds = getTopics().terminatePartitionedTopic(persistentTopic);
             for (Map.Entry<Integer, MessageId> entry: messageIds.entrySet()) {
                 String topicName = persistentTopic + "-partition-" + entry.getKey();
-                System.out.println("Topic " + topicName +  " succesfully terminated at " + entry.getValue());
+                System.out.println("Topic " + topicName +  " successfully terminated at " + entry.getValue());
             }
         }
     }

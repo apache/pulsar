@@ -61,7 +61,7 @@ class ProxyExtensionsUtils {
     private static ProxyExtensionDefinition getProxyExtensionDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PROXY_EXTENSION_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(
             configStr, ProxyExtensionDefinition.class
         );
     }

@@ -22,6 +22,9 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -76,13 +79,13 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -92,13 +95,19 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
+import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
+import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
@@ -114,6 +123,8 @@ import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.api.proto.Subscription;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -151,7 +162,6 @@ public class ServerCnxTest {
     private ClientChannelHelper clientChannelHelper;
     private PulsarService pulsar;
     private MetadataStoreExtended store;
-    private ConfigurationCacheService configCacheService;
     private NamespaceResources namespaceResources;
     protected NamespaceService namespaceService;
     private final int currentProtocolVersion = ProtocolVersion.values()[ProtocolVersion.values().length - 1]
@@ -2059,7 +2069,7 @@ public class ServerCnxTest {
                     return false;
                 }
             };
-            Mockito.when(consumers.putIfAbsent(Mockito.anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
+            Mockito.when(consumers.putIfAbsent(anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
             // do test: delay complete after execute 'isDone()' many times
             // Why is the design so complicated, see: https://github.com/apache/pulsar/pull/15051
             try (MockedStatic<ConcurrentLongHashMap> theMock = Mockito.mockStatic(ConcurrentLongHashMap.class)) {
@@ -2098,12 +2108,12 @@ public class ServerCnxTest {
         }
         // case3: exists existingConsumerFuture, already complete and exception
         CompletableFuture existingConsumerFuture = Mockito.mock(CompletableFuture.class);
-        Mockito.when(consumers.putIfAbsent(Mockito.anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
+        Mockito.when(consumers.putIfAbsent(anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
         // make consumerFuture delay finish
         Mockito.when(existingConsumerFuture.isDone()).thenReturn(true);
         // when sync get return, future will return success value.
         Mockito.when(existingConsumerFuture.get()).thenThrow(new NullPointerException());
-        Mockito.when(existingConsumerFuture.get(Mockito.anyLong(), Mockito.any())).
+        Mockito.when(existingConsumerFuture.get(anyLong(), Mockito.any())).
                 thenThrow(new NullPointerException());
         Mockito.when(existingConsumerFuture.isCompletedExceptionally()).thenReturn(true);
         Mockito.when(existingConsumerFuture.getNow(Mockito.any())).thenThrow(new NullPointerException());
@@ -2326,4 +2336,268 @@ public class ServerCnxTest {
         assertEquals(((CommandPartitionedTopicMetadataResponse) response).getError(), ServerError.ServiceNotReady);
         channel.finish();
     }
+
+    @Test(timeOut = 30000)
+    public void sendAddPartitionToTxnResponse() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                List.of("tenant/ns/topic1"));
+        channel.writeInbound(clientCommand);
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertFalse(response.hasError());
+        assertFalse(response.hasMessage());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendAddPartitionToTxnResponseFailed() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                List.of("tenant/ns/topic1"));
+        channel.writeInbound(clientCommand);
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertEquals(response.getError().getValue(), 0);
+        assertEquals(response.getMessage(), "server error");
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendAddSubscriptionToTxnResponse() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        final Subscription sub = new Subscription();
+        sub.setTopic("topic1");
+        sub.setSubscription("sub1");
+        ByteBuf clientCommand = Commands.newAddSubscriptionToTxn(89L, 1L, 12L,
+                List.of(sub));
+        channel.writeInbound(clientCommand);
+        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertFalse(response.hasError());
+        assertFalse(response.hasMessage());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendAddSubscriptionToTxnResponseFailed() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        final Subscription sub = new Subscription();
+        sub.setTopic("topic1");
+        sub.setSubscription("sub1");
+        ByteBuf clientCommand = Commands.newAddSubscriptionToTxn(89L, 1L, 12L,
+                List.of(sub));
+        channel.writeInbound(clientCommand);
+        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertEquals(response.getError().getValue(), 0);
+        assertEquals(response.getMessage(), "server error");
+
+        channel.finish();
+    }
+
+
+    @Test(timeOut = 30000)
+    public void sendEndTxnResponse() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.serializeWithSize(Commands.newEndTxn(89L, 1L, 12L,
+                TxnAction.COMMIT));
+        channel.writeInbound(clientCommand);
+        CommandEndTxnResponse response = (CommandEndTxnResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertFalse(response.hasError());
+        assertFalse(response.hasMessage());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendEndTxnResponseFailed() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        ByteBuf clientCommand = Commands.serializeWithSize(Commands.newEndTxn(89L, 1L, 12L,
+                TxnAction.COMMIT));
+        channel.writeInbound(clientCommand);
+        CommandEndTxnResponse response = (CommandEndTxnResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertEquals(response.getError().getValue(), 0);
+        assertEquals(response.getMessage(), "server error");
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendEndTxnOnPartitionResponse() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        Topic topic = mock(Topic.class);
+        doReturn(CompletableFuture.completedFuture(null)).when(topic).endTxn(any(TxnID.class), anyInt(), anyLong());
+        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService).getTopicIfExists(any(String.class));
+        ByteBuf clientCommand = Commands.newEndTxnOnPartition(89L, 1L, 12L,
+                successTopicName, TxnAction.COMMIT, 1L);
+        channel.writeInbound(clientCommand);
+        CommandEndTxnOnPartitionResponse response = (CommandEndTxnOnPartitionResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertFalse(response.hasError());
+        assertFalse(response.hasMessage());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendEndTxnOnPartitionResponseFailed() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        Topic topic = mock(Topic.class);
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("server error"))).when(topic).endTxn(any(TxnID.class), anyInt(), anyLong());
+        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService).getTopicIfExists(any(String.class));
+        ByteBuf clientCommand = Commands.newEndTxnOnPartition(89L, 1L, 12L,
+                successTopicName, TxnAction.COMMIT, 1L);
+        channel.writeInbound(clientCommand);
+        CommandEndTxnOnPartitionResponse response = (CommandEndTxnOnPartitionResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertEquals(response.getError().getValue(), 0);
+        assertEquals(response.getMessage(), "server error");
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void sendEndTxnOnSubscription() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        Topic topic = mock(Topic.class);
+        final org.apache.pulsar.broker.service.Subscription sub = mock(org.apache.pulsar.broker.service.Subscription.class);
+        doReturn(sub).when(topic).getSubscription(any());
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(sub).endTxn(anyLong(), anyLong(), anyInt(), anyLong());
+        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService).getTopicIfExists(any(String.class));
+
+        ByteBuf clientCommand = Commands.newEndTxnOnSubscription(89L, 1L, 12L,
+                successTopicName, successSubName, TxnAction.COMMIT, 1L);
+        channel.writeInbound(clientCommand);
+        CommandEndTxnOnSubscriptionResponse response = (CommandEndTxnOnSubscriptionResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertFalse(response.hasError());
+        assertFalse(response.hasMessage());
+
+        channel.finish();
+    }
+
+
+    @Test(timeOut = 30000)
+    public void sendEndTxnOnSubscriptionFailed() throws Exception {
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        Topic topic = mock(Topic.class);
+
+        final org.apache.pulsar.broker.service.Subscription sub = mock(org.apache.pulsar.broker.service.Subscription.class);
+        doReturn(sub).when(topic).getSubscription(any());
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("server error")))
+                .when(sub).endTxn(anyLong(), anyLong(), anyInt(), anyLong());
+        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService).getTopicIfExists(any(String.class));
+
+        ByteBuf clientCommand = Commands.newEndTxnOnSubscription(89L, 1L, 12L,
+                successTopicName, successSubName, TxnAction.COMMIT, 1L);
+        channel.writeInbound(clientCommand);
+        CommandEndTxnOnSubscriptionResponse response = (CommandEndTxnOnSubscriptionResponse) getResponse();
+
+        assertEquals(response.getRequestId(), 89L);
+        assertEquals(response.getTxnidLeastBits(), 1L);
+        assertEquals(response.getTxnidMostBits(), 12L);
+        assertEquals(response.getError().getValue(), 0);
+        assertEquals(response.getMessage(), "Handle end txn on subscription failed: server error");
+
+        channel.finish();
+    }
+
 }

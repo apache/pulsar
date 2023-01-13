@@ -21,6 +21,7 @@ package org.apache.pulsar.tests;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestListener;
+import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 
@@ -84,7 +85,11 @@ public class FailFastNotifier
 
     @Override
     public void beforeInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {
-        if (FAIL_FAST_ENABLED && FailFastEventsSingleton.getInstance().isSkipAfterFailure()) {
+        ITestNGMethod iTestNGMethod = iInvokedMethod.getTestMethod();
+        if (FAIL_FAST_ENABLED && FailFastEventsSingleton.getInstance().isSkipAfterFailure()
+                && !(iTestNGMethod.isAfterMethodConfiguration()
+                || iTestNGMethod.isAfterClassConfiguration()
+                || iTestNGMethod.isAfterTestConfiguration())) {
             throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
         }
     }

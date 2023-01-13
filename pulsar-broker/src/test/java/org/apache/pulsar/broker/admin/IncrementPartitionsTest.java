@@ -20,8 +20,11 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
@@ -34,7 +37,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -60,6 +65,9 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
+
+        // Setup v2 namespaces
+        setupDefaultTenantAndNamespace();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -88,7 +96,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("sub-1")
-          .subscribe();
+                    .subscribe();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 2);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 2);
@@ -103,6 +111,36 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
                 TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
 
         consumer.close();
+    }
+
+    @Test
+    public void testIncrementPartitionsOfTopicWithSubscriptionProperties() throws Exception {
+        final String partitionedTopicName = UUID.randomUUID()
+                + "-testIncrementPartitionsOfTopicWithSubscriptionProperties";
+
+        admin.topics().createPartitionedTopic(partitionedTopicName, 1);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("method", "testIncrementPartitionsOfTopic");
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(partitionedTopicName)
+                .subscriptionName("sub-1")
+                .subscriptionProperties(properties)
+                .subscribe();
+
+        admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
+        assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
+
+        assertEquals(admin.topics().getSubscriptions(
+                TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
+        TopicStats stats = admin.topics()
+                .getStats(TopicName.get(partitionedTopicName).getPartition(15).toString());
+        Map<String, String> subscriptionProperties = stats.getSubscriptions()
+                .get("sub-1").getSubscriptionProperties();
+        Assert.assertEquals(properties, subscriptionProperties);
     }
 
     @Test

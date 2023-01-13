@@ -274,7 +274,7 @@ if [ -z "$PULSAR_TRINO_CONF" ]; then
     fi
 fi
 
-if [ -z "$FUNCTIONS_LOG_CONF"]; then
+if [ -z "$FUNCTIONS_LOG_CONF" ]; then
   FUNCTIONS_LOG_CONF=$DEFAULT_FUNCTIONS_LOG_CONF
 fi
 

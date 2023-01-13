@@ -63,7 +63,7 @@ public class TestCmdClusters {
     private void testCmdClusterConfigFile(ClusterData testClusterData, ClusterData expectedClusterData)
             throws Exception {
         File file = Files.createTempFile("tmp_cluster", ".yaml").toFile();
-        ObjectMapperFactory.getThreadLocalYaml().writeValue(file, testClusterData);
+        ObjectMapperFactory.getYamlMapper().writer().writeValue(file, testClusterData);
         Assert.assertEquals(testClusterData, CmdUtils.loadConfig(file.getAbsolutePath(), ClusterData.class));
 
         // test create cluster

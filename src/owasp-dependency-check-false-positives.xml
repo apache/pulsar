@@ -176,4 +176,19 @@
     <notes>commons-net is not used at all and therefore commons-net vulnerability CVE-2021-37533 is a false positive.</notes>
     <cve>CVE-2021-37533</cve>
   </suppress>
+
+  <suppress>
+    <notes>fredsmith utils library is not used at all. CVE-2021-4277 is a false positive.</notes>
+    <cve>CVE-2021-4277</cve>
+  </suppress>
+
+  <suppress>
+    <notes>yaml_project is not used at all. Any CVEs reported for yaml_project are false positives.</notes>
+    <cpe>cpe:/a:yaml_project:yaml</cpe>
+  </suppress>
+
+  <suppress>
+    <notes>flat_project is not used at all.</notes>
+    <cpe>cpe:/a:flat_project:flat</cpe>
+  </suppress>
 </suppressions>

@@ -1583,7 +1583,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("analyze-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).analyzeSubscriptionBacklog("persistent://myprop/clust/ns1/ds1", "sub1", Optional.empty());
-        
+
         // jcommander is stateful, you cannot parse the same command twice
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b -p x=y,z"));
@@ -2197,7 +2197,7 @@ public class PulsarAdminToolTest {
         final String keyFilePath = "/my-file:role=name.key";
         paramMap.put("tlsCertFile", certFilePath);
         paramMap.put("tlsKeyFile", keyFilePath);
-        final String paramStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(paramMap);
+        final String paramStr = ObjectMapperFactory.getMapper().writer().writeValueAsString(paramMap);
         properties.put("authParams", paramStr);
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
