@@ -76,8 +76,13 @@ function ci_pick_ubuntu_mirror() {
   fi
   # set the chosen mirror also in the UBUNTU_MIRROR and UBUNTU_SECURITY_MIRROR environment variables
   # that can be used by docker builds
-  echo "UBUNTU_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
-  echo "UBUNTU_SECURITY_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
+  export UBUNTU_MIRROR
+  export UBUNTU_SECURITY_MIRROR=$UBUNTU_MIRROR
+  # make environment variables available for later GitHub Actions steps
+  if [ -n "$GITHUB_ENV" ]; then
+    echo "UBUNTU_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
+    echo "UBUNTU_SECURITY_MIRROR=$UBUNTU_SECURITY_MIRROR" >> $GITHUB_ENV
+  fi
 }
 
 # installs a tool executable if it's not found on the PATH
