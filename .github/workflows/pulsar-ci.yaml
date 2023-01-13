@@ -291,8 +291,6 @@ jobs:
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
-    env:
-      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -337,6 +335,11 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: Pick ubuntu mirror for the docker image build
+        run: |
+          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
 
       - name: Build java-test-image docker image
         run: |
@@ -538,8 +541,6 @@ jobs:
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
-    env:
-      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -588,6 +589,11 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: Pick ubuntu mirror for the docker image build
+        run: |
+          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
 
       - name: Build latest-version-image docker image
         run: |
