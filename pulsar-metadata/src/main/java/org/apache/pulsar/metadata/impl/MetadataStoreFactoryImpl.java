@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import static org.apache.pulsar.metadata.impl.EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER;
+import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -58,26 +62,26 @@ public class MetadataStoreFactoryImpl {
     private static MetadataStore newInstance(String metadataURL, MetadataStoreConfig metadataStoreConfig,
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
-        MetadataStoreProvider provider;
-        if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
-            return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
-        } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
-            return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
-        } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
-            return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
-        } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
-            return new ZKMetadataStore(metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length()),
-                    metadataStoreConfig, enableSessionWatcher);
-        } else if ((provider = findProvider(metadataURL)) != null){
+        MetadataStoreProvider provider = findProvider(metadataURL);
+        if (provider != null) {
             return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
-        } else {
-            return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
         }
+        return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 
     static void loadProviders() {
         String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY);
         providers = new HashMap<>();
+        providers.put(MEMORY_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(MEMORY_SCHEME_IDENTIFIER,
+                (url, config, enableWatchers) -> new LocalMemoryMetadataStore(url, config)));
+        providers.put(ROCKSDB_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(ROCKSDB_SCHEME_IDENTIFIER,
+                (url, config, enableWatchers) -> RocksdbMetadataStore.get(url, config)));
+        providers.put(ETCD_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(ETCD_SCHEME_IDENTIFIER,
+                EtcdMetadataStore::new));
+        providers.put(ZK_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(ZK_SCHEME_IDENTIFIER,
+                (url, config, enableWatchers) ->
+                        new ZKMetadataStore(url.substring(ZK_SCHEME_IDENTIFIER.length()), config, enableWatchers)));
+
         if (factoryClasses == null) {
             return;
         }
@@ -114,16 +118,8 @@ public class MetadataStoreFactoryImpl {
      * @return
      */
     public static String removeIdentifierFromMetadataURL(String metadataURL) {
-        MetadataStoreProvider provider;
-        if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
-            return metadataURL.substring(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER.length());
-        } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
-            return metadataURL.substring(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER.length());
-        } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
-            return metadataURL.substring(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER.length());
-        } else if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
-            return metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
-        } else if ((provider = findProvider(metadataURL)) != null) {
+        MetadataStoreProvider provider = findProvider(metadataURL);
+        if (provider != null) {
             return metadataURL.substring(provider.urlScheme().length());
         }
         return metadataURL;

@@ -57,7 +57,7 @@ public class MetadataStoreFactoryImplTest {
 
 
     @Test
-    public void testCreateWithProvider() throws MetadataStoreException{
+    public void testCreate() throws MetadataStoreException{
         MetadataStore instance = MetadataStoreFactoryImpl.create(
                 "custom://localhost",
                 MetadataStoreConfig.builder().build());
