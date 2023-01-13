@@ -72,13 +72,13 @@ public class MetadataStoreFactoryImpl {
     static void loadProviders() {
         String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY);
         providers = new HashMap<>();
-        providers.put(MEMORY_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(MEMORY_SCHEME_IDENTIFIER,
+        providers.put(MEMORY_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(MEMORY_SCHEME_IDENTIFIER,
                 (url, config, enableWatchers) -> new LocalMemoryMetadataStore(url, config)));
-        providers.put(ROCKSDB_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(ROCKSDB_SCHEME_IDENTIFIER,
+        providers.put(ROCKSDB_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(ROCKSDB_SCHEME_IDENTIFIER,
                 (url, config, enableWatchers) -> RocksdbMetadataStore.get(url, config)));
-        providers.put(ETCD_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(ETCD_SCHEME_IDENTIFIER,
+        providers.put(ETCD_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(ETCD_SCHEME_IDENTIFIER,
                 EtcdMetadataStore::new));
-        providers.put(ZK_SCHEME_IDENTIFIER, new AbstractMetadataStoreProvider(ZK_SCHEME_IDENTIFIER,
+        providers.put(ZK_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(ZK_SCHEME_IDENTIFIER,
                 (url, config, enableWatchers) ->
                         new ZKMetadataStore(url.substring(ZK_SCHEME_IDENTIFIER.length()), config, enableWatchers)));
 

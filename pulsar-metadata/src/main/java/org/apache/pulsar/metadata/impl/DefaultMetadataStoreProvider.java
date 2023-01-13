@@ -23,7 +23,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 
-public class AbstractMetadataStoreProvider implements MetadataStoreProvider {
+public class DefaultMetadataStoreProvider implements MetadataStoreProvider {
 
     public interface MetadataStoreConstructor {
         MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
@@ -33,8 +33,8 @@ public class AbstractMetadataStoreProvider implements MetadataStoreProvider {
     private final String urlScheme;
     private final MetadataStoreConstructor constructor;
 
-    public AbstractMetadataStoreProvider(String urlScheme,
-                                         MetadataStoreConstructor constructor) {
+    public DefaultMetadataStoreProvider(String urlScheme,
+                                        MetadataStoreConstructor constructor) {
         this.urlScheme = urlScheme;
         this.constructor = constructor;
     }
