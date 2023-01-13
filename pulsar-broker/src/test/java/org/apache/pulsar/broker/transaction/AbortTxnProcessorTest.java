@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AbortTxnProcessorTest extends TransactionTestBase {
 
-    private static final String PROCESSOR_TOPIC = NAMESPACE1 + "/abortedTxnProcessor";
+    private static final String PROCESSOR_TOPIC = "persistent://" + NAMESPACE1 + "/abortedTxnProcessor";
     private static final int SEGMENT_SIZE = 5;
     private PulsarService pulsarService = null;
 
@@ -34,7 +34,7 @@ public class AbortTxnProcessorTest extends TransactionTestBase {
         setUpBase(1, 1, PROCESSOR_TOPIC, 0);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(SEGMENT_SIZE);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() + 5 * 3);
     }
 
     @Override
@@ -128,7 +128,11 @@ public class AbortTxnProcessorTest extends TransactionTestBase {
     }
 
     // Verify the update index future can be completed when the queue has other tasks.
-    public void verifyFuturesCanCompleteWithException(AbortedTxnProcessor processor) throws Exception {
+    @Test
+    public void testFuturesCanCompleteWithException() throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarService.getBrokerService()
+                .getTopic(PROCESSOR_TOPIC, false).get().get();
+        AbortedTxnProcessor processor = new SnapshotSegmentAbortedTxnProcessorImpl(persistentTopic);
         Field workerField = SnapshotSegmentAbortedTxnProcessorImpl.class.getDeclaredField("persistentWorker");
         workerField.setAccessible(true);
         SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker persistentWorker =
