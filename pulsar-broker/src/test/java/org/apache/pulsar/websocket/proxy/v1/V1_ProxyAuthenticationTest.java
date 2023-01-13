@@ -32,6 +32,7 @@ import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.v1.V1_ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -172,6 +173,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         final String baseUrl = "http://localhost:" + proxyServer.getListenPortHTTP().get() + "/admin/proxy-stats/";
+        @Cleanup
         Client client = ClientBuilder.newClient();
 
         try {
@@ -195,7 +197,6 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         } finally {
             consumeClient.stop();
             produceClient.stop();
-            client.close();
         }
     }
 
