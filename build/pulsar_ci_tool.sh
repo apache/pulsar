@@ -74,8 +74,10 @@ function ci_pick_ubuntu_mirror() {
     sudo sed -i "s|$OLD_MIRROR|$UBUNTU_MIRROR|g" /etc/apt/sources.list
     sudo apt-get update
   fi
-  # set the chosen mirror also in the UBUNTU_MIRROR environment variable that can be used by docker builds
+  # set the chosen mirror also in the UBUNTU_MIRROR and UBUNTU_SECURITY_MIRROR environment variables
+  # that can be used by docker builds
   echo "UBUNTU_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
+  echo "UBUNTU_SECURITY_MIRROR=$UBUNTU_MIRROR" >> $GITHUB_ENV
 }
 
 # installs a tool executable if it's not found on the PATH
