@@ -353,6 +353,10 @@ public class AuthorizationService {
         }
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     public boolean allowTenantOperation(String tenantName,
                                         TenantOperation operation,
                                         String originalRole,
@@ -451,6 +455,10 @@ public class AuthorizationService {
         }
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     public boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
                                                  PolicyName policy,
                                                  PolicyOperation operation,
@@ -513,6 +521,10 @@ public class AuthorizationService {
     }
 
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     public Boolean allowTopicPolicyOperation(TopicName topicName,
                                              PolicyName policy,
                                              PolicyOperation operation,
@@ -595,6 +607,10 @@ public class AuthorizationService {
         }
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     public Boolean allowTopicOperation(TopicName topicName,
                                        TopicOperation operation,
                                        String originalRole,

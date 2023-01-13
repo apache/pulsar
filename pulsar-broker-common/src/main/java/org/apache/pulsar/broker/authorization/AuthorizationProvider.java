@@ -61,7 +61,8 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}
+     * @deprecated - Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}.
+     * Will be removed after 2.12.
      * Check if specified role is a super user
      * @param role the role to check
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
@@ -297,6 +298,10 @@ public interface AuthorizationProvider extends Closeable {
                 operation.toString(), tenantName)));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowTenantOperation(String tenantName, String role, TenantOperation operation,
                                          AuthenticationDataSource authData) {
         try {
@@ -326,6 +331,10 @@ public interface AuthorizationProvider extends Closeable {
                     + "the Authorization provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowNamespaceOperation(NamespaceName namespaceName,
                                             String role,
                                             NamespaceOperation operation,
@@ -397,6 +406,10 @@ public interface AuthorizationProvider extends Closeable {
                         + "is not supported by is not supported by the Authorization provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
                                                   PolicyName policy,
                                                   PolicyOperation operation,
@@ -471,6 +484,10 @@ public interface AuthorizationProvider extends Closeable {
                     + "provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowTopicOperation(TopicName topicName,
                                         String role,
                                         TopicOperation operation,
@@ -541,6 +558,10 @@ public interface AuthorizationProvider extends Closeable {
                         + "is not supported by the Authorization provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowTopicPolicyOperation(TopicName topicName,
                                               String role,
                                               PolicyName policy,

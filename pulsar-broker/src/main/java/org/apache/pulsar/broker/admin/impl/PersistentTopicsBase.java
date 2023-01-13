@@ -1600,7 +1600,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                                           boolean authoritative,
                                                                                           boolean force) {
         return validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose((__) -> validateTopicOperationAsync(topicName, TopicOperation.UNSUBSCRIBE))
+                .thenCompose((__) -> validateTopicOperationAsync(topicName, TopicOperation.UNSUBSCRIBE, subName))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose((topic) -> {
                     Subscription sub = topic.getSubscription(subName);
@@ -4446,7 +4446,7 @@ public class PersistentTopicsBase extends AdminResource {
                     final String topicNamePartition = topicName.getPartition(i).toString();
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     admin.topics().createSubscriptionAsync(topicNamePartition,
-                                    subscription, MessageId.latest, replicated, ss.getSubscriptionProperties())
+                                    subscription, MessageId.earliest, replicated, ss.getSubscriptionProperties())
                             .whenComplete((__, ex) -> {
                         if (ex == null) {
                             future.complete(null);
