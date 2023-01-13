@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
@@ -42,13 +43,19 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
  */
 @Slf4j
 public class JSONSchema<T> extends AvroBaseStructSchema<T> {
-    private static final ObjectMapper JSON_MAPPER = createObjectMapper();
+    private static final AtomicReference<ObjectMapper> JSON_MAPPER = new AtomicReference<>(createObjectMapper());
 
     private static ObjectMapper createObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = ObjectMapperFactory.create();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        // keep backwards compatibility, don't accept unknown enum values
+        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, false);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
+    }
+
+    private static ObjectMapper jsonMapper() {
+        return JSON_MAPPER.get();
     }
 
     private final Class<T> pojo;
@@ -87,9 +94,9 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         SchemaReader<T> reader = schemaDefinition.getSchemaReaderOpt()
-                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER, schemaDefinition.getPojo()));
+                .orElseGet(() -> new JacksonJsonReader<>(jsonMapper(), schemaDefinition.getPojo()));
         SchemaWriter<T> writer = schemaDefinition.getSchemaWriterOpt()
-                .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER));
+                .orElseGet(() -> new JacksonJsonWriter<>(jsonMapper()));
         return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(),
                 reader, writer);
     }
@@ -102,4 +109,18 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
         return JSONSchema.of(SchemaDefinition.<T>builder().withPojo(pojo).withProperties(properties).build());
     }
 
+    /**
+     * Clears the caches tied to the ObjectMapper instances and replaces the singleton ObjectMapper instance.
+     *
+     * This can be used in tests to ensure that classloaders and class references don't leak across tests.
+     */
+    public static void clearCaches() {
+        jsonMapper().getTypeFactory().clearCache();
+        replaceSingletonInstance();
+    }
+
+    private static void replaceSingletonInstance() {
+        // recycle the singleton instance to release remaining caches
+        JSON_MAPPER.set(createObjectMapper());
+    }
 }
