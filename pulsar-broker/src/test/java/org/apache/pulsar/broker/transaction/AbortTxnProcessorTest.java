@@ -76,7 +76,7 @@ public class AbortTxnProcessorTest extends TransactionTestBase {
         AbortedTxnProcessor newProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(persistentTopic);
         PositionImpl maxReadPosition = new PositionImpl(0, 14);
         //2.1 Avoid update operation being canceled.
-        waitTaskExecuteCompletely(newProcessor);
+        waitTaskExecuteCompletely(processor);
         //2.2 take the latest snapshot
         processor.takeAbortedTxnsSnapshot(maxReadPosition).get();
         newProcessor.recoverFromSnapshot().get();

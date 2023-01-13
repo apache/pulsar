@@ -100,7 +100,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         unsealedAbortedTxnIdSegment.add(abortedTxnId);
         aborts.put(abortedTxnId, abortedTxnId);
         //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
-        if (unsealedAbortedTxnIdSegment.size() == transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
+        if (unsealedAbortedTxnIdSegment.size() >= transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
             LinkedList<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
             segmentIndex.put(abortedMarkerPersistentPosition, abortedTxnId);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
