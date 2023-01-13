@@ -65,6 +65,11 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
     public void test() throws Exception {
 
         String topic = "persistent://my-property/my-ns/my-compact-topic";
+
+        // subscribe before sending anything, so that we get all messages
+        @Cleanup
+        var consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("sub1").readCompacted(true).subscribe();
         int numKeys = 5;
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
