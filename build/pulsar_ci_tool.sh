@@ -57,11 +57,11 @@ function ci_pick_ubuntu_mirror() {
   UBUNTU_MIRROR=$({
     # choose mirrors that are up-to-date by checking the Last-Modified header for
     {
-      curl -s http://mirrors.ubuntu.com/mirrors.txt
+      # randomly choose up to 10 mirrors
+      curl -s http://mirrors.ubuntu.com/mirrors.txt | shuf -n 10
       # also consider Azure's Ubuntu mirror
       echo http://azure.archive.ubuntu.com/ubuntu/
-    } | shuf -n 10 \
-      | xargs -I {} sh -c 'echo "$(curl -m 5 -sI {}dists/$(lsb_release -c | cut -f2)-security/Contents-$(dpkg --print-architecture).gz|sed s/\\r\$//|grep Last-Modified|awk -F": " "{ print \$2 }" | LANG=C date -f- -u +%s)" "{}"' | sort -rg | awk '{ if (NR==1) TS=$1; if ($1 == TS) print $2 }'
+    } | xargs -I {} sh -c 'echo "$(curl -m 5 -sI {}dists/$(lsb_release -c | cut -f2)-security/Contents-$(dpkg --print-architecture).gz|sed s/\\r\$//|grep Last-Modified|awk -F": " "{ print \$2 }" | LANG=C date -f- -u +%s)" "{}"' | sort -rg | awk '{ if (NR==1) TS=$1; if ($1 == TS) print $2 }'
   } | xargs -I {} sh -c 'echo `curl -r 0-102400 -m 5 -s -w %{speed_download} -o /dev/null {}ls-lR.gz` {}' \
     |sort -g -r |head -1| awk '{ print $2  }')
   if [ -z "$UBUNTU_MIRROR" ]; then
