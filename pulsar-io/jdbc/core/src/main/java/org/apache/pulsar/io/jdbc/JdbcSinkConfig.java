@@ -147,7 +147,7 @@ public class JdbcSinkConfig implements Serializable {
 
     public static JdbcSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), JdbcSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), JdbcSinkConfig.class);
     }
 
     public void validate() {

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
@@ -1313,12 +1314,14 @@ public class PersistentTopicsBase extends AdminResource {
                         for (int i = 0; i < partitionMetadata.partitions; i++) {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
+                                final ObjectReader managedLedgerInfoReader = objectReader()
+                                        .forType(ManagedLedgerInfo.class);
                                 futures.add(pulsar().getAdminClient().topics()
                                         .getInternalInfoAsync(topicNamePartition.toString())
                                         .thenApply((response) -> {
                                             try {
-                                                return Pair.of(topicNamePartition.toString(), jsonMapper()
-                                                        .readValue(response, ManagedLedgerInfo.class));
+                                                return Pair.of(topicNamePartition.toString(), managedLedgerInfoReader
+                                                        .readValue(response));
                                             } catch (JsonProcessingException e) {
                                                 throw new UncheckedIOException(e);
                                             }
@@ -1347,7 +1350,7 @@ public class PersistentTopicsBase extends AdminResource {
                                     partitionedManagedLedgerInfo.partitions.put(info.getKey(), info.getValue());
                                 }
                                 asyncResponse.resume((StreamingOutput) output -> {
-                                    jsonMapper().writer().writeValue(output, partitionedManagedLedgerInfo);
+                                    objectWriter().writeValue(output, partitionedManagedLedgerInfo);
                                 });
                             }
                         });
@@ -1384,7 +1387,7 @@ public class PersistentTopicsBase extends AdminResource {
                         @Override
                         public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
                             asyncResponse.resume((StreamingOutput) output -> {
-                                jsonMapper().writer().writeValue(output, info);
+                                objectWriter().writeValue(output, info);
                             });
                         }
                         @Override
@@ -3317,7 +3320,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                         clientAppId(),
                                                         namespaceName,
                                                         topicName.getLocalName(),
-                                                        jsonMapper().writeValueAsString(backLogQuotaMap));
+                                                        objectWriter().writeValueAsString(backLogQuotaMap));
                                             } catch (JsonProcessingException ignore) {
                                             }
                                         });

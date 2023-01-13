@@ -24,6 +24,7 @@ import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFrom
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.base.Enums;
 import java.io.IOException;
 import java.time.format.DateTimeParseException;
@@ -77,6 +78,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     public static final List<Long> ENTRY_LATENCY_BUCKETS_USEC = Collections.unmodifiableList(Arrays.asList(
             500L, 1_000L, 5_000L, 10_000L, 20_000L, 50_000L, 100_000L, 200_000L, 1000_000L));
+    private final ObjectReader producerMessageReader =
+            ObjectMapperFactory.getMapper().reader().forType(ProducerMessage.class);
 
     public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
@@ -136,7 +139,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         byte[] rawPayload = null;
         String requestContext = null;
         try {
-            sendRequest = ObjectMapperFactory.getThreadLocal().readValue(message, ProducerMessage.class);
+            sendRequest = producerMessageReader.readValue(message);
             requestContext = sendRequest.context;
             rawPayload = Base64.getDecoder().decode(sendRequest.payload);
         } catch (IOException e) {
@@ -244,7 +247,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     private void sendAckResponse(ProducerAck response) {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(response);
+            String msg = objectWriter().writeValueAsString(response);
             getSession().getRemote().sendString(msg, new WriteCallback() {
                 @Override
                 public void writeFailed(Throwable th) {

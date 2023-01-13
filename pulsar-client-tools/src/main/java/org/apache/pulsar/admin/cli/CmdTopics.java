@@ -1077,7 +1077,7 @@ public class CmdTopics extends CmdBase {
             String topic = validateTopicName(params);
             Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
             // Ensure we are using JSON and not Java toString()
-            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
+            System.out.println(ObjectMapperFactory.getMapper().writer().writeValueAsString(result));
         }
     }
 

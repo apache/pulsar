@@ -134,7 +134,7 @@ public class TwitterFireHoseConfig implements Serializable {
 
     public static TwitterFireHoseConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), TwitterFireHoseConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), TwitterFireHoseConfig.class);
     }
 
     public void validate() throws IllegalArgumentException {

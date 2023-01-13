@@ -238,10 +238,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
                 pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
 
-        final Map<String, Object> oldDataJson = ObjectMapperFactory
-                .getThreadLocal().convertValue(oldDataModel, Map.class);
+        final Map<String, Object> oldDataJson = ObjectMapperFactory.getMapper().getObjectMapper()
+                .convertValue(oldDataModel, Map.class);
 
-        final InternalConfigurationData newData = ObjectMapperFactory.getThreadLocal()
+        final InternalConfigurationData newData = ObjectMapperFactory.getMapper().getObjectMapper()
                 .convertValue(oldDataJson, InternalConfigurationData.class);
 
         assertEquals(newData.getMetadataStoreUrl(), conf.getMetadataStoreUrl());

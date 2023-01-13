@@ -2441,7 +2441,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             clientAppId(),
                             namespaceName,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(retention));
+                            objectWriter().writeValueAsString(retention));
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -2541,7 +2541,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             clientAppId(),
                             namespaceName,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(persistencePolicies));
+                            objectWriter().writeValueAsString(persistencePolicies));
                 } catch (JsonProcessingException ignore) {
                 }
                 asyncResponse.resume(Response.noContent().build());
@@ -3324,7 +3324,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(dispatchRate));
+                            objectWriter().writeValueAsString(dispatchRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3424,7 +3424,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(dispatchRate));
+                            objectWriter().writeValueAsString(dispatchRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3620,7 +3620,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(compactionThreshold));
+                            objectWriter().writeValueAsString(compactionThreshold));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3719,7 +3719,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(maxConsumersPerSubscription));
+                            objectWriter().writeValueAsString(maxConsumersPerSubscription));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3816,7 +3816,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             namespace,
                             topicName.getLocalName(),
                             isGlobal,
-                            jsonMapper().writeValueAsString(publishRate));
+                            objectWriter().writeValueAsString(publishRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -3919,7 +3919,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             tenant,
                             namespace,
                             topicName.getLocalName(),
-                            jsonMapper().writeValueAsString(subscriptionTypesEnabled));
+                            objectWriter().writeValueAsString(subscriptionTypesEnabled));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })
@@ -4014,7 +4014,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             namespace,
                             topicName.getLocalName(),
                             isGlobal,
-                            jsonMapper().writeValueAsString(subscribeRate));
+                            objectWriter().writeValueAsString(subscribeRate));
                 } catch (JsonProcessingException ignore) {}
                 asyncResponse.resume(Response.noContent().build());
             })

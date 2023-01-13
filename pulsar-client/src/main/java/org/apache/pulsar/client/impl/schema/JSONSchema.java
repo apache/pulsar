@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.util.Map;
@@ -34,20 +35,21 @@ import org.apache.pulsar.client.impl.schema.reader.JacksonJsonReader;
 import org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * A schema implementation to deal with json data.
  */
 @Slf4j
 public class JSONSchema<T> extends AvroBaseStructSchema<T> {
-    // Cannot use org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal() because it does not
-    // return shaded version of object mapper
-    private static final ThreadLocal<ObjectMapper> JSON_MAPPER = ThreadLocal.withInitial(() -> {
+    private static final ObjectMapper JSON_MAPPER = createObjectMapper();
+
+    private static ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
-    });
+    }
 
     private final Class<T> pojo;
 
@@ -68,14 +70,14 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     public SchemaInfo getBackwardsCompatibleJsonSchemaInfo() {
         SchemaInfo backwardsCompatibleSchemaInfo;
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectMapper);
+            ObjectWriter objectWriter = ObjectMapperFactory.getMapperWithIncludeAlways().writer();
+            JsonSchemaGenerator schemaGen = new JsonSchemaGenerator(objectWriter);
             JsonSchema jsonBackwardsCompatibleSchema = schemaGen.generateSchema(pojo);
             backwardsCompatibleSchemaInfo = SchemaInfoImpl.builder()
                     .name("")
                     .properties(schemaInfo.getProperties())
                     .type(SchemaType.JSON)
-                    .schema(objectMapper.writeValueAsBytes(jsonBackwardsCompatibleSchema))
+                    .schema(objectWriter.writeValueAsBytes(jsonBackwardsCompatibleSchema))
                     .build();
         } catch (JsonProcessingException ex) {
             throw new RuntimeException(ex);
@@ -85,9 +87,9 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
 
     public static <T> JSONSchema<T> of(SchemaDefinition<T> schemaDefinition) {
         SchemaReader<T> reader = schemaDefinition.getSchemaReaderOpt()
-                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER.get(), schemaDefinition.getPojo()));
+                .orElseGet(() -> new JacksonJsonReader<>(JSON_MAPPER, schemaDefinition.getPojo()));
         SchemaWriter<T> writer = schemaDefinition.getSchemaWriterOpt()
-                .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER.get()));
+                .orElseGet(() -> new JacksonJsonWriter<>(JSON_MAPPER));
         return new JSONSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.JSON), schemaDefinition.getPojo(),
                 reader, writer);
     }
