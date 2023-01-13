@@ -76,9 +76,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final LinkedMap<TxnID, TxnID> aborts = new LinkedMap<>();
     //The indexes of the snapshot segments whose key is the aborted mark persistent position.
     private final LinkedMap<PositionImpl, TransactionBufferSnapshotIndex> indexes = new LinkedMap<>();
-    //The latest persistent snapshot index. This is used to combine new segment indexes with the latest metadata and
-    // indexes.
-    private TransactionBufferSnapshotIndexes persistentSnapshotIndexes = new TransactionBufferSnapshotIndexes();
 
     private final PersistentTopic topic;
 
@@ -158,7 +155,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     private CompletableFuture<Void> updateSnapshotIndexMetadata(TransactionBufferSnapshotIndexesMetadata metadata) {
         return persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, () -> persistentWorker
-                .updateSnapshotIndex(metadata, persistentSnapshotIndexes.getIndexList()));
+                .updateSnapshotIndex(metadata, indexes.values().stream().toList()));
     }
 
     @Override
@@ -167,6 +164,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .getTxnBufferSnapshotIndexService()
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
                     PositionImpl startReadCursorPosition = null;
+                    TransactionBufferSnapshotIndexes persistentSnapshotIndexes = null;
                     boolean hasIndex = false;
                     try {
                         //Read Index to recover the sequenceID, indexes, lastAbortedTxns and maxReadPosition.
@@ -177,7 +175,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes = message.getValue();
                                 if (transactionBufferSnapshotIndexes != null) {
                                     hasIndex = true;
-                                    this.persistentSnapshotIndexes = transactionBufferSnapshotIndexes;
+                                    persistentSnapshotIndexes = transactionBufferSnapshotIndexes;
                                     startReadCursorPosition = PositionImpl.get(
                                             transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionLedgerId(),
                                             transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionEntryId());
@@ -199,6 +197,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         closeReader(reader);
                     }
                     PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
+                    TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes = persistentSnapshotIndexes;
                     if (!hasIndex) {
                         return CompletableFuture.completedFuture(null);
                     } else {
@@ -224,7 +223,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         @Override
                         public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl readOnlyManagedLedger,
                                                                       Object ctx) {
-                            persistentSnapshotIndexes.getIndexList().forEach(index -> {
+                            finalPersistentSnapshotIndexes.getIndexList().forEach(index -> {
                                 CompletableFuture<Void> handleSegmentFuture = new CompletableFuture<>();
                                 completableFutures.add(handleSegmentFuture);
                                 readOnlyManagedLedger.asyncReadEntry(
@@ -287,14 +286,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 if (hasInvalidIndex.get()) {
                                     persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
                                             -> persistentWorker
-                                            .updateSnapshotIndex(persistentSnapshotIndexes.getSnapshot(),
+                                            .updateSnapshotIndex(finalPersistentSnapshotIndexes.getSnapshot(),
                                             indexes.values().stream().toList()));
                                 }
                                 //Append the aborted txn IDs in the index metadata
                                 //can keep the order of the aborted txn in the aborts.
                                 //So that we can trim the expired snapshot segment in aborts
                                 // according to the latest txn IDs
-                                convertTypeToTxnID(persistentSnapshotIndexes.getSnapshot().getAborts())
+                                convertTypeToTxnID(finalPersistentSnapshotIndexes.getSnapshot().getAborts())
                                         .forEach(txnID -> aborts.put(txnID, txnID));
                                 return CompletableFuture.completedFuture(finalStartReadCursorPosition);
                             })).exceptionally(ex -> {
@@ -568,7 +567,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         return indexesWriter.writeAsync(topic.getName(), snapshotIndexes);
                     })
                     .thenRun(() -> {
-                        persistentSnapshotIndexes = snapshotIndexes;
                         lastSnapshotTimestamps = System.currentTimeMillis();
                     })
                     .exceptionally(e -> {
