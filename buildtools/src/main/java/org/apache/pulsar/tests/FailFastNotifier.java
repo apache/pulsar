@@ -48,7 +48,7 @@ public class FailFastNotifier
     static class FailFastEventsSingleton {
         private static final FailFastEventsSingleton INSTANCE = new FailFastEventsSingleton();
 
-        private volatile boolean skipAfterFailure;
+        private volatile ITestResult firstFailure;
 
         private FailFastEventsSingleton() {
         }
@@ -57,12 +57,14 @@ public class FailFastNotifier
             return INSTANCE;
         }
 
-        public boolean isSkipAfterFailure() {
-            return skipAfterFailure;
+        public ITestResult getFirstFailure() {
+            return firstFailure;
         }
 
-        public void setSkipOnNextTest() {
-            this.skipAfterFailure = true;
+        public void testFailed(ITestResult result) {
+            if (this.firstFailure == null) {
+                this.firstFailure = result;
+            }
         }
     }
 
@@ -75,22 +77,30 @@ public class FailFastNotifier
 
     @Override
     public void onTestFailure(ITestResult result) {
-        FailFastNotifier.FailFastEventsSingleton.getInstance().setSkipOnNextTest();
         // Hide FailFastSkipExceptions and mark the test as skipped
         if (result.getThrowable() instanceof FailFastSkipException) {
             result.setThrowable(null);
             result.setStatus(ITestResult.SKIP);
+        } else {
+            FailFastNotifier.FailFastEventsSingleton.getInstance().testFailed(result);
         }
     }
 
     @Override
     public void beforeInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {
-        ITestNGMethod iTestNGMethod = iInvokedMethod.getTestMethod();
-        if (FAIL_FAST_ENABLED && FailFastEventsSingleton.getInstance().isSkipAfterFailure()
-                && !(iTestNGMethod.isAfterMethodConfiguration()
-                || iTestNGMethod.isAfterClassConfiguration()
-                || iTestNGMethod.isAfterTestConfiguration())) {
-            throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
+        if (FAIL_FAST_ENABLED) {
+            ITestResult firstFailure = FailFastEventsSingleton.getInstance().getFirstFailure();
+            if (firstFailure != null) {
+                ITestNGMethod iTestNGMethod = iInvokedMethod.getTestMethod();
+                // condition that ensures that cleanup methods will be called in the test class where the
+                // first exception happened
+                if (iTestResult.getInstance() != firstFailure.getInstance()
+                        || !(iTestNGMethod.isAfterMethodConfiguration()
+                        || iTestNGMethod.isAfterClassConfiguration()
+                        || iTestNGMethod.isAfterTestConfiguration())) {
+                    throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
+                }
+            }
         }
     }
 
