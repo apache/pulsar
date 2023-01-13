@@ -434,12 +434,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
-    @FieldContext(
-            category = CATEGORY_SERVER,
-            doc = "Is metadata store allow read-only operations."
-    )
-    private boolean metadataStoreAllowReadOnlyOperations;
-
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -466,6 +460,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
         )
     private int zooKeeperCacheExpirySeconds = -1;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is zookeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
         category = CATEGORY_SERVER,

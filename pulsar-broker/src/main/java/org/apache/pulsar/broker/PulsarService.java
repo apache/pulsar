@@ -356,7 +356,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
-                        .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
+                        .allowReadOnlyOperations(config.isZooKeeperAllowReadOnlyOperations())
                         .configFilePath(config.getMetadataStoreConfigPath())
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
@@ -1052,7 +1052,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
-                        .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
+                        .allowReadOnlyOperations(config.isZooKeeperAllowReadOnlyOperations())
                         .configFilePath(config.getMetadataStoreConfigPath())
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())

@@ -135,12 +135,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Is metadata store allow read-only operations."
-    )
-    private boolean metadataStoreAllowReadOnlyOperations;
-
-    @FieldContext(
-            category = CATEGORY_SERVER,
             doc = "Max size of messages.",
             maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
@@ -162,6 +156,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
                 + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
     )
     private int zooKeeperCacheExpirySeconds = -1;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is zooKeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
