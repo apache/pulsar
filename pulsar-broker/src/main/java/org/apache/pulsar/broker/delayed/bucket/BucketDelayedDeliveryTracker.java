@@ -237,6 +237,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 try {
                     asyncMergeBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
                     throw new RuntimeException(e);
                 }
             }
@@ -375,9 +378,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 try {
                     bucket.asyncLoadNextBucketSnapshotEntry().thenAccept(indexList -> {
                         if (CollectionUtils.isEmpty(indexList)) {
-                            synchronized (immutableBuckets) {
-                                immutableBuckets.remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                            }
+                            immutableBuckets.remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
                             bucket.asyncDeleteBucketSnapshot();
                             return;
                         }

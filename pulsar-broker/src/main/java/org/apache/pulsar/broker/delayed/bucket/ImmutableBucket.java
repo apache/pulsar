@@ -24,7 +24,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -137,8 +139,15 @@ class ImmutableBucket extends Bucket {
     }
 
     CompletableFuture<Void> asyncDeleteBucketSnapshot() {
-        return removeBucketCursorProperty(bucketKey()).thenCompose(__ ->
-                bucketSnapshotStorage.deleteBucketSnapshot(getAndUpdateBucketId()));
+        String bucketKey = bucketKey();
+        long bucketId = getAndUpdateBucketId();
+        return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
+                bucketSnapshotStorage.deleteBucketSnapshot(bucketId)).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.warn("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                bucketId, bucketKey, ex);
+                    }
+        });
     }
 
     void clear(boolean delete) {
@@ -148,7 +157,10 @@ class ImmutableBucket extends Bucket {
                 snapshotGenerateFuture.cancel(true);
                 try {
                     asyncDeleteBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
                     throw new RuntimeException(e);
                 }
             } else {
