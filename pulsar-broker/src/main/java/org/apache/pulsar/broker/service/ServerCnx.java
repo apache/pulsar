@@ -2315,7 +2315,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (!service.getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
             BrokerServiceException.NotAllowedException ex =
                     new BrokerServiceException.NotAllowedException(
-                            "Transaction manager is not not enabled");
+                            "Transactions are not enabled.");
             commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(ex), ex.getMessage());
             return false;
         } else {
