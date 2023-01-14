@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.broker.transaction.buffer;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -43,10 +42,12 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class TopicTransactionBufferTest extends TransactionTestBase {
 
@@ -102,46 +103,41 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
     @Test
     public void testCheckDeduplicationFailedWhenCreatePersistentTopic() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/test_" + UUID.randomUUID();
-        TopicName topicName = TopicName.get(topic);
         PulsarService pulsar = pulsarServiceList.get(0);
-        BrokerService brokerService = pulsar.getBrokerService();
+        BrokerService brokerService0 = pulsar.getBrokerService();
+        BrokerService brokerService = Mockito.spy(brokerService0);
+        AtomicReference<PersistentTopic> reference = new AtomicReference<>();
 
-        CompletableFuture<ManagedLedgerConfig> configFuture = brokerService.getManagedLedgerConfig(topicName);
-
-        CompletableFuture<ManagedLedger> ledgerFuture = new CompletableFuture<>();
-        pulsar.getManagedLedgerFactory().asyncOpen(topicName.getPersistenceNamingEncoding(), configFuture.get(),
-                new AsyncCallbacks.OpenLedgerCallback() {
-                    @Override
-                    public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                        ledgerFuture.complete(ledger);
+        Mockito
+                .doAnswer(inv -> {
+                    String topic1 = inv.getArgument(0);
+                    ManagedLedger ledger = inv.getArgument(1);
+                    BrokerService service = inv.getArgument(2);
+                    Class<?> topicKlass = inv.getArgument(3);
+                    if (topicKlass.equals(PersistentTopic.class)) {
+                        PersistentTopic pt = Mockito.spy(new PersistentTopic(topic1, ledger, service));
+                        CompletableFuture<Void> f =CompletableFuture
+                                .failedFuture(new ManagedLedgerException("This is an exception"));
+                        Mockito.doReturn(f).when(pt).checkDeduplicationStatus();
+                        reference.set(pt);
+                        return pt;
+                    } else {
+                        return new NonPersistentTopic(topic1, service);
                     }
+                })
+                .when(brokerService)
+                .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
+                        Mockito.eq(PersistentTopic.class));
 
-                    @Override
-                    public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                        ledgerFuture.completeExceptionally(exception);
-                    }
-                }, () -> brokerService.isTopicNsOwnedByBroker(topicName), null);
+        brokerService.createPersistentTopic0(topic, true, new CompletableFuture<>(), Collections.emptyMap());
 
-        PersistentTopic persistentTopic0 = new PersistentTopic(topic, ledgerFuture.get(), brokerService);
-        PersistentTopic persistentTopic = Mockito.spy(persistentTopic0);
-        Mockito.doReturn(CompletableFuture.failedFuture(new ManagedLedgerException("This is an exception")))
-                .when(persistentTopic).checkDeduplicationStatus();
-
-        persistentTopic.initialize()
-                .thenCompose(v -> persistentTopic.checkDeduplicationStatus())
-                .exceptionally(ex -> {
-                    persistentTopic.getTransactionBuffer().closeAsync();
-                    persistentTopic.stopReplProducers();
-                    return null;
-                });
-
+        Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
+        PersistentTopic persistentTopic = reference.get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
-
-        TopicTransactionBuffer ttb = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        TopicTransactionBuffer ttb = (TopicTransactionBuffer) buffer;
         TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
-        Awaitility.waitAtMost(1, TimeUnit.MINUTES)
-                .until(() -> ttb.getState().equals(expectState));
+        Assert.assertEquals(ttb.getState(), expectState);
     }
 
 }
