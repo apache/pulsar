@@ -198,7 +198,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                 } catch (IOException e) {
                     log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
                 }
-            }, 0, webSocketPingDurationSeconds, TimeUnit.SECONDS);
+            }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
         }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
