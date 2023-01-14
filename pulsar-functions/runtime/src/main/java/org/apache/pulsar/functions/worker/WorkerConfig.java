@@ -164,6 +164,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         )
     private int zooKeeperCacheExpirySeconds = 300;
     @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Is zookeeper allow read-only operations"
+    )
+    private boolean zookeeperAllowReadOnlyOperations = false;
+    @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
     )

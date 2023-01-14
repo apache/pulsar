@@ -352,7 +352,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return MetadataStoreFactory.create(config.getConfigurationStoreServers(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
-                        .allowReadOnlyOperations(false)
+                        .allowReadOnlyOperations(config.isZookeeperAllowReadOnlyOperations())
                         .build());
     }
 
@@ -963,7 +963,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return MetadataStoreExtended.create(config.getZookeeperServers(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getZooKeeperSessionTimeoutMillis())
-                        .allowReadOnlyOperations(false)
+                        .allowReadOnlyOperations(config.isZookeeperAllowReadOnlyOperations())
                         .build());
     }
 
