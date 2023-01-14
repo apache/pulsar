@@ -944,7 +944,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Delete the topic's schema storage")
             @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateTopicName(tenant, namespace, encodedTopic);
             internalDeletePartitionedTopic(asyncResponse, authoritative, force, deleteSchema);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
