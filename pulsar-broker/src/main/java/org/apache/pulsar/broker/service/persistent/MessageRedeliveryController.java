@@ -46,8 +46,7 @@ public class MessageRedeliveryController {
         if (!allowOutOfOrderDelivery) {
             this.hashesToBeBlocked = ConcurrentLongLongPairHashMap
                     .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
-            this.hashesRefCount = ConcurrentLongLongHashMap
-                    .newBuilder().concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
+            this.hashesRefCount = new ConcurrentLongLongHashMap(128, 2);
         } else {
             this.hashesToBeBlocked = null;
             this.hashesRefCount = null;
