@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
+import static org.testng.Assert.fail;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -73,5 +74,31 @@ public class PartitionKeywordCompatibilityTest extends BrokerTestBase {
         partitionedTopicList = admin.topics().getPartitionedTopicList("public/default");
         Assert.assertFalse(topics.contains(topicName));
         Assert.assertFalse(partitionedTopicList.contains(topicName));
+    }
+
+    @Test
+    public void testDeletePartitionedTopicValidation() throws PulsarAdminException {
+        final String topicName = "persistent://public/default/testDeletePartitionedTopicValidation";
+        final String partitionKeywordTopic = "persistent://public/default/testDelete-partition-edTopicValidation";
+        final String partitionedTopic = "persistent://public/default/testDeletePartitionedTopicValidation-partition-0";
+        try {
+            admin.topics().deletePartitionedTopic(topicName);
+            fail("expect not found!");
+        } catch (PulsarAdminException.NotFoundException ex) {
+            //ok
+        }
+        try {
+            admin.topics().deletePartitionedTopic(partitionKeywordTopic);
+            fail("expect not found!");
+        } catch (PulsarAdminException.NotFoundException ex) {
+            //ok
+        }
+        try {
+            admin.topics().deletePartitionedTopic(partitionedTopic);
+            fail("expect illegal argument");
+        } catch (PulsarAdminException.PreconditionFailedException ex) {
+            Assert.assertTrue(ex.getMessage().contains("should not contain '-partition-'"));
+            // ok
+        }
     }
 }
