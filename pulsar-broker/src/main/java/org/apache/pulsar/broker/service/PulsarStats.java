@@ -265,6 +265,14 @@ public class PulsarStats implements Closeable {
         }
     }
 
+    public void recordTopicLoadFailed(String topic) {
+        try {
+            brokerOperabilityMetrics.recordTopicLoadFailed();
+        } catch (Exception ex) {
+            log.warn("Exception while recording topic failed for topic {}, {}", topic, ex.getMessage());
+        }
+    }
+
     public void recordConnectionCreate() {
         brokerOperabilityMetrics.recordConnectionCreate();
     }

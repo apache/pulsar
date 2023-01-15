@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import io.prometheus.client.Counter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +39,7 @@ public class BrokerOperabilityMetrics {
     private final LongAdder connectionCreateFailCount;
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
+    private final Counter topicLoadFailed = Counter.build("topic_load_failed", "-").register();
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
@@ -84,7 +86,9 @@ public class BrokerOperabilityMetrics {
     }
 
     Metrics getTopicLoadMetrics() {
-        return getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
+        Metrics metrics = getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
+        metrics.put("brk_topic_load_failed_count", topicLoadFailed.get());
+        return metrics;
     }
 
     Metrics getDimensionMetrics(String metricsName, String dimensionName, DimensionStats stats) {
@@ -110,6 +114,10 @@ public class BrokerOperabilityMetrics {
 
     public void recordTopicLoadTimeValue(long topicLoadLatencyMs) {
         topicLoadStats.recordDimensionTimeValue(topicLoadLatencyMs, TimeUnit.MILLISECONDS);
+    }
+
+    public void recordTopicLoadFailed() {
+        this.topicLoadFailed.inc();
     }
 
     public void recordConnectionCreate() {
