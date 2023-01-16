@@ -558,7 +558,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                     producer.close();
                     Thread.sleep(100);
                 } catch (Exception e){
-                    e.printStackTrace();
                 }
             }
         });
