@@ -56,6 +56,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -191,15 +192,18 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     @Override
     public void onWebSocketConnect(Session session) {
         super.onWebSocketConnect(session);
-        int webSocketPingDurationSeconds = service.getWebSocketProxyConfig().getWebSocketPingDurationSeconds();
-        if (webSocketPingDurationSeconds > 0) {
-            pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
-                try {
-                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
-                } catch (IOException e) {
-                    log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
-                }
-            }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
+        WebSocketProxyConfiguration webSocketProxyConfig = service.getWebSocketProxyConfig();
+        if (webSocketProxyConfig != null) {
+            int webSocketPingDurationSeconds = webSocketProxyConfig.getWebSocketPingDurationSeconds();
+            if (webSocketPingDurationSeconds > 0) {
+                pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
+                    try {
+                        session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
+                    } catch (IOException e) {
+                        log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
+                    }
+                }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
+            }
         }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
