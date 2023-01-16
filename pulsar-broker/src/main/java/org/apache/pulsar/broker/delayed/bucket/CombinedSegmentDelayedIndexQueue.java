@@ -24,7 +24,7 @@ import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotF
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 
 @NotThreadSafe
-public class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
+class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
 
     private final List<SnapshotSegment> segmentListA;
     private final List<SnapshotSegment> segmentListB;
