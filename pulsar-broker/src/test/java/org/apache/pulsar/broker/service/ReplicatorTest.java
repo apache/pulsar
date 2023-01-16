@@ -520,6 +520,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Test
     public void testReplicationWillNotStuckByIncompleteSchemaFuture() throws Exception {
+        int originalReplicationProducerQueueSize = pulsar1.getConfiguration().getReplicationProducerQueueSize();
         pulsar1.getConfiguration().setReplicationProducerQueueSize(5);
         // Init replicator and send many messages.
         PulsarClient client1 = pulsar1.getClient();
@@ -568,6 +569,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ensureReplicatorCreated(topic, pulsar1);
         sendTask.join();
         waitReplicateFinish(topic, admin1);
+
+        // cleanup
+        pulsar1.getConfiguration().setReplicationProducerQueueSize(originalReplicationProducerQueueSize);
     }
 
     public static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
