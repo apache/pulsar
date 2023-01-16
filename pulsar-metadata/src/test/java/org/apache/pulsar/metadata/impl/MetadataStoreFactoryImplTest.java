@@ -79,7 +79,7 @@ public class MetadataStoreFactoryImplTest {
 
         @Override
         public String urlScheme() {
-            return "custom:";
+            return "custom";
         }
 
         @Override

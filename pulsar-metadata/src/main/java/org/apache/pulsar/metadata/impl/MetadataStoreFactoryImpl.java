@@ -22,9 +22,9 @@ import static org.apache.pulsar.metadata.impl.EtcdMetadataStore.ETCD_SCHEME_IDEN
 import static org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER;
 import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
+import com.google.common.base.Splitter;
 import java.util.HashMap;
 import java.util.Map;
-import com.google.common.base.Splitter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -64,39 +64,25 @@ public class MetadataStoreFactoryImpl {
                                              boolean enableSessionWatcher)
             throws MetadataStoreException {
         MetadataStoreProvider provider = findProvider(metadataURL);
-        if (provider != null) {
-            return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
-        }
-        return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+        return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 
     static void loadProviders() {
-        String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY);
         providers = new HashMap<>();
-        providers.put(MEMORY_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(MEMORY_SCHEME_IDENTIFIER,
-                (url, config, enableWatchers) -> new LocalMemoryMetadataStore(url, config)));
-        providers.put(ROCKSDB_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(ROCKSDB_SCHEME_IDENTIFIER,
-                (url, config, enableWatchers) -> RocksdbMetadataStore.get(url, config)));
-        providers.put(ETCD_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(ETCD_SCHEME_IDENTIFIER,
-                EtcdMetadataStore::new));
-        providers.put(ZK_SCHEME_IDENTIFIER, new DefaultMetadataStoreProvider(ZK_SCHEME_IDENTIFIER,
-                (url, config, enableWatchers) ->
-                        new ZKMetadataStore(url.substring(ZK_SCHEME_IDENTIFIER.length()), config, enableWatchers)));
+        providers.put(MEMORY_SCHEME_IDENTIFIER, new MemeoryMetadataStoreProvider());
+        providers.put(ROCKSDB_SCHEME_IDENTIFIER, new RocksdbMetadataStoreProvider());
+        providers.put(ETCD_SCHEME_IDENTIFIER, new EtcdMetadataStoreProvider());
+        providers.put(ZK_SCHEME_IDENTIFIER, new ZkMetadataStoreProvider());
 
-        if (factoryClasses == null) {
-            return;
-        }
+        String factoryClasses = System.getProperty(METADATASTORE_PROVIDERS_PROPERTY, "");
 
         for (String className : Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
             try {
-                if (className.trim().length() == 0) {
-                    continue;
-                }
                 Class<? extends MetadataStoreProvider> clazz =
                         (Class<? extends MetadataStoreProvider>) Class.forName(className);
                 MetadataStoreProvider provider = clazz.getConstructor().newInstance();
                 String scheme = provider.urlScheme();
-                providers.put(scheme, provider);
+                providers.put(scheme + ":", provider);
             } catch (Exception e) {
                 log.warn("Failed to load metadata store provider class for name '{}'", className, e);
             }
@@ -109,7 +95,7 @@ public class MetadataStoreFactoryImpl {
                 return entry.getValue();
             }
         }
-        return null;
+        return providers.get(ZK_SCHEME_IDENTIFIER);
     }
 
     /**
@@ -123,8 +109,8 @@ public class MetadataStoreFactoryImpl {
      */
     public static String removeIdentifierFromMetadataURL(String metadataURL) {
         MetadataStoreProvider provider = findProvider(metadataURL);
-        if (provider != null) {
-            return metadataURL.substring(provider.urlScheme().length());
+        if (metadataURL.startsWith(provider.urlScheme() + ":")) {
+            return metadataURL.substring(provider.urlScheme().length() + 1);
         }
         return metadataURL;
     }
