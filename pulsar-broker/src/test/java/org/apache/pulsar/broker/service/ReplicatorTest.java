@@ -551,7 +551,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                         """, i)).build());
                     Producer producer = client1
                             .newProducer(schema)
-                            .producerName("ABC_" + UUID.randomUUID().toString())
                             .topic(topic.toString())
                             .create();
                     producer.send(String.valueOf(i).toString().getBytes());
