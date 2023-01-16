@@ -26,6 +26,7 @@ import com.google.common.base.Splitter;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -194,7 +195,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         if (webSocketPingDurationSeconds > 0) {
             pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
                 try {
-                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes()));
+                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
                 } catch (IOException e) {
                     log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
                 }
