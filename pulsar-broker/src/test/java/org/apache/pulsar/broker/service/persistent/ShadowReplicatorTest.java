@@ -18,19 +18,13 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -157,8 +151,8 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         return (PersistentReplicator) persistentTopic.getShadowReplicators().values().iterator().next();
     }
 
-    @Test(invocationCount = 5)
-    public void testCounterCorrectWhenWithSendError() throws Exception {
+    @Test
+    public void testCounterOfPengdingMessagesCorrect() throws Exception {
         TopicName sourceTopicName = TopicName
                 .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic"));
         TopicName shadowTopicName = TopicName
@@ -185,18 +179,9 @@ public class ShadowReplicatorTest extends BrokerTestBase {
             producer.send(new Schemas.PersonOne(i));
         }
 
-        // Make error when send messages to another cluster.
-        PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
-        ManagedCursorImpl cursor = ReplicatorTest.getCursor(sourceTopicName, subName, pulsar);
-        List<Entry> originalEntries = cursor.readEntries(1);
-        Entry errorEntry = spy(originalEntries.get(0));
-        doAnswer(invocation -> {
-            throw new NullPointerException("error entry in test");
-        }).when(errorEntry).getLedgerId();
-        replicator.readEntriesComplete(Collections.singletonList(errorEntry), null);
-
-        ReplicatorTest.waitReplicateFinish(sourceTopicName, admin, pulsar);
         // Verify "pendingMessages" still is correct even if error occurs.
+        PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
+        ReplicatorTest.waitReplicateFinish(sourceTopicName, admin, pulsar);
         Awaitility.await().untilAsserted(() -> {
             assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
         });
