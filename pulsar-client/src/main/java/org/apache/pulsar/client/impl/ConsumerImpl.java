@@ -816,7 +816,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             // don't set schema for Schema.BYTES
             si = null;
         } else {
-            if (schema instanceof AutoConsumeSchema) {
+            if (schema instanceof AutoConsumeSchema
+                    && Commands.peerSupportsCarryAutoConsumeSchemaToBroker(cnx.getRemoteEndpointProtocolVersion())) {
                 si = ((AutoConsumeSchema) schema).getAutoConsumeSchemaInfo();
             }
         }

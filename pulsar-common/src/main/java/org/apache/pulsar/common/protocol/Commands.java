@@ -647,7 +647,11 @@ public class Commands {
                 throw new IllegalStateException();
             }
 
-            convertSchema(schemaInfo, subscribe.setSchema());
+            if (schemaInfo.getType() == SchemaType.AUTO_CONSUME) {
+                convertAutoConsumeSchema(schemaInfo, subscribe.setSchema());
+            } else {
+                convertSchema(schemaInfo, subscribe.setSchema());
+            }
         }
 
         return serializeWithSize(cmd);
@@ -791,9 +795,20 @@ public class Commands {
         schema.setName(schemaInfo.getName())
                 .setSchemaData(schemaInfo.getSchema())
                 .setType(getSchemaType(schemaInfo.getType()));
-        if (schemaInfo.getType() == SchemaType.AUTO_CONSUME) {
-            schema.setIsAutoConsumeSchema(true);
-        }
+
+        schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
+            if (entry.getKey() != null && entry.getValue() != null) {
+                schema.addProperty()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue());
+            }
+        });
+    }
+
+    private static void convertAutoConsumeSchema(SchemaInfo schemaInfo, Schema schema) {
+        schema.setName(schemaInfo.getName())
+                .setSchemaData(schemaInfo.getSchema())
+                .setType(Schema.Type.AutoConsume);
 
         schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
             if (entry.getKey() != null && entry.getValue() != null) {
@@ -1960,6 +1975,10 @@ public class Commands {
 
     public static boolean peerSupportsAckReceipt(int peerVersion) {
         return peerVersion >= ProtocolVersion.v17.getValue();
+    }
+
+    public static boolean peerSupportsCarryAutoConsumeSchemaToBroker(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v21.getValue();
     }
 
     private static org.apache.pulsar.common.api.proto.ProducerAccessMode convertProducerAccessMode(
