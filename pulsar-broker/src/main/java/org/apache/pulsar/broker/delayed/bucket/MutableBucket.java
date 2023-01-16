@@ -137,9 +137,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
         future.whenComplete((__, ex) -> {
-            if (ex == null) {
-                bucket.setSnapshotCreateFuture(null);
-            } else {
+            if (ex != null) {
                 //TODO Record create snapshot failed
                 log.error("Failed to create snapshot: ", ex);
             }

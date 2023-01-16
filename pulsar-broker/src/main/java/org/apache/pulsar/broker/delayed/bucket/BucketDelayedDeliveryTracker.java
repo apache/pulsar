@@ -111,6 +111,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
         ManagedCursor cursor = this.lastMutableBucket.cursor;
+        Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new ConcurrentHashMap<>();
         cursor.getCursorProperties().keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
                 String[] keys = key.split(DELIMITER);
@@ -118,8 +119,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 ImmutableBucket immutableBucket =
                         new ImmutableBucket(cursor, this.lastMutableBucket.bucketSnapshotStorage,
                                 Long.parseLong(keys[1]), Long.parseLong(keys[2]));
-                immutableBuckets.put(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
-                        immutableBucket);
+                putAndCleanOverlapRange(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
+                        immutableBucket, toBeDeletedBucketMap);
             }
         });
 
@@ -128,7 +129,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         List<CompletableFuture<Void>> futures = new ArrayList<>(immutableBuckets.asMapOfRanges().size());
-        Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new ConcurrentHashMap<>();
         for (Map.Entry<Range<Long>, ImmutableBucket> entry :immutableBuckets.asMapOfRanges().entrySet()) {
             Range<Long> key = entry.getKey();
             ImmutableBucket immutableBucket = entry.getValue();
@@ -157,7 +157,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         try {
             FutureUtil.waitForAll(futures).whenComplete((__, ex) -> {
                 toBeDeletedBucketMap.forEach((k, immutableBucket) -> {
-                    immutableBuckets.remove(k);
+                    immutableBuckets.asMapOfRanges().remove(k);
                     immutableBucket.asyncDeleteBucketSnapshot();
                 });
             }).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
@@ -174,6 +174,26 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 dispatcher.getName(), immutableBuckets.asMapOfRanges().size(), numberDelayedMessages.getValue());
 
         return numberDelayedMessages.getValue();
+    }
+
+    private synchronized void putAndCleanOverlapRange(Range<Long> range, ImmutableBucket immutableBucket,
+                                                      Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap) {
+        RangeMap<Long, ImmutableBucket> subRangeMap = immutableBuckets.subRangeMap(range);
+        boolean canPut = false;
+        if (!subRangeMap.asMapOfRanges().isEmpty()) {
+            for (Map.Entry<Range<Long>, ImmutableBucket> rangeEntry : subRangeMap.asMapOfRanges().entrySet()) {
+                if (range.encloses(rangeEntry.getKey())) {
+                    toBeDeletedBucketMap.put(rangeEntry.getKey(), rangeEntry.getValue());
+                    canPut = true;
+                }
+            }
+        } else {
+            canPut = true;
+        }
+
+        if (canPut) {
+            immutableBuckets.put(range, immutableBucket);
+        }
     }
 
     @Override
@@ -298,17 +318,19 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> futureB =
                     bucketB.getRemainSnapshotSegment();
             return futureA.thenCombine(futureB, CombinedSegmentDelayedIndexQueue::wrap)
-                    .thenCompose(combinedDelayedIndexQueue -> {
-                        CompletableFuture<Void> removeAFuture = bucketA.asyncDeleteBucketSnapshot();
-                        CompletableFuture<Void> removeBFuture = bucketB.asyncDeleteBucketSnapshot();
+                    .thenAccept(combinedDelayedIndexQueue -> {
+                        Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
+                                lastMutableBucket.createImmutableBucketAndAsyncPersistent(
+                                        timeStepPerBucketSnapshotSegment, sharedBucketPriorityQueue,
+                                        combinedDelayedIndexQueue, bucketA.startLedgerId, bucketB.endLedgerId);
+                        afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
 
-                        return CompletableFuture.allOf(removeAFuture, removeBFuture).thenRun(() -> {
-                            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
-                                    lastMutableBucket.createImmutableBucketAndAsyncPersistent(
-                                            timeStepPerBucketSnapshotSegment, sharedBucketPriorityQueue,
-                                            combinedDelayedIndexQueue, bucketA.startLedgerId, bucketB.endLedgerId);
-                            afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
-                        });
+                        immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
+                                .orElse(CompletableFuture.completedFuture(null)).thenCompose(___ -> {
+                                    CompletableFuture<Void> removeAFuture = bucketA.asyncDeleteBucketSnapshot();
+                                    CompletableFuture<Void> removeBFuture = bucketB.asyncDeleteBucketSnapshot();
+                                    return CompletableFuture.allOf(removeAFuture, removeBFuture);
+                                });
                     });
         });
     }
