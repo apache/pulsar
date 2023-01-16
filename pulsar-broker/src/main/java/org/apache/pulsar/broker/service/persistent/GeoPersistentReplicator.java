@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -57,6 +58,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
+        final MutableBoolean shouldRollbackPendingSendAdd = new MutableBoolean(false);
         try {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
@@ -183,11 +185,16 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.getMessageBuilder().clearTxnidLeastBits();
                     // Increment pending messages for messages produced locally
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                    shouldRollbackPendingSendAdd.setTrue();
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }
             }
         } catch (Exception e) {
+            if (shouldRollbackPendingSendAdd.isTrue()) {
+                PENDING_MESSAGES_UPDATER.decrementAndGet(this);
+                shouldRollbackPendingSendAdd.setFalse();
+            }
             log.error("[{}] Unexpected exception in replication task: {}", replicatorId, e.getMessage(), e);
         }
         return atLeastOneMessageSentForReplication;

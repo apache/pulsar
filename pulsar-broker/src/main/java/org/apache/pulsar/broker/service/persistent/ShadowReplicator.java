@@ -24,6 +24,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -57,6 +58,7 @@ public class ShadowReplicator extends PersistentReplicator {
     protected boolean replicateEntries(List<Entry> entries) {
         boolean atLeastOneMessageSentForReplication = false;
 
+        final MutableBoolean shouldRollbackPendingSendAdd = new MutableBoolean(false);
         try {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
@@ -113,10 +115,15 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                shouldRollbackPendingSendAdd.setTrue();
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                 atLeastOneMessageSentForReplication = true;
             }
         } catch (Exception e) {
+            if (shouldRollbackPendingSendAdd.isTrue()) {
+                PENDING_MESSAGES_UPDATER.decrementAndGet(this);
+                shouldRollbackPendingSendAdd.setFalse();
+            }
             log.error("[{}] Unexpected exception in replication task for shadow topic: {}",
                     replicatorId, e.getMessage(), e);
         }
