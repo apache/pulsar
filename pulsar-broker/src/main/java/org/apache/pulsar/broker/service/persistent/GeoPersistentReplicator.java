@@ -187,6 +187,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                     shouldRollbackPendingSendAdd.setTrue();
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                    shouldRollbackPendingSendAdd.setFalse();
                     atLeastOneMessageSentForReplication = true;
                 }
             }
