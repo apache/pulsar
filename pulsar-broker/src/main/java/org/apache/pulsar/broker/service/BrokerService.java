@@ -1227,7 +1227,7 @@ public class BrokerService implements Closeable {
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed(topic);
+            pulsarStats.recordTopicLoadFailed();
             return null;
         });
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
@@ -1623,7 +1623,7 @@ public class BrokerService implements Closeable {
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed(topic);
+            pulsarStats.recordTopicLoadFailed();
             return null;
         });
 
