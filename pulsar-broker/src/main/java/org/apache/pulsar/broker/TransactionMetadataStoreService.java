@@ -133,54 +133,56 @@ public class TransactionMetadataStoreService {
                             return;
                         }
 
-                        openTransactionMetadataStore(tcId).thenAccept((store) -> internalPinnedExecutor.execute(() -> {
+                        openTransactionMetadataStore(tcId).thenAccept((store) -> {
                             stores.put(tcId, store);
                             LOG.info("Added new transaction meta store {}", tcId);
-                            long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                            while (true) {
-                                // prevent thread in a busy loop.
-                                if (System.currentTimeMillis() < endTime) {
-                                    CompletableFuture<Void> future = deque.poll();
-                                    if (future != null) {
-                                        // complete queue request future
-                                        future.complete(null);
+                            internalPinnedExecutor.execute(() -> {
+                                long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+                                while (true) {
+                                    // prevent thread in a busy loop.
+                                    if (System.currentTimeMillis() < endTime) {
+                                        CompletableFuture<Void> future = deque.poll();
+                                        if (future != null) {
+                                            // complete queue request future
+                                            future.complete(null);
+                                        } else {
+                                            break;
+                                        }
                                     } else {
+                                        deque.clear();
                                         break;
                                     }
-                                } else {
-                                    deque.clear();
-                                    break;
                                 }
-                            }
 
-                            completableFuture.complete(null);
-                            tcLoadSemaphore.release();
-                        })).exceptionally(e -> {
+                                completableFuture.complete(null);
+                                tcLoadSemaphore.release();
+                            });
+                        }).exceptionally(e -> {
                             internalPinnedExecutor.execute(() -> {
-                                        completableFuture.completeExceptionally(e.getCause());
-                                        // release before handle request queue,
-                                        //in order to client reconnect infinite loop
-                                        tcLoadSemaphore.release();
-                                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                                        while (true) {
-                                            // prevent thread in a busy loop.
-                                            if (System.currentTimeMillis() < endTime) {
-                                                CompletableFuture<Void> future = deque.poll();
-                                                if (future != null) {
-                                                    // this means that this tc client connection connect fail
-                                                    future.completeExceptionally(e);
-                                                } else {
-                                                    break;
-                                                }
-                                            } else {
-                                                deque.clear();
-                                                break;
-                                            }
+                                completableFuture.completeExceptionally(e.getCause());
+                                // release before handle request queue,
+                                //in order to client reconnect infinite loop
+                                tcLoadSemaphore.release();
+                                long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+                                while (true) {
+                                    // prevent thread in a busy loop.
+                                    if (System.currentTimeMillis() < endTime) {
+                                        CompletableFuture<Void> future = deque.poll();
+                                        if (future != null) {
+                                            // this means that this tc client connection connect fail
+                                            future.completeExceptionally(e);
+                                        } else {
+                                            break;
                                         }
-                                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
-                                    });
-                                    return null;
-                                });
+                                    } else {
+                                        deque.clear();
+                                        break;
+                                    }
+                                }
+                                LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
+                            });
+                            return null;
+                        });
                     } else {
                         // only one command can open transaction metadata store,
                         // other will be added to the deque, when the op of openTransactionMetadataStore finished
@@ -448,7 +450,6 @@ public class TransactionMetadataStoreService {
     private static boolean isRetryableException(Throwable ex) {
         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
         return (realCause instanceof TransactionMetadataStoreStateException
-                || realCause instanceof CoordinatorNotFoundException
                 || realCause instanceof RequestTimeoutException
                 || realCause instanceof ManagedLedgerException
                 || realCause instanceof BrokerPersistenceException
