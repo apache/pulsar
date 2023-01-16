@@ -24,6 +24,7 @@ import static org.apache.pulsar.metadata.impl.RocksdbMetadataStore.ROCKSDB_SCHEM
 import static org.apache.pulsar.metadata.impl.ZKMetadataStore.ZK_SCHEME_IDENTIFIER;
 import java.util.HashMap;
 import java.util.Map;
+import com.google.common.base.Splitter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -85,9 +86,12 @@ public class MetadataStoreFactoryImpl {
         if (factoryClasses == null) {
             return;
         }
-        String[] classNames = factoryClasses.split(",");
-        for (String className : classNames) {
+
+        for (String className : Splitter.on(',').trimResults().omitEmptyStrings().split(factoryClasses)) {
             try {
+                if (className.trim().length() == 0) {
+                    continue;
+                }
                 Class<? extends MetadataStoreProvider> clazz =
                         (Class<? extends MetadataStoreProvider>) Class.forName(className);
                 MetadataStoreProvider provider = clazz.getConstructor().newInstance();
