@@ -248,8 +248,7 @@ jobs:
 
       - name: Upload to Codecov
         if: ${{ github.repository == 'apache/pulsar' }}
-        uses: codecov/codecov-action@v3
-        continue-on-error: true
+        uses: ./.github/actions/upload-coverage
         with:
           flags: unittests
 

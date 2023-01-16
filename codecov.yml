@@ -19,8 +19,14 @@
 
 codecov:
   require_ci_to_pass: yes
+  notify:
+    # should match the number of builds sending coverage reports
+    # currently pulsar-ci.yaml contains 9 builds and pulsar-ci-flaky.yaml contains 1 build
+    after_n_builds: 10
 
 comment:
+  # should match the number of builds sending coverage reports
+  after_n_builds: 10
   layout: "reach, diff, flags, files"
   behavior: default
   require_changes: false

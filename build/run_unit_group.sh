@@ -33,19 +33,16 @@ function mvn_test() {
         clean_arg="clean"
         shift
     fi
-    if echo "${FUNCNAME[@]}" | grep "flaky"; then
-      TARGET="verify"
-    else
-      TARGET="verify -Pcoverage"
-    fi
+    local coverage_arg="-Pcoverage"
+    local target="verify"
     if [[ "$1" == "--install" ]]; then
-      TARGET="install"
+      target="install"
       shift
     fi
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test" to workaround MDEP-187 issue in pulsar-functions-worker and pulsar-broker projects with the maven-dependency-plugin's copy goal
     # Error message was "Artifact has not been packaged yet. When used on reactor artifact, copy should be executed after packaging: see MDEP-187"
-    $MVN_TEST_OPTIONS $clean_arg $TARGET "$@" "${COMMANDLINE_ARGS[@]}"
+    $MVN_TEST_OPTIONS $clean_arg $target $coverage_arg "$@" "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports

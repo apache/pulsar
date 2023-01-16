@@ -275,7 +275,7 @@ flexible messaging model and an intuitive client API.</description>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.7</jacoco-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
     <spotbugs.version>4.2.2</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
@@ -1487,6 +1487,7 @@ flexible messaging model and an intuitive client API.</description>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
           <shutdown>${surefire.shutdown}</shutdown>
+          <forkedProcessExitTimeoutInSeconds>60</forkedProcessExitTimeoutInSeconds>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>

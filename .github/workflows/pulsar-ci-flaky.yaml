@@ -127,6 +127,12 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
 
+      - name: Upload to Codecov
+        if: ${{ github.repository == 'apache/pulsar' }}
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: unittests
+
       - name: Publish Test Report
         uses: apache/pulsar-test-infra/action-junit-report@master
         if: ${{ always() }}
