@@ -51,6 +51,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -83,6 +84,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -96,7 +98,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.schema.Schemas;
@@ -509,29 +511,75 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
         // Verify "pendingMessages" still is correct even if error occurs.
-        PersistentReplicator replicator = getAnyReplicator(topic, pulsar1);
-        waitReplicateFinish(topic, admin1, pulsar1);
+        PersistentReplicator replicator = ensureReplicatorCreated(topic, pulsar1);
+        waitReplicateFinish(topic, admin1);
         Awaitility.await().untilAsserted(() -> {
             assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
         });
     }
 
-    public static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin, PulsarService pulsar){
-        String replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
-        Awaitility.await().until(() -> {
-            for (Map.Entry<String, ? extends SubscriptionStats> subStats :
-                    admin.topics().getStats(topicName.toString()).getSubscriptions().entrySet()){
-                if (subStats.getKey().startsWith(replicatorPrefix)){
-                    if (subStats.getValue().getMsgBacklog() != 0){
-                        return false;
-                    }
+    @Test
+    public void testReplicationWillNotStuckByIncompleteSchemaFuture() throws Exception {
+        pulsar1.getConfiguration().setReplicationProducerQueueSize(5);
+        // Init replicator and send many messages.
+        PulsarClient client1 = pulsar1.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns1/testReplicationWithGetSchemaError"));
+        admin1.namespaces().setSchemaCompatibilityStrategy("pulsar/ns1", SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        final String subName = "sub";
+        @Cleanup
+        Consumer<GenericRecord> consumer = client1.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscribe();
+        Thread sendTask = new Thread(() -> {
+            for (int i = 0; i < 50; i++) {
+                try {
+                    Schema schema = Schema.JSON(SchemaDefinition.builder().withJsonDef(String.format("""
+                        {
+                            "type": "record",
+                            "name": "Test_Pojo",
+                            "namespace": "org.apache.pulsar.schema.compatibility",
+                            "fields": [{
+                                "name": "prop_%s",
+                                "type": ["null", "string"],
+                                "default": null
+                            }]
+                        }
+                        """, i)).build());
+                    Producer producer = client1
+                            .newProducer(schema)
+                            .producerName("ABC_" + UUID.randomUUID().toString())
+                            .topic(topic.toString())
+                            .create();
+                    producer.send(String.valueOf(i).toString().getBytes());
+                    pulsar1.getBrokerService().checkReplicationPolicies();
+                    producer.close();
+                    Thread.sleep(100);
+                } catch (Exception e){
+                    e.printStackTrace();
                 }
             }
-            return true;
+        });
+        sendTask.start();
+
+        // Verify the replicate task can finish.
+        ensureReplicatorCreated(topic, pulsar1);
+        sendTask.join();
+        waitReplicateFinish(topic, admin1);
+    }
+
+    public static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
+        Awaitility.await().untilAsserted(() -> {
+            for (Map.Entry<String, ? extends ReplicatorStats> subStats :
+                    admin.topics().getStats(topicName.toString(), true, false, false).getReplication().entrySet()){
+                assertTrue(subStats.getValue().getReplicationBacklog() == 0, "replication task finished");
+            }
         });
     }
 
-    public static PersistentReplicator getAnyReplicator(TopicName topicName, PulsarService pulsar) {
+    public static PersistentReplicator ensureReplicatorCreated(TopicName topicName, PulsarService pulsar) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
         Awaitility.await().until(() -> !persistentTopic.getReplicators().isEmpty());

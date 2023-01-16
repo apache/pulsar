@@ -181,7 +181,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         // Verify "pendingMessages" still is correct even if error occurs.
         PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
-        ReplicatorTest.waitReplicateFinish(sourceTopicName, admin, pulsar);
+        ReplicatorTest.waitReplicateFinish(sourceTopicName, admin);
         Awaitility.await().untilAsserted(() -> {
             assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
         });
