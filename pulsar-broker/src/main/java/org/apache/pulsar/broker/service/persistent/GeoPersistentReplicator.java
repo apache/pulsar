@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -57,6 +58,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
+        final MutableBoolean shouldRollbackPendingSendAdd = new MutableBoolean(false);
         try {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
@@ -152,6 +154,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                shouldRollbackPendingSendAdd.setTrue();
 
                 msgOut.recordEvent(headersAndPayload.readableBytes());
 
@@ -161,6 +164,8 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 CompletableFuture<SchemaInfo> schemaFuture = getSchemaInfo(msg);
                 if (!schemaFuture.isDone() || schemaFuture.isCompletedExceptionally()) {
+                    PENDING_MESSAGES_UPDATER.decrementAndGet(this);
+                    shouldRollbackPendingSendAdd.setFalse();
                     entry.release();
                     headersAndPayload.release();
                     msg.recycle();
@@ -185,11 +190,17 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
+                    shouldRollbackPendingSendAdd.setFalse();
                     atLeastOneMessageSentForReplication = true;
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Unexpected exception: {}", replicatorId, e.getMessage(), e);
+            log.error("[{}] Unexpected exception in replication task: {}", replicatorId, e.getMessage(), e);
+        } finally {
+            if (shouldRollbackPendingSendAdd.isTrue()){
+                PENDING_MESSAGES_UPDATER.decrementAndGet(this);
+                shouldRollbackPendingSendAdd.setFalse();
+            }
         }
         return atLeastOneMessageSentForReplication;
     }

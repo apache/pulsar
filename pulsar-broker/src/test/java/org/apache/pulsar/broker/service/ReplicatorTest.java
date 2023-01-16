@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.BrokerTestUtil.newUniqueName;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -36,6 +37,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -96,10 +98,12 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -482,6 +486,106 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(consumer1.receive().getValue().getNativeObject(), data);
         assertEquals(consumer2.receive().getValue().getNativeObject(), data);
         assertEquals(consumer3.receive().getValue().getNativeObject(), data);
+    }
+
+    @Test
+    public void testCounterCorrectWhenWithSendError() throws Exception {
+        // Init replicator and send many messages.
+        PulsarClient client1 = pulsar1.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns1/testReplicationWithGetSchemaError"));
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<GenericRecord> consumer1 = client1.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscribe();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer1 = client1.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 20; i++) {
+            producer1.send(new Schemas.PersonOne(i));
+        }
+
+        // Make error when send messages to another cluster.
+        PersistentReplicator replicator = getAnyReplicator(topic, pulsar1);
+        ManagedCursorImpl cursor = getCursor(topic, subName, pulsar1);
+        List<Entry> originalEntries = cursor.readEntries(1);
+        Entry errorEntry = spy(originalEntries.get(0));
+        doAnswer(invocation -> {
+            throw new NullPointerException("error entry in test");
+        }).when(errorEntry).getLedgerId();
+        replicator.readEntriesComplete(Collections.singletonList(errorEntry), null);
+
+        waitReplicateFinish(topic, admin1, pulsar1);
+        // Verify "pendingMessages" still is correct even if error occurs.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
+        });
+    }
+
+    @Test
+    public void testCounterCorrectWhenWaitingSchemaLoad() throws Exception {
+        // Init replicator and send many messages.
+        PulsarClient client1 = pulsar1.getClient();
+        final TopicName topic = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://pulsar/ns1/testReplicationWithGetSchemaError"));
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<GenericRecord> consumer = client1.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic.toString())
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscribe();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer = client1.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(topic.toString())
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 20; i++) {
+            producer.send(new Schemas.PersonOne(i));
+        }
+
+        // There is a fairly high probability that schemaFuture is incomplete, so there is no need to construct the
+        // exception manually.
+        PersistentReplicator replicator = getAnyReplicator(topic, pulsar1);
+
+        waitReplicateFinish(topic, admin1, pulsar1);
+        // Verify "pendingMessages" still is correct even if error occurs.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
+        });
+    }
+
+    public static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin, PulsarService pulsar){
+        String replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
+        Awaitility.await().until(() -> {
+            for (Map.Entry<String, ? extends SubscriptionStats> subStats :
+                    admin.topics().getStats(topicName.toString()).getSubscriptions().entrySet()){
+                if (subStats.getKey().startsWith(replicatorPrefix)){
+                    if (subStats.getValue().getMsgBacklog() != 0){
+                        return false;
+                    }
+                }
+            }
+            return true;
+        });
+    }
+
+    public static PersistentReplicator getAnyReplicator(TopicName topicName, PulsarService pulsar) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
+        Awaitility.await().until(() -> !persistentTopic.getReplicators().isEmpty());
+        return (PersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
+    }
+
+    public static ManagedCursorImpl getCursor(TopicName topicName, String subName, PulsarService pulsar) throws Exception{
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
+        return (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
     }
 
     @Test

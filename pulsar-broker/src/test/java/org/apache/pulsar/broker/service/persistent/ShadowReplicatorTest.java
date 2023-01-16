@@ -18,20 +18,35 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.ReplicatorTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -133,5 +148,57 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         //`replicatedFrom` is set as localClusterName in shadow topic.
         Assert.assertNotEquals(shadowMessage.getReplicatedFrom(), sourceMessage.getReplicatedFrom());
         Assert.assertEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
+    }
+
+    public static PersistentReplicator getAnyShadowReplicator(TopicName topicName, PulsarService pulsar) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
+        Awaitility.await().until(() -> !persistentTopic.getShadowReplicators().isEmpty());
+        return (PersistentReplicator) persistentTopic.getShadowReplicators().values().iterator().next();
+    }
+
+    @Test(invocationCount = 5)
+    public void testCounterCorrectWhenWithSendError() throws Exception {
+        TopicName sourceTopicName = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic"));
+        TopicName shadowTopicName = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-shadow/shadow-topic"));
+
+        admin.topics().createNonPartitionedTopic(sourceTopicName.toString());
+        admin.topics().createShadowTopic(shadowTopicName.toString(), sourceTopicName.toString());
+        admin.topics().setShadowTopics(sourceTopicName.toString(), Lists.newArrayList(shadowTopicName.toString()));
+
+        // Init replicator and send many messages.
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(sourceTopicName.toString())
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscribe();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(sourceTopicName.toString())
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 20; i++) {
+            producer.send(new Schemas.PersonOne(i));
+        }
+
+        // Make error when send messages to another cluster.
+        PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
+        ManagedCursorImpl cursor = ReplicatorTest.getCursor(sourceTopicName, subName, pulsar);
+        List<Entry> originalEntries = cursor.readEntries(1);
+        Entry errorEntry = spy(originalEntries.get(0));
+        doAnswer(invocation -> {
+            throw new NullPointerException("error entry in test");
+        }).when(errorEntry).getLedgerId();
+        replicator.readEntriesComplete(Collections.singletonList(errorEntry), null);
+
+        ReplicatorTest.waitReplicateFinish(sourceTopicName, admin, pulsar);
+        // Verify "pendingMessages" still is correct even if error occurs.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals((int) WhiteboxImpl.getInternalState(replicator, "pendingMessages"), 0);
+        });
     }
 }
