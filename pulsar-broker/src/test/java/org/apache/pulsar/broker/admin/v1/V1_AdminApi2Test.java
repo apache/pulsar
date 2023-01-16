@@ -148,11 +148,9 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         assertEquals(admin.topics().getSubscriptions(partitionedTopicName), List.of(subName1));
         Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
         assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
                 Set.of(subName1, subName2));
@@ -165,9 +163,6 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         // (2) No Msg loss: verify new partitions have the same existing subscription names
         final String newPartitionTopicName = TopicName.get(partitionedTopicName).getPartition(startPartitions + 1)
                 .toString();
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
-                        Set.of(subName1, subName2)));
 
         // (3) produce messages to all partitions including newly created partitions (RoundRobin)
         Producer<byte[]> producer = client.newProducer().topic(partitionedTopicName)

@@ -1189,27 +1189,19 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Consumer<byte[]> consumer1 = client1.newConsumer().topic(topicName).subscriptionName(subscriberName)
                 .replicateSubscriptionState(true)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscribe();
 
         admin1.topics().updatePartitionedTopic(topicName, newPartitions);
 
         assertEquals(admin1.topics().getPartitionedTopicMetadata(topicName).partitions, newPartitions);
 
-        Awaitility.await().untilAsserted(() -> {
-            final Map<String, Boolean> replicatedSubscriptionStatus;
-            try {
-                replicatedSubscriptionStatus = admin1.topics().getReplicatedSubscriptionStatus(topicName, subscriberName);
-            } catch (PulsarAdminException.NotFoundException ex) {
-                fail("unexpected behaviour");
-                return;
-            }
+        Map<String, Boolean> replicatedSubscriptionStatus =
+                admin1.topics().getReplicatedSubscriptionStatus(topicName, subscriberName);
             assertEquals(replicatedSubscriptionStatus.size(), newPartitions);
             for (Map.Entry<String, Boolean> replicatedStatusForPartition : replicatedSubscriptionStatus.entrySet()) {
                 assertTrue(replicatedStatusForPartition.getValue(),
                         "Replicated status is invalid for " + replicatedStatusForPartition.getKey());
             }
-        });
         consumer1.close();
     }
 
