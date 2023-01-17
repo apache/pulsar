@@ -53,6 +53,6 @@ public class HttpSinkConfig implements Serializable {
 
     public static HttpSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), HttpSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), HttpSinkConfig.class);
     }
 }

@@ -67,6 +67,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -2729,7 +2730,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     public CompletableFuture<Boolean> checkTimeBacklogExceeded() {
         TopicName topicName = TopicName.get(getName());
-        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTimeInSec();
+        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
 
         // If backlog quota by time is not set and we have no durable cursor.
         if (backlogQuotaLimitInSecond <= 0
@@ -2785,7 +2786,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<Boolean> slowestReaderTimeBasedBacklogQuotaCheck(PositionImpl slowestPosition)
             throws ExecutionException, InterruptedException {
-        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTimeInSec();
+        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
         Long ledgerId = slowestPosition.getLedgerId();
         if (((ManagedLedgerImpl) ledger).getLedgersInfo().lastKey().equals(ledgerId)) {
             return CompletableFuture.completedFuture(false);
@@ -2858,7 +2859,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
         } catch (Exception e) {
-            log.warn("[{}] Error while getting the oldest message", topic, e);
+            if (brokerService.pulsar().getConfiguration().isAutoSkipNonRecoverableData()
+                    && e instanceof NonRecoverableLedgerException) {
+                // NonRecoverableLedgerException means the ledger or entry can't be read anymore.
+                // if AutoSkipNonRecoverableData is set to true, just return true here.
+                return true;
+            } else {
+                log.warn("[{}] Error while getting the oldest message", topic, e);
+            }
         } finally {
             if (entry != null) {
                 entry.release();

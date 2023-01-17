@@ -16,7 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Pulsar Client API.
- */
-package org.apache.pulsar.broker.cache;
+package org.apache.pulsar.client.api;
+
+import org.testng.annotations.Test;
+
+@Test(groups = "broker-api")
+public class SimpleSchemaWithSchemaValidationEnforcedTest extends SimpleSchemaTest {
+    public SimpleSchemaWithSchemaValidationEnforcedTest() {
+        super(true);
+    }
+}

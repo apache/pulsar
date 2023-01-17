@@ -143,4 +143,9 @@ abstract class Bucket {
         return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
                 ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
     }
+
+    protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
+        return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
+                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+    }
 }

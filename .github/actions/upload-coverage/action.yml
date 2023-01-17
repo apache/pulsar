@@ -1,0 +1,58 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Upload to Codecov with retries
+description: |
+  Uploads to codecov with multiple retries as a workaround 
+  for these issues
+    - https://github.com/codecov/codecov-action/issues/598
+    - https://github.com/codecov/codecov-action/issues/837
+inputs:
+  flags:
+    # see https://github.com/codecov/codecov-action#arguments
+    description: 'Flag the upload to group coverage metrics. Multiple flags are separated by a comma.'
+runs:
+  using: composite
+  steps:
+    - name: "Upload to Codecov (attempt #1)"
+      id: codecov-upload-1
+      uses: codecov/codecov-action@v3
+      continue-on-error: true
+      with:
+        flags: ${{ inputs.flags }}
+        fail_ci_if_error: true
+        verbose: true
+    - name: "Upload to Codecov (attempt #2)"
+      id: codecov-upload-2
+      if: steps.codecov-upload-1.outcome == 'failure'
+      uses: codecov/codecov-action@v3
+      continue-on-error: true
+      with:
+        flags: ${{ inputs.flags }}
+        fail_ci_if_error: true
+        verbose: true
+    - name: "Upload to Codecov (attempt #3)"
+      id: codecov-upload-3
+      if: steps.codecov-upload-2.outcome == 'failure'
+      uses: codecov/codecov-action@v3
+      continue-on-error: true
+      with:
+        flags: ${{ inputs.flags }}
+        fail_ci_if_error: true
+        verbose: true

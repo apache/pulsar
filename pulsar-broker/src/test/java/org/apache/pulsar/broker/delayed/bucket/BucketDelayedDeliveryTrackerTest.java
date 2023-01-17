@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.delayed;
+package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -42,8 +42,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
-import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
+import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
+import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
@@ -133,6 +135,10 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                                     true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
                     }};
+            case "testMergeSnapshot" -> new Object[][]{{
+                    new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
+                            true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10)
+            }};
             default -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             true, bucketSnapshotStorage, 1000, TimeUnit.MILLISECONDS.toMillis(100), 50)
@@ -234,5 +240,18 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertTrue(Arrays.equals(array, array2));
         assertNotSame(array, array2);
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testMergeSnapshot(BucketDelayedDeliveryTracker tracker) {
+        for (int i = 1; i <= 110; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        assertEquals(110, tracker.getNumberOfDelayedMessages());
+
+        int size = tracker.getImmutableBuckets().asMapOfRanges().size();
+
+        assertEquals(10, size);
     }
 }

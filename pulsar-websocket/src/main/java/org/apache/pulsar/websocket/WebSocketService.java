@@ -68,6 +68,10 @@ public class WebSocketService implements Closeable {
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
+
+    @Getter
+    private WebSocketProxyConfiguration webSocketProxyConfig;
+
     @Getter
     private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
 
@@ -79,6 +83,7 @@ public class WebSocketService implements Closeable {
 
     public WebSocketService(WebSocketProxyConfiguration config) {
         this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
+        this.webSocketProxyConfig = config;
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
@@ -107,7 +112,8 @@ public class WebSocketService implements Closeable {
         if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
                 configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
-                        (int) config.getMetadataStoreSessionTimeoutMillis());
+                        (int) config.getMetadataStoreSessionTimeoutMillis(),
+                        config.isZooKeeperAllowReadOnlyOperations());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }
@@ -140,9 +146,10 @@ public class WebSocketService implements Closeable {
         log.info("Pulsar WebSocket Service started");
     }
 
-    public MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs, boolean
+            isAllowReadOnlyOperations)
             throws MetadataStoreException {
-        return PulsarResources.createConfigMetadataStore(serverUrls, sessionTimeoutMs);
+        return PulsarResources.createConfigMetadataStore(serverUrls, sessionTimeoutMs, isAllowReadOnlyOperations);
     }
 
     @Override

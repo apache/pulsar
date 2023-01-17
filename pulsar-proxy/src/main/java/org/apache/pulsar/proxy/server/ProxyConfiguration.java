@@ -158,6 +158,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is zooKeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
+
+    @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         doc = "The service url points to the broker cluster. URL must have the pulsar:// prefix."
     )

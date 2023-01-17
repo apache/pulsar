@@ -51,13 +51,18 @@ class MutableBucket extends Bucket implements AutoCloseable {
     Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
             long timeStepPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue) {
-        if (priorityQueue.isEmpty()) {
+        return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment, sharedQueue,
+                TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId);
+    }
+
+    Pair<ImmutableBucket, DelayedIndex> createImmutableBucketAndAsyncPersistent(
+            final long timeStepPerBucketSnapshotSegment,
+            TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
+            final long endLedgerId) {
+        if (delayedIndexQueue.isEmpty()) {
             return null;
         }
         long numMessages = 0;
-
-        final long startLedgerId = getStartLedgerId();
-        final long endLedgerId = getEndLedgerId();
 
         List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
         List<SnapshotSegmentMetadata> segmentMetadataList = new ArrayList<>();
@@ -66,14 +71,15 @@ class MutableBucket extends Bucket implements AutoCloseable {
         SnapshotSegmentMetadata.Builder segmentMetadataBuilder = SnapshotSegmentMetadata.newBuilder();
 
         long currentTimestampUpperLimit = 0;
-        while (!priorityQueue.isEmpty()) {
-            long timestamp = priorityQueue.peekN1();
+        while (!delayedIndexQueue.isEmpty()) {
+            DelayedIndex delayedIndex = delayedIndexQueue.peek();
+            long timestamp = delayedIndex.getTimestamp();
             if (currentTimestampUpperLimit == 0) {
                 currentTimestampUpperLimit = timestamp + timeStepPerBucketSnapshotSegment - 1;
             }
 
-            long ledgerId = priorityQueue.peekN2();
-            long entryId = priorityQueue.peekN3();
+            long ledgerId = delayedIndex.getLedgerId();
+            long entryId = delayedIndex.getEntryId();
 
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
@@ -82,19 +88,14 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 sharedQueue.add(timestamp, ledgerId, entryId);
             }
 
-            priorityQueue.pop();
+            delayedIndexQueue.pop();
             numMessages++;
-
-            DelayedIndex delayedIndex = DelayedIndex.newBuilder()
-                    .setTimestamp(timestamp)
-                    .setLedgerId(ledgerId)
-                    .setEntryId(entryId).build();
 
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
 
             snapshotSegmentBuilder.addIndexes(delayedIndex);
 
-            if (priorityQueue.isEmpty() || priorityQueue.peekN1() > currentTimestampUpperLimit) {
+            if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peek().getTimestamp() > currentTimestampUpperLimit) {
                 segmentMetadataBuilder.setMaxScheduleTimestamp(timestamp);
                 currentTimestampUpperLimit = 0;
 
@@ -136,9 +137,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
         future.whenComplete((__, ex) -> {
-            if (ex == null) {
-                bucket.setSnapshotCreateFuture(null);
-            } else {
+            if (ex != null) {
                 //TODO Record create snapshot failed
                 log.error("Failed to create snapshot: ", ex);
             }

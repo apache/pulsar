@@ -162,7 +162,7 @@ public class NamespaceStatsAggregator {
             stats.backlogQuotaLimit = topic
                     .getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize();
             stats.backlogQuotaLimitTime = topic
-                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTimeInSec();
+                    .getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
 
             stats.managedLedgerStats.storageWriteLatencyBuckets
                     .addAll(mlStats.getInternalAddEntryLatencyBuckets());

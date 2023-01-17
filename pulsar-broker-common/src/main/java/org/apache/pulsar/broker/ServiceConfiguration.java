@@ -462,6 +462,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int zooKeeperCacheExpirySeconds = -1;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is zookeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
+
+    @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Time to wait for broker graceful shutdown. After this time elapses, the process will be killed"

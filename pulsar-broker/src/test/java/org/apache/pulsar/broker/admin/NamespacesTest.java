@@ -733,6 +733,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
                 UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
 
+        // check the bundle should not unload to an inactive destination broker
+        namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
+                this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false, "inactive_destination:8080");
+        captor = ArgumentCaptor.forClass(WebApplicationException.class);
+        verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testGlobalNamespaces.get(0).toString() + "/configversion");
         doReturn(uri).when(uriInfo).getRequestUri();

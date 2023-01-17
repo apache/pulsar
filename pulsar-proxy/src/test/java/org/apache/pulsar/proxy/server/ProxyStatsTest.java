@@ -125,6 +125,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
             consumer.acknowledge(msg);
         }
 
+        @Cleanup
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/connections").request()
                 .get();
@@ -175,6 +176,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
             msg = consumer2.receive(1, TimeUnit.SECONDS);
         }
 
+        @Cleanup
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/topics").request()
                 .get();
@@ -198,6 +200,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     public void testChangeLogLevel() {
         Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
         int newLogLevel = 1;
+        @Cleanup
         Client httpClient = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = httpClient.target(proxyWebServer.getServiceUri()).path("/proxy-stats/logging/" + newLogLevel)
                 .request().post(Entity.entity("", MediaType.APPLICATION_JSON));

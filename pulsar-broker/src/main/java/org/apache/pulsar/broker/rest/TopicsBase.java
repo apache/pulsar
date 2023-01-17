@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.rest;
 
+import com.fasterxml.jackson.databind.ObjectReader;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.URI;
@@ -546,13 +547,15 @@ public class TopicsBase extends PersistentTopicsBase {
         return result;
     }
 
+    private static final ObjectReader SCHEMA_INFO_READER =
+            ObjectMapperFactory.getMapper().reader().forType(SchemaInfoImpl.class);
+
     // Build schemaData from passed in schema string.
     private SchemaData getSchemaData(String keySchema, String valueSchema) {
         try {
             SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
                     ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() :
-                    ObjectMapperFactory.getThreadLocal()
-                            .readValue(valueSchema, SchemaInfoImpl.class);
+                    SCHEMA_INFO_READER.readValue(valueSchema);
             if (null == valueSchemaInfo.getName()) {
                 valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
             }
@@ -568,8 +571,7 @@ public class TopicsBase extends PersistentTopicsBase {
                         .build();
             } else {
                 // Key_Value schema
-                SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getThreadLocal()
-                        .readValue(keySchema, SchemaInfoImpl.class);
+                SchemaInfoImpl keySchemaInfo = SCHEMA_INFO_READER.readValue(keySchema);
                 if (null == keySchemaInfo.getName()) {
                     keySchemaInfo.setName(keySchemaInfo.getType().toString());
                 }
@@ -712,7 +714,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 case JSON:
                     GenericJsonWriter jsonWriter = new GenericJsonWriter();
                     return jsonWriter.write(new GenericJsonRecord(null, null,
-                          ObjectMapperFactory.getThreadLocal().readTree(input), schema.getSchemaInfo()));
+                          ObjectMapperFactory.getMapper().reader().readTree(input), schema.getSchemaInfo()));
                 case AVRO:
                     AvroBaseStructSchema avroSchema = ((AvroBaseStructSchema) schema);
                     Decoder decoder = DecoderFactory.get().jsonDecoder(avroSchema.getAvroSchema(), input);

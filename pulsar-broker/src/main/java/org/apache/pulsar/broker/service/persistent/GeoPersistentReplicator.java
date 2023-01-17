@@ -150,9 +150,6 @@ public class GeoPersistentReplicator extends PersistentReplicator {
 
                 dispatchRateLimiter.ifPresent(rateLimiter -> rateLimiter.tryDispatchPermit(1, entry.getLength()));
 
-                // Increment pending messages for messages produced locally
-                PENDING_MESSAGES_UPDATER.incrementAndGet(this);
-
                 msgOut.recordEvent(headersAndPayload.readableBytes());
 
                 msg.setReplicatedFrom(localCluster);
@@ -184,12 +181,14 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
                     msg.getMessageBuilder().clearTxnidMostBits();
                     msg.getMessageBuilder().clearTxnidLeastBits();
+                    // Increment pending messages for messages produced locally
+                    PENDING_MESSAGES_UPDATER.incrementAndGet(this);
                     producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                     atLeastOneMessageSentForReplication = true;
                 }
             }
         } catch (Exception e) {
-            log.error("[{}] Unexpected exception: {}", replicatorId, e.getMessage(), e);
+            log.error("[{}] Unexpected exception in replication task: {}", replicatorId, e.getMessage(), e);
         }
         return atLeastOneMessageSentForReplication;
     }

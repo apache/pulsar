@@ -339,7 +339,10 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-core-2.18.0.jar
     - org.apache.logging.log4j-log4j-slf4j-impl-2.18.0.jar
     - org.apache.logging.log4j-log4j-web-2.18.0.jar
- * Java Native Access JNA -- net.java.dev.jna-jna-5.12.1.jar
+ * Java Native Access JNA
+    - net.java.dev.jna-jna-5.12.1.jar
+    - net.java.dev.jna-jna-jpms-5.12.1.jar
+    - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.15.3.jar
     - org.apache.bookkeeper-bookkeeper-common-allocator-4.15.3.jar
@@ -509,7 +512,8 @@ MIT License
     - org.slf4j-jcl-over-slf4j-1.7.32.jar
  * The Checker Framework
     - org.checkerframework-checker-qual-3.12.0.jar
-
+ * oshi
+    - com.github.oshi-oshi-core-java11-6.4.0.jar
 Protocol Buffers License
  * Protocol Buffers
    - com.google.protobuf-protobuf-java-3.19.6.jar -- ../licenses/LICENSE-protobuf.txt
