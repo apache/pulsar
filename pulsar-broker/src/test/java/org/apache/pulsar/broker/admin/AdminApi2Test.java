@@ -2688,7 +2688,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // validate subscription is created for new partition.
         for (int i = startPartitions; i < newPartitions; i++) {
             assertNotNull(
-                admin.topics().getStats(partitionedTopicName + "-partition-" + i).getSubscriptions().get(subName1));
+                    admin.topics().getStats(partitionedTopicName + "-partition-" + i).getSubscriptions().get(subName1));
         }
 
         // validate update partition is success
