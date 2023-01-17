@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /***
  * See PIP-160: https://github.com/apache/pulsar/issues/15516.
@@ -214,13 +215,13 @@ public class TxnLogBufferedWriter<T> {
                     AsyncAddArgs.newInstance(callback, ctx, System.currentTimeMillis(), byteBuf));
             return;
         }
-        singleThreadExecutorForWrite.execute(() -> {
-            try {
-                internalAsyncAddData(data, callback, ctx);
-            } catch (Exception e){
-                log.warn("Execute 'internalAsyncAddData' fail", e);
-            }
-        });
+        CompletableFuture
+                .runAsync(
+                        () -> internalAsyncAddData(data, callback, ctx), singleThreadExecutorForWrite)
+                .exceptionally(e -> {
+                    log.warn("Execute 'internalAsyncAddData' fail", e);
+                    return null;
+                });
     }
 
     /**
@@ -271,21 +272,21 @@ public class TxnLogBufferedWriter<T> {
     }
 
     private void trigFlushByTimingTask(){
-        singleThreadExecutorForWrite.execute(() -> {
-            try {
-                if (flushContext.asyncAddArgsList.isEmpty()) {
-                    return;
-                }
-                metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
-                        System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
-                doFlush();
-            } catch (Exception e){
-                log.error("Trig flush by timing task fail.", e);
-            } finally {
-                // Start the next timing task.
-                nextTimingTrigger();
-            }
-        });
+        CompletableFuture
+                .runAsync(() -> {
+                    if (flushContext.asyncAddArgsList.isEmpty()) {
+                        return;
+                    }
+                    metrics.triggerFlushByByMaxDelay(flushContext.asyncAddArgsList.size(), bytesSize,
+                            System.currentTimeMillis() - flushContext.asyncAddArgsList.get(0).addedTime);
+                    doFlush();
+                }, singleThreadExecutorForWrite)
+                .whenComplete((ignore, e) -> {
+                    if (e != null) {
+                        log.warn("Execute 'trigFlushByTimingTask' fail", e);
+                    }
+                    nextTimingTrigger();
+                });
     }
 
     /**
@@ -379,24 +380,20 @@ public class TxnLogBufferedWriter<T> {
         }
         CompletableFuture closeFuture = new CompletableFuture();
         // Cancel pending tasks and release resources.
-        singleThreadExecutorForWrite.execute(() -> {
-            try {
-                // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
-                // fail.
-                failureCallbackByContextAndRecycle(flushContext,
-                        new ManagedLedgerException.ManagedLedgerFencedException(
+        FutureUtil.safeRunAsync(() -> {
+            // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
+            // fail.
+            failureCallbackByContextAndRecycle(flushContext,
+                    new ManagedLedgerException.ManagedLedgerFencedException(
                             new Exception("Transaction log buffered write has closed")
-                        ));
-                // Cancel the timing task.
-                if (!timeout.isCancelled()){
-                    this.timeout.cancel();
-                }
-                STATE_UPDATER.set(this, State.CLOSED);
-                closeFuture.complete(null);
-            } catch (Exception e){
-                closeFuture.completeExceptionally(e);
+                    ));
+            // Cancel the timing task.
+            if (!timeout.isCancelled()) {
+                this.timeout.cancel();
             }
-        });
+            STATE_UPDATER.set(this, State.CLOSED);
+            closeFuture.complete(null);
+        }, singleThreadExecutorForWrite, closeFuture);
         return closeFuture;
     }
 
