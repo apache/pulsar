@@ -89,6 +89,12 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     }
 
     @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        // TODO: Add namespace bundle affinity support.
+        return null;
+    }
+
+    @Override
     public void stop() throws PulsarServerException {
         this.loadManager.close();
     }
