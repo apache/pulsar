@@ -423,10 +423,6 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(422 /* Unprocessable entity*/,
                             String.format("Topic %s is not the partitioned topic.", topicName));
                 }
-                if (expectPartitions == currentMetadataPartitions) {
-                    // current metadata partitions is equals to expect partitions
-                    return CompletableFuture.completedFuture(null);
-                }
                 if (expectPartitions < currentMetadataPartitions) {
                     throw new RestException(422 /* Unprocessable entity*/,
                             String.format("Expect partitions %s can't less than current partitions %s.",
@@ -478,16 +474,20 @@ public class PersistentTopicsBase extends AdminResource {
                     checkFuture = CompletableFuture.completedFuture(null);
                 }
                 return checkFuture.thenCompose(topics -> {
-                    // update current cluster topic metadata
-                    return namespaceResources().getPartitionedTopicResources()
+                    final CompletableFuture<Void> updateMetadataFuture = (expectPartitions == currentMetadataPartitions)
+                            // current metadata partitions is equals to expect partitions
+                            ? CompletableFuture.completedFuture(null)
+                            // update current cluster topic metadata
+                            : namespaceResources().getPartitionedTopicResources()
                             .updatePartitionedTopicAsync(topicName, m ->
-                                            new PartitionedTopicMetadata(expectPartitions, m.properties))
-                            // create missing partitions
-                            .thenCompose(__ -> tryCreatePartitionsAsync(expectPartitions))
-                            // because we should consider the compatibility.
-                            // Copy subscriptions from partition 0 instead of being created by the customer
-                            .thenCompose(__ ->
-                                 admin.topics().getStatsAsync(topicName.getPartition(0).toString())
+                                    new PartitionedTopicMetadata(expectPartitions, m.properties));
+                return updateMetadataFuture
+                    // create missing partitions
+                    .thenCompose(__ -> tryCreatePartitionsAsync(expectPartitions))
+                    // because we should consider the compatibility.
+                    // Copy subscriptions from partition 0 instead of being created by the customer
+                    .thenCompose(__ ->
+                            admin.topics().getStatsAsync(topicName.getPartition(0).toString())
                                     .thenCompose(stats -> {
                                         List<CompletableFuture<Void>> futures = stats.getSubscriptions().entrySet()
                                                 // We must not re-create non-durable subscriptions on the new partitions
@@ -520,7 +520,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                 }).collect(Collectors.toList());
                                         return FutureUtil.waitForAll(futures);
                                     })
-                            );
+                    );
                 }).thenCompose(__ -> {
                     if (updateLocal || !topicName.isGlobal()) {
                         return CompletableFuture.completedFuture(null);
@@ -531,8 +531,20 @@ public class PersistentTopicsBase extends AdminResource {
                                 if (!policies.isPresent()) {
                                     return CompletableFuture.completedFuture(null);
                                 }
-                                Set<String> replicationClusters = policies.get().replication_clusters;
+                                final Set<String> replicationClusters = policies.get().replication_clusters;
                                 if (replicationClusters.size() == 0) {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                boolean containsCurrentCluster =
+                                        replicationClusters.contains(pulsar().getConfig().getClusterName());
+                                if (!containsCurrentCluster) {
+                                    log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
+                                            clientAppId(), topicName);
+                                    throw new RestException(422,
+                                            "Local cluster is not part of replicate cluster list");
+                                }
+                                if (replicationClusters.size() == 1) {
+                                    // The replication clusters just has the current cluster itself.
                                     return CompletableFuture.completedFuture(null);
                                 }
                                 List<CompletableFuture<Void>> futures = replicationClusters.stream()
