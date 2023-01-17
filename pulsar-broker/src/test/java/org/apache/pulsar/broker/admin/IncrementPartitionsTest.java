@@ -107,7 +107,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.topics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
-            assertEquals(admin.topics().getSubscriptions(
+        assertEquals(admin.topics().getSubscriptions(
                 TopicName.get(partitionedTopicName).getPartition(15).toString()), List.of("sub-1"));
 
         consumer.close();

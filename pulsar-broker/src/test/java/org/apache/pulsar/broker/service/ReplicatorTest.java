@@ -1196,11 +1196,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         Map<String, Boolean> replicatedSubscriptionStatus =
                 admin1.topics().getReplicatedSubscriptionStatus(topicName, subscriberName);
-            assertEquals(replicatedSubscriptionStatus.size(), newPartitions);
-            for (Map.Entry<String, Boolean> replicatedStatusForPartition : replicatedSubscriptionStatus.entrySet()) {
-                assertTrue(replicatedStatusForPartition.getValue(),
-                        "Replicated status is invalid for " + replicatedStatusForPartition.getKey());
-            }
+        assertEquals(replicatedSubscriptionStatus.size(), newPartitions);
+        for (Map.Entry<String, Boolean> replicatedStatusForPartition : replicatedSubscriptionStatus.entrySet()) {
+            assertTrue(replicatedStatusForPartition.getValue(),
+                    "Replicated status is invalid for " + replicatedStatusForPartition.getKey());
+        }
         consumer1.close();
     }
 
