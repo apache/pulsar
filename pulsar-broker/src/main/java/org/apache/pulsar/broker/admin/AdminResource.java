@@ -592,16 +592,7 @@ public abstract class AdminResource extends PulsarWebResource {
                     "Number of partitions should be less than or equal to " + maxPartitions));
             return;
         }
-
-        checkTopicExistsAsync(topicName)
-                .thenAccept(exists -> {
-                    if (exists) {
-                        log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
-                        throw new RestException(Status.CONFLICT, "This topic already exists");
-                    }
-                })
-                .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
-                        NamespaceOperation.CREATE_TOPIC))
+        validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC)
                 .thenRun(() -> {
                     Policies policies = null;
                     try {
@@ -628,6 +619,13 @@ public abstract class AdminResource extends PulsarWebResource {
                             throw new RestException(Status.PRECONDITION_FAILED,
                                     "Exceed maximum number of topics in namespace.");
                         }
+                    }
+                })
+                .thenCompose(__ -> checkTopicExistsAsync(topicName))
+                .thenAccept(exists -> {
+                    if (exists) {
+                        log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
+                        throw new RestException(Status.CONFLICT, "This topic already exists");
                     }
                 })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
