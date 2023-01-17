@@ -719,6 +719,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WEBSOCKET,
+            doc = "Interval of time to sending the ping to keep alive in WebSocket proxy. "
+                    + "This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
             doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
