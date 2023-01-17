@@ -108,6 +108,8 @@ flexible messaging model and an intuitive client API.</description>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <testFailFast>true</testFailFast>
+    <testFailFastFile></testFailFastFile>
     <testJacocoAgentArgument/>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
@@ -1493,6 +1495,8 @@ flexible messaging model and an intuitive client API.</description>
           <systemPropertyVariables>
             <testRealAWS>${testRealAWS}</testRealAWS>
             <testRetryCount>${testRetryCount}</testRetryCount>
+            <testFailFast>${testFailFast}</testFailFast>
+            <testFailFastFile>${testFailFastFile}</testFailFastFile>
           </systemPropertyVariables>
           <properties>
             <property>

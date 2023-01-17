@@ -64,6 +64,20 @@ mvn_run_integration_test() {
       clean_arg="clean"
       shift
   fi
+  local use_fail_fast=1
+  if [[ "$GITHUB_ACTIONS" == "true" && "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+    use_fail_fast=0
+  fi
+  if [[ "$1" == "--no-fail-fast" ]]; then
+    use_fail_fast=0
+    shift;
+  fi
+  local failfast_args
+  if [ $use_fail_fast -eq 1 ]; then
+    failfast_args="-DtestFailFast=true -DtestFailFastFile=/tmp/test_fail_fast_killswitch.$$.$RANDOM.$(date +%s) --fail-fast"
+  else
+    failfast_args="-DtestFailFast=false --fail-at-end"
+  fi
   cd "$SCRIPT_DIR"/../tests
   modules=$(mvn_list_modules -DskipDocker "$@")
   cd ..
@@ -76,7 +90,7 @@ mvn_run_integration_test() {
   if [[ $build_only -ne 1 ]]; then
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test"
-    mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false $clean_arg verify "$@"
+    mvn -B -ntp -pl "$modules" $failfast_args -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false $clean_arg verify "$@"
     echo "::endgroup::"
     set +x
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
