@@ -832,6 +832,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         try {
             synchronized (brokerCandidateCache) {
                 final String bundle = serviceUnit.toString();
+                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                // Set bundle affinity broker to preallocatedBundleToBroker.
+                final String affinityBroker = setNamespaceBundleAffinity(bundleRange, null);
+                if (StringUtils.isNotBlank(affinityBroker) && getAvailableBrokers().contains(affinityBroker)) {
+                    preallocatedBundleToBroker.put(bundle, affinityBroker);
+                }
+
                 if (preallocatedBundleToBroker.containsKey(bundle)) {
                     // If the given bundle is already in preallocated, return the selected broker.
                     return Optional.of(preallocatedBundleToBroker.get(bundle));
@@ -913,7 +920,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 preallocatedBundleToBroker.put(bundle, broker.get());
 
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
                 final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
                         brokerToNamespaceToBundleRange
                                 .computeIfAbsent(broker.get(),

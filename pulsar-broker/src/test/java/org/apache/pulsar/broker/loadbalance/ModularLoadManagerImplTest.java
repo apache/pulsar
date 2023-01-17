@@ -69,6 +69,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -346,14 +347,25 @@ public class ModularLoadManagerImplTest {
         log.debug("destination broker service url - {}, broker url - {}", brokerServiceUrl, brokerUrl);
         String leaderServiceUrl = admin1.brokers().getLeaderBroker().getServiceUrl();
         log.debug("leader serviceUrl - {}, broker1 service url - {}", leaderServiceUrl, pulsar1.getSafeWebServiceAddress());
+        ServiceUnitId serviceUnitId = pulsar1.getNamespaceService().getServiceUnitId(TopicName.get(topic));
         //Make a call to broker which is not a leader
         if (!leaderServiceUrl.equals(pulsar1.getSafeWebServiceAddress())) {
             admin1.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerUrl);
+            // Make sure more times lookup request get the same result.
+            for (int i =0; i < 10; i++) {
+                Assert.assertEquals(brokerUrl, pulsar2.getLoadManager().get()
+                                .getLeastLoaded(serviceUnitId).get().getResourceId().replaceFirst("http[s]?://", ""));
+            }
         }
         else {
             admin2.namespaces().unloadNamespaceBundle(namespace, bundleRange, brokerUrl);
+            // Make sure more times lookup request get the same result.
+            for (int i =0; i < 10; i++) {
+                Assert.assertEquals(brokerUrl, pulsar1.getLoadManager().get()
+                                .getLeastLoaded(serviceUnitId).get().getResourceId().replaceFirst("http[s]?://", ""));
+            }
         }
-        
+
         sleep(2000);
         String topicLookupAfterUnload = admin1.lookups().lookupTopic(topic);
         log.debug("final broker service url - {}", topicLookupAfterUnload);

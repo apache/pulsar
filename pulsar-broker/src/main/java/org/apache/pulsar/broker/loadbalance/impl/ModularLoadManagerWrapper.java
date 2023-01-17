@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -66,11 +65,6 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
-        String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(serviceUnit.toString());
-        String affinityBroker = loadManager.setNamespaceBundleAffinity(bundleRange, null);
-        if (!StringUtils.isBlank(affinityBroker)) {
-            return Optional.of(buildBrokerResourceUnit(affinityBroker));
-        }
         Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
         return leastLoadedBroker.map(this::buildBrokerResourceUnit);
     }
