@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -96,9 +95,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(partitionedTopicName, 1);
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 1);
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName)
-                    .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
-                    .subscriptionName("sub-1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("sub-1")
                     .subscribe();
 
         admin.topics().updatePartitionedTopic(partitionedTopicName, 2);

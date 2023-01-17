@@ -236,12 +236,10 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
-                .subscriptionType(SubscriptionType.Shared)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Shared).subscribe();
         assertEquals(admin.topics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
         Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
-                .subscriptionType(SubscriptionType.Shared)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS).subscribe();
+                .subscriptionType(SubscriptionType.Shared).subscribe();
         assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
                 Set.of(subName1, subName2));
 
@@ -254,9 +252,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String newPartitionTopicName = TopicName.get(partitionedTopicName).getPartition(startPartitions + 1)
                 .toString();
 
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
-                        Set.of(subName1, subName2)));
         // (3) produce messages to all partitions including newly created partitions (RoundRobin)
         Producer<byte[]> producer = client.newProducer()
             .topic(partitionedTopicName)
@@ -273,11 +268,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // newly created partition topics
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
-                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        Awaitility.await().untilAsserted(() ->
                 assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
-                Set.of(subName1, subName2)));
+                Set.of(subName1, subName2));
 
         assertEquals(new HashSet<>(admin.topics().getList("prop-xyz/ns1")).size(), newPartitions);
 
@@ -307,6 +300,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         producer.close();
         consumer1.close();
+        consumer2.close();
         consumer2.close();
     }
 
