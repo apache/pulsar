@@ -52,7 +52,20 @@ public class BrokerLoadData {
 
     // Load data features computed from the above resources.
     private double maxResourceUsage; // max of resource usages
-    private double weightedMaxEMA; // exponential moving average of max of weighted resource usages
+    /**
+     * Exponential moving average(EMA) of max of weighted resource usages among
+     * cpu, memory, directMemory, bandwidthIn and bandwidthOut.
+     *
+     * The resource weights are configured by :
+     * loadBalancerCPUResourceWeight,
+     * loadBalancerMemoryResourceWeight,
+     * loadBalancerDirectMemoryResourceWeight,
+     * loadBalancerBandwithInResourceWeight, and
+     * loadBalancerBandwithOutResourceWeight.
+     *
+     * The historical resource percentage is configured by loadBalancerHistoryResourcePercentage.
+     */
+    private double weightedMaxEMA;
     private long updatedAt;
 
     public BrokerLoadData() {
@@ -143,7 +156,6 @@ public class BrokerLoadData {
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
-
     private void updateWeightedMaxEMA(ServiceConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         var weightedMax = getMaxResourceUsageWithWeight(
@@ -153,6 +165,26 @@ public class BrokerLoadData {
                 conf.getLoadBalancerBandwithOutResourceWeight());
         weightedMaxEMA = updatedAt == 0 ? weightedMax :
                 weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
+    }
+
+    public String toString(ServiceConfiguration conf) {
+        return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
+                        + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
+                        + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "
+                        + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
+                        + "msgThroughputIn= %.2f, msgThroughputOut= %.2f, msgRateIn= %.2f, msgRateOut= %.2f, "
+                        + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, updatedAt= %d",
+
+                cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
+                bandwidthIn.percentUsage(), bandwidthOut.percentUsage(),
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerMemoryResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwithInResourceWeight(),
+                conf.getLoadBalancerBandwithOutResourceWeight(),
+                msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
+                maxResourceUsage * 100, weightedMaxEMA * 100, updatedAt
+        );
     }
 
 }

@@ -100,6 +100,13 @@ public class BrokerLoadDataTest {
         assertEquals(data.getMaxResourceUsage(), 3.0);
         assertEquals(data.getWeightedMaxEMA(), 1.875);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
+        assertEquals(data.toString(conf), "cpu= 300.00%, memory= 100.00%, directMemory= 2.00%, "
+                + "bandwithIn= 3.00%, bandwithOut= 4.00%, "
+                + "cpuWeight= 0.500000, memoryWeight= 0.500000, directMemoryWeight= 0.500000, "
+                + "bandwithInResourceWeight= 0.500000, bandwithOutResourceWeight= 0.500000, "
+                + "msgThroughputIn= 5.00, msgThroughputOut= 6.00, "
+                + "msgRateIn= 7.00, msgRateOut= 8.00,"
+                + " maxResourceUsage= 300.00%, weightedMaxEMA= 187.50%, updatedAt= " + data.getUpdatedAt());
     }
 
     @Test

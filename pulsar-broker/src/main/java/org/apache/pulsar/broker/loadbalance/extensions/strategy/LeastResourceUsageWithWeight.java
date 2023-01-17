@@ -52,25 +52,19 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final var maxUsageWithWeight = brokerLoadData.getWeightedMaxEMA();
 
+
         if (maxUsageWithWeight > overloadThreshold) {
             log.warn(
-                    "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
-                            + "CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
-                            + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
-                            + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
-                    broker, maxUsageWithWeight * 100,
-                    brokerLoadData.getCpu().percentUsage(), brokerLoadData.getMemory().percentUsage(),
-                    brokerLoadData.getDirectMemory().percentUsage(), brokerLoadData.getBandwidthIn().percentUsage(),
-                    brokerLoadData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    "Broker {} is overloaded, brokerLoad({}%) > overloadThreshold({}%). load data:{{}}",
+                    broker,
+                    maxUsageWithWeight * 100,
+                    overloadThreshold * 100,
+                    brokerLoadData.toString(conf));
+        } else if (debugMode) {
+            log.info("Broker {} load data:{{}}", broker, brokerLoadData.toString(conf));
         }
 
-        if (debugMode) {
-            log.info("Broker {} has max resource usage with weight percentage: {}%",
-                    broker, maxUsageWithWeight * 100);
-        }
+
         return maxUsageWithWeight;
     }
 
