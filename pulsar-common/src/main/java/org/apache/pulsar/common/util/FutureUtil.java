@@ -261,8 +261,8 @@ public class FutureUtil {
     }
 
     /**
-     * Creates a new {@link CompletableFuture} instance catching
-     * potential exceptions and completing the future exceptionally.
+     * Executes an operation using the supplied {@link Executor}
+     * and notify failures on the supplied {@link CompletableFuture}.
      *
      * @param runnable the runnable to execute
      * @param executor  the executor to use for executing the runnable
