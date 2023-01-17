@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.websocket;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -38,6 +43,7 @@ import org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedExcepti
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -62,6 +68,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     protected final TopicName topic;
     protected final Map<String, String> queryParams;
 
+    private ScheduledFuture<?> pingFuture;
 
     public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
@@ -72,6 +79,12 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         request.getParameterMap().forEach((key, values) -> {
             queryParams.put(key, values[0]);
         });
+    }
+
+    private void closePingFuture() {
+        if (pingFuture != null && !pingFuture.isDone()) {
+            pingFuture.cancel(true);
+        }
     }
 
     protected boolean checkAuth(ServletUpgradeResponse response) {
@@ -154,6 +167,19 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     @Override
     public void onWebSocketConnect(Session session) {
         super.onWebSocketConnect(session);
+        WebSocketProxyConfiguration webSocketProxyConfig = service.getWebSocketProxyConfig();
+        if (webSocketProxyConfig != null) {
+            int webSocketPingDurationSeconds = webSocketProxyConfig.getWebSocketPingDurationSeconds();
+            if (webSocketPingDurationSeconds > 0) {
+                pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
+                    try {
+                        session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
+                    } catch (IOException e) {
+                        log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
+                    }
+                }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
+            }
+        }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
 
@@ -162,6 +188,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         super.onWebSocketError(cause);
         log.info("[{}] WebSocket error on topic {} : {}", getSession().getRemoteAddress(), topic, cause.getMessage());
         try {
+            closePingFuture();
             close();
         } catch (IOException e) {
             log.error("Failed in closing WebSocket session for topic {} with error: {}", topic, e.getMessage());
@@ -173,6 +200,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         log.info("[{}] Closed WebSocket session on topic {}. status: {} - reason: {}", getSession().getRemoteAddress(),
                 topic, statusCode, reason);
         try {
+            closePingFuture();
             close();
         } catch (IOException e) {
             log.warn("[{}] Failed to close handler for topic {}. ", getSession().getRemoteAddress(), topic, e);
@@ -239,6 +267,11 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         final String name = Codec.decode(topicName.toString());
 
         return TopicName.get(domain, namespace, name);
+    }
+
+    @VisibleForTesting
+    public ScheduledFuture<?> getPingFuture() {
+        return pingFuture;
     }
 
     protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception;

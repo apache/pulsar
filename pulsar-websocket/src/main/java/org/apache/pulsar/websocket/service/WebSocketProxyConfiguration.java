@@ -134,6 +134,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
+    @FieldContext(doc = "Interval of time to sending the ping to keep alive. This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
     /***** --- TLS --- ****/
     @Deprecated
     private boolean tlsEnabled = false;
