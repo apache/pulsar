@@ -267,12 +267,15 @@ jobs:
           path: surefire-reports
           retention-days: 7
 
-      - name: Upload possible heap dump
+      - name: Upload possible heap dump, core dump or crash files
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: Unit-${{ matrix.group }}-heapdump
-          path: /tmp/*.hprof
+          name: Unit-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
           retention-days: 7
           if-no-files-found: ignore
 
