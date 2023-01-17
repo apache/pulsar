@@ -918,6 +918,13 @@ public class Namespaces extends NamespacesBase {
                                 new BrokerServiceException.NotAllowedException(
                                         "Not allowed unload namespace bundle to inactive destination broker"));
                     }
+                }).exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to unload namespace bundle {}/{}",
+                                clientAppId(), namespaceName, bundleRange, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
     }
 
