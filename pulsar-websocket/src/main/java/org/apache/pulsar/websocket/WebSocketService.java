@@ -67,6 +67,7 @@ public class WebSocketService implements Closeable {
     private final ScheduledExecutorService executor;
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
+    @Getter
     private ServiceConfiguration config;
     @Getter
     private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
