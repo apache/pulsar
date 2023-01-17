@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +59,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -267,13 +265,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
-        try {
-            primaryLoadManager.assign(Optional.empty(), bundle).get();
-            fail();
-        } catch (Exception ex) {
-            log.info("Assign bundle: {} failed.", bundle, ex);
-            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
-        }
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        assertTrue(brokerLookupData.isPresent());
     }
 
     private static void cleanTableView(ServiceUnitStateChannel channel)

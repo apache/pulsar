@@ -19,7 +19,9 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
@@ -168,9 +170,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
-                .thenCompose(availableBrokerCandidates -> {
+                .thenCompose(availableBrokers -> {
                     // TODO: Support isolation policies
                     LoadManagerContext context = this.getContext();
+
+                    Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
 
                     // Filter out brokers that do not meet the rules.
                     List<BrokerFilter> filterPipeline = getBrokerFilterPipeline();
@@ -178,8 +182,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         try {
                             filter.filter(availableBrokerCandidates, context);
                         } catch (BrokerFilterException e) {
+                            // TODO: We may need to revisit this error case.
                             log.error("Failed to filter out brokers.", e);
-                            return CompletableFuture.completedFuture(Optional.empty());
+                            availableBrokerCandidates = availableBrokers;
                         }
                     }
                     if (availableBrokerCandidates.isEmpty()) {
