@@ -35,6 +35,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,6 +105,12 @@ public class AuthenticationService implements Closeable {
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
             throws Exception {
         String authMethodName = getAuthMethodName(request);
+        if (authMethodName == null
+                && SaslConstants.SASL_TYPE_VALUE.equalsIgnoreCase(request.getHeader(SaslConstants.SASL_HEADER_TYPE))) {
+            // This edge case must be handled because the Pulsar SASL implementation does not add the
+            // X-Pulsar-Auth-Method-Name header.
+            authMethodName = SaslConstants.AUTH_METHOD_NAME;
+        }
         if (authMethodName != null) {
             AuthenticationProvider providerToUse = getAuthProvider(authMethodName);
             try {
