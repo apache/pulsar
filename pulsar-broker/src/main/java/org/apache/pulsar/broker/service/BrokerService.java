@@ -55,7 +55,6 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -286,7 +285,7 @@ public class BrokerService implements Closeable {
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
     private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
 
-    private final List<TopicEventsListener> topicEventListeners = new CopyOnWriteArrayList<>();
+    private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -408,57 +407,13 @@ public class BrokerService implements Closeable {
     }
 
     public void addTopicEventListener(TopicEventsListener... listeners) {
-        Objects.requireNonNull(listeners);
-        Arrays.stream(listeners)
-                .filter(x -> x != null)
-                .forEach(topicEventListeners::add);
+        topicEventsDispatcher.addTopicEventListener(listeners);
         getTopics().keys().forEach(topic ->
-                notifyTopicListeners(listeners, topic, TopicEvent.LOAD, EventStage.SUCCESS, null));
+                TopicEventsDispatcher.notify(listeners, topic, TopicEvent.LOAD, EventStage.SUCCESS, null));
     }
 
     public void removeTopicEventListener(TopicEventsListener... listeners) {
-        Objects.requireNonNull(listeners);
-        Arrays.stream(listeners)
-                .filter(x -> x != null)
-                .forEach(topicEventListeners::remove);
-    }
-
-    private void notifyTopicListeners(String topic, TopicEvent event, EventStage stage) {
-        notifyTopicListeners(topic, event, stage, null);
-    }
-
-    private void notifyTopicListeners(String topic, TopicEvent event, EventStage stage, Throwable t) {
-        for (TopicEventsListener listener : topicEventListeners) {
-            try {
-                listener.handleEvent(topic, event, stage, t);
-            } catch (Throwable ex) {
-                log.error("TopicEventsListener exception while handling {}_{} for topic {}", event, stage, topic, ex);
-            }
-        }
-    }
-
-    private <T> CompletableFuture<T> notifyTopicListeners(CompletableFuture<T> future, String topic,
-                                                          TopicEvent event) {
-        future.whenComplete((r, ex) -> notifyTopicListeners(topic,
-                        event,
-                        ex == null ? EventStage.SUCCESS : EventStage.FAILURE,
-                        ex));
-        return future;
-    }
-
-    private static void notifyTopicListeners(TopicEventsListener[] listeners, String topic,
-                                             TopicEvent event, EventStage stage, Throwable t) {
-        if (listeners == null) {
-            return;
-        }
-
-        for (TopicEventsListener listener: listeners) {
-            try {
-                listener.handleEvent(topic, event, stage, t);
-            } catch (Throwable ex) {
-                log.error("TopicEventsListener exception while handling {}_{} for topic {}", event, stage, topic, ex);
-            }
-        }
+        topicEventsDispatcher.removeTopicEventListener(listeners);
     }
 
     // This call is used for starting additional protocol handlers
@@ -1092,32 +1047,33 @@ public class BrokerService implements Closeable {
                 });
             } else {
             return topics.computeIfAbsent(topicName.toString(), (name) -> {
-                    notifyTopicListeners(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
+                topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                             if (topicName.getPartitionIndex() < metadata.partitions) {
-                                notifyTopicListeners(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+                                topicEventsDispatcher
+                                        .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
                                 CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                                notifyTopicListeners(res, topicName.toString(), TopicEvent.CREATE);
-                                notifyTopicListeners(res, topicName.toString(), TopicEvent.LOAD);
+                                topicEventsDispatcher.notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                                topicEventsDispatcher.notifyOnCompletion(res, topicName.toString(), TopicEvent.LOAD);
                                 return res;
                             }
-                            notifyTopicListeners(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
+                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
                     } else if (createIfMissing) {
-                        notifyTopicListeners(name, TopicEvent.CREATE, EventStage.BEFORE);
+                        topicEventsDispatcher.notify(name, TopicEvent.CREATE, EventStage.BEFORE);
 
                         CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                        notifyTopicListeners(res, name, TopicEvent.CREATE);
-                        notifyTopicListeners(res, name, TopicEvent.LOAD);
+                        topicEventsDispatcher.notifyOnCompletion(res, name, TopicEvent.CREATE);
+                        topicEventsDispatcher.notifyOnCompletion(res, name, TopicEvent.LOAD);
                         return res;
                     } else {
-                        notifyTopicListeners(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
                     });
@@ -1138,9 +1094,9 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
-        notifyTopicListeners(topic, TopicEvent.DELETE, EventStage.BEFORE);
+        topicEventsDispatcher.notify(topic, TopicEvent.DELETE, EventStage.BEFORE);
         CompletableFuture<Void> result =  deleteTopicInternal(topic, forceDelete);
-        notifyTopicListeners(result, topic, TopicEvent.DELETE);
+        topicEventsDispatcher.notifyOnCompletion(result, topic, TopicEvent.DELETE);
         return result;
     }
 
@@ -1637,7 +1593,7 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setShadowSourceName(TopicName.get(shadowSource).getPersistenceNamingEncoding());
             }
 
-            notifyTopicListeners(topic, TopicEvent.LOAD, EventStage.BEFORE);
+            topicEventsDispatcher.notify(topic, TopicEvent.LOAD, EventStage.BEFORE);
             // load can fail with topicFuture completed non-exceptionally
             // work around this
             final CompletableFuture<Void> loadFuture = new CompletableFuture<>();
@@ -1650,10 +1606,10 @@ public class BrokerService implements Closeable {
             });
 
             if (createIfMissing) {
-                notifyTopicListeners(topic, TopicEvent.CREATE, EventStage.BEFORE);
-                notifyTopicListeners(topicFuture, topic, TopicEvent.CREATE);
+                topicEventsDispatcher.notify(topic, TopicEvent.CREATE, EventStage.BEFORE);
+                topicEventsDispatcher.notifyOnCompletion(topicFuture, topic, TopicEvent.CREATE);
             }
-            notifyTopicListeners(loadFuture, topic, TopicEvent.LOAD);
+            topicEventsDispatcher.notifyOnCompletion(loadFuture, topic, TopicEvent.LOAD);
 
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
@@ -2200,9 +2156,9 @@ public class BrokerService implements Closeable {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
-                notifyTopicListeners(topicName.toString(), TopicEvent.UNLOAD, EventStage.BEFORE);
+                topicEventsDispatcher.notify(topicName.toString(), TopicEvent.UNLOAD, EventStage.BEFORE);
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit, null);
-                notifyTopicListeners(topicName.toString(), TopicEvent.UNLOAD, EventStage.SUCCESS);
+                topicEventsDispatcher.notify(topicName.toString(), TopicEvent.UNLOAD, EventStage.SUCCESS);
             }
         }
     }
@@ -2255,9 +2211,9 @@ public class BrokerService implements Closeable {
         TopicName topicName = TopicName.get(topic);
         return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
-                    notifyTopicListeners(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
+                    topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
                     removeTopicFromCache(topic, namespaceBundle, createTopicFuture);
-                    notifyTopicListeners(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
+                    topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
                 });
     }
 
