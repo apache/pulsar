@@ -1516,6 +1516,14 @@ public class BrokerService implements Closeable {
                 });
     }
 
+
+    @VisibleForTesting
+    public void createPersistentTopic0(final String topic, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture,
+                                       Map<String, String> properties) {
+        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
+    }
+
     private void createPersistentTopic(final String topic, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
@@ -1610,6 +1618,12 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
+                                            persistentTopic.getTransactionBuffer()
+                                                    .closeAsync()
+                                                    .exceptionally(t -> {
+                                                        log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                        return null;
+                                                    });
                                             persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
@@ -3360,7 +3374,8 @@ public class BrokerService implements Closeable {
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
+    @VisibleForTesting
+    public <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
             Class<T> topicClazz) throws PulsarServerException {
         if (topicFactory != null) {
             try {
