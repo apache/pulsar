@@ -571,7 +571,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         pulsar1.getConfiguration().setReplicationProducerQueueSize(originalReplicationProducerQueueSize);
     }
 
-    public static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
+    private static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
         Awaitility.await().untilAsserted(() -> {
             for (Map.Entry<String, ? extends ReplicatorStats> subStats :
                     admin.topics().getStats(topicName.toString(), true, false, false).getReplication().entrySet()){
@@ -580,7 +580,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    public static PersistentReplicator ensureReplicatorCreated(TopicName topicName, PulsarService pulsar) {
+    private static PersistentReplicator ensureReplicatorCreated(TopicName topicName, PulsarService pulsar) {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
         Awaitility.await().until(() -> !persistentTopic.getReplicators().isEmpty());
