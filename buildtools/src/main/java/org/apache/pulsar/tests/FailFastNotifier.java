@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.tests;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestListener;
@@ -42,8 +47,19 @@ import org.testng.SkipException;
  */
 public class FailFastNotifier
         implements IInvokedMethodListener, ITestListener {
+    private static final Logger LOG = LoggerFactory.getLogger(FailFastNotifier.class);
+    private static final String PROPERTY_NAME_TEST_FAIL_FAST = "testFailFast";
     private static final boolean FAIL_FAST_ENABLED = Boolean.parseBoolean(
-            System.getProperty("testFailFast", "true"));
+            System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST, "true"));
+
+    private static final String PROPERTY_NAME_TEST_FAIL_FAST_FILE = "testFailFastFile";
+
+    // A file that is used to communicate to other parallel forked test processes to terminate the build
+    // so that fail fast mode works with multiple forked test processes
+    private static final File FAIL_FAST_KILLSWITCH_FILE =
+            System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE) != null
+                    && System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim().length() > 0
+                    ? new File(System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim()) : null;
 
     static class FailFastEventsSingleton {
         private static final FailFastEventsSingleton INSTANCE = new FailFastEventsSingleton();
@@ -64,6 +80,14 @@ public class FailFastNotifier
         public void testFailed(ITestResult result) {
             if (this.firstFailure == null) {
                 this.firstFailure = result;
+                if (FAIL_FAST_KILLSWITCH_FILE != null && !FAIL_FAST_KILLSWITCH_FILE.exists()) {
+                    try {
+                        Files.createFile(FAIL_FAST_KILLSWITCH_FILE.toPath());
+                    } catch (IOException e) {
+                        LOG.warn("Unable to create fail fast kill switch file '"
+                                + FAIL_FAST_KILLSWITCH_FILE.getAbsolutePath() + "'", e);
+                    }
+                }
             }
         }
     }
@@ -100,6 +124,9 @@ public class FailFastNotifier
                         || iTestNGMethod.isAfterTestConfiguration())) {
                     throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
                 }
+            }
+            if (FAIL_FAST_KILLSWITCH_FILE != null && FAIL_FAST_KILLSWITCH_FILE.exists()) {
+                throw new FailFastSkipException("Skipped after failure since kill switch file exists.");
             }
         }
     }
