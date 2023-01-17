@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +30,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -230,5 +233,25 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1));
 
+    }
+
+    @Test
+    public void trimNonPersistentTopic() throws Exception {
+        super.baseSetup();
+        String topicName = "non-persistent://prop/ns-abc/trimNonPersistentTopic" + UUID.randomUUID();
+        int partitionedNum = 3;
+        admin.topics().createPartitionedTopic(topicName, partitionedNum);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .producerName("producer-name")
+                .create();
+        try {
+            admin.topics().trimTopic(topicName);
+            fail("should failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarAdminException.NotAllowedException);
+        }
     }
 }

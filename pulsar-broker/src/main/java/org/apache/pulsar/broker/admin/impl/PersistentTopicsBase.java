@@ -4656,29 +4656,30 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
     protected CompletableFuture<Void> internalTrimTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        return validateTopicOwnershipAsync(topicName, authoritative)
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC))
+        if (!topicName.isPersistent()) {
+            log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
+            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Trim on a non-persistent topic is not allowed"));
+            return null;
+        }
+        if (topicName.isPartitioned()) {
+            return validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC).thenCompose((x)
+                    -> trimNonPartitionedTopic(asyncResponse, topicName, authoritative));
+        }
+        return validateTopicOperationAsync(topicName, TopicOperation.TRIM_TOPIC)
                 .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
                 .thenCompose(metadata -> {
-                    if (!topicName.isPersistent()) {
-                        log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
-                        asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
-                                "Trim on a non-persistent topic is not allowed"));
-                        return null;
-                    }
-                    if (topicName.isPartitioned()) {
-                        return trimNonPartitionedTopic(asyncResponse, topicName);
-                    }
                     if (metadata.partitions > 0) {
                         return trimPartitionedTopic(asyncResponse, metadata);
                     }
-                    return trimNonPartitionedTopic(asyncResponse, topicName);
+                    return trimNonPartitionedTopic(asyncResponse, topicName, authoritative);
                 });
     }
 
     private CompletableFuture<Void> trimNonPartitionedTopic(AsyncResponse asyncResponse,
-                                                            TopicName topicName) {
-        return getTopicReferenceAsync(topicName)
+                                                            TopicName topicName, boolean authoritative) {
+        return  validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic persistentTopic)) {
                         log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);

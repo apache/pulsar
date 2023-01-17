@@ -1154,7 +1154,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> trimTopicAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "trim");
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override

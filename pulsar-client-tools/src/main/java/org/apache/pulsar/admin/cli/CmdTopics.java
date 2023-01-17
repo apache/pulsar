@@ -3111,7 +3111,7 @@ public class CmdTopics extends CmdBase {
     }
     @Parameters(commandDescription = "Trim a topic")
     private class TrimTopic extends CliCommand {
-        @Parameter(description = "tenant/namespace", required = true)
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
         @Override

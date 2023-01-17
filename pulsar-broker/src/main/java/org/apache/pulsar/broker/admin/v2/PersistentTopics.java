@@ -3267,7 +3267,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
-    @PUT
+    @POST
     @Path("/{tenant}/{namespace}/{topic}/trim")
     @ApiOperation(value = " Trim a topic")
     @ApiResponses(value = {
