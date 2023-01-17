@@ -197,6 +197,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Is metadata store read-only operations."
+    )
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @Deprecated
     @FieldContext(
             category = CATEGORY_WORKER,
@@ -224,8 +230,10 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperCacheExpirySeconds = -1;
 
+    @Deprecated
     @FieldContext(
             category = CATEGORY_WORKER,
+            deprecated = true,
             doc = "Is zooKeeper allow read-only operations."
     )
     private boolean zooKeeperAllowReadOnlyOperations;
@@ -910,5 +918,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public boolean isMetadataStoreAllowReadOnlyOperations() {
+        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 }
