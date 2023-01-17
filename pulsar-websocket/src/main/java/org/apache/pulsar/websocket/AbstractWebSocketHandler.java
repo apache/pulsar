@@ -192,18 +192,15 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     @Override
     public void onWebSocketConnect(Session session) {
         super.onWebSocketConnect(session);
-        WebSocketProxyConfiguration webSocketProxyConfig = service.getWebSocketProxyConfig();
-        if (webSocketProxyConfig != null) {
-            int webSocketPingDurationSeconds = webSocketProxyConfig.getWebSocketPingDurationSeconds();
-            if (webSocketPingDurationSeconds > 0) {
-                pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
-                    try {
-                        session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
-                    } catch (IOException e) {
-                        log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
-                    }
-                }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
-            }
+        int webSocketPingDurationSeconds = service.getConfig().getWebSocketPingDurationSeconds();
+        if (webSocketPingDurationSeconds > 0) {
+            pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
+                try {
+                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
+                } catch (IOException e) {
+                    log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
+                }
+            }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
         }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }
