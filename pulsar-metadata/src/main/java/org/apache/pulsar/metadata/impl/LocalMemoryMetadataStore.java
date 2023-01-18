@@ -241,7 +241,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 }
 
-class MemeoryMetadataStoreProvider implements MetadataStoreProvider {
+class MemoryMetadataStoreProvider implements MetadataStoreProvider {
 
     @Override
     public String urlScheme() {

@@ -69,7 +69,7 @@ public class MetadataStoreFactoryImpl {
 
     static void loadProviders() {
         providers = new HashMap<>();
-        providers.put(MEMORY_SCHEME_IDENTIFIER, new MemeoryMetadataStoreProvider());
+        providers.put(MEMORY_SCHEME_IDENTIFIER, new MemoryMetadataStoreProvider());
         providers.put(ROCKSDB_SCHEME_IDENTIFIER, new RocksdbMetadataStoreProvider());
         providers.put(ETCD_SCHEME_IDENTIFIER, new EtcdMetadataStoreProvider());
         providers.put(ZK_SCHEME_IDENTIFIER, new ZkMetadataStoreProvider());
