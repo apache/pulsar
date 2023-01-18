@@ -227,8 +227,8 @@ public class MLTransactionMetadataStore
 
     @Override
     public CompletableFuture<TxnID> newTransaction(long timeOut) {
-        if (this.maxActiveTransactionsPerCoordinator != 0 &&
-                this.maxActiveTransactionsPerCoordinator <= txnMetaMap.size()) {
+        if (this.maxActiveTransactionsPerCoordinator != 0
+                && this.maxActiveTransactionsPerCoordinator <= txnMetaMap.size()) {
             return FutureUtil.failedFuture(new CoordinatorException.ReachMaxActiveTxnException("New txn op "
                     + "reach max active txn! tcId : " + getTransactionCoordinatorID().getId()));
         }
