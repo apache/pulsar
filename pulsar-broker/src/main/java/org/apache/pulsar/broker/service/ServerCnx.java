@@ -416,7 +416,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (errorMsg != null) {
             log.warn("[{}] Illegal combination of role [{}] and originalPrincipal {}: {}", remoteAddress, authRole,
                     originalPrincipal, errorMsg);
-            closeWithAuthenticationException();
+            closeForAuthenticationError();
         }
     }
 
@@ -966,11 +966,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
         } catch (Exception e) {
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
-            closeWithAuthenticationException();
+            closeForAuthenticationError();
         }
     }
 
-    private void closeWithAuthenticationException() {
+    private void closeForAuthenticationError() {
         service.getPulsarStats().recordConnectionCreateFail();
         String msg = "Unable to authenticate";
         writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
