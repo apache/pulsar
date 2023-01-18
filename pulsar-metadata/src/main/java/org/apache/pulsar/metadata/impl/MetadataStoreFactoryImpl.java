@@ -37,12 +37,6 @@ public class MetadataStoreFactoryImpl {
 
     public static final String METADATASTORE_PROVIDERS_PROPERTY = "pulsar.metadatastore.providers";
 
-    private static Map<String, MetadataStoreProvider> providers;
-
-    static {
-        loadProviders();
-    }
-
     public static MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig) throws
             MetadataStoreException {
         return newInstance(metadataURL, metadataStoreConfig, false);
@@ -67,8 +61,8 @@ public class MetadataStoreFactoryImpl {
         return provider.create(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 
-    static void loadProviders() {
-        providers = new HashMap<>();
+    static Map<String, MetadataStoreProvider> loadProviders() {
+        Map<String, MetadataStoreProvider> providers = new HashMap<>();
         providers.put(MEMORY_SCHEME_IDENTIFIER, new MemoryMetadataStoreProvider());
         providers.put(ROCKSDB_SCHEME_IDENTIFIER, new RocksdbMetadataStoreProvider());
         providers.put(ETCD_SCHEME_IDENTIFIER, new EtcdMetadataStoreProvider());
@@ -87,9 +81,11 @@ public class MetadataStoreFactoryImpl {
                 log.warn("Failed to load metadata store provider class for name '{}'", className, e);
             }
         }
+        return providers;
     }
 
     private static MetadataStoreProvider findProvider(String metadataURL) {
+        Map<String, MetadataStoreProvider> providers = loadProviders();
         for (Map.Entry<String, MetadataStoreProvider> entry : providers.entrySet()) {
             if (metadataURL.startsWith(entry.getKey())) {
                 return entry.getValue();

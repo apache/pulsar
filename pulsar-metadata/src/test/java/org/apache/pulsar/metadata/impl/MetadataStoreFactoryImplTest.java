@@ -44,7 +44,6 @@ public class MetadataStoreFactoryImplTest {
         originalProperty = System.getProperties().get(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
                 MyMetadataStoreProvider.class.getName());
-        MetadataStoreFactoryImpl.loadProviders();
     }
 
     @AfterClass
@@ -52,7 +51,6 @@ public class MetadataStoreFactoryImplTest {
         if (originalProperty != null) {
             System.getProperties().put(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY, originalProperty);
         }
-        MetadataStoreFactoryImpl.loadProviders();
     }
 
 
