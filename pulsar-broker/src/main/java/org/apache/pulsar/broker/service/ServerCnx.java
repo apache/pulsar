@@ -414,12 +414,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
-            service.getPulsarStats().recordConnectionCreateFail();
             log.warn("[{}] Illegal combination of role [{}] and originalPrincipal {}: {}", remoteAddress, authRole,
                     originalPrincipal, errorMsg);
-            // Provide generic error message to prevent leaking information about proxy roles
-            writeAndFlush(Commands.newError(-1, ServerError.AuthorizationError, "Unable to authenticate"));
-            close();
+            closeWithAuthenticationException();
         }
     }
 
@@ -968,12 +965,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 validateRoleAndOriginalPrincipal();
             }
         } catch (Exception e) {
-            service.getPulsarStats().recordConnectionCreateFail();
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
-            String msg = "Unable to authenticate";
-            writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
-            close();
+            closeWithAuthenticationException();
         }
+    }
+
+    private void closeWithAuthenticationException() {
+        service.getPulsarStats().recordConnectionCreateFail();
+        String msg = "Unable to authenticate";
+        writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
+        close();
     }
 
     @Override
