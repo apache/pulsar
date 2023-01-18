@@ -434,6 +434,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is metadata store read-only operations."
+    )
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -461,8 +467,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
         )
     private int zooKeeperCacheExpirySeconds = -1;
 
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
+            deprecated = true,
             doc = "Is zookeeper allow read-only operations."
     )
     private boolean zooKeeperAllowReadOnlyOperations;
@@ -3247,6 +3255,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public boolean isMetadataStoreAllowReadOnlyOperations() {
+        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 
     public long getManagedLedgerCacheEvictionIntervalMs() {
