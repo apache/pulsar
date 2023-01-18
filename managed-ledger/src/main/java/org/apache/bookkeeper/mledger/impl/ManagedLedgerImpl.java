@@ -2581,6 +2581,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ? config.getLedgerOffloader().getOffloadPolicies()
                 : null);
         synchronized (this) {
+            if (!uninitializedCursors.isEmpty()){
+                scheduleDeferredTrimming(isTruncate, promise);
+                trimmerMutex.unlock();
+                return;
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
                         TOTAL_SIZE_UPDATER.get(this));
