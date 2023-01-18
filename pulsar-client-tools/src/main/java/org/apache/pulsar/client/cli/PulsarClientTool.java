@@ -30,6 +30,7 @@ import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -146,6 +147,17 @@ public class PulsarClientTool {
         this.rootParams.authPluginClassName = properties.getProperty("authPlugin");
         this.rootParams.authParams = properties.getProperty("authParams");
         this.rootParams.tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
+        this.rootParams.proxyServiceURL = StringUtils.trimToNull(properties.getProperty("proxyServiceUrl"));
+        String proxyProtocolString = StringUtils.trimToNull(properties.getProperty("proxyProtocol"));
+        if (proxyProtocolString != null) {
+            try {
+                this.rootParams.proxyProtocol = ProxyProtocol.valueOf(proxyProtocolString.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
+                e.printStackTrace();
+                System.exit(1);
+            }
+        }
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
@@ -178,7 +190,7 @@ public class PulsarClientTool {
         if (isNotBlank(rootParams.proxyServiceURL)) {
             if (rootParams.proxyProtocol == null) {
                 System.out.println("proxy-protocol must be provided with proxy-url");
-                System.exit(-1);
+                System.exit(1);
             }
             clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
         }
@@ -244,7 +256,7 @@ public class PulsarClientTool {
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: pulsar-client CONF_FILE_PATH [options] [command] [command options]");
-            System.exit(-1);
+            System.exit(1);
         }
         String configFile = args[0];
         Properties properties = new Properties();

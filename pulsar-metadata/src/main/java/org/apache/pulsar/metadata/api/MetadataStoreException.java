@@ -137,6 +137,10 @@ public class MetadataStoreException extends IOException {
      * The store was already closed.
      */
     public static class AlreadyClosedException extends MetadataStoreException {
+
+        public AlreadyClosedException() {
+            super("The metadata store is closed");
+        }
         public AlreadyClosedException(Throwable t) {
             super(t);
         }

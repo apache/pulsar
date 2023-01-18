@@ -49,21 +49,21 @@ import org.slf4j.LoggerFactory;
  */
 class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
-    private MessageMetadata messageMetadata = new MessageMetadata();
+    protected MessageMetadata messageMetadata = new MessageMetadata();
     // sequence id for this batch which will be persisted as a single entry by broker
     @Getter
     @Setter
-    private long lowestSequenceId = -1L;
+    protected long lowestSequenceId = -1L;
     @Getter
     @Setter
-    private long highestSequenceId = -1L;
-    private ByteBuf batchedMessageMetadataAndPayload;
-    private List<MessageImpl<?>> messages = new ArrayList<>(maxMessagesNum);
+    protected long highestSequenceId = -1L;
+    protected ByteBuf batchedMessageMetadataAndPayload;
+    protected List<MessageImpl<?>> messages = new ArrayList<>(maxMessagesNum);
     protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
 
-    private final ByteBufAllocator allocator;
+    protected final ByteBufAllocator allocator;
     private static final int SHRINK_COOLING_OFF_PERIOD = 10;
     private int consecutiveShrinkTime = 0;
 
@@ -111,9 +111,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 }
             } catch (Throwable e) {
                 log.error("construct first message failed, exception is ", e);
-                producer.semaphoreRelease(getNumMessagesInBatch());
-                producer.client.getMemoryLimitController().releaseMemory(msg.getUncompressedSize()
-                        + batchAllocatedSizeBytes);
+                if (producer != null) {
+                    producer.semaphoreRelease(getNumMessagesInBatch());
+                    producer.client.getMemoryLimitController().releaseMemory(msg.getUncompressedSize()
+                            + batchAllocatedSizeBytes);
+                }
                 discard(new PulsarClientException(e));
                 return false;
             }
@@ -131,11 +133,14 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             messageMetadata.setSequenceId(lowestSequenceId);
         }
         highestSequenceId = msg.getSequenceId();
-        ProducerImpl.LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(producer, prev -> Math.max(prev, msg.getSequenceId()));
+        if (producer != null) {
+            ProducerImpl.LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(producer, prev -> Math.max(prev, msg.getSequenceId()));
+        }
+
         return isBatchFull();
     }
 
-    private ByteBuf getCompressedBatchMetadataAndPayload() {
+    protected ByteBuf getCompressedBatchMetadataAndPayload() {
         int batchWriteIndex = batchedMessageMetadataAndPayload.writerIndex();
         int batchReadIndex = batchedMessageMetadataAndPayload.readerIndex();
 
@@ -308,11 +313,13 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         return op;
     }
 
-    private void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {
+    protected void updateAndReserveBatchAllocatedSize(int updatedSizeBytes) {
         int delta = updatedSizeBytes - batchAllocatedSizeBytes;
         batchAllocatedSizeBytes = updatedSizeBytes;
         if (delta != 0) {
-            producer.client.getMemoryLimitController().forceReserveMemory(delta);
+            if (producer != null) {
+                producer.client.getMemoryLimitController().forceReserveMemory(delta);
+            }
         }
     }
 

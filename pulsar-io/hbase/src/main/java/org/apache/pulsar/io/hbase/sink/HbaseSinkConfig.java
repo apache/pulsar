@@ -74,7 +74,7 @@ public class HbaseSinkConfig extends HbaseAbstractConfig {
 
     public static HbaseSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), HbaseSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), HbaseSinkConfig.class);
     }
 
     @Override

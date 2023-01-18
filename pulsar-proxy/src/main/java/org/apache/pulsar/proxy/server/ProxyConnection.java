@@ -71,13 +71,16 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Handles incoming discovery request from client and sends appropriate response back to client.
- *
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
  */
 public class ProxyConnection extends PulsarHandler {
     private static final Logger LOG = LoggerFactory.getLogger(ProxyConnection.class);
@@ -259,8 +262,8 @@ public class ProxyConnection extends PulsarHandler {
                     directProxyHandler.getInboundChannelRequestsRate().recordEvent(bytes);
                     ProxyService.BYTES_COUNTER.inc(bytes);
                 }
-                directProxyHandler.outboundChannel.writeAndFlush(msg)
-                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+                directProxyHandler.outboundChannel
+                        .writeAndFlush(msg, directProxyHandler.outboundChannel.voidPromise());
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
@@ -343,10 +346,9 @@ public class ProxyConnection extends PulsarHandler {
                 state = State.Closing;
                 LOG.warn("[{}] Target broker '{}' isn't available. authenticated with {} role {}.",
                         remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole);
-                ctx()
-                        .writeAndFlush(
-                                Commands.newError(-1, ServerError.ServiceNotReady, "Target broker isn't available."))
-                        .addListener(ChannelFutureListener.CLOSE);
+                final ByteBuf msg = Commands.newError(-1,
+                        ServerError.ServiceNotReady, "Target broker isn't available.");
+                writeAndFlushAndClose(msg);
                 return;
             }
 
@@ -367,11 +369,9 @@ public class ProxyConnection extends PulsarHandler {
                             LOG.error("[{}] Error validating target broker '{}'. authenticated with {} role {}.",
                                     remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole, throwable);
                         }
-                        ctx()
-                                .writeAndFlush(
-                                        Commands.newError(-1, ServerError.ServiceNotReady,
-                                                "Target broker cannot be validated."))
-                                .addListener(ChannelFutureListener.CLOSE);
+                        final ByteBuf msg = Commands.newError(-1, ServerError.ServiceNotReady,
+                                "Target broker cannot be validated.");
+                        writeAndFlushAndClose(msg);
                         return null;
                     });
         } else {
@@ -380,8 +380,8 @@ public class ProxyConnection extends PulsarHandler {
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
-            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise, false))
-                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
+            writeAndFlush(msg);
         }
     }
 
@@ -392,9 +392,9 @@ public class ProxyConnection extends PulsarHandler {
             state = State.ProxyConnectionToBroker;
             int maxMessageSize =
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
-            ctx.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
-                            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers()))
-                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers());
+            writeAndFlush(msg);
         } else {
             LOG.warn("[{}] Channel is {}. ProxyConnection is in {}. "
                             + "Closing connection to broker '{}'.",
@@ -443,8 +443,8 @@ public class ProxyConnection extends PulsarHandler {
         }
 
         // auth not complete, continue auth with client side.
-        ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, protocolVersionToAdvertise))
-                .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+        final ByteBuf msg = Commands.newAuthChallenge(authMethod, brokerData, protocolVersionToAdvertise);
+        writeAndFlush(msg);
         if (LOG.isDebugEnabled()) {
             LOG.debug("[{}] Authentication in progress client by method {}.",
                     remoteAddress, authMethod);
@@ -522,8 +522,8 @@ public class ProxyConnection extends PulsarHandler {
             doAuthentication(clientData);
         } catch (Exception e) {
             LOG.warn("[{}] Unable to authenticate: ", remoteAddress, e);
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate"))
-                    .addListener(ChannelFutureListener.CLOSE);
+            final ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate");
+            writeAndFlushAndClose(msg);
         }
     }
 
@@ -587,10 +587,10 @@ public class ProxyConnection extends PulsarHandler {
                 });
             }
         } catch (Exception e) {
-            String msg = "Unable to handleAuthResponse";
-            LOG.warn("[{}] {} ", remoteAddress, msg, e);
-            ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg))
-                    .addListener(ChannelFutureListener.CLOSE);
+            String errorMsg = "Unable to handleAuthResponse";
+            LOG.warn("[{}] {} ", remoteAddress, errorMsg, e);
+            final ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError, errorMsg);
+            writeAndFlushAndClose(msg);
         }
     }
 
@@ -724,5 +724,13 @@ public class ProxyConnection extends PulsarHandler {
                 && pulsarServiceUrl.length() == expectedPrefix.length() + brokerHostPort.length()
                 && pulsarServiceUrl.startsWith(expectedPrefix)
                 && pulsarServiceUrl.startsWith(brokerHostPort, expectedPrefix.length());
+    }
+
+    private void writeAndFlush(ByteBuf cmd) {
+        NettyChannelUtil.writeAndFlushWithVoidPromise(ctx, cmd);
+    }
+
+    private void writeAndFlushAndClose(ByteBuf cmd) {
+        NettyChannelUtil.writeAndFlushWithClosePromise(ctx, cmd);
     }
 }

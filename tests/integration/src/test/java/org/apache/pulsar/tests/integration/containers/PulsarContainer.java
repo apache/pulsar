@@ -20,11 +20,17 @@ package org.apache.pulsar.tests.integration.containers;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
@@ -149,6 +155,14 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                 getContainerId(),
                 "/var/log/pulsar"
             );
+            try {
+                // stop the "tail -f ..." commands started in afterStart method
+                // so that shutdown output doesn't clutter logs
+                execCmd("/usr/bin/pkill", "tail");
+            } catch (Exception e) {
+                // will fail if there's no tail running
+                log.debug("Cannot run 'pkill tail'", e);
+            }
         }
     }
 
@@ -159,6 +173,28 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             return;
         }
         super.stop();
+    }
+
+    @Override
+    protected void doStop() {
+        if (getContainerId() != null) {
+            if (serviceEntryPoint.equals("bin/pulsar")) {
+                // attempt graceful shutdown using "docker stop"
+                dockerClient.stopContainerCmd(getContainerId())
+                        .withTimeout(15)
+                        .exec();
+            } else {
+                // use "supervisorctl stop all" for graceful shutdown
+                try {
+                    ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
+                    log.info("Stopped supervisor services exit code: {}\nstdout: {}\nstderr: {}", result.getExitCode(),
+                            result.getStdout(), result.getStderr());
+                } catch (Exception e) {
+                    log.error("Cannot run 'supervisorctl stop all'", e);
+                }
+            }
+        }
+        super.doStop();
     }
 
     @Override
@@ -205,10 +241,50 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             createContainerCmd.withEntrypoint(serviceEntryPoint);
         });
 
+        if (isCodeCoverageEnabled()) {
+            configureCodeCoverage();
+        }
+
         beforeStart();
         super.start();
         afterStart();
         log.info("[{}] Start pulsar service {} at container {}", getContainerName(), serviceName, getContainerId());
+    }
+
+    protected boolean isCodeCoverageEnabled() {
+        return Boolean.getBoolean("integrationtest.coverage.enabled");
+    }
+
+    protected void configureCodeCoverage() {
+        File coverageDirectory;
+        if (System.getProperty("integrationtest.coverage.dir") != null) {
+            coverageDirectory = new File(System.getProperty("integrationtest.coverage.dir"));
+        } else {
+            coverageDirectory = new File("target");
+        }
+
+        if (!coverageDirectory.isDirectory()) {
+            coverageDirectory.mkdirs();
+        }
+        withFileSystemBind(coverageDirectory.getAbsolutePath(), "/jacocoDir", BindMode.READ_WRITE);
+
+        String jacocoVersion = System.getProperty("jacoco.version");
+        File jacocoAgentJar = new File(System.getProperty("user.home"),
+                ".m2/repository/org/jacoco/org.jacoco.agent/" + jacocoVersion + "/" + "org.jacoco.agent-"
+                        + jacocoVersion + "-runtime.jar");
+
+        if (jacocoAgentJar.isFile()) {
+            try {
+                FileUtils.copyFileToDirectory(jacocoAgentJar, coverageDirectory);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            withEnv("OPTS", "-javaagent:/jacocoDir/" + jacocoAgentJar.getName()
+                    + "=destfile=/jacocoDir/jacoco_" + getContainerName() + "_" + System.currentTimeMillis() + ".exec"
+                    + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*");
+        } else {
+            log.error("Cannot find jacoco agent jar from '" + jacocoAgentJar.getAbsolutePath() + "'");
+        }
     }
 
     @Override

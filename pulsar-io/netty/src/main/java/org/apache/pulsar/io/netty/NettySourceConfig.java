@@ -64,7 +64,7 @@ public class NettySourceConfig implements Serializable {
 
     public static NettySourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), NettySourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), NettySourceConfig.class);
     }
 
     public static NettySourceConfig load(String yamlFile) throws IOException {

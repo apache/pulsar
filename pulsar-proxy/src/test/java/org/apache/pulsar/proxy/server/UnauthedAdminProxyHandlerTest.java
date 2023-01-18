@@ -30,6 +30,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -114,12 +115,12 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testVipStatus() throws Exception {
+        @Cleanup
         Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         WebTarget webTarget = client.target("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
                 .path("/status.html");
         String response = webTarget.request().get(String.class);
         Assert.assertEquals(response, "OK");
-        client.close();
     }
 
     static class AdminProxyWrapper extends AdminProxyHandler {

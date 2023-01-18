@@ -96,9 +96,11 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.apache.pulsar.common.util.collections.LongPairRangeSet.LongPairConsumer;
+import org.apache.pulsar.common.util.collections.LongPairRangeSet.RangeBoundConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +122,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected final ManagedLedgerConfig config;
     protected final ManagedLedgerImpl ledger;
     private final String name;
+
+    public static final String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
 
     private volatile Map<String, String> cursorProperties;
     private final BookKeeper.DigestType digestType;
@@ -181,6 +185,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     private volatile ManagedCursorInfo managedCursorInfo;
 
     private static final LongPairConsumer<PositionImpl> positionRangeConverter = PositionImpl::new;
+
+    private static final RangeBoundConsumer<PositionImpl> positionRangeReverseConverter =
+            (position) -> new LongPairRangeSet.LongPair(position.ledgerId, position.entryId);
+
     private static final LongPairConsumer<PositionImplRecyclable> recyclePositionRangeConverter = (key, value) -> {
         PositionImplRecyclable position = PositionImplRecyclable.create();
         position.ledgerId = key;
@@ -294,7 +302,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
-        this.individualDeletedMessages = new RangeSetWrapper<>(positionRangeConverter, this);
+        this.individualDeletedMessages = new RangeSetWrapper<>(positionRangeConverter,
+                positionRangeReverseConverter, this);
         if (config.isDeletionAtBatchIndexLevelEnabled()) {
             this.batchDeletedIndexes = new ConcurrentSkipListMap<>();
         } else {
@@ -371,7 +380,28 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-        return computeCursorProperties(lastRead -> cursorProperties);
+        Map<String, String> newProperties =
+                cursorProperties == null ? new HashMap<>() : new HashMap<>(cursorProperties);
+
+        // Prohibit setting of internal properties
+        Set<String> keys = newProperties.keySet();
+        for (String key : keys) {
+            if (key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
+                return FutureUtil.failedFuture(new IllegalArgumentException(
+                        "The property key can't start with " + CURSOR_INTERNAL_PROPERTY_PREFIX));
+            }
+        }
+
+        return computeCursorProperties(lastRead -> {
+            if (lastRead != null) {
+                lastRead.forEach((k, v) -> {
+                    if (k.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)) {
+                        newProperties.put(k, v);
+                    }
+                });
+            }
+            return newProperties;
+        });
     }
 
     @Override
@@ -732,13 +762,19 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncReadEntries(final int numberOfEntriesToRead, final ReadEntriesCallback callback,
-            final Object ctx, PositionImpl maxPosition) {
+                                 final Object ctx, PositionImpl maxPosition) {
         asyncReadEntries(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition);
     }
 
     @Override
     public void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
                                  Object ctx, PositionImpl maxPosition) {
+        asyncReadEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, null);
+    }
+
+    @Override
+    public void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                 Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
         checkArgument(numberOfEntriesToRead > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new ManagedLedgerException
@@ -749,7 +785,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
 
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
-        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition);
+        OpReadEntry op =
+                OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition, skipCondition);
         ledger.asyncReadEntries(op);
     }
 
@@ -871,6 +908,20 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
                                        PositionImpl maxPosition) {
+        asyncReadEntriesWithSkipOrWait(maxEntries, maxSizeBytes, callback, ctx, maxPosition, null);
+    }
+
+    @Override
+    public void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback,
+                                               Object ctx, PositionImpl maxPosition,
+                                               Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesWithSkipOrWait(maxEntries, NO_MAX_SIZE_LIMIT, callback, ctx, maxPosition, skipCondition);
+    }
+
+    @Override
+    public void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                               Object ctx, PositionImpl maxPosition,
+                                               Predicate<PositionImpl> skipCondition) {
         checkArgument(maxEntries > 0);
         if (isClosed()) {
             callback.readEntriesFailed(new CursorAlreadyClosedException("Cursor was already closed"), ctx);
@@ -884,10 +935,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Read entries immediately", ledger.getName(), name);
             }
-            asyncReadEntries(numberOfEntriesToRead, callback, ctx, maxPosition);
+            asyncReadEntriesWithSkip(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx,
+                    maxPosition, skipCondition);
         } else {
             OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
-                    ctx, maxPosition);
+                    ctx, maxPosition, skipCondition);
 
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
                 op.recycle();
@@ -1300,7 +1352,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         final PositionImpl newPosition = (PositionImpl) newPos;
 
         // order trim and reset operations on a ledger
-        ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> {
+        ledger.getExecutor().execute(safeRun(() -> {
             PositionImpl actualPosition = newPosition;
 
             if (!ledger.isValidPosition(actualPosition)
@@ -1997,7 +2049,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "is later.", mdEntry.newPosition, persistentMarkDeletePosition);
             }
             // run with executor to prevent deadlock
-            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
+            ledger.getExecutor().execute(safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -2016,7 +2068,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         + "in progress {} is later.", mdEntry.newPosition, inProgressLatest);
             }
             // run with executor to prevent deadlock
-            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
+            ledger.getExecutor().execute(safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -2623,8 +2675,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        State oldState = STATE_UPDATER.getAndSet(this, State.Closing);
-        if (oldState == State.Closed || oldState == State.Closing) {
+        boolean alreadyClosing = !trySetStateToClosing();
+        if (alreadyClosing) {
             log.info("[{}] [{}] State is already closed", ledger.getName(), name);
             callback.closeComplete(ctx);
             return;
@@ -2705,6 +2757,28 @@ public class ManagedCursorImpl implements ManagedCursor {
                 }
             }
         });
+    }
+
+    /**
+     * Try set {@link #state} to {@link State#Closing}.
+     * @return false if the {@link #state} already is {@link State#Closing} or {@link State#Closed}.
+     */
+    private boolean trySetStateToClosing() {
+        final AtomicBoolean notClosing = new AtomicBoolean(false);
+        STATE_UPDATER.updateAndGet(this, state -> {
+            switch (state){
+                case Closing:
+                case Closed: {
+                    notClosing.set(false);
+                    return state;
+                }
+                default: {
+                    notClosing.set(true);
+                    return State.Closing;
+                }
+            }
+        });
+        return notClosing.get();
     }
 
     private void flushPendingMarkDeletes() {
@@ -2836,23 +2910,35 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             MLDataFormats.NestedPositionInfo.Builder nestedPositionBuilder = MLDataFormats.NestedPositionInfo
                     .newBuilder();
-            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange.newBuilder();
+
+            MLDataFormats.MessageRange.Builder messageRangeBuilder = MLDataFormats.MessageRange
+                    .newBuilder();
+
             AtomicInteger acksSerializedSize = new AtomicInteger(0);
             List<MessageRange> rangeList = new ArrayList<>();
-            individualDeletedMessages.forEach((positionRange) -> {
-                PositionImpl p = positionRange.lowerEndpoint();
-                nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                nestedPositionBuilder.setEntryId(p.getEntryId());
-                messageRangeBuilder.setLowerEndpoint(nestedPositionBuilder.build());
-                p = positionRange.upperEndpoint();
-                nestedPositionBuilder.setLedgerId(p.getLedgerId());
-                nestedPositionBuilder.setEntryId(p.getEntryId());
-                messageRangeBuilder.setUpperEndpoint(nestedPositionBuilder.build());
-                MessageRange messageRange = messageRangeBuilder.build();
+
+            individualDeletedMessages.forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+                MLDataFormats.NestedPositionInfo lowerPosition = nestedPositionBuilder
+                        .setLedgerId(lowerKey)
+                        .setEntryId(lowerValue)
+                        .build();
+
+                MLDataFormats.NestedPositionInfo upperPosition = nestedPositionBuilder
+                        .setLedgerId(upperKey)
+                        .setEntryId(upperValue)
+                        .build();
+
+                MessageRange messageRange = messageRangeBuilder
+                        .setLowerEndpoint(lowerPosition)
+                        .setUpperEndpoint(upperPosition)
+                        .build();
+
                 acksSerializedSize.addAndGet(messageRange.getSerializedSize());
                 rangeList.add(messageRange);
+
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
+
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
             individualDeletedMessages.resetDirtyKeys();
             return rangeList;
@@ -3305,8 +3391,14 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void trimDeletedEntries(List<Entry> entries) {
-        entries.removeIf(entry -> ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
-                || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId()));
+        entries.removeIf(entry -> {
+            boolean isDeleted = ((PositionImpl) entry.getPosition()).compareTo(markDeletePosition) <= 0
+                    || individualDeletedMessages.contains(entry.getLedgerId(), entry.getEntryId());
+            if (isDeleted) {
+                entry.release();
+            }
+            return isDeleted;
+        });
     }
 
     private ManagedCursorImpl cursorImpl() {

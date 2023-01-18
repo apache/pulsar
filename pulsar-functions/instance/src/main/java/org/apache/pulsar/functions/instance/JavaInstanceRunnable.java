@@ -850,9 +850,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (sourceSpec.getConfigs().isEmpty()) {
                 this.source.open(new HashMap<>(), contextImpl);
             } else {
-                this.source.open(ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(),
-                        new TypeReference<Map<String, Object>>() {
-                        }), contextImpl);
+                this.source.open(
+                        ObjectMapperFactory.getMapper().reader().forType(new TypeReference<Map<String, Object>>() {
+                        }).readValue(sourceSpec.getConfigs())
+                        , contextImpl);
             }
             if (this.source instanceof PulsarSource) {
                 contextImpl.setInputConsumers(((PulsarSource) this.source).getInputConsumers());
@@ -932,9 +933,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.debug("Opening Sink with SinkSpec {} and contextImpl: {} ", sinkSpec,
                             contextImpl.toString());
                 }
-                this.sink.open(ObjectMapperFactory.getThreadLocal().readValue(sinkSpec.getConfigs(),
+                this.sink.open(ObjectMapperFactory.getMapper().reader().forType(
                         new TypeReference<Map<String, Object>>() {
-                        }), contextImpl);
+                        }).readValue(sinkSpec.getConfigs()), contextImpl);
             }
         } catch (Exception e) {
             log.error("Sink open produced uncaught exception: ", e);

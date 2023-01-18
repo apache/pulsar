@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.websocket.proxy.v1;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import com.google.common.collect.Sets;
 import java.net.URI;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Invocation;
@@ -86,7 +84,8 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         }
 
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -94,20 +93,12 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        @Cleanup("shutdownNow")
-        ExecutorService executor = newFixedThreadPool(1);
         try {
-            executor.submit(() -> {
-                try {
-                    consumeClient.stop();
-                    produceClient.stop();
-                    log.info("proxy clients are stopped successfully");
-                } catch (Exception e) {
-                    log.error(e.getMessage());
-                }
-            }).get(2, TimeUnit.SECONDS);
+            consumeClient.stop();
+            produceClient.stop();
+            log.info("proxy clients are stopped successfully");
         } catch (Exception e) {
-            log.error("failed to close clients ", e);
+            log.error(e.getMessage());
         }
 
         super.internalCleanup();
@@ -184,6 +175,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
         final String baseUrl = "http://localhost:" + proxyServer.getListenPortHTTP().get() + "/admin/proxy-stats/";
+        @Cleanup
         Client client = ClientBuilder.newClient();
 
         try {
@@ -207,7 +199,6 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         } finally {
             consumeClient.stop();
             produceClient.stop();
-            client.close();
         }
     }
 

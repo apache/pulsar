@@ -97,14 +97,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
                             handler.start();
                         }
                     } else {
-                        handlers = new TransactionMetaStoreHandler[1];
-                        CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-                        connectFutureList.add(connectFuture);
-                        TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(0, pulsarClient,
-                                getTCAssignTopicName(-1), connectFuture);
-                        handlers[0] = handler;
-                        handlerMap.put(0, handler);
-                        handler.start();
+                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                                "The broker doesn't enable the transaction coordinator, "
+                                        + "or the transaction coordinator has not initialized"));
                     }
 
                     STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);

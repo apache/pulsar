@@ -26,6 +26,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Path("/")
 public class ConfigurationResource {
@@ -33,7 +34,7 @@ public class ConfigurationResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response release() throws JsonProcessingException {
-        final ObjectMapper mapper = new ObjectMapper();
+        final ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         final ObjectNode node = mapper.createObjectNode();
         node.put("version", "version.number");
 

@@ -33,6 +33,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
@@ -43,6 +44,7 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.intercept.InterceptException;
 import org.eclipse.jetty.server.Response;
 
 
@@ -216,10 +218,20 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceRequest(ServletRequest request) {
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
         count.incrementAndGet();
+        String url = ((HttpServletRequest) request).getRequestURL().toString();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest) request).getRequestURL().toString());
+            log.debug("[{}] On [{}] Webservice request", count, url);
+        }
+        if (url.contains("/admin/v2/tenants/test-interceptor-failed-tenant")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create tenant failed");
+        }
+        if (url.contains("/admin/v2/namespaces/public/test-interceptor-failed-namespace")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create namespace failed");
+        }
+        if (url.contains("/admin/v2/persistent/public/default/test-interceptor-failed-topic")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create topic failed");
         }
     }
 
@@ -227,13 +239,15 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
         count.incrementAndGet();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest) request).getRequestURL().toString(), response);
+            log.debug("[{}] On [{}] Webservice response {}",
+                    count, ((HttpServletRequest) request).getRequestURL().toString(), response);
         }
         if (response instanceof Response) {
             Response res = (Response) response;
             responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
         }
     }
+
 
     @Override
     public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)

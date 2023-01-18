@@ -1,0 +1,36 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Configure Gradle Enterprise integration
+description: Configure Gradle Enterprise when secret GE_ACCESS_TOKEN is available
+inputs:
+  token:
+    description: 'The token for accessing Gradle Enterprise'
+    required: true
+runs:
+  using: composite
+  steps:
+    - run: |
+        if [[ -n "${{ inputs.token }}" ]]; then
+            echo "::group::Configuring Gradle Enterprise for build"
+            cp .mvn/ge-extensions.xml .mvn/extensions.xml
+            echo "GRADLE_ENTERPRISE_ACCESS_KEY=${{ inputs.token }}" >> $GITHUB_ENV
+            echo "::endgroup::"  
+        fi
+      shell: bash

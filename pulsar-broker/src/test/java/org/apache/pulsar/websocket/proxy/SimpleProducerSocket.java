@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -29,6 +28,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -61,7 +61,7 @@ public class SimpleProducerSocket {
         ProducerMessage msg = new ProducerMessage();
         msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
         msg.key = Integer.toString(index);
-        return jsonMapper().writeValueAsString(msg);
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {

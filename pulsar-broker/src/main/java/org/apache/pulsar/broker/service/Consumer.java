@@ -352,9 +352,9 @@ public class Consumer {
         return writeAndFlushPromise;
     }
 
-    private void incrementUnackedMessages(int ackedMessages) {
+    private void incrementUnackedMessages(int unackedMessages) {
         if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= getMaxUnackedMessages()
+                && addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
                 && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
@@ -425,19 +425,19 @@ public class Consumer {
                         subscription, consumerId);
                 return CompletableFuture.completedFuture(null);
             }
-            PositionImpl position = PositionImpl.EARLIEST;
-            if (ack.getMessageIdsCount() == 1) {
-                MessageIdData msgId = ack.getMessageIdAt(0);
-                if (msgId.getAckSetsCount() > 0) {
-                    long[] ackSets = new long[msgId.getAckSetsCount()];
-                    for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                        ackSets[j] = msgId.getAckSetAt(j);
-                    }
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                } else {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+
+            PositionImpl position;
+            MessageIdData msgId = ack.getMessageIdAt(0);
+            if (msgId.getAckSetsCount() > 0) {
+                long[] ackSets = new long[msgId.getAckSetsCount()];
+                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                    ackSets[j] = msgId.getAckSetAt(j);
                 }
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+            } else {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
             }
+
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
                 List<PositionImpl> positionsAcked = Collections.singletonList(position);
                 future = transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
@@ -908,7 +908,7 @@ public class Consumer {
     public boolean equals(Object obj) {
         if (obj instanceof Consumer) {
             Consumer other = (Consumer) obj;
-            return Objects.equals(cnx.clientAddress(), other.cnx.clientAddress()) && consumerId == other.consumerId;
+            return consumerId == other.consumerId && Objects.equals(cnx.clientAddress(), other.cnx.clientAddress());
         }
         return false;
     }

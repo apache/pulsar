@@ -28,6 +28,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 import lombok.Data;
+import lombok.SneakyThrows;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -39,6 +41,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 
 /**
  * Add possibility to inject failures during tests that interact with MetadataStore.
@@ -148,17 +151,28 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
-        return store.getMetadataCache(clazz, cacheConfig);
+        return injectMetadataStoreInMetadataCache(store.getMetadataCache(clazz, cacheConfig));
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
-        return store.getMetadataCache(typeRef, cacheConfig);
+        return injectMetadataStoreInMetadataCache(store.getMetadataCache(typeRef, cacheConfig));
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(MetadataSerde<T> serde, MetadataCacheConfig cacheConfig) {
-        return store.getMetadataCache(serde, cacheConfig);
+        return injectMetadataStoreInMetadataCache(store.getMetadataCache(serde, cacheConfig));
+    }
+
+    @SneakyThrows
+    private <T> MetadataCache<T> injectMetadataStoreInMetadataCache(MetadataCache<T> metadataCache) {
+        if (metadataCache instanceof MetadataCacheImpl) {
+            FieldUtils.writeField(metadataCache, "store", this, true);
+        } else {
+            throw new UnsupportedOperationException("Metadata cache implementation "
+                    + metadataCache.getClass().getName() + " not supported by FaultInjectionMetadataStore");
+        }
+        return metadataCache;
     }
 
     @Override
