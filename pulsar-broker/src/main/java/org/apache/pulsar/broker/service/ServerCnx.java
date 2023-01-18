@@ -964,7 +964,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         remoteAddress, originalPrincipal);
                 }
             }
-            validateRoleAndOriginalPrincipal();
+            if (service.isAuthorizationEnabled()) {
+                validateRoleAndOriginalPrincipal();
+            }
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
