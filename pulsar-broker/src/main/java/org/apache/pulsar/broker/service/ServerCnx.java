@@ -395,17 +395,32 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ctx.close();
     }
 
-    /*
-     * If authentication and authorization is enabled(and not sasl) and
-     *  if the authRole is one of proxyRoles we want to enforce
-     * - the originalPrincipal is given while connecting
-     * - originalPrincipal is not blank
-     * - originalPrincipal is not a proxy principal
+    /**
+     * When transitioning from Connecting to Connected, this class validates that the {@link #authRole} and the
+     * {@link #originalPrincipal} are a valid combination. Valid combinations fulfill the following rule:
+     * <p>
+     * The {@link #authRole} is in {@link #proxyRoles}, if, and only if, the {@link #originalPrincipal} is set to a role
+     * that is not also in {@link #proxyRoles}.
      */
-    private boolean invalidOriginalPrincipal(String originalPrincipal) {
-        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()
-                && proxyRoles.contains(authRole) && (StringUtils.isBlank(originalPrincipal)
-                || proxyRoles.contains(originalPrincipal)));
+    private void validateRoleAndOriginalPrincipal() {
+        String errorMsg = null;
+        if (proxyRoles.contains(authRole)) {
+            if (StringUtils.isBlank(originalPrincipal)) {
+                errorMsg = "originalPrincipal must be provided when connecting with a proxy role.";
+            } else if (proxyRoles.contains(originalPrincipal)) {
+                errorMsg = "originalPrincipal cannot be a proxy role.";
+            }
+        } else if (StringUtils.isNotBlank(originalPrincipal)) {
+            errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
+        }
+        if (errorMsg != null) {
+            service.getPulsarStats().recordConnectionCreateFail();
+            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal {}: {}", remoteAddress, authRole,
+                    originalPrincipal, errorMsg);
+            // Provide generic error message to prevent leaking information about proxy roles
+            writeAndFlush(Commands.newError(-1, ServerError.AuthorizationError, "Unable to authenticate"));
+            close();
+        }
     }
 
     // ////
@@ -487,14 +502,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for lookup ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                        originalPrincipal, topicName);
-                writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
-                lookupSemaphore.release();
-                return;
-            }
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
@@ -568,14 +575,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for getPartitionMetadataRequest ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                        originalPrincipal, topicName);
-                commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId);
-                lookupSemaphore.release();
-                return;
-            }
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
@@ -965,6 +964,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         remoteAddress, originalPrincipal);
                 }
             }
+            validateRoleAndOriginalPrincipal();
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
@@ -1017,14 +1017,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Handle subscribe command: auth role = {}, original auth role = {}",
                 remoteAddress, authRole, originalPrincipal);
-        }
-
-        if (invalidOriginalPrincipal(originalPrincipal)) {
-            final String msg = "Valid Proxy Client role should be provided while subscribing ";
-            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                    originalPrincipal, topicName);
-            commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
-            return;
         }
 
         final String subscriptionName = subscribe.getSubscription();
@@ -1269,14 +1261,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
-            return;
-        }
-
-        if (invalidOriginalPrincipal(originalPrincipal)) {
-            final String msg = "Valid Proxy Client role should be provided while creating producer ";
-            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                    originalPrincipal, topicName);
-            commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
             return;
         }
 
@@ -2120,14 +2104,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for getTopicsOfNamespaceRequest ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on namespace {}", remoteAddress, msg,
-                        authRole, originalPrincipal, namespaceName);
-                commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
-                lookupSemaphore.release();
-                return;
-            }
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
@@ -2686,14 +2662,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for watchTopicListRequest ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on namespace {}", remoteAddress, msg,
-                        authRole, originalPrincipal, namespaceName);
-                commandSender.sendErrorResponse(watcherId, ServerError.AuthorizationError, msg);
-                lookupSemaphore.release();
-                return;
-            }
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     topicListService.handleWatchTopicList(namespaceName, watcherId, requestId, topicsPattern,
