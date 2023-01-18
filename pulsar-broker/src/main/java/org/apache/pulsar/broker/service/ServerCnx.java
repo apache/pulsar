@@ -414,7 +414,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
-            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal {}: {}", remoteAddress, authRole,
+            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress, authRole,
                     originalPrincipal, errorMsg);
             closeForAuthenticationError();
         }
