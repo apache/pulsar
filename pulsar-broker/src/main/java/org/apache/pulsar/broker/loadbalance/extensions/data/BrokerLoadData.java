@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -29,24 +31,42 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
  * Migrate from {@link org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData}.
  * And removed the lookup data, see {@link BrokerLookupData}
  */
-@Data
+@Getter
+@EqualsAndHashCode
 public class BrokerLoadData {
+
+    private static final double DEFAULT_RESOURCE_USAGE = 1.0d;
 
     // Most recently available system resource usage.
     private ResourceUsage cpu;
     private ResourceUsage memory;
     private ResourceUsage directMemory;
-
     private ResourceUsage bandwidthIn;
     private ResourceUsage bandwidthOut;
 
     // Message data from the most recent namespace bundle stats.
-    private double msgThroughputIn;
-    private ResourceUsage msgThroughputInUsage;
-    private double msgThroughputOut;
-    private ResourceUsage msgThroughputOutUsage;
-    private double msgRateIn;
-    private double msgRateOut;
+    private double msgThroughputIn; // bytes/sec
+    private double msgThroughputOut;  // bytes/sec
+    private double msgRateIn; // messages/sec
+    private double msgRateOut; // messages/sec
+
+    // Load data features computed from the above resources.
+    private double maxResourceUsage; // max of resource usages
+    /**
+     * Exponential moving average(EMA) of max of weighted resource usages among
+     * cpu, memory, directMemory, bandwidthIn and bandwidthOut.
+     *
+     * The resource weights are configured by :
+     * loadBalancerCPUResourceWeight,
+     * loadBalancerMemoryResourceWeight,
+     * loadBalancerDirectMemoryResourceWeight,
+     * loadBalancerBandwithInResourceWeight, and
+     * loadBalancerBandwithOutResourceWeight.
+     *
+     * The historical resource percentage is configured by loadBalancerHistoryResourcePercentage.
+     */
+    private double weightedMaxEMA;
+    private long updatedAt;
 
     public BrokerLoadData() {
         cpu = new ResourceUsage();
@@ -54,34 +74,56 @@ public class BrokerLoadData {
         directMemory = new ResourceUsage();
         bandwidthIn = new ResourceUsage();
         bandwidthOut = new ResourceUsage();
-        msgThroughputInUsage = new ResourceUsage();
-        msgThroughputOutUsage = new ResourceUsage();
+        maxResourceUsage = DEFAULT_RESOURCE_USAGE;
+        weightedMaxEMA = DEFAULT_RESOURCE_USAGE;
     }
 
     /**
-     * Using the system resource usage and bundle stats acquired from the Pulsar client, update this LocalBrokerData.
+     * Using the system resource usage from the Pulsar client, update this BrokerLoadData.
      *
-     * @param systemResourceUsage
+     * @param usage
      *            System resource usage (cpu, memory, and direct memory).
+     * @param msgThroughputIn
+     *            broker-level message input throughput in bytes/s.
+     * @param msgThroughputOut
+     *            broker-level message output throughput in bytes/s.
+     * @param msgRateIn
+     *            broker-level message input rate in messages/s.
+     * @param msgRateOut
+     *            broker-level message output rate in messages/s.
+     * @param conf
+     *            Service configuration to compute load data features.
      */
-    public void update(final SystemResourceUsage systemResourceUsage) {
-        updateSystemResourceUsage(systemResourceUsage);
+    public void update(final SystemResourceUsage usage,
+                       double msgThroughputIn,
+                       double msgThroughputOut,
+                       double msgRateIn,
+                       double msgRateOut,
+                       ServiceConfiguration conf) {
+        updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
+        this.msgThroughputIn = msgThroughputIn;
+        this.msgThroughputOut = msgThroughputOut;
+        this.msgRateIn = msgRateIn;
+        this.msgRateOut = msgRateOut;
+        updateFeatures(conf);
+        updatedAt = System.currentTimeMillis();
     }
 
     /**
-     * Using another LocalBrokerData, update this.
+     * Using another BrokerLoadData, update this.
      *
      * @param other
-     *            LocalBrokerData to update from.
+     *            BrokerLoadData to update from.
      */
     public void update(final BrokerLoadData other) {
         updateSystemResourceUsage(other.cpu, other.memory, other.directMemory, other.bandwidthIn, other.bandwidthOut);
-    }
-
-    // Set the cpu, memory, and direct memory to that of the new system resource usage data.
-    private void updateSystemResourceUsage(final SystemResourceUsage systemResourceUsage) {
-        updateSystemResourceUsage(systemResourceUsage.cpu, systemResourceUsage.memory, systemResourceUsage.directMemory,
-                systemResourceUsage.bandwidthIn, systemResourceUsage.bandwidthOut);
+        msgThroughputIn = other.msgThroughputIn;
+        msgThroughputOut = other.msgThroughputOut;
+        msgRateIn = other.msgRateIn;
+        msgRateOut = other.msgRateOut;
+        weightedMaxEMA = other.weightedMaxEMA;
+        maxResourceUsage = other.maxResourceUsage;
+        updatedAt = other.updatedAt;
     }
 
     // Update resource usage given each individual usage.
@@ -95,17 +137,54 @@ public class BrokerLoadData {
         this.bandwidthOut = bandwidthOut;
     }
 
-    public double getMaxResourceUsage() {
-        return LocalBrokerData.max(cpu.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
+    private void updateFeatures(ServiceConfiguration conf) {
+        updateMaxResourceUsage();
+        updateWeightedMaxEMA(conf);
+    }
+
+    private void updateMaxResourceUsage() {
+        maxResourceUsage = LocalBrokerData.max(cpu.percentUsage(), directMemory.percentUsage(),
+                bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage()) / 100;
     }
 
-    public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
+    private double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
         return LocalBrokerData.max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+    }
+
+    private void updateWeightedMaxEMA(ServiceConfiguration conf) {
+        var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
+        var weightedMax = getMaxResourceUsageWithWeight(
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwithInResourceWeight(),
+                conf.getLoadBalancerBandwithOutResourceWeight());
+        weightedMaxEMA = updatedAt == 0 ? weightedMax :
+                weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
+    }
+
+    public String toString(ServiceConfiguration conf) {
+        return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
+                        + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
+                        + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "
+                        + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
+                        + "msgThroughputIn= %.2f, msgThroughputOut= %.2f, msgRateIn= %.2f, msgRateOut= %.2f, "
+                        + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, updatedAt= %d",
+
+                cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
+                bandwidthIn.percentUsage(), bandwidthOut.percentUsage(),
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerMemoryResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwithInResourceWeight(),
+                conf.getLoadBalancerBandwithOutResourceWeight(),
+                msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
+                maxResourceUsage * 100, weightedMaxEMA * 100, updatedAt
+        );
     }
 
 }
