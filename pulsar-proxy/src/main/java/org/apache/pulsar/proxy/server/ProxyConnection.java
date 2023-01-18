@@ -90,7 +90,6 @@ public class ProxyConnection extends PulsarHandler {
             new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
     private final ProxyService service;
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
-    AuthenticationDataSource authenticationData;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
@@ -518,7 +517,6 @@ public class ProxyConnection extends PulsarHandler {
             }
 
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
-            authenticationData = authState.getAuthDataSource();
             doAuthentication(clientData);
         } catch (Exception e) {
             LOG.warn("[{}] Unable to authenticate: ", remoteAddress, e);
