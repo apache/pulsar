@@ -997,7 +997,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
                         ? getFirstPositionAndCounter()
                         : getLastPositionAndCounter());
-
+                if (cursor.getName().equals("sub2")){
+                    ProcessCoordinator.waitAndChangeStep(3);
+                }
+                if (cursor.getName().equals("sub2")) {
+                    ProcessCoordinator.waitAndChangeStep(6);
+                }
                 synchronized (ManagedLedgerImpl.this) {
                     addCursor(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
@@ -2421,21 +2426,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void trimConsumedLedgersInBackground() {
-        trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
+//        trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
     }
 
     @Override
     public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
-        executor.execute(safeRun(() -> internalTrimConsumedLedgers(promise)));
+//        executor.execute(safeRun(() -> internalTrimConsumedLedgers(promise)));
     }
 
     public void trimConsumedLedgersInBackground(boolean isTruncate, CompletableFuture<?> promise) {
-        executor.execute(safeRun(() -> internalTrimLedgers(isTruncate, promise)));
+//        executor.execute(safeRun(() -> internalTrimLedgers(isTruncate, promise)));
     }
 
     private void scheduleDeferredTrimming(boolean isTruncate, CompletableFuture<?> promise) {
-        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(isTruncate, promise)), 100,
-                TimeUnit.MILLISECONDS);
+//        scheduledExecutor.schedule(safeRun(() -> trimConsumedLedgersInBackground(isTruncate, promise)), 100,
+//                TimeUnit.MILLISECONDS);
     }
 
     private void maybeOffloadInBackground(CompletableFuture<PositionImpl> promise) {
@@ -2562,6 +2567,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
+        if (ProcessCoordinator.getCurrentStep() > 0 && name.startsWith("my-property/my-ns/persistent/tp_")){
+            ProcessCoordinator.waitAndChangeStep(2);
+            ProcessCoordinator.waitAndChangeStep(4);
+        }
         if (!factory.isMetadataServiceAvailable()) {
             // Defer trimming of ledger if we cannot connect to metadata service
             promise.completeExceptionally(new MetaStoreException("Metadata service is not available"));
@@ -2581,6 +2590,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ? config.getLedgerOffloader().getOffloadPolicies()
                 : null);
         synchronized (this) {
+            if (ProcessCoordinator.getCurrentStep() > 0 && name.startsWith("my-property/my-ns/persistent/tp_")){
+                ProcessCoordinator.waitAndChangeStep(5);
+            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
                         TOTAL_SIZE_UPDATER.get(this));
