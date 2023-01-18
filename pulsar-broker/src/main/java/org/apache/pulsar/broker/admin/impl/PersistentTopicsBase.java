@@ -23,6 +23,7 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInte
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -129,7 +131,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionPolicies;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -408,89 +409,160 @@ public class PersistentTopicsBase extends AdminResource {
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      *
-     * Already created partitioned producers and consumers can't see newly created partitions and it requires to
-     * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
-     * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
-     *
-     * @param expectPartitions
-     * @param updateLocalTopicOnly
-     * @param authoritative
-     * @param force
+     * @exception RestException Unprocessable entity, status code: 422. throw it when some pre-check failed.
+     * @exception RestException Internal Server Error, status code: 500. throw it when get unknown Exception
      */
-    protected CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int expectPartitions,
-                                                                          boolean updateLocalTopicOnly,
-                                                                          boolean authoritative, boolean force) {
-        if (expectPartitions <= 0) {
-            return FutureUtil.failedFuture(
-                    new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0"));
-        }
-        return validateTopicOwnershipAsync(topicName, authoritative)
-            .thenCompose(__ ->
-                    validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE))
-            .thenCompose(__ -> {
-                if (!updateLocalTopicOnly && !force) {
-                    return validatePartitionTopicUpdateAsync(topicName.getLocalName(), expectPartitions);
-                }  else {
-                    return CompletableFuture.completedFuture(null);
+    protected @Nonnull CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int expectPartitions,
+                                                                                   boolean updateLocal,
+                                                                                   boolean force) {
+        PulsarService pulsarService = pulsar();
+        return pulsarService.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+            .thenCompose(partitionedTopicMetadata -> {
+                int currentMetadataPartitions = partitionedTopicMetadata.partitions;
+                if (currentMetadataPartitions <= 0) {
+                    throw new RestException(422 /* Unprocessable entity*/,
+                            String.format("Topic %s is not the partitioned topic.", topicName));
                 }
-            }).thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
-            .thenCompose(topicMetadata -> {
-                final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-                if (maxPartitions > 0 && expectPartitions > maxPartitions) {
-                    throw new RestException(Status.NOT_ACCEPTABLE,
-                            "Number of partitions should be less than or equal to " + maxPartitions);
+                if (expectPartitions < currentMetadataPartitions) {
+                    throw new RestException(422 /* Unprocessable entity*/,
+                            String.format("Expect partitions %s can't less than current partitions %s.",
+                                    expectPartitions, currentMetadataPartitions));
                 }
-                final PulsarAdmin adminClient;
+                int brokerMaximumPartitionsPerTopic = pulsarService.getConfiguration()
+                        .getMaxNumPartitionsPerPartitionedTopic();
+                if (brokerMaximumPartitionsPerTopic != 0 && expectPartitions > brokerMaximumPartitionsPerTopic) {
+                    throw new RestException(422 /* Unprocessable entity*/,
+                            String.format("Expect partitions %s grater than maximum partitions per topic %s",
+                                    expectPartitions, brokerMaximumPartitionsPerTopic));
+                }
+                final PulsarAdmin admin;
                 try {
-                    adminClient = pulsar().getAdminClient();
-                } catch (PulsarServerException e) {
-                    throw new RuntimeException(e);
+                    admin = pulsarService.getAdminClient();
+                } catch (PulsarServerException ex) {
+                    throw new RestException(Status.INTERNAL_SERVER_ERROR, Throwables.getRootCause(ex));
                 }
-                return adminClient.topics().getListAsync(topicName.getNamespace())
-                        .thenCompose(topics -> {
-                            long existPartitions = topics.stream()
-                                    .filter(t -> TopicName.get(t).getPartitionedTopicName()
-                                            .equals(topicName.getPartitionedTopicName()))
-                                    .count();
-                            if (existPartitions >= expectPartitions) {
-                                throw new RestException(Status.CONFLICT,
-                                        "Number of new partitions must be greater than existing number of partitions");
-                            }
-                            // Only do the validation if it's the first hop.
-                            if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
-                                return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
-                                        .thenApply(clusters -> {
-                                            if (!clusters.contains(pulsar().getConfig().getClusterName())) {
-                                                log.error("[{}] local cluster is not part of"
-                                                                + " replicated cluster for namespace {}",
-                                                        clientAppId(), topicName);
-                                                throw new RestException(Status.FORBIDDEN,
-                                                        "Local cluster is not part of replicate cluster list");
-                                            }
-                                            return clusters;
-                                        })
-                                        .thenCompose(clusters ->
-                                                tryCreatePartitionsAsync(expectPartitions)
-                                                        .thenApply(ignore -> clusters))
-                                        .thenCompose(clusters -> {
-                                            if (!updateLocalTopicOnly) {
-                                                return namespaceResources().getPartitionedTopicResources()
-                                                        .updatePartitionedTopicAsync(topicName, p ->
-                                                                new PartitionedTopicMetadata(expectPartitions,
-                                                                        p.properties))
-                                                        .thenCompose(__ ->
-                                                                updatePartitionInOtherCluster(expectPartitions,
-                                                                        clusters));
-                                            } else {
-                                                return CompletableFuture.completedFuture(null);
-                                            }
-                                        }).thenCompose(clusters -> createSubscriptions(topicName,
-                                                expectPartitions));
-                            } else {
-                                return tryCreatePartitionsAsync(expectPartitions)
-                                        .thenCompose(ignore -> updatePartitionedTopic(topicName, expectPartitions));
-                            }
-                        });
+                final CompletableFuture<Void> checkFuture;
+                if (!force) {
+                    checkFuture = admin.topics().getListAsync(topicName.getNamespace(), topicName.getDomain())
+                            .thenAccept(topics -> {
+                                final List<TopicName> existingPartitions = topics.stream()
+                                        .map(TopicName::get)
+                                        .filter(candidateTopicName -> candidateTopicName.getPartitionedTopicName()
+                                                .equals(topicName.getPartitionedTopicName()))
+                                        .collect(Collectors.toList());
+                                    // Check whether exist unexpected partition
+                                    Optional<Integer> maximumPartitionIndex = existingPartitions.stream()
+                                            .map(TopicName::getPartitionIndex)
+                                            .max(Integer::compareTo);
+                                    if (maximumPartitionIndex.isPresent()
+                                            && maximumPartitionIndex.get() >= currentMetadataPartitions) {
+                                        List<String> unexpectedPartitions = existingPartitions.stream()
+                                                .filter(candidateTopicName ->
+                                                        candidateTopicName
+                                                                .getPartitionIndex() > currentMetadataPartitions)
+                                                .map(TopicName::toString)
+                                                .collect(Collectors.toList());
+                                        throw new RestException(Status.CONFLICT,
+                                                String.format(
+                                                        "Exist unexpected topic partition(partition index grater than"
+                                                                + " current metadata maximum index %s) %s ",
+                                                        currentMetadataPartitions,
+                                                        StringUtils.join(unexpectedPartitions, ",")));
+                                    }
+                            });
+                } else {
+                    checkFuture = CompletableFuture.completedFuture(null);
+                }
+                return checkFuture.thenCompose(topics -> {
+                    final CompletableFuture<Void> updateMetadataFuture = (expectPartitions == currentMetadataPartitions)
+                            // current metadata partitions is equals to expect partitions
+                            ? CompletableFuture.completedFuture(null)
+                            // update current cluster topic metadata
+                            : namespaceResources().getPartitionedTopicResources()
+                            .updatePartitionedTopicAsync(topicName, m ->
+                                    new PartitionedTopicMetadata(expectPartitions, m.properties));
+                return updateMetadataFuture
+                    // create missing partitions
+                    .thenCompose(__ -> tryCreatePartitionsAsync(expectPartitions))
+                    // because we should consider the compatibility.
+                    // Copy subscriptions from partition 0 instead of being created by the customer
+                    .thenCompose(__ ->
+                            admin.topics().getStatsAsync(topicName.getPartition(0).toString())
+                                    .thenCompose(stats -> {
+                                        List<CompletableFuture<Void>> futures = stats.getSubscriptions().entrySet()
+                                                // We must not re-create non-durable subscriptions on the new partitions
+                                                .stream().filter(entry -> entry.getValue().isDurable())
+                                                .map(entry -> {
+                                                    final List<CompletableFuture<Void>> innerFutures =
+                                                            new ArrayList<>(expectPartitions);
+                                                    for (int i = 0; i < expectPartitions; i++) {
+                                                        innerFutures.add(admin.topics().createSubscriptionAsync(
+                                                                        topicName.getPartition(i).toString(),
+                                                                        entry.getKey(), MessageId.earliest,
+                                                                        entry.getValue().isReplicated(),
+                                                                        entry.getValue().getSubscriptionProperties())
+                                                                .exceptionally(ex -> {
+                                                                    Throwable rc =
+                                                                            FutureUtil.unwrapCompletionException(ex);
+                                                                    if (!(rc instanceof PulsarAdminException
+                                                                            .ConflictException)) {
+                                                                        log.warn("[{}] got an error while copying"
+                                                                                        + " the subscription to the"
+                                                                                        + " partition {}.", topicName,
+                                                                                Throwables.getRootCause(rc));
+                                                                        throw FutureUtil.wrapToCompletionException(rc);
+                                                                    }
+                                                                    // Ignore subscription already exist exception
+                                                                    return null;
+                                                                }));
+                                                    }
+                                                    return FutureUtil.waitForAll(innerFutures);
+                                                }).collect(Collectors.toList());
+                                        return FutureUtil.waitForAll(futures);
+                                    })
+                    );
+                }).thenCompose(__ -> {
+                    if (updateLocal || !topicName.isGlobal()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    // update remote cluster
+                    return namespaceResources().getPoliciesAsync(namespaceName)
+                            .thenCompose(policies -> {
+                                if (!policies.isPresent()) {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                final Set<String> replicationClusters = policies.get().replication_clusters;
+                                if (replicationClusters.size() == 0) {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                boolean containsCurrentCluster =
+                                        replicationClusters.contains(pulsar().getConfig().getClusterName());
+                                if (!containsCurrentCluster) {
+                                    log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
+                                            clientAppId(), topicName);
+                                    throw new RestException(422,
+                                            "Local cluster is not part of replicate cluster list");
+                                }
+                                if (replicationClusters.size() == 1) {
+                                    // The replication clusters just has the current cluster itself.
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                                List<CompletableFuture<Void>> futures = replicationClusters.stream()
+                                        .map(replicationCluster -> admin.clusters().getClusterAsync(replicationCluster)
+                                                .thenCompose(clusterData -> pulsarService.getBrokerService()
+                                                    .getClusterPulsarAdmin(replicationCluster, Optional.of(clusterData))
+                                                        .topics().updatePartitionedTopicAsync(topicName.toString(),
+                                                            expectPartitions, true, force)
+                                                        .exceptionally(ex -> {
+                                                            log.warn("[{}][{}] Update remote cluster partition fail.",
+                                                                        topicName, replicationCluster, ex);
+                                                            throw FutureUtil.wrapToCompletionException(ex);
+                                                        })
+                                                )
+                                        ).collect(Collectors.toList());
+                                return FutureUtil.waitForAll(futures);
+                            });
+                });
             });
     }
 
@@ -527,24 +599,6 @@ public class PersistentTopicsBase extends AdminResource {
                         deliveryPolicies == null ? null : deliveryPolicies.getTickTime());
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
             });
-    }
-
-    private CompletableFuture<Void> updatePartitionInOtherCluster(int numPartitions, Set<String> clusters) {
-        List<CompletableFuture<Void>> results = new ArrayList<>(clusters.size() - 1);
-        clusters.forEach(cluster -> {
-            if (cluster.equals(pulsar().getConfig().getClusterName())) {
-                return;
-            }
-            CompletableFuture<Void> updatePartitionTopicFuture =
-                pulsar().getPulsarResources().getClusterResources().getClusterAsync(cluster)
-                    .thenApply(clusterDataOp ->
-                            pulsar().getBrokerService().getClusterPulsarAdmin(cluster, clusterDataOp))
-                    .thenCompose(pulsarAdmin ->
-                            pulsarAdmin.topics().updatePartitionedTopicAsync(
-                                    topicName.toString(), numPartitions, true, false));
-            results.add(updatePartitionTopicFuture);
-        });
-        return FutureUtil.waitForAll(results);
     }
 
     protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative,
@@ -4387,106 +4441,6 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Replicator not found");
         }
-    }
-
-    private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int expectPartitions) {
-        CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                .updatePartitionedTopicAsync(topicName, p ->
-                        new PartitionedTopicMetadata(expectPartitions, p.properties));
-        future.exceptionally(ex -> {
-            // If the update operation fails, clean up the partitions that were created
-            getPartitionedTopicMetadataAsync(topicName, false, false)
-                    .thenAccept(metadata -> {
-                int oldPartition = metadata.partitions;
-                for (int i = oldPartition; i < expectPartitions; i++) {
-                    topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
-                        log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
-                                ex1.getCause());
-                        return null;
-                    });
-                }
-            }).exceptionally(e -> {
-                log.warn("[{}] Failed to clean up managedLedger", topicName, e);
-                return null;
-            });
-            return null;
-        });
-        return future.thenCompose(__ -> createSubscriptions(topicName, expectPartitions));
-    }
-
-    /**
-     * It creates subscriptions for new partitions of existing partitioned-topics.
-     *
-     * @param topicName     : topic-name: persistent://prop/cluster/ns/topic
-     * @param expectPartitions : number of expected partitions
-     *
-     */
-    private CompletableFuture<Void> createSubscriptions(TopicName topicName, int expectPartitions) {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        if (expectPartitions < 1) {
-            return FutureUtil.failedFuture(new RestException(Status.CONFLICT, "Topic is not partitioned topic"));
-        }
-        PulsarAdmin admin;
-        try {
-            admin = pulsar().getAdminClient();
-        } catch (PulsarServerException e1) {
-            return FutureUtil.failedFuture(e1);
-        }
-
-        admin.topics().getStatsAsync(topicName.getPartition(0).toString()).thenAccept(stats -> {
-            List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
-
-            stats.getSubscriptions().entrySet().forEach(e -> {
-                String subscription = e.getKey();
-                SubscriptionStats ss = e.getValue();
-                if (!ss.isDurable()) {
-                    // We must not re-create non-durable subscriptions on the new partitions
-                    return;
-                }
-                boolean replicated = ss.isReplicated();
-
-                for (int i = 0; i < expectPartitions; i++) {
-                    final String topicNamePartition = topicName.getPartition(i).toString();
-                    CompletableFuture<Void> future = new CompletableFuture<>();
-                    admin.topics().createSubscriptionAsync(topicNamePartition,
-                                    subscription, MessageId.earliest, replicated, ss.getSubscriptionProperties())
-                            .whenComplete((__, ex) -> {
-                        if (ex == null) {
-                            future.complete(null);
-                        } else {
-                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                            if (realCause instanceof PulsarAdminException.ConflictException) {
-                                future.complete(null);
-                            } else {
-                                future.completeExceptionally(realCause);
-                            }
-                        }
-                    });
-                    subscriptionFutures.add(future);
-                }
-            });
-
-            FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
-                log.info("[{}] Successfully created subscriptions on new partitions {}", clientAppId(), topicName);
-                result.complete(null);
-            }).exceptionally(ex -> {
-                log.warn("[{}] Failed to create subscriptions on new partitions for {}",
-                        clientAppId(), topicName, ex);
-                result.completeExceptionally(ex);
-                return null;
-            });
-        }).exceptionally(ex -> {
-            if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
-                // The first partition doesn't exist, so there are currently to subscriptions to recreate
-                result.complete(null);
-            } else {
-                log.warn("[{}] Failed to get list of subscriptions of {}",
-                        clientAppId(), topicName.getPartition(0), ex);
-                result.completeExceptionally(ex);
-            }
-            return null;
-        });
-        return result;
     }
 
     // as described at : (PR: #836) CPP-client old client lib should not be allowed to connect on partitioned-topic.

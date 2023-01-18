@@ -778,30 +778,20 @@ public class PersistentTopics extends PersistentTopicsBase {
      * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
-     *
-     * Already created partitioned producers and consumers can't see newly created partitions and it requires to
-     * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
-     * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
-     *
-     * @param tenant
-     * @param namespace
-     * @param encodedTopic
-     * @param numPartitions
      */
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitions of an existing partitioned topic.",
             notes = "It only increments partitions of existing non-global partitioned-topic")
     @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Update topic partition successful."),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 401,
-                    message = "Don't have permission to administrate resources on this tenant"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant does not exist"),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than 0 and"
+            @ApiResponse(code = 401, message = "Unauthenticated"),
+            @ApiResponse(code = 403, message = "Forbidden/Unauthorized"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 422, message = "The number of partitions should be more than 0 and"
                     + " less than or equal to maxNumPartitionsPerPartitionedTopic"
                     + " and number of new partitions must be greater than existing number of partitions"),
-            @ApiResponse(code = 409, message = "Partitioned topic does not exist"),
             @ApiResponse(code = 412, message = "Partitioned topic name is invalid"),
             @ApiResponse(code = 500, message = "Internal server error")
     })
@@ -813,7 +803,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopicOnly,
+            @QueryParam("updateLocalTopicOnly") @DefaultValue("false") boolean updateLocalTopic,
             @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
@@ -821,13 +811,16 @@ public class PersistentTopics extends PersistentTopicsBase {
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
         validatePartitionedTopicName(tenant, namespace, encodedTopic);
-        validatePartitionedTopicMetadataAsync()
-                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly,
-                        authoritative, force))
-                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+        validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION, PolicyOperation.WRITE)
+                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopic, force))
+                .thenAccept(__ -> {
+                    log.info("[{}][{}] Updated topic partition to {}.", clientAppId(), topicName, numPartitions);
+                    asyncResponse.resume(Response.noContent().build());
+                })
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                        log.error("[{}][{}] Failed to update partition to {}",
+                                clientAppId(), topicName, numPartitions, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
