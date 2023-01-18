@@ -971,6 +971,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void closeForAuthenticationError() {
+        state = State.Failed;
         service.getPulsarStats().recordConnectionCreateFail();
         String msg = "Unable to authenticate";
         writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
