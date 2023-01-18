@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.web;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
@@ -86,7 +85,6 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -710,8 +708,8 @@ public abstract class PulsarWebResource {
                                     // Replace the host and port of the current request and redirect
                                     URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
                                             .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
-                                                    newAuthoritative).build();
-
+                                                    newAuthoritative).replaceQueryParam("destinationBroker",
+                                                    null).build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
@@ -1108,10 +1106,6 @@ public abstract class PulsarWebResource {
 
     protected DynamicConfigurationResources dynamicConfigurationResources() {
         return pulsar().getPulsarResources().getDynamicConfigResources();
-    }
-
-    public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getThreadLocal();
     }
 
     public void validatePoliciesReadOnlyAccess() {

@@ -128,7 +128,7 @@ public class PulsarFunctionTlsTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                     new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
             workerConfig.setFailureCheckFreqMs(100);
             workerConfig.setNumFunctionPackageReplicas(1);

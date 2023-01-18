@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.schema.generic;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,6 +30,7 @@ import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +57,8 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
         this.fields = fields;
         this.schemaVersion = schemaVersion;
         this.schemaInfo = schemaInfo;
-        ObjectMapper objectMapper = new ObjectMapper();
-        this.objectReader = objectMapper.reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+        this.objectReader =
+                ObjectMapperFactory.getMapper().reader().with(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
     }
 
     @Override

@@ -28,7 +28,9 @@ env:
 jobs:
   run-owasp-dependency-check:
     if: ${{ github.repository == 'apache/pulsar' }}
-    name: Run OWASP Dependency Check
+    name: Run OWASP Dependency Check for ${{ matrix.name }}
+    env:
+      JOB_NAME: Run OWASP Dependency Check for ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: 45
     strategy:
@@ -55,8 +57,14 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
+
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*

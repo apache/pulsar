@@ -138,7 +138,7 @@ public class WebServiceTest {
     @Test
     public void testDefaultClientVersion() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
-      
+
         try {
             // Make an HTTP request to lookup a namespace. The request should
             // succeed
@@ -282,7 +282,7 @@ public class WebServiceTest {
 
         // This should have failed
         assertEquals(res.getStatusCode(), 405);
-        
+
         builder = client.prepare("TRACK", url);
 
         res = builder.execute().get();
@@ -308,7 +308,7 @@ public class WebServiceTest {
         TenantInfo info1 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)))
                 .build();
-        builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info1));
+        builder.setBody(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(info1));
         Response res = builder.execute().get();
 
         // This should have failed
@@ -321,7 +321,7 @@ public class WebServiceTest {
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
                 .build();
-        builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info2));
+        builder.setBody(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(info2));
 
         Response res2 = builder.execute().get();
         assertEquals(res2.getStatusCode(), 204);
@@ -383,7 +383,7 @@ public class WebServiceTest {
     }
 
     private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
-            boolean enableTls, boolean enableAuth, boolean allowInsecure, double rateLimit, 
+            boolean enableTls, boolean enableAuth, boolean allowInsecure, double rateLimit,
             boolean disableTrace) throws Exception {
         if (pulsar != null) {
             throw new Exception("broker already started");

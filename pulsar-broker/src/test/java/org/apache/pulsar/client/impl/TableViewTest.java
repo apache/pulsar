@@ -173,6 +173,24 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testNewTableView() throws Exception {
+        String topic = "persistent://public/default/new-tableview-test";
+        admin.topics().createPartitionedTopic(topic, 2);
+        Set<String> keys = this.publishMessages(topic, 10, false);
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableView()
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .create();
+        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        Awaitility.await().untilAsserted(() -> {
+            log.info("Current tv size: {}", tv.size());
+            assertEquals(tv.size(), 10);
+        });
+        assertEquals(tv.keySet(), keys);
+    }
+
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
     public void testTableViewUpdatePartitions(String topicDomain) throws Exception {
         String topic = topicDomain + "://public/default/tableview-test-update-partitions";
@@ -242,7 +260,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.close();
 
         @Cleanup
-        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv1 = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();

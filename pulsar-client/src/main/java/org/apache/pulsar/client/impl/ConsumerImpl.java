@@ -182,7 +182,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
 
-    private volatile Producer<T> retryLetterProducer;
+    private volatile Producer<byte[]> retryLetterProducer;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
 
     protected volatile boolean paused;
@@ -611,7 +611,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             createProducerLock.writeLock().lock();
             try {
                 if (retryLetterProducer == null) {
-                    retryLetterProducer = client.newProducer(schema)
+                    retryLetterProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                             .topic(this.deadLetterPolicy.getRetryLetterTopic())
                             .enableBatching(false)
                             .blockIfQueueFull(false)
@@ -636,18 +636,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (customProperties != null) {
                     propertiesMap.putAll(customProperties);
                 }
-                int reconsumetimes = 1;
+                int reconsumeTimes = 1;
                 if (propertiesMap.containsKey(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES)) {
-                    reconsumetimes = Integer.parseInt(
+                    reconsumeTimes = Integer.parseInt(
                             propertiesMap.get(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES));
-                    reconsumetimes = reconsumetimes + 1;
+                    reconsumeTimes = reconsumeTimes + 1;
                 }
-                propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumetimes));
+                propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_RECONSUMETIMES, String.valueOf(reconsumeTimes));
                 propertiesMap.put(RetryMessageUtil.SYSTEM_PROPERTY_DELAY_TIME,
                         String.valueOf(unit.toMillis(delayTime)));
 
                 MessageId finalMessageId = messageId;
-                if (reconsumetimes > this.deadLetterPolicy.getMaxRedeliverCount()
+                if (reconsumeTimes > this.deadLetterPolicy.getMaxRedeliverCount()
                         && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                     initDeadLetterProducerIfNeeded();
                     deadLetterProducer.thenAccept(dlqProducer -> {
@@ -672,8 +672,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         return null;
                     });
                 } else {
-                    TypedMessageBuilder<T> typedMessageBuilderNew = retryLetterProducer.newMessage()
-                            .value(retryMessage.getValue())
+                    assert retryMessage != null;
+                    TypedMessageBuilder<byte[]> typedMessageBuilderNew = retryLetterProducer
+                            .newMessage(Schema.AUTO_PRODUCE_BYTES(message.getReaderSchema().get()))
+                            .value(retryMessage.getData())
                             .properties(propertiesMap);
                     if (delayTime > 0) {
                         typedMessageBuilderNew.deliverAfter(delayTime, unit);

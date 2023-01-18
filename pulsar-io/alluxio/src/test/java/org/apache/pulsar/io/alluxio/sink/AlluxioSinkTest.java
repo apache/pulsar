@@ -40,6 +40,7 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -64,6 +65,7 @@ public class AlluxioSinkTest {
 
     protected Map<String, Object> map;
     protected AlluxioSink sink;
+    protected LocalAlluxioCluster cluster;
 
     @Mock
     protected Record<GenericObject> mockRecord;
@@ -86,10 +88,16 @@ public class AlluxioSinkTest {
     }
 
     @BeforeMethod
-    public final void setUp() {
+    public final void setUp() throws Exception {
+        cluster = setupSingleMasterCluster();
+
         map = new HashMap<>();
-        map.put("alluxioMasterHost", "localhost");
-        map.put("alluxioMasterPort", "19998");
+        // alluxioMasterHost should be set via LocalAlluxioCluster#getHostname
+        // instead of using a fixed value "localhost", since it seems that
+        // LocalAlluxioCluster may bind other address than localhost
+        // when the node has multiple network interfaces.
+        map.put("alluxioMasterHost", cluster.getHostname());
+        map.put("alluxioMasterPort", cluster.getMasterRpcPort());
         map.put("alluxioDir", "/pulsar");
         map.put("filePrefix", "prefix");
         map.put("schemaEnable", "true");
@@ -118,6 +126,13 @@ public class AlluxioSinkTest {
         when(mockRecord.getSchema()).thenAnswer((Answer<Schema<KeyValue<String, Foobar>>>) invocation -> kvSchema);
     }
 
+    @AfterMethod
+    public void tearDown() throws Exception {
+        if (cluster != null) {
+            cluster.stop();
+        }
+    }
+
     @Test
     public void openTest() throws Exception {
         map.put("filePrefix", "TopicA");
@@ -126,8 +141,6 @@ public class AlluxioSinkTest {
         map.put("rotationRecords", "100");
 
         String alluxioDir = "/pulsar";
-
-        LocalAlluxioCluster cluster = setupSingleMasterCluster();
 
         sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
@@ -142,7 +155,6 @@ public class AlluxioSinkTest {
         Assert.assertTrue(client.exists(alluxioTmpURI));
 
         sink.close();
-        cluster.stop();
     }
 
     @Test
@@ -155,8 +167,6 @@ public class AlluxioSinkTest {
         map.put("alluxioDir", "/pulsar");
 
         String alluxioDir = "/pulsar";
-
-        LocalAlluxioCluster cluster = setupSingleMasterCluster();
 
         sink = new AlluxioSink();
         sink.open(map, mockSinkContext);
@@ -183,10 +193,35 @@ public class AlluxioSinkTest {
         Assert.assertTrue(client.exists(alluxioTmpURI));
 
         List<URIStatus> listAlluxioDirStatus = client.listStatus(alluxioURI);
-
         List<String> pathList = listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
-
         Assert.assertEquals(pathList.size(), 2);
+
+        for (String path : pathList) {
+            if (path.contains("tmp")) {
+                // Ensure that the temporary file is rotated and the directory is empty
+                Assert.assertEquals(path, "/pulsar/tmp");
+            } else {
+                // Ensure that all rotated files conform the naming convention
+                Assert.assertTrue(path.startsWith("/pulsar/TopicA-"));
+            }
+        }
+
+        // Ensure the subsequent writes are also successful
+        sink.write(() -> new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return new KeyValue<>((String) fooBar.getField("address"), fooBar);
+            }
+        });
+
+        listAlluxioDirStatus = client.listStatus(alluxioURI);
+        pathList = listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
+        Assert.assertEquals(pathList.size(), 3);
 
         for (String path : pathList) {
             if (path.contains("tmp")) {
@@ -197,7 +232,6 @@ public class AlluxioSinkTest {
         }
 
         sink.close();
-        cluster.stop();
     }
 
     private LocalAlluxioCluster setupSingleMasterCluster() throws Exception {

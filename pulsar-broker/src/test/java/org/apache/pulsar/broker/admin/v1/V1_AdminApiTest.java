@@ -543,7 +543,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Map<String, String> configMap = new HashMap<>();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
         pulsar.getLocalMetadataStore().put("/admin/configuration",
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
@@ -1496,7 +1496,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testJacksonWithTypeDifferencies() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"use\"]}";
-        IncompatiblePropertyAdmin r1 = ObjectMapperFactory.getThreadLocal().readerFor(IncompatiblePropertyAdmin.class)
+        IncompatiblePropertyAdmin r1 = ObjectMapperFactory.getMapper().reader().forType(IncompatiblePropertyAdmin.class)
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Set.of("use", "usw"));
         assertEquals(r1.someNewIntField, 0);
