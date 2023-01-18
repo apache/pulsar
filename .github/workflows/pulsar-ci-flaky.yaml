@@ -128,7 +128,6 @@ jobs:
         uses: ./.github/actions/copy-test-reports
 
       - name: Upload to Codecov
-        if: ${{ github.repository == 'apache/pulsar' }}
         uses: ./.github/actions/upload-coverage
         with:
           flags: unittests

@@ -247,7 +247,6 @@ jobs:
         uses: ./.github/actions/copy-test-reports
 
       - name: Upload to Codecov
-        if: ${{ github.repository == 'apache/pulsar' }}
         uses: ./.github/actions/upload-coverage
         with:
           flags: unittests
@@ -377,6 +376,7 @@ jobs:
         include:
           - name: Backwards Compatibility
             group: BACKWARDS_COMPAT
+            no_coverage: true
 
           - name: Cli
             group: CLI
@@ -388,15 +388,18 @@ jobs:
             group: SHADE_RUN
             runtime_jdk: 8
             setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
 
           - name: Shade on Java 11
             group: SHADE_RUN
             runtime_jdk: 11
             setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
 
           - name: Shade on Java 17
             group: SHADE_RUN
             setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
 
           - name: Standalone
             group: STANDALONE
@@ -467,7 +470,15 @@ jobs:
 
       - name: Run integration test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
+          if [[ "${{ matrix.no_coverage }}" != "true" ]]; then
+            coverage_args="--coverage"
+          fi
+          ./build/run_integration_group.sh ${{ matrix.group }} $coverage_args
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: inttests
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -739,7 +750,12 @@ jobs:
 
       - name: Run system test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
+          ./build/run_integration_group.sh ${{ matrix.group }} --coverage
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: systests
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()

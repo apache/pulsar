@@ -19,7 +19,8 @@
 
 name: Upload to Codecov with retries
 description: |
-  Uploads to codecov with multiple retries as a workaround 
+  Checks that the current repository is public and then
+  uploads to codecov with multiple retries as a workaround 
   for these issues
     - https://github.com/codecov/codecov-action/issues/598
     - https://github.com/codecov/codecov-action/issues/837
@@ -30,8 +31,26 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: "Check that repository is public"
+      id: repo-check
+      shell: bash
+      run: |
+        if [[ "${{ github.server_url }}" != "https://github.com" ]]; then
+          echo "Not using github.com server ('${{ github.server_url }}'). Skipping uploading of coverage metrics."
+          echo "passed=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        REPO_URL="${{ github.server_url }}/${{ github.repository }}"
+        {
+          # public repository url will respond to http HEAD request
+          curl -X HEAD -fs "$REPO_URL" && echo "passed=true" >> $GITHUB_OUTPUT
+        } || {
+          echo "$REPO_URL isn't a public repository. Skipping uploading of coverage metrics."
+          echo "passed=false" >> $GITHUB_OUTPUT
+        }
     - name: "Upload to Codecov (attempt #1)"
       id: codecov-upload-1
+      if: steps.repo-check.outputs.passed == 'true'
       uses: codecov/codecov-action@v3
       continue-on-error: true
       with:
