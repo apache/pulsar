@@ -690,11 +690,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, position);
         this.cursorProperties = cursorProperties;
-        messagesConsumedCounter = -getNumberOfEntries(Range.openClosed(position, ledger.getLastPosition()));
         markDeletePosition = position;
         persistentMarkDeletePosition = position;
         inProgressMarkDeletePersistPosition = null;
         readPosition = ledger.getNextValidPosition(position);
+        messagesConsumedCounter = -getNumberOfEntries(Range.openClosed(position, ledger.getLastPosition()));
         ledger.onCursorReadPositionUpdated(this, readPosition);
         lastMarkDeleteEntry = new MarkDeleteEntry(markDeletePosition, properties, null, null);
         // assign cursor-ledger so, it can be deleted when new ledger will be switched
