@@ -267,20 +267,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     if (!hasIndex) {
                         return CompletableFuture.completedFuture(null);
                     } else {
-                        persistentSnapshotIndexes.getIndexList()
-                                .forEach(transactionBufferSnapshotIndex ->
-                                        indexes.put(new PositionImpl(
-                                                        transactionBufferSnapshotIndex.abortedMarkLedgerID,
-                                                        transactionBufferSnapshotIndex.abortedMarkEntryID),
-                                                transactionBufferSnapshotIndex));
                         this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
                                 .getSnapshot().getAborts());
-                        /**
-                         *  If there is no segment index, the persistent worker will write segment begin from 0.
-                         */
-                        if (indexes.size() != 0) {
-                            persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
-                        }
                     }
                     //Read snapshot segment to recover aborts.
                     ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
@@ -301,6 +289,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             @Override
                                             public void readEntryComplete(Entry entry, Object ctx) {
                                                 handleSnapshotSegmentEntry(entry);
+                                                indexes.put(new PositionImpl(
+                                                                index.abortedMarkLedgerID,
+                                                                index.abortedMarkEntryID),
+                                                        index);
                                                 entry.release();
                                                 handleSegmentFuture.complete(null);
                                             }
@@ -317,7 +309,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                      * </p>
                                                      * If the worker delete segment successfully
                                                      * but failed to update segment index,
-                                                     * the segment can not be read according to the index
+                                                     * the segment can not be read according to the index.
+                                                     * We update index again if there are invalid indexes.
                                                      */
                                                     if (((ManagedLedgerImpl)topic.getManagedLedger())
                                                             .ledgerExists(index.getAbortedMarkLedgerID())) {
@@ -326,9 +319,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                                 index.segmentEntryID, exception);
                                                         handleSegmentFuture.completeExceptionally(exception);
                                                     } else {
-                                                        indexes.remove(new PositionImpl(
-                                                                index.getAbortedMarkLedgerID(),
-                                                                index.getAbortedMarkEntryID()));
                                                         hasInvalidIndex.set(true);
                                                     }
                                                 }
@@ -368,6 +358,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             -> persistentWorker
                                             .updateSnapshotIndex(finalPersistentSnapshotIndexes.getSnapshot(),
                                             indexes.values().stream().toList()));
+                                }
+                                /**
+                                 *  If there is no segment index, the persistent worker will write segment begin from 0.
+                                 */
+                                if (indexes.size() != 0) {
+                                    persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
                                 }
                                 /**
                                  * Append the aborted txn IDs in the index metadata
