@@ -313,17 +313,30 @@ ci_upload_unittest_coverage_files() {
 }
 
 ci_upload_inttest_coverage_files() {
-  _ci_upload_coverage_files inttest "$1"
+  _ci_upload_coverage_files_inttest inttest "$1" integration-tests
 }
 
 ci_upload_systest_coverage_files() {
-  _ci_upload_coverage_files systest "$1"
+  _ci_upload_coverage_files_inttest systest "$1" system-tests
+}
+
+_ci_upload_coverage_files_inttest() {
+  local testtype="$1"
+  local testgroup="$2"
+  local job_name="$3"
+  local store_deps=0
+  local firsttestgroup="$(_ci_list_testgroups_with_coverage "${job_name}" | head -1)"
+  if [[ "${firsttestgroup}" == "${testgroup}" ]]; then
+    store_deps=1
+  fi
+  _ci_upload_coverage_files "${testtype}" "${testgroup}" $store_deps
 }
 
 _ci_upload_coverage_files() {
   (
   testtype="$1"
   testgroup="$2"
+  store_deps="${3:-1}"
   echo "::group::Uploading $testtype coverage files"
   if [ -n "$GITHUB_WORKSPACE" ]; then
     cd "$GITHUB_WORKSPACE"
@@ -378,7 +391,7 @@ _ci_upload_coverage_files() {
                   $GITHUB_WORKSPACE/target/classpath_* \
                   $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco.exec" -printf "%p\n%h/classes\n") \
                   $([ -d /tmp/jacocoDir ] && echo "/tmp/jacocoDir" ) \
-                  $(cat $GITHUB_WORKSPACE/$classpathFile | sort | uniq | { grep -v -Fx -f /tmp/provided_pulsar_maven_artifacts || true; })
+                  $([[ $store_deps -eq 1 ]] && { cat $GITHUB_WORKSPACE/$classpathFile | sort | uniq | { grep -v -Fx -f /tmp/provided_pulsar_maven_artifacts || true; }; } || true)
     )
   fi
   echo "::endgroup::"
@@ -402,10 +415,15 @@ _ci_restore_coverage_files() {
   test_type="$1"
   job_name="$2"
   cd /
-  for testgroup in $(yq e ".jobs.${job_name}.strategy.matrix.include.[] | select(.no_coverage != true) | .group" "$GITHUB_WORKSPACE/.github/workflows/pulsar-ci.yaml"); do
+  for testgroup in $(_ci_list_testgroups_with_coverage "${job_name}"); do
     ci_restore_tar_from_github_actions_artifacts coverage_and_deps_${test_type}_${testgroup} || true
   done
   )
+}
+
+_ci_list_testgroups_with_coverage() {
+  local job_name="$1"
+  yq e ".jobs.${job_name}.strategy.matrix.include.[] | select(.no_coverage != true) | .group" "$GITHUB_WORKSPACE/.github/workflows/pulsar-ci.yaml"
 }
 
 ci_delete_unittest_coverage_files() {
