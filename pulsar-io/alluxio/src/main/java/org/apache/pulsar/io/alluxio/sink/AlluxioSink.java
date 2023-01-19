@@ -22,6 +22,7 @@ import alluxio.AlluxioURI;
 import alluxio.client.WriteType;
 import alluxio.client.file.FileOutStream;
 import alluxio.client.file.FileSystem;
+import alluxio.conf.Configuration;
 import alluxio.conf.InstancedConfiguration;
 import alluxio.conf.PropertyKey;
 import alluxio.exception.AlluxioException;
@@ -78,7 +79,7 @@ public class AlluxioSink implements Sink<GenericObject> {
     private AlluxioSinkConfig alluxioSinkConfig;
     private AlluxioState alluxioState;
 
-    private InstancedConfiguration configuration = InstancedConfiguration.defaults();
+    private InstancedConfiguration configuration = Configuration.copyGlobal();
 
     private ObjectMapper objectMapper = new ObjectMapper();
 
