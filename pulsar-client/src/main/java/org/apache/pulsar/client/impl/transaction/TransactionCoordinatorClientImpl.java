@@ -104,6 +104,9 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
                     return FutureUtil.waitForAll(connectFutureList).thenRun(() -> {
                         STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
+                    }).exceptionally(ex -> {
+                        STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.CLOSED);
+                        return null;
                     });
                 });
         } else {

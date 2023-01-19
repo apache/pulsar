@@ -117,7 +117,8 @@ public class TransactionMetaStoreHandler extends HandlerState
     public void connectionFailed(PulsarClientException exception) {
         LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
             transactionCoordinatorId, exception);
-        if (!this.connectFuture.isDone()) {
+        //If the exception is a retry exception, we should not complete exceptionally at this time.
+        if (!this.connectFuture.isDone() || !isRetryException(exception)) {
             this.connectFuture.completeExceptionally(exception);
         }
     }
@@ -159,8 +160,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                     internalPinnedExecutor.execute(() -> {
                         LOG.error("Transaction coordinator client connect fail! tcId : {}",
                                 transactionCoordinatorId, e.getCause());
-                        if (getState() == State.Closing || getState() == State.Closed
-                                || e.getCause() instanceof PulsarClientException.NotAllowedException) {
+                        if (!isRetryException(e.getCause())) {
                             setState(State.Closed);
                             cnx.channel().close();
                         } else {
@@ -179,6 +179,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 this.connectFuture.complete(null);
             }
         });
+    }
+
+    private boolean isRetryException(Throwable e) {
+        return getState() != State.Closing && getState() != State.Closed
+                && !(e.getCause() instanceof PulsarClientException.NotAllowedException);
     }
 
     private void failPendingRequest() {
