@@ -121,8 +121,8 @@ function ci_docker_save_image_to_github_actions_artifacts() {
   ci_install_tool pv
   echo "::group::Saving docker image ${image} with name ${artifactname} in GitHub Actions Artifacts"
   # delete possible previous artifact that might exist when re-running
-  gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
-  docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
+  timeout 1m gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
+  docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | timeout 20m gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
   echo "::endgroup::"
 }
 
@@ -131,7 +131,7 @@ function ci_docker_load_image_from_github_actions_artifacts() {
   local artifactname="${1}.zst"
   ci_install_tool pv
   echo "::group::Loading docker image from name ${artifactname} in GitHub Actions Artifacts"
-  gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | unzstd | docker load
+  timeout 20m gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | unzstd | docker load
   echo "::endgroup::"
 }
 
@@ -140,7 +140,7 @@ function ci_restore_tar_from_github_actions_artifacts() {
   local artifactname="${1}.tar.zst"
   ci_install_tool pv
   echo "::group::Restoring tar from name ${artifactname} in GitHub Actions Artifacts to $PWD"
-  gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | tar -I zstd -xf -
+  timeout 5m gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | tar -I zstd -xf -
   echo "::endgroup::"
 }
 
@@ -152,8 +152,8 @@ function ci_store_tar_to_github_actions_artifacts() {
     ci_install_tool pv
     echo "::group::Storing $1 tar command output to name ${artifactname} in GitHub Actions Artifacts"
     # delete possible previous artifact that might exist when re-running
-    gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
-    "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
+    timeout 1m gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
+    "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | timeout 10m gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
     echo "::endgroup::"
   else
     local artifactfile="$(mktemp -t artifact.XXXX)"
@@ -443,7 +443,7 @@ _ci_delete_coverage_files() {
   test_type="$1"
   job_name="$2"
   for testgroup in $(yq e ".jobs.${job_name}.strategy.matrix.include.[] | select(.no_coverage != true) | .group" "$GITHUB_WORKSPACE/.github/workflows/pulsar-ci.yaml"); do
-    gh-actions-artifact-client.js delete coverage_and_deps_${test_type}_${testgroup}.tar.zst || true
+    timeout 1m gh-actions-artifact-client.js delete coverage_and_deps_${test_type}_${testgroup}.tar.zst || true
   done
   )
 }
