@@ -67,6 +67,6 @@ public class CassandraSinkConfig implements Serializable {
 
     public static CassandraSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), CassandraSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), CassandraSinkConfig.class);
     }
 }

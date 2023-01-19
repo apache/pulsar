@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -159,21 +160,6 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i));
-        }
-        return FutureUtil.waitForAll(futures);
-    }
-
-    protected CompletableFuture<Void> tryCreateExtendedPartitionsAsync(int oldNumPartitions, int numPartitions) {
-        if (!topicName.isPersistent()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        if (numPartitions <= oldNumPartitions) {
-            return CompletableFuture.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
-                    "Number of new partitions must be greater than existing number of partitions"));
-        }
-        List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions - oldNumPartitions);
-        for (int i = oldNumPartitions; i < numPartitions; i++) {
             futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
@@ -445,8 +431,12 @@ public abstract class AdminResource extends PulsarWebResource {
                 .build();
     }
 
-    public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getThreadLocal();
+    protected ObjectWriter objectWriter() {
+        return ObjectMapperFactory.getMapper().writer();
+    }
+
+    protected ObjectReader objectReader() {
+        return ObjectMapperFactory.getMapper().reader();
     }
 
     protected Set<String> clusters() {

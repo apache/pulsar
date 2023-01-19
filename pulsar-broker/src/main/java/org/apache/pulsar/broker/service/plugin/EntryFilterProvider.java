@@ -148,7 +148,7 @@ public class EntryFilterProvider {
             configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml");
         }
 
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(
                 configStr, EntryFilterDefinition.class
         );
     }

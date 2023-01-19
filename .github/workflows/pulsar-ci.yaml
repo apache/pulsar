@@ -102,6 +102,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -206,6 +207,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -245,9 +247,7 @@ jobs:
         uses: ./.github/actions/copy-test-reports
 
       - name: Upload to Codecov
-        if: ${{ github.repository == 'apache/pulsar' }}
-        uses: codecov/codecov-action@v3
-        continue-on-error: true
+        uses: ./.github/actions/upload-coverage
         with:
           flags: unittests
 
@@ -266,12 +266,15 @@ jobs:
           path: surefire-reports
           retention-days: 7
 
-      - name: Upload possible heap dump
+      - name: Upload possible heap dump, core dump or crash files
         uses: actions/upload-artifact@v3
         if: ${{ always() }}
         with:
-          name: Unit-${{ matrix.group }}-heapdump
-          path: /tmp/*.hprof
+          name: Unit-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
           retention-days: 7
           if-no-files-found: ignore
 
@@ -289,8 +292,6 @@ jobs:
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
-    env:
-      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -313,6 +314,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -334,6 +336,11 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: Pick ubuntu mirror for the docker image build
+        run: |
+          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
 
       - name: Build java-test-image docker image
         run: |
@@ -369,6 +376,7 @@ jobs:
         include:
           - name: Backwards Compatibility
             group: BACKWARDS_COMPAT
+            no_coverage: true
 
           - name: Cli
             group: CLI
@@ -380,15 +388,18 @@ jobs:
             group: SHADE_RUN
             runtime_jdk: 8
             setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
 
           - name: Shade on Java 11
             group: SHADE_RUN
             runtime_jdk: 11
             setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
 
           - name: Shade on Java 17
             group: SHADE_RUN
             setup: ./build/run_integration_group.sh SHADE_BUILD
+            no_coverage: true
 
           - name: Standalone
             group: STANDALONE
@@ -418,6 +429,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -458,7 +470,15 @@ jobs:
 
       - name: Run integration test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
+          if [[ "${{ matrix.no_coverage }}" != "true" ]]; then
+            coverage_args="--coverage"
+          fi
+          ./build/run_integration_group.sh ${{ matrix.group }} $coverage_args
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: inttests
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -534,8 +554,6 @@ jobs:
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
-    env:
-      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -561,6 +579,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -583,6 +602,11 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: Pick ubuntu mirror for the docker image build
+        run: |
+          # pick the closest ubuntu mirror and set it to UBUNTU_MIRROR environment variable
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh pick_ubuntu_mirror
 
       - name: Build latest-version-image docker image
         run: |
@@ -691,6 +715,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -725,7 +750,12 @@ jobs:
 
       - name: Run system test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
+          ./build/run_integration_group.sh ${{ matrix.group }} --coverage
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: systests
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -809,6 +839,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -934,6 +965,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -979,6 +1011,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*

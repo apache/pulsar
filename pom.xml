@@ -108,8 +108,13 @@ flexible messaging model and an intuitive client API.</description>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <testFailFast>true</testFailFast>
+    <testFailFastFile></testFailFastFile>
     <testJacocoAgentArgument/>
+    <integrationtest.coverage.enabled>false</integrationtest.coverage.enabled>
+    <integrationtest.coverage.dir>${project.build.directory}</integrationtest.coverage.dir>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
+    <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
@@ -169,7 +174,7 @@ flexible messaging model and an intuitive client API.</description>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.4.1</postgresql-jdbc.version>
+    <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2-patch11</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
@@ -185,7 +190,7 @@ flexible messaging model and an intuitive client API.</description>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop2.version>2.10.2</hadoop2.version>
     <hadoop3.version>3.3.4</hadoop3.version>
-    <hbase.version>2.4.9</hbase.version>
+    <hbase.version>2.4.15</hbase.version>
     <guava.version>31.0.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
@@ -274,7 +279,7 @@ flexible messaging model and an intuitive client API.</description>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.7</jacoco-maven-plugin.version>
+    <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
     <spotbugs.version>4.2.2</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
@@ -285,7 +290,6 @@ flexible messaging model and an intuitive client API.</description>
     <dependency-check-maven.version>7.4.4</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
-    <lombok.plugin.version>1.18.20.0</lombok.plugin.version>
     <oshi.version>6.4.0</oshi.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
@@ -1486,17 +1490,20 @@ flexible messaging model and an intuitive client API.</description>
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
-          <shutdown>kill</shutdown>
+          <shutdown>${surefire.shutdown}</shutdown>
+          <forkedProcessExitTimeoutInSeconds>60</forkedProcessExitTimeoutInSeconds>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>
             <testRealAWS>${testRealAWS}</testRealAWS>
             <testRetryCount>${testRetryCount}</testRetryCount>
+            <testFailFast>${testFailFast}</testFailFast>
+            <testFailFastFile>${testFailFastFile}</testFailFastFile>
           </systemPropertyVariables>
           <properties>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
             </property>
           </properties>
         </configuration>
@@ -1824,21 +1831,7 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
-            <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
           </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.projectlombok</groupId>
-          <artifactId>lombok-maven-plugin</artifactId>
-          <version>${lombok.plugin.version}</version>
-          <executions>
-            <execution>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>delombok</goal>
-              </goals>
-            </execution>
-          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
@@ -1953,6 +1946,7 @@ flexible messaging model and an intuitive client API.</description>
       <id>coverage</id>
       <properties>
         <testJacocoAgentArgument>@{jacoco.agent.argument}</testJacocoAgentArgument>
+        <surefire.shutdown>exit</surefire.shutdown>
       </properties>
       <build>
         <plugins>

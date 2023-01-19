@@ -131,6 +131,6 @@ public class KafkaSinkConfig implements Serializable {
 
     public static KafkaSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), KafkaSinkConfig.class);
     }
 }

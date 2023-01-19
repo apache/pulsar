@@ -885,8 +885,8 @@ public class AuthenticationProviderTokenTest {
         doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
         doReturn(0).when(servletRequest).getRemotePort();
 
-        AuthenticationState authState = provider.newHttpAuthState(servletRequest);
-        provider.authenticate(authState.getAuthDataSource());
+        boolean doFilter = provider.authenticateHttpRequest(servletRequest, null);
+        assertTrue(doFilter, "Authentication should have passed");
     }
 
     @Test
@@ -910,8 +910,8 @@ public class AuthenticationProviderTokenTest {
         doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
         doReturn(0).when(servletRequest).getRemotePort();
 
-        AuthenticationState authState = provider.newHttpAuthState(servletRequest);
-        provider.authenticate(authState.getAuthDataSource());
+        boolean doFilter = provider.authenticateHttpRequest(servletRequest, null);
+        assertTrue(doFilter, "Authentication should have passed");
     }
 
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {

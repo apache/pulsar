@@ -165,7 +165,7 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
                 // this is a JSON document, written to ElasticSearch
                 Map<String, String> valueMap = new HashMap<>();
                 valueMap.put("key" + i, "value" + i);
-                String value = ObjectMapperFactory.getThreadLocal().writeValueAsString(valueMap);
+                String value = ObjectMapperFactory.getMapper().getObjectMapper().writeValueAsString(valueMap);
                 kvs.put(key, value);
                 producer.newMessage()
                         .key(key)

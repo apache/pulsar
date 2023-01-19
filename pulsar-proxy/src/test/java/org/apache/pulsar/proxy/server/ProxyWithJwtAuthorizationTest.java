@@ -410,6 +410,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService,
                 new BrokerDiscoveryProvider(proxyConfig, resource));
         webServer.start();
+        @Cleanup
         Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();

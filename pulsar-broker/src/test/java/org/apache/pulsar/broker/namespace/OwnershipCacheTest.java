@@ -171,7 +171,7 @@ public class OwnershipCacheTest {
         MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         otherStore.put(ServiceUnitUtils.path(testFullBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -206,7 +206,7 @@ public class OwnershipCacheTest {
         MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -257,7 +257,7 @@ public class OwnershipCacheTest {
         }
         // case 2: someone else owns the namespace
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -313,7 +313,7 @@ public class OwnershipCacheTest {
 
         // case 2: someone else owns the namespace
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://otherhost:8080",

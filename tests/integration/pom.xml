@@ -280,7 +280,8 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:MaxDirectMemorySize=1G
-              -Dio.netty.leakDetectionLevel=advanced -Dconfluent.version=${confluent.version}
+              -Dio.netty.leakDetectionLevel=advanced -Dconfluent.version=${confluent.version} -Djacoco.version=${jacoco-maven-plugin.version}
+              -Dintegrationtest.coverage.enabled=${integrationtest.coverage.enabled} -Dintegrationtest.coverage.dir=${integrationtest.coverage.dir}
               ${test.additional.args}
               </argLine>
               <skipTests>false</skipTests>

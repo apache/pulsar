@@ -27,8 +27,8 @@
     <allowUntrusted>false</allowUntrusted>
   </server>
   <buildScan>
-    <captureGoalInputFiles>true</captureGoalInputFiles>
     <capture>
+      <goalInputFiles>true</goalInputFiles>
       <buildLogging>true</buildLogging>
       <testLogging>true</testLogging>
     </capture>
@@ -41,7 +41,10 @@
   </buildScan>
   <buildCache>
     <local>
-      <enabled>true</enabled>
+      <enabled>#{isFalse(env['GITHUB_ACTIONS'])}</enabled>
     </local>
+    <remote>
+      <enabled>false</enabled>
+    </remote>
   </buildCache>
 </gradleEnterprise>

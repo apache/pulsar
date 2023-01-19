@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.LoadReport;
@@ -47,12 +47,13 @@ public class PulsarLoadReportImpl implements LoadReport {
         return requestPerServiceUnit;
     }
 
+    private static final ObjectReader LOAD_REPORT_READER = ObjectMapperFactory.getMapper().reader()
+            .forType(org.apache.pulsar.policies.data.loadbalancer.LoadReport.class);
     public static LoadReport parse(String loadReportJson) {
         PulsarLoadReportImpl pulsarLoadReport = new PulsarLoadReportImpl();
-        ObjectMapper mapper = ObjectMapperFactory.create();
         try {
-            org.apache.pulsar.policies.data.loadbalancer.LoadReport report = mapper.readValue(loadReportJson,
-                    org.apache.pulsar.policies.data.loadbalancer.LoadReport.class);
+            org.apache.pulsar.policies.data.loadbalancer.LoadReport report =
+                    LOAD_REPORT_READER.readValue(loadReportJson);
             SystemResourceUsage sru = report.getSystemResourceUsage();
             String resourceUnitName = report.getName();
             pulsarLoadReport.resourceDescription = new PulsarResourceDescription();

@@ -34,6 +34,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -123,6 +124,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         sendAndAckSomeMessages();
 
         // call metrics
+        @Cleanup
         Client client = ClientBuilder.newClient();
         WebTarget target = client.target(brokerUrl + "/metrics/get");
         Response response = target.request(MediaType.APPLICATION_JSON_TYPE).buildGet().invoke();
@@ -167,7 +169,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
 
         // cleanup.
         response.close();
-        client.close();
         admin.topics().delete(topicName, true);
     }
 

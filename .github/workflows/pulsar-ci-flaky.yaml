@@ -96,6 +96,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -125,6 +126,11 @@ jobs:
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: unittests
 
       - name: Publish Test Report
         uses: apache/pulsar-test-infra/action-junit-report@master
