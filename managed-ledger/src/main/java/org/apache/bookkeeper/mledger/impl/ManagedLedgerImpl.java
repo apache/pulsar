@@ -993,12 +993,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
-                // Update the ack position (ignoring entries that were written while the cursor was being created)
-                cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
-                        ? getFirstPositionAndCounter()
-                        : getLastPositionAndCounter());
-
                 synchronized (ManagedLedgerImpl.this) {
+                    // Update the ack position (ignoring entries that were written while the cursor was being created)
+                    cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
+                            ? getFirstPositionAndCounter()
+                            : getLastPositionAndCounter());
                     addCursor(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
                 }
@@ -2581,11 +2580,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ? config.getLedgerOffloader().getOffloadPolicies()
                 : null);
         synchronized (this) {
-            if (!uninitializedCursors.isEmpty()){
-                scheduleDeferredTrimming(isTruncate, promise);
-                trimmerMutex.unlock();
-                return;
-            }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Start TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.keySet(),
                         TOTAL_SIZE_UPDATER.get(this));
