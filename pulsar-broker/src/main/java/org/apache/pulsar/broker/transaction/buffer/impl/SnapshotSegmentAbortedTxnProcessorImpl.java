@@ -64,24 +64,67 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcessor {
 
-    //Stored the unsealed aborted txn id, it will be persistent as a snapshot segment and reinit
-    // when its size reach the capital of a snapshot segment.
-    private LinkedList<TxnID> unsealedAbortedTxnIdSegment;
+    /**
+     * Stored the unsealed aborted transaction IDs Whose size is always less than the snapshotSegmentCapacity.
+     * It will be persistent as a snapshot segment when its size reach the configured capacity.
+     */
+    private LinkedList<TxnID> unsealedTxnIds;
 
-    //A mapping form the latest txn mark persistent position in a segment to its latest txn ID.
-    //This is mainly used to trim expired snapshot segment and remove them form aborts.
+    /**
+     * The map is used to clear the aborted transaction IDs persistent in the expired ledger.
+     * <p>
+     *     The key PositionImpl {@link PositionImpl} is the persistent position of
+     *     the latest transaction of a segment.
+     *     The value TxnID {@link TxnID} is the latest Transaction ID in a segment.
+     * </p>
+     *
+     * <p>
+     *     If the position is expired, the processor can get the according latest
+     *     transaction ID in this map. And then the processor can clear all the
+     *     transaction IDs in the aborts {@link SnapshotSegmentAbortedTxnProcessorImpl#aborts}
+     *     that lower than the transaction ID.
+     *     And then the processor can delete the segments persistently according to
+     *     the positions.
+     * </p>
+     */
     private final LinkedMap<PositionImpl, TxnID> segmentIndex = new LinkedMap<>();
 
-    //Store all aborted txn IDs check whether a txn is an aborted txn.
+    /**
+     * This map is used to check whether a transaction is an aborted transaction.
+     * <p>
+     *     The transaction IDs is appended in order, so the processor can delete expired
+     *     transaction IDs according to the latest expired transaction IDs in segmentIndex
+     *     {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}.
+     * </p>
+     */
     private final LinkedMap<TxnID, TxnID> aborts = new LinkedMap<>();
-    //The indexes of the snapshot segments whose key is the aborted mark persistent position.
+    /**
+     * This map stores the indexes of the snapshot segment.
+     * <p>
+     *     The key is the persistent position of the marker of the last transaction in the segment.
+     *     The value TransactionBufferSnapshotIndex {@link TransactionBufferSnapshotIndex} is the
+     *     indexes of the snapshot segment.
+     * </p>
+     */
     private final LinkedMap<PositionImpl, TransactionBufferSnapshotIndex> indexes = new LinkedMap<>();
 
     private final PersistentTopic topic;
 
     private volatile long lastSnapshotTimestamps;
 
-    private final int transactionBufferMaxAbortedTxnsOfSnapshotSegment;
+    /**
+     * The number of the aborted transaction IDs in a segment.
+     * This is calculated according to the configured memory size.
+     */
+    private final int snapshotSegmentCapacity;
+    /**
+     * Responsible for executing the persistent tasks.
+     * <p>Including:</p>
+     * <p>    Update segment index.</p>
+     * <p>    Write snapshot segment.</p>
+     * <p>    Delete snapshot segment.</p>
+     * <p>    Clear all snapshot segment. </p>
+     */
     private final PersistentWorker persistentWorker;
 
     private static final String SNAPSHOT_PREFIX = "multiple-";
@@ -89,23 +132,36 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
         this.persistentWorker = new PersistentWorker(topic);
-        //Cumulative the segment capital according to its size configuration.
-        this.transactionBufferMaxAbortedTxnsOfSnapshotSegment = (topic.getBrokerService().getPulsar()
+        /**
+         *  Calculate the segment capital according to its size configuration.
+         *  <p>
+         *      The empty transaction segment size is 5.
+         *      Adding a empty linkedList, the size increase to 6.
+         *      Add the topic name the size increase to the 7 + topic.getName().length().
+         *      Add the aborted transaction IDs, the size increase to 8 +
+         *      topic.getName().length() + 3 * aborted transaction ID size.
+         *  </p>
+         */
+        this.snapshotSegmentCapacity = (topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize() - 8 - topic.getName().length()) / 3;
-        this.unsealedAbortedTxnIdSegment = new LinkedList<>();
+        this.unsealedTxnIds = new LinkedList<>();
     }
 
     @Override
-    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
-        unsealedAbortedTxnIdSegment.add(abortedTxnId);
-        aborts.put(abortedTxnId, abortedTxnId);
-        //The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
-        if (unsealedAbortedTxnIdSegment.size() >= transactionBufferMaxAbortedTxnsOfSnapshotSegment) {
-            LinkedList<TxnID> abortedSegment = unsealedAbortedTxnIdSegment;
-            segmentIndex.put(abortedMarkerPersistentPosition, abortedTxnId);
+    public void putAbortedTxnAndPosition(TxnID txnID, PositionImpl position) {
+        unsealedTxnIds.add(txnID);
+        aborts.put(txnID, txnID);
+        /**
+         *  The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
+         *  Append a task to persistent the segment with the aborted transaction IDs and the latest
+         *  transaction mark persistent position passed by param.
+         */
+        if (unsealedTxnIds.size() >= snapshotSegmentCapacity) {
+            LinkedList<TxnID> abortedSegment = unsealedTxnIds;
+            segmentIndex.put(position, txnID);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
-                    persistentWorker.takeSnapshotSegmentAsync(abortedSegment, abortedMarkerPersistentPosition));
-            this.unsealedAbortedTxnIdSegment = new LinkedList<>();
+                    persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position));
+            this.unsealedTxnIds = new LinkedList<>();
         }
     }
 
@@ -114,7 +170,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         return aborts.containsKey(txnID);
     }
 
-    //In this implementation, we adopt snapshot segments. And then we clear invalid segment by its max read position.
+    /**
+     * Check werther the position in segmentIndex {@link SnapshotSegmentAbortedTxnProcessorImpl#segmentIndex}
+     * is expired. If the position is not exist in the original topic, the according transaction is an invalid
+     * transaction. And the according segment is invalid, too. The transaction IDs before the transaction ID
+     * in the aborts are invalid, too.
+     */
     @Override
     public void trimExpiredAbortedTxns() {
         //Checking whether there are some segment expired.
@@ -128,11 +189,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             PositionImpl positionNeedToDelete = segmentIndex.firstKey();
             positionsNeedToDelete.add(positionNeedToDelete);
 
-            TxnID theLatestDeletedTxnID = segmentIndex.remove(positionNeedToDelete);
+            TxnID theLatestDeletedTxnID = segmentIndex.remove(0);
             while (!aborts.firstKey().equals(theLatestDeletedTxnID)) {
-                aborts.remove(aborts.firstKey());
+                aborts.remove(0);
             }
-            aborts.remove(theLatestDeletedTxnID);
+            aborts.remove(0);
         }
         //Batch delete the expired segment
         if (!positionsNeedToDelete.isEmpty()) {
@@ -147,13 +208,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition) {
+        //Store the latest aborted transaction IDs in unsealedTxnIDs and the according the latest max read position.
         TransactionBufferSnapshotIndexesMetadata metadata = new TransactionBufferSnapshotIndexesMetadata(
                 maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(),
-                convertTypeToTxnIDData(unsealedAbortedTxnIdSegment));
-        return updateSnapshotIndexMetadata(metadata);
-    }
-
-    private CompletableFuture<Void> updateSnapshotIndexMetadata(TransactionBufferSnapshotIndexesMetadata metadata) {
+                convertTypeToTxnIDData(unsealedTxnIds));
         return persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, () -> persistentWorker
                 .updateSnapshotIndex(metadata, indexes.values().stream().toList()));
     }
@@ -167,7 +225,15 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     TransactionBufferSnapshotIndexes persistentSnapshotIndexes = null;
                     boolean hasIndex = false;
                     try {
-                        //Read Index to recover the sequenceID, indexes, lastAbortedTxns and maxReadPosition.
+                        /**
+                         * Read the transaction snapshot segment index.
+                         * <p>
+                         *     The processor can get the sequence ID, unsealed transaction IDs,
+                         *     segment index list and max read position in the snapshot segment index.
+                         *     Then we can traverse the index list to read all aborted transaction IDs
+                         *     in segments to aborts.
+                         * </p>
+                         */
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
                                     .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
@@ -207,9 +273,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                         transactionBufferSnapshotIndex.abortedMarkLedgerID,
                                                         transactionBufferSnapshotIndex.abortedMarkEntryID),
                                                 transactionBufferSnapshotIndex));
-                        this.unsealedAbortedTxnIdSegment = convertTypeToTxnID(persistentSnapshotIndexes
+                        this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
                                 .getSnapshot().getAborts());
-                        //If the size of indexes is 0, the sequence ID will be the init value 0.
+                        /**
+                         *  If there is no segment index, the persistent worker will write segment begin from 0.
+                         */
                         if (indexes.size() != 0) {
                             persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
                         }
@@ -241,12 +309,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                                                 if (exception instanceof ManagedLedgerException
                                                         .NonRecoverableLedgerException) {
+                                                    /**
+                                                     * The logic flow of deleting expired segment is:
+                                                     * <p>
+                                                     *     1. delete segment
+                                                     *     2. update segment index
+                                                     * </p>
+                                                     * If the worker delete segment successfully
+                                                     * but failed to update segment index,
+                                                     * the segment can not be read according to the index
+                                                     */
                                                     if (((ManagedLedgerImpl)topic.getManagedLedger())
                                                             .ledgerExists(index.getAbortedMarkLedgerID())) {
                                                         log.error("[{}] Failed to read snapshot segment [{}:{}]",
                                                                 topic.getName(), index.segmentLedgerID,
                                                                 index.segmentEntryID, exception);
-                                                        topic.close();
                                                         handleSegmentFuture.completeExceptionally(exception);
                                                     } else {
                                                         indexes.remove(new PositionImpl(
@@ -276,27 +353,32 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             .getPersistenceNamingEncoding(), callback,
                                     topic.getManagedLedger().getConfig(),
                                     null);
-                    //Wait the processor recover completely and the allow TB to recover the messages
-                    // after the startReadCursorPosition.
-
+                    /**
+                     *  Wait the processor recover completely and then allow TB
+                     *  to recover the messages after the startReadCursorPosition.
+                     */
                     return openManagedLedgerFuture
-                            .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures).thenCompose((i) -> {
-                                //This is a compensation mechanism for deleting the segment
-                                // but not successfully updating the index.
+                            .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures))
+                            .thenCompose((i) -> {
+                                /**
+                                 * Update the snapshot segment index if there exist invalid indexes.
+                                 */
                                 if (hasInvalidIndex.get()) {
                                     persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
                                             -> persistentWorker
                                             .updateSnapshotIndex(finalPersistentSnapshotIndexes.getSnapshot(),
                                             indexes.values().stream().toList()));
                                 }
-                                //Append the aborted txn IDs in the index metadata
-                                //can keep the order of the aborted txn in the aborts.
-                                //So that we can trim the expired snapshot segment in aborts
-                                // according to the latest txn IDs
+                                /**
+                                 * Append the aborted txn IDs in the index metadata
+                                 * can keep the order of the aborted txn in the aborts.
+                                 * So that we can trim the expired snapshot segment in aborts
+                                 * according to the latest transaction IDs in the segmentIndex.
+                                 */
                                 convertTypeToTxnID(finalPersistentSnapshotIndexes.getSnapshot().getAborts())
                                         .forEach(txnID -> aborts.put(txnID, txnID));
                                 return CompletableFuture.completedFuture(finalStartReadCursorPosition);
-                            })).exceptionally(ex -> {
+                            }).exceptionally(ex -> {
                                 log.error("[{}] Failed to recover snapshot segment", this.topic.getName(), ex);
                                 return null;
                             });
@@ -404,9 +486,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                   Supplier<CompletableFuture<Void>> task) {
             CompletableFuture<Void> taskExecutedResult = new CompletableFuture<>();
             switch (operationType) {
-                //Update index is can be canceled when the task queue is not empty, so it should be executed immediately
-                // instead of taking in queue. If the task queue is not empty, execute the task from the queue.
                 case UpdateIndex -> {
+                    /**
+                     * The update index operation  can be canceled when the task queue is not empty,
+                     * so it should be executed immediately instead of appending to the task queue.
+                     * If the taskQueue is not empty, the worker will execute the task in the queue.
+                     */
                     if (!taskQueue.isEmpty()) {
                         topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                                 .getExecutor(this).submit(this::executeTask);
@@ -422,6 +507,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         return CompletableFuture.completedFuture(null);
                     }
                 }
+                /**
+                 * Only the operations of WriteSegment and DeleteSegment will be appended into the taskQueue.
+                 * The operation will be canceled when the worker is close which means the topic is deleted.
+                 */
                 case WriteSegment, DeleteSegment -> {
                     if (!STATE_UPDATER.get(this).equals(OperationState.Closed)) {
                         taskQueue.add(new MutablePair<>(operationType, new MutablePair<>(taskExecutedResult, task)));
@@ -431,9 +520,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         return CompletableFuture.completedFuture(null);
                     }
                 }
-                //If the operation type is clear, all the operation in the queue is meaningless.
                 case Clear -> {
-                    //Do not clear the snapshots if the topic is used.
+                    /**
+                     * Do not clear the snapshots if the topic is used.
+                     * If the users want to delete a topic, he should stop the usage of the topic.
+                     */
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Closed)) {
                         taskQueue.forEach(pair ->
                                 pair.getRight().getRight().get().completeExceptionally(
@@ -442,6 +533,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                                 + " transaction buffer of the topic[%s] already closed",
                                                         pair.getLeft().name(), this.topic.getName()))));
                         taskQueue.clear();
+                        /**
+                         * The task of clear all snapshot segment and index is executed immediately too.
+                         */
                         return task.get();
                     } else {
                         return FutureUtil.failedFuture(
@@ -461,21 +555,24 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private void executeTask() {
             if (taskQueue.isEmpty()) return;
-            OperationType operationType = taskQueue.getFirst().getKey();
             if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
-                taskQueue.getFirst().getValue().getRight().get().whenComplete((ignore, throwable) -> {
+                Pair<OperationType, Pair<CompletableFuture<Void>, Supplier<CompletableFuture<Void>>>> firstTask =
+                        taskQueue.getFirst();
+                if (firstTask == null) return;
+                firstTask.getValue().getRight().get().whenComplete((ignore, throwable) -> {
                     if (throwable != null) {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Failed to do operation do operation of [{}]",
-                                    topic.getName(), operationType.name(), throwable);
+                                    topic.getName(), firstTask.getKey().name(), throwable);
                         }
-                        taskQueue.getFirst().getRight().getKey().completeExceptionally(throwable);
+                        firstTask.getRight().getKey().completeExceptionally(throwable);
                     } else {
-                        taskQueue.getFirst().getRight().getKey().complete(null);
+                        firstTask.getRight().getKey().complete(null);
                         taskQueue.removeFirst();
                     }
                     STATE_UPDATER.compareAndSet(this, OperationState.Operating,
                             OperationState.None);
+                    //Execute the next task in the task queue.
                     topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                             .getExecutor(this).submit(this::executeTask);
                 });
@@ -556,7 +653,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             return FutureUtil.waitForAll(results);
         }
 
-        //Update the indexes with the giving index snapshot and index list in the transactionBufferSnapshotIndexes.
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment,
                                                             List<TransactionBufferSnapshotIndex> indexList) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
@@ -606,7 +702,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         return abortedTxns;
     }
 
-    private List<TxnIDData> convertTypeToTxnIDData(LinkedList<TxnID> abortedTxns) {
+    private List<TxnIDData> convertTypeToTxnIDData(List<TxnID> abortedTxns) {
         List<TxnIDData> segment = new LinkedList<>();
         abortedTxns.forEach(txnID -> segment.add(new TxnIDData(txnID.getMostSigBits(), txnID.getLeastSigBits())));
         return segment;
