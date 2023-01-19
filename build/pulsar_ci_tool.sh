@@ -525,7 +525,19 @@ ci_create_test_coverage_report() {
     filterJarsPattern="bouncy-castle-bc|tests|/buildtools/"
 
     local classfilesArgs="--classfiles $({
-      cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E $filterJarsPattern || true; }
+      {
+        for classpathEntry in $(cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E $filterJarsPattern || true; }); do
+            if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 2>/dev/null)" ]]; then
+              # file must be processed by removing META-INF/bundled-dependencies
+              local jartempfile=$(mktemp -t jarfile.XXXX --suffix=.jar)
+              cp $classpathEntry $jartempfile
+              zip -q -d $jartempfile 'META-INF/bundled-dependencies/*' &> /dev/null
+              echo $jartempfile
+            else
+              echo $classpathEntry
+            fi
+        done
+      }
       echo $classesDir
     } | tr '\n' ':' | sed -e 's/:$//' -e 's/:/ --classfiles /g')"
 
