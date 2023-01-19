@@ -37,10 +37,12 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -50,6 +52,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 @Slf4j
 public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
 
+    static final String MEMORY_SCHEME = "memory";
     static final String MEMORY_SCHEME_IDENTIFIER = "memory:";
 
     @Data
@@ -235,5 +238,19 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         if (isClosed.compareAndSet(false, true)) {
             super.close();
         }
+    }
+}
+
+class MemoryMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return LocalMemoryMetadataStore.MEMORY_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
     }
 }

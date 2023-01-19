@@ -34,12 +34,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -69,6 +71,7 @@ import org.apache.zookeeper.client.ConnectStringParser;
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
 
+    public static final String ZK_SCHEME = "zk";
     public static final String ZK_SCHEME_IDENTIFIER = "zk:";
 
     private final String zkConnectString;
@@ -612,5 +615,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     public String getRootPath() {
         return rootPath;
+    }
+}
+
+class ZkMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return ZKMetadataStore.ZK_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
+            metadataURL = metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
+        }
+        return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 }
