@@ -126,8 +126,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                     }
                 })
                 .when(brokerService)
-                .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
-                        Mockito.eq(PersistentTopic.class));
+                .newPersistentTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService));
 
         brokerService.createPersistentTopic0(topic, true, new CompletableFuture<>(), Collections.emptyMap());
 
