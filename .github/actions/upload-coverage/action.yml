@@ -84,3 +84,12 @@ runs:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
         verbose: true
+    - name: "Show link to Codecov report"
+      shell: bash
+      run: |
+        tee -a "$GITHUB_STEP_SUMMARY" <<EOF
+        ## Code Coverage report in Codecov
+        
+        [Code coverage report](https://app.codecov.io/github/${{ github.repository }}/commit/${{ github.sha }}/tree)
+        
+        EOF
