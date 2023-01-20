@@ -591,10 +591,12 @@ ci_create_inttest_coverage_report() {
       # remove any bundled dependencies as part of .jar/.nar files
       find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' \; |grep -E -v "Nothing to do|^$" || true
     fi
+    # projects that aren't considered as production code and their own src/main/java source code shouldn't be analysed
+    local excludeProjectsPattern="testmocks|testclient|buildtools"
     # produce jacoco XML coverage report from the exec files and using the extracted jar files
     java -jar /tmp/jacocoDir/jacococli.jar report /tmp/jacocoDir/*.exec \
       --classfiles /tmp/jacocoDir/pulsar_lib --encoding UTF-8 --name "Pulsar Integration Tests - coverage in containers" \
-      $(find -path "*/src/main/java" -printf "--sourcefiles %P ") \
+      $(find -path "*/src/main/java" -printf "--sourcefiles %P " | grep -v -E "$excludeProjectsPattern") \
       --xml target/jacoco_inttest_coverage_report/jacoco.xml \
       --html target/jacoco_inttest_coverage_report/html \
       --csv target/jacoco_inttest_coverage_report/jacoco.csv
