@@ -1970,6 +1970,11 @@ flexible messaging model and an intuitive client API.</description>
                     <include>org.apache.pulsar.*</include>
                     <include>org.apache.bookkeeper.mledger.*</include>
                   </includes>
+                  <excludes>
+                    <exclude>*.proto.*</exclude>
+                    <exclude>*.shade.*</exclude>
+                    <exclude>*.shaded.*</exclude>
+                  </excludes>
                 </configuration>
               </execution>
               <execution>
