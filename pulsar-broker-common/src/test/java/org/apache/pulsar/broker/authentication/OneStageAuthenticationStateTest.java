@@ -19,8 +19,11 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
@@ -29,6 +32,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.Test;
 import javax.naming.AuthenticationException;
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.LongAdder;
@@ -56,6 +60,10 @@ public class OneStageAuthenticationStateTest {
             authCallCount.increment();
             return CompletableFuture.completedFuture(authData.getCommandData());
         }
+
+        public int getAuthCallCount() {
+                return authCallCount.intValue();
+        }
     }
 
     @Test
@@ -63,10 +71,10 @@ public class OneStageAuthenticationStateTest {
         CountingAuthenticationProvider provider = new CountingAuthenticationProvider();
         AuthData authData = AuthData.of("role".getBytes());
         OneStageAuthenticationState authState = new OneStageAuthenticationState(authData, null, null, provider);
-        assertEquals(provider.authCallCount.sum(), 0, "Auth count should not increase yet");
+        assertEquals(provider.getAuthCallCount(), 0, "Auth count should not increase yet");
         AuthData challenge = authState.authenticateAsync(authData).get();
         assertNull(challenge);
-        assertEquals(provider.authCallCount.sum(), 1, "Call authenticate only once");
+        assertEquals(provider.getAuthCallCount(), 1, "Call authenticate only once");
         assertEquals(authState.getAuthRole(), "role");
         AuthenticationDataSource firstAuthenticationDataSource = authState.getAuthDataSource();
         assertTrue(firstAuthenticationDataSource instanceof AuthenticationDataCommand);
@@ -77,7 +85,7 @@ public class OneStageAuthenticationStateTest {
         assertEquals(authState.getAuthRole(), "role");
         AuthenticationDataSource secondAuthenticationDataSource = authState.getAuthDataSource();
         assertSame(secondAuthenticationDataSource, firstAuthenticationDataSource);
-        assertEquals(provider.authCallCount.sum(), 1, "Call authenticate only once, even later.");
+        assertEquals(provider.getAuthCallCount(), 1, "Call authenticate only once, even later.");
     }
 
     @SuppressWarnings("deprecation")
@@ -86,12 +94,12 @@ public class OneStageAuthenticationStateTest {
         CountingAuthenticationProvider provider = new CountingAuthenticationProvider();
         AuthData authData = AuthData.of("role".getBytes());
         OneStageAuthenticationState authState = new OneStageAuthenticationState(authData, null, null, provider);
-        assertEquals(provider.authCallCount.sum(), 0, "Auth count should not increase yet");
+        assertEquals(provider.getAuthCallCount(), 0, "Auth count should not increase yet");
         assertFalse(authState.isComplete());
         AuthData challenge = authState.authenticate(authData);
         assertNull(challenge);
         assertTrue(authState.isComplete());
-        assertEquals(provider.authCallCount.sum(), 1, "Call authenticate only once");
+        assertEquals(provider.getAuthCallCount(), 1, "Call authenticate only once");
         assertEquals(authState.getAuthRole(), "role");
         AuthenticationDataSource firstAuthenticationDataSource = authState.getAuthDataSource();
         assertTrue(firstAuthenticationDataSource instanceof AuthenticationDataCommand);
@@ -102,7 +110,7 @@ public class OneStageAuthenticationStateTest {
         assertEquals(authState.getAuthRole(), "role");
         AuthenticationDataSource secondAuthenticationDataSource = authState.getAuthDataSource();
         assertSame(secondAuthenticationDataSource, firstAuthenticationDataSource);
-        assertEquals(provider.authCallCount.sum(), 1, "Call authenticate only once, even later.");
+        assertEquals(provider.getAuthCallCount(), 1, "Call authenticate only once, even later.");
     }
 
     @Test
@@ -114,4 +122,14 @@ public class OneStageAuthenticationStateTest {
         assertNull(authState.getAuthDataSource());
     }
 
+    @Test
+    public void verifyHttpAuthConstructorInitializesAuthDataSourceAndDoesNotAuthenticateData() {
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRemoteAddr()).thenReturn("localhost");
+        when(request.getRemotePort()).thenReturn(8080);
+        CountingAuthenticationProvider provider = new CountingAuthenticationProvider();
+        OneStageAuthenticationState authState = new OneStageAuthenticationState(request, provider);
+        assertNotNull(authState.getAuthDataSource());
+        assertEquals(provider.getAuthCallCount(), 0);
+    }
 }

@@ -61,8 +61,10 @@ public class OneStageAuthenticationState implements AuthenticationState {
     }
 
     public OneStageAuthenticationState(HttpServletRequest request, AuthenticationProvider provider) {
+        // Must initialize this here for backwards compatibility with http authentication
         this.authenticationDataSource = new AuthenticationDataHttps(request);
         this.provider = provider;
+        // These are not used when invoking this constructor.
         this.remoteAddress = null;
         this.sslSession = null;
     }
