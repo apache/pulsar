@@ -331,6 +331,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     private static final class TokenAuthenticationState implements AuthenticationState {
         private final AuthenticationProviderToken provider;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
         private long expiration;
@@ -344,6 +346,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             String token = new String(authData.getBytes(), UTF_8);
             this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             this.checkExpiration(token);
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
         }
 
         TokenAuthenticationState(
@@ -359,6 +363,10 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
             this.authenticationDataSource = new AuthenticationDataHttps(request);
             this.checkExpiration(token);
+
+            // These are not used when this constructor is invoked, set them to null.
+            this.sslSession = null;
+            this.remoteAddress = null;
         }
 
         @Override
@@ -375,6 +383,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             String token = new String(authData.getBytes(), UTF_8);
             checkExpiration(token);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             return null;
         }
 
