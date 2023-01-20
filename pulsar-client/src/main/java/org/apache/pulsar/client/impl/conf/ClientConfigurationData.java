@@ -110,13 +110,13 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "numIoThreads",
             value = "Number of IO threads."
     )
-    private int numIoThreads = 1;
+    private int numIoThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "numListenerThreads",
             value = "Number of consumer listener threads."
     )
-    private int numListenerThreads = 1;
+    private int numListenerThreads = Runtime.getRuntime().availableProcessors();
 
     @ApiModelProperty(
             name = "connectionsPerBroker",
@@ -218,6 +218,18 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Maximum duration for completing a request."
     )
     private int requestTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "readTimeoutMs",
+            value = "Maximum read time of a request."
+    )
+    private int readTimeoutMs = 60000;
+
+    @ApiModelProperty(
+            name = "autoCertRefreshSeconds",
+            value = "Seconds of auto refreshing certificate."
+    )
+    private int autoCertRefreshSeconds = 300;
 
     @ApiModelProperty(
             name = "initialBackoffIntervalNanos",

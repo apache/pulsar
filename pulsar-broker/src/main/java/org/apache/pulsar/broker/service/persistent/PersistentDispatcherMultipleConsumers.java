@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -48,6 +49,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -94,7 +96,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     protected volatile PositionImpl minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
-    protected boolean sendInProgress;
+    private boolean sendInProgress = false;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -255,7 +257,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -318,8 +320,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     minReplayedPosition = null;
                 }
 
-                cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
-                        ReadType.Normal, topic.getMaxReadPosition());
+                // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
+                if (delayedDeliveryTracker.isPresent()) {
+                    Predicate<PositionImpl> skipCondition = null;
+                    final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
+                    if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
+                        skipCondition = position -> deliveryTracker
+                                .containsMessage(position.getLedgerId(), position.getEntryId());
+                    }
+                    cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                            topic.getMaxReadPosition(), skipCondition);
+                } else {
+                    cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                            topic.getMaxReadPosition());
+                }
             } else {
                 log.debug("[{}] Cannot schedule next read until previous one is done", name);
             }
@@ -558,9 +572,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, entries)) {
+                if (sendMessagesToConsumers(readType, entries, false)) {
                     updatePendingBytesToDispatch(-size);
                     readMoreEntries();
                 } else {
@@ -568,7 +582,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, entries)) {
+            if (sendMessagesToConsumers(readType, entries, true)) {
                 updatePendingBytesToDispatch(-size);
                 readMoreEntriesAsync();
             } else {
@@ -577,12 +591,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
     }
 
-    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected synchronized void acquireSendInProgress() {
         sendInProgress = true;
+    }
+
+    protected synchronized void releaseSendInProgress() {
+        sendInProgress = false;
+    }
+
+    protected synchronized boolean isSendInProgress() {
+        return sendInProgress;
+    }
+
+    protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
+                                                                 boolean needAcquireSendInProgress) {
+        if (needAcquireSendInProgress) {
+            acquireSendInProgress();
+        }
         try {
             return trySendMessagesToConsumers(readType, entries);
         } finally {
-            sendInProgress = false;
+            releaseSendInProgress();
         }
     }
 
@@ -615,9 +644,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
             }
             metadataArray[i] = metadata;
-            if (!hasChunk && metadataArray[i] != null && metadataArray[i].hasUuid()) {
-                hasChunk = true;
-            }
         }
         if (hasChunk) {
             return sendChunkedMessagesToConsumers(readType, entries, metadataArray);
@@ -678,7 +704,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-            totalEntries += filterEntriesForConsumer(Optional.of(metadataArray), start,
+            totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
 

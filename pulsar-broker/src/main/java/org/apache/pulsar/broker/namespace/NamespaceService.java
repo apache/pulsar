@@ -601,7 +601,7 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
-    protected CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
+    public CompletableFuture<LookupResult> createLookupResult(String candidateBroker, boolean authoritativeRedirect,
                                                                  final String advertisedListenerName) {
 
         CompletableFuture<LookupResult> lookupFuture = new CompletableFuture<>();
@@ -692,6 +692,7 @@ public class NamespaceService implements AutoCloseable {
         String lookupAddress = leastLoadedBroker.get().getResourceId();
         String advertisedAddr = (String) leastLoadedBroker.get()
                 .getProperty(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME);
+
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
                     pulsar.getSafeWebServiceAddress(),
@@ -1164,11 +1165,16 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Boolean> checkTopicExists(TopicName topic) {
         if (topic.isPersistent()) {
             if (topic.isPartitioned()) {
-                return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
-                        .partitionedTopicExistsAsync(TopicName.get(topic.getPartitionedTopicName()))
-                        .thenCompose(exists -> exists
-                                ? pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic)
-                                : CompletableFuture.completedFuture(false));
+                return pulsar.getBrokerService()
+                        .fetchPartitionedTopicMetadataAsync(TopicName.get(topic.getPartitionedTopicName()))
+                        .thenCompose(metadata -> {
+                            // Allow creating the non-partitioned persistent topic that name includes `-partition-`
+                            if (metadata.partitions == 0
+                                    || topic.getPartitionIndex() < metadata.partitions) {
+                                return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
+                            }
+                            return CompletableFuture.completedFuture(false);
+                        });
             } else {
                 return pulsar.getPulsarResources().getTopicResources().persistentTopicExists(topic);
             }

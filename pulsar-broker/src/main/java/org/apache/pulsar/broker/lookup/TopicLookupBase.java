@@ -137,15 +137,6 @@ public class TopicLookupBase extends PulsarWebResource {
                 });
     }
 
-    private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
-        try {
-            validateTopicOperation(topic, TopicOperation.LOOKUP);
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            throw new RestException(e);
-        }
-    }
-
     protected String internalGetNamespaceBundle(TopicName topicName) {
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.GET_BUNDLE);
         try {

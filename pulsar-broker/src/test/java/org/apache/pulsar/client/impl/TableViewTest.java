@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -59,6 +60,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class TableViewTest extends MockedPulsarServiceBaseTest {
 
+    private static final String ECDSA_PUBLIC_KEY = "src/test/resources/certificate/public-key.client-ecdsa.pem";
+    private static final String ECDSA_PRIVATE_KEY = "src/test/resources/certificate/private-key.client-ecdsa.pem";
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -86,6 +90,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
     private Set<String> publishMessages(String topic, int count, boolean enableBatch) throws Exception {
+        return publishMessages(topic, count, enableBatch, false);
+    }
+
+    private Set<String> publishMessages(String topic, int count, boolean enableBatch, boolean enableEncryption) throws Exception {
         Set<String> keys = new HashSet<>();
         ProducerBuilder<byte[]> builder = pulsarClient.newProducer();
         builder.messageRoutingMode(MessageRoutingMode.SinglePartition);
@@ -98,6 +106,10 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             builder.batchingMaxMessages(count);
         } else {
             builder.enableBatching(false);
+        }
+        if (enableEncryption) {
+            builder.addEncryptionKey("client-ecdsa.pem")
+                .defaultCryptoKeyReader("file:./" + ECDSA_PUBLIC_KEY);
         }
         try (Producer<byte[]> producer = builder.create()) {
             CompletableFuture<?> lastFuture = null;
@@ -159,6 +171,24 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             Assert.assertTrue(ex instanceof UnsupportedOperationException);
         }
+    }
+
+    @Test
+    public void testNewTableView() throws Exception {
+        String topic = "persistent://public/default/new-tableview-test";
+        admin.topics().createPartitionedTopic(topic, 2);
+        Set<String> keys = this.publishMessages(topic, 10, false);
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableView()
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .create();
+        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        Awaitility.await().untilAsserted(() -> {
+            log.info("Current tv size: {}", tv.size());
+            assertEquals(tv.size(), 10);
+        });
+        assertEquals(tv.keySet(), keys);
     }
 
     @Test(timeOut = 30 * 1000, dataProvider = "topicDomain")
@@ -230,7 +260,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         tv.close();
 
         @Cleanup
-        TableView<String> tv1 = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tv1 = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
                 .create();
@@ -294,5 +324,77 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                         -> verify(consumerBase, times(msgCount)).acknowledgeCumulativeAsync(any(MessageId.class)));
 
 
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testListen() throws Exception {
+        String topic = "persistent://public/default/tableview-listen-test";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        @Cleanup
+        TableView<String> tv = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+                .create();
+
+        class MockAction implements BiConsumer<String, String> {
+            int acceptedCount = 0;
+            @Override
+            public void accept(String s, String s2) {
+                acceptedCount++;
+            }
+        }
+        MockAction mockAction = new MockAction();
+        tv.listen((k, v) -> mockAction.accept(k, v));
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .until(() -> tv.size() == 5);
+
+        assertEquals(mockAction.acceptedCount, 0);
+
+        for (int i = 5; i < 10; i++) {
+            producer.newMessage().key("key:" + i).value("value" + i).send();
+        }
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(Duration.ofMillis(5000))
+                .until(() -> tv.size() == 10);
+
+        assertEquals(mockAction.acceptedCount, 5);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTableViewWithEncryptedMessages() throws Exception {
+        String topic = "persistent://public/default/tableview-encryption-test";
+        admin.topics().createPartitionedTopic(topic, 3);
+
+        // publish encrypted messages
+        int count = 20;
+        Set<String> keys = this.publishMessages(topic, count, false, true);
+
+        // TableView can read them using the private key
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableViewBuilder(Schema.BYTES)
+            .topic(topic)
+            .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+            .defaultCryptoKeyReader("file:" + ECDSA_PRIVATE_KEY)
+            .create();
+        log.info("start tv size: {}", tv.size());
+        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
+        Awaitility.await().untilAsserted(() -> {
+            log.info("Current tv size: {}", tv.size());
+            assertEquals(tv.size(), count);
+        });
+        assertEquals(tv.keySet(), keys);
     }
 }

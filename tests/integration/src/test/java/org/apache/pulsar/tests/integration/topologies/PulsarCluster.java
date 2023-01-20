@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
@@ -369,42 +368,41 @@ public class PulsarCluster {
             return;
         }
 
-        List<GenericContainer> containers = new ArrayList<>();
-
-        containers.addAll(workerContainers.values());
-        containers.addAll(brokerContainers.values());
-        containers.addAll(bookieContainers.values());
+        stopInParallel(workerContainers.values());
 
         if (externalServices != null) {
-            containers.addAll(externalServices.values());
+            stopInParallel(externalServices.values());
         }
+
+        stopPrestoWorker();
 
         if (null != proxyContainer) {
-            containers.add(proxyContainer);
+            proxyContainer.stop();
         }
 
+        stopInParallel(brokerContainers.values());
+
+        stopInParallel(bookieContainers.values());
+
         if (!sharedCsContainer && null != csContainer) {
-            containers.add(csContainer);
+            csContainer.stop();
         }
 
         if (null != zkContainer) {
-            containers.add(zkContainer);
+            zkContainer.stop();
         }
-        if (null != prestoWorkerContainer) {
-            containers.add(prestoWorkerContainer);
-        }
-
-        containers = containers.parallelStream()
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-
-        containers.parallelStream().forEach(GenericContainer::stop);
 
         try {
             network.close();
         } catch (Exception e) {
             log.info("Failed to shutdown network for pulsar cluster {}", clusterName, e);
         }
+    }
+
+    private static void stopInParallel(Collection<? extends GenericContainer<?>> containers) {
+        containers.parallelStream()
+                .filter(Objects::nonNull)
+                .forEach(GenericContainer::stop);
     }
 
     public void startPrestoWorker() {

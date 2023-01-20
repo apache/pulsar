@@ -50,7 +50,6 @@ import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.CanPausedNamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -636,7 +635,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         if (unloadBundleGracefully) {
             // set clean namespace which will not let broker unload bundle gracefully: stop broker
             Supplier<NamespaceService> namespaceServiceSupplier =
-                    () -> spyWithClassAndConstructorArgs(CanPausedNamespaceService.class, pulsar);
+                    () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
             doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
         }
         stopBroker();

@@ -1060,7 +1060,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "topics",
                     "stats",
                     topic);
-            TopicStats topicStats = ObjectMapperFactory.getThreadLocal().readValue(result.getStdout(), TopicStats.class);
+            TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
+                    .readValue(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.getSubscriptions().size(), 0);
 
         } catch (ContainerExecException e) {
@@ -1075,7 +1076,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "topics",
                     "stats",
                     topic);
-            TopicStats topicStats = ObjectMapperFactory.getThreadLocal().readValue(result.getStdout(), TopicStats.class);
+            TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
+                    .readValue(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.getPublishers().size(), 0);
 
         } catch (ContainerExecException e) {

@@ -262,7 +262,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testRedeliveryAddEpoch";
         final String subName = "my-sub";
-
         @Cleanup
         ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -309,10 +308,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNull(message);
 
         ConnectionHandler connectionHandler = consumer.getConnectionHandler();
+
         connectionHandler.cnx().channel().close();
 
         consumer.grabCnx();
-
         message = consumer.receive(3, TimeUnit.SECONDS);
         assertNotNull(message);
         assertEquals(message.getValue(), test3);
@@ -423,13 +422,13 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
+
     @Test(dataProvider = "enableBatch")
     public void testMultiConsumerRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testMultiConsumerRedeliveryAddEpoch";
         final String subName = "my-sub";
         admin.topics().createPartitionedTopic(topic, 5);
         final int messageNumber = 50;
-
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)

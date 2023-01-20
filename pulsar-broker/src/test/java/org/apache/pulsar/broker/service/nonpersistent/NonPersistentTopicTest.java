@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -32,6 +37,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 
 @Test(groups = "broker")
 public class NonPersistentTopicTest extends BrokerTestBase {
@@ -95,5 +101,22 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertEquals(statsAfterUnsubscribe.getMsgInCounter(), statsBeforeUnsubscribe.getMsgInCounter());
         assertEquals(statsAfterUnsubscribe.getBytesOutCounter(), statsBeforeUnsubscribe.getBytesOutCounter());
         assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
+    }
+
+    @Test
+    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "non-persistent://prop/ns-abc/testCreateNonExistentPartitions";
+        admin.topics().createPartitionedTopic(topicName, 4);
+        TopicName partition = TopicName.get(topicName).getPartition(4);
+        try {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(partition.toString())
+                    .create();
+            fail("unexpected behaviour");
+        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+
+        }
+        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 }

@@ -39,6 +39,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -78,6 +79,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     // we want to avoid the overhead of 'volatile'.
     @Getter
     private boolean isConnected = true;
+
+    protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
@@ -240,6 +243,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
             metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
@@ -265,6 +272,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -273,6 +284,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Boolean> exists(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -281,7 +296,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void registerListener(Consumer<Notification> listener) {
-        listeners.add(listener);
+        // If the metadata store is closed, do nothing here.
+        if (!isClosed()) {
+            listeners.add(listener);
+        }
     }
 
     protected CompletableFuture<Void> receivedNotification(Notification notification) {
@@ -328,6 +346,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
@@ -373,6 +395,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Void> deleteRecursive(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         return getChildren(path)
                 .thenCompose(children -> FutureUtil.waitForAll(
                         children.stream()
@@ -394,6 +420,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
@@ -470,6 +500,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         } catch (RejectedExecutionException e) {
             log.warn("Error in processing session event " + event, e);
         }
+    }
+
+    private boolean isClosed() {
+        return isClosed.get();
     }
 
     @Override

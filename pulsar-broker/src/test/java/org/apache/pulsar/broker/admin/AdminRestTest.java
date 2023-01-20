@@ -31,6 +31,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -55,6 +56,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     public void testRejectUnknownEntityProperties() throws Exception{
         // Build request command.
         int port = pulsar.getWebService().getListenPortHTTP().get();
+        @Cleanup
         Client client = ClientBuilder.newClient();
         WebTarget target = client.target("http://127.0.0.1:" + port
                 + "/admin/v2/persistent/" + namespaceName + "/" + topicNameSuffix + "/retention");
@@ -86,7 +88,6 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
         response1.close();
         response2.close();
         response3.close();
-        client.close();
     }
 
     private String parseResponseEntity(Object entity) throws Exception {
@@ -117,7 +118,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         // cleanup.
         admin.topics().delete(topicName);
-        deleteNamespaceGraceFully(namespaceName, false);
+        deleteNamespaceWithRetry(namespaceName, false);
         admin.tenants().deleteTenant(tenantName);
         admin.clusters().deleteCluster(clusterName);
         // super cleanup.

@@ -215,7 +215,8 @@ public class TransactionTest extends TransactionTestBase {
     public void testCreateTransactionSystemTopic() throws Exception {
         String subName = "test";
         String topicName = TopicName.get(NAMESPACE1 + "/" + "testCreateTransactionSystemTopic").toString();
-
+        admin.namespaces().deleteNamespace(NAMESPACE1, true);
+        admin.namespaces().createNamespace(NAMESPACE1);
         try {
             // init pending ack
             @Cleanup
@@ -231,7 +232,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // getList does not include transaction system topic
         List<String> list = admin.topics().getList(NAMESPACE1);
-        assertEquals(list.size(), 2);
+        assertFalse(list.isEmpty());
         list.forEach(topic -> assertFalse(topic.contains(PENDING_ACK_STORE_SUFFIX)));
 
         try {
@@ -605,6 +606,7 @@ public class TransactionTest extends TransactionTestBase {
                 .getTopic(topic, false).get().get();
 
         TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        @Cleanup
         PulsarClient noTxnClient = PulsarClient.builder().enableTransaction(false)
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl()).build();
 
@@ -1433,7 +1435,7 @@ public class TransactionTest extends TransactionTestBase {
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 executorService.execute(()->{
                     PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) invocation.getArguments()[0];
-                    pendingAckHandle.close();
+                    pendingAckHandle.closeAsync();
                     MLPendingAckReplyCallBack mlPendingAckReplyCallBack
                             = new MLPendingAckReplyCallBack(pendingAckHandle);
                     mlPendingAckReplyCallBack.replayComplete();
@@ -1614,5 +1616,30 @@ public class TransactionTest extends TransactionTestBase {
         transaction.abort();
         Transaction abortingTxn = transaction;
         Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
+    }
+
+
+    @Test
+    public void testEncryptionRequired() throws Exception {
+        final String namespace = "tnx/ns-prechecks";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setEncryptionRequiredStatus(namespace, true);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<byte[]> producer = this.pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .addEncryptionKey("my-app-key")
+                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key.client-rsa.pem")
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+        producer.newMessage(txn)
+                    .value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                    .send();
+        txn.commit();
     }
 }

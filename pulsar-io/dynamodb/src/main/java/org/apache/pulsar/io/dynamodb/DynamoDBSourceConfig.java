@@ -172,7 +172,7 @@ public class DynamoDBSourceConfig implements Serializable {
 
     public static DynamoDBSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), DynamoDBSourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), DynamoDBSourceConfig.class);
     }
 
     protected Region regionAsV2Region() {

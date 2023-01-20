@@ -261,6 +261,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
+        jcommander.addCommand("trim-topic", new TrimTopic());
+
         initDeprecatedCommands();
     }
 
@@ -594,6 +596,10 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = { "-ulo",
+                "--update-local-only"}, description = "Update partitions number for topic in local cluster only")
+        private boolean updateLocalOnly = false;
+
         @Parameter(names = { "-f",
                 "--force" }, description = "Update forcefully without validating existing partitioned topic")
         private boolean force;
@@ -601,7 +607,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().updatePartitionedTopic(topic, numPartitions, false, force);
+            getTopics().updatePartitionedTopic(topic, numPartitions, updateLocalOnly, force);
         }
     }
 
@@ -1073,7 +1079,7 @@ public class CmdTopics extends CmdBase {
             String topic = validateTopicName(params);
             Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
             // Ensure we are using JSON and not Java toString()
-            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
+            System.out.println(ObjectMapperFactory.getMapper().writer().writeValueAsString(result));
         }
     }
 
@@ -1165,7 +1171,7 @@ public class CmdTopics extends CmdBase {
             Map<Integer, MessageId> messageIds = getTopics().terminatePartitionedTopic(persistentTopic);
             for (Map.Entry<Integer, MessageId> entry: messageIds.entrySet()) {
                 String topicName = persistentTopic + "-partition-" + entry.getKey();
-                System.out.println("Topic " + topicName +  " succesfully terminated at " + entry.getValue());
+                System.out.println("Topic " + topicName +  " successfully terminated at " + entry.getValue());
             }
         }
     }
@@ -1321,6 +1327,7 @@ public class CmdTopics extends CmdBase {
 
                 System.out.println("Publish time: " + message.getPublishTime());
                 System.out.println("Event time: " + message.getEventTime());
+                System.out.println("Redelivery count: " + message.getRedeliveryCount());
 
                 if (message.getDeliverAtTime() != 0) {
                     System.out.println("Deliver at time: " + message.getDeliverAtTime());
@@ -2150,6 +2157,10 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload threshold in bytes", required = true)
         private long offloadThresholdInBytes;
 
+        @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
+                , description = "ManagedLedger offload threshold in seconds")
+        private Long offloadThresholdInSeconds;
+
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
         private Long offloadDeletionLagInMillis;
@@ -2186,7 +2197,8 @@ public class CmdTopics extends CmdBase {
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes,
-                    readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+                    readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
+                    offloadDeletionLagInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
@@ -3099,6 +3111,17 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             getAdmin().topics().setSchemaValidationEnforced(topic, enable);
+        }
+    }
+    @Parameters(commandDescription = "Trim a topic")
+    private class TrimTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getAdmin().topics().trimTopic(topic);
         }
     }
 }

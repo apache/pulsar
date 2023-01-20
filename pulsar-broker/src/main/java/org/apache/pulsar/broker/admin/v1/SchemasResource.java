@@ -89,10 +89,10 @@ public class SchemasResource extends SchemasResourceBase {
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
         getSchemaAsync(authoritative)
-                .thenApply(schemaAndMetadata -> convertToSchemaResponse(schemaAndMetadata))
+                .thenApply(this::convertToSchemaResponse)
                 .thenApply(response::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to get schema for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(response, ex);
@@ -124,10 +124,10 @@ public class SchemasResource extends SchemasResourceBase {
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
         getSchemaAsync(authoritative, version)
-                .thenApply(schemaAndMetadata -> convertToSchemaResponse(schemaAndMetadata))
+                .thenApply(this::convertToSchemaResponse)
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to get schema for topic {} with version {}",
                                 clientAppId(), topicName, version, ex);
                     }
@@ -159,10 +159,10 @@ public class SchemasResource extends SchemasResourceBase {
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
         getAllSchemasAsync(authoritative)
-                .thenApply(schemaAndMetadata -> convertToAllVersionsSchemaResponse(schemaAndMetadata))
+                .thenApply(this::convertToAllVersionsSchemaResponse)
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to get all schemas for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(response, ex);
@@ -197,7 +197,7 @@ public class SchemasResource extends SchemasResourceBase {
                     response.resume(DeleteSchemaResponse.builder().version(getLongSchemaVersion(version)).build());
                 })
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to delete schemas for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(response, ex);
@@ -252,7 +252,7 @@ public class SchemasResource extends SchemasResourceBase {
                         response.resume(Response.status(422, /* Unprocessable Entity */
                                 root.getMessage()).build());
                     } else {
-                        if (!isRedirectException(ex)) {
+                        if (shouldPrintErrorLog(ex)) {
                             log.error("[{}] Failed to post schemas for topic {}", clientAppId(), topicName, root);
                         }
                         resumeAsyncResponseExceptionally(response, ex);
@@ -301,7 +301,7 @@ public class SchemasResource extends SchemasResourceBase {
                                 .schemaCompatibilityStrategy(pair.getRight().name()).build())
                         .build()))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to test compatibility for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(response, ex);
@@ -347,7 +347,7 @@ public class SchemasResource extends SchemasResourceBase {
         getVersionBySchemaAsync(payload, authoritative)
                 .thenAccept(version -> response.resume(LongSchemaVersionResponse.builder().version(version).build()))
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    if (shouldPrintErrorLog(ex)) {
                         log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(response, ex);

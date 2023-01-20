@@ -65,7 +65,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
@@ -93,14 +92,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
 
-    @DataProvider(name = "schemaValidationModes")
-    public static Object[][] schemaValidationModes() {
-        return new Object[][] {
-                { true },
-                { false }
-        };
-    }
-
     @DataProvider(name = "topicDomain")
     public static Object[] topicDomain() {
         return new Object[] { "persistent://", "non-persistent://" };
@@ -108,8 +99,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     private final boolean schemaValidationEnforced;
 
-    @Factory(dataProvider = "schemaValidationModes")
-    public SimpleSchemaTest(boolean schemaValidationEnforced) {
+    public SimpleSchemaTest() {
+        this(false);
+    }
+
+    protected SimpleSchemaTest(boolean schemaValidationEnforced) {
         this.schemaValidationEnforced = schemaValidationEnforced;
     }
 

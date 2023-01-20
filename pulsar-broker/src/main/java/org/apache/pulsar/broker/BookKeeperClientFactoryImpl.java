@@ -132,8 +132,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
-
         bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
+        bkConf.setLimitStatsLogging(conf.isBookkeeperClientLimitStatsLogging());
 
         if (!conf.isBookkeeperMetadataStoreSeparated()) {
             // If we're connecting to the same metadata service, with same config, then

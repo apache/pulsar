@@ -61,7 +61,7 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     // Used to keep track of slowest cursor.
-    private final ArrayList<Item> heap = new ArrayList();
+    private final ArrayList<Item> heap = new ArrayList<>();
 
     // Maps a cursor to its position in the heap
     private final ConcurrentMap<String, Item> cursors = new ConcurrentSkipListMap<>();
@@ -87,7 +87,9 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             cursors.put(cursor.getName(), item);
             if (position != null) {
                 heap.add(item);
-                siftUp(item);
+                if (heap.size() > 1) {
+                    siftUp(item);
+                }
             }
             if (cursor.isDurable()) {
                 durableCursorCount++;
@@ -113,12 +115,16 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             Item item = cursors.remove(name);
             if (item != null) {
                 if (item.idx >= 0) {
-                    // Move the item to the right end of the heap to be removed
-                    Item lastItem = heap.get(heap.size() - 1);
-                    swap(item, lastItem);
-                    heap.remove(item.idx);
-                    // Update the heap
-                    siftDown(lastItem);
+                    if (heap.size() == 1) {
+                        heap.clear();
+                    } else {
+                        // Move the item to the right end of the heap to be removed
+                        Item lastItem = heap.get(heap.size() - 1);
+                        swap(item, lastItem);
+                        heap.remove(item.idx);
+                        // Update the heap
+                        siftDown(lastItem);
+                    }
                 }
                 if (item.cursor.isDurable()) {
                     durableCursorCount--;
@@ -155,19 +161,19 @@ public class ManagedCursorContainer implements Iterable<ManagedCursor> {
             }
 
             PositionImpl previousSlowestConsumer = heap.get(0).position;
-
             item.position = (PositionImpl) newPosition;
-            if (heap.size() > 1) {
-                // When the cursor moves forward, we need to push it toward the
-                // bottom of the tree and push it up if a reset was done
 
-                if (item.idx == 0 || getParent(item).position.compareTo(item.position) <= 0) {
-                    siftDown(item);
-                } else {
-                    siftUp(item);
-                }
+            if (heap.size() == 1) {
+                return Pair.of(previousSlowestConsumer, item.position);
             }
 
+            // When the cursor moves forward, we need to push it toward the
+            // bottom of the tree and push it up if a reset was done
+            if (item.idx == 0 || getParent(item).position.compareTo(item.position) <= 0) {
+                siftDown(item);
+            } else {
+                siftUp(item);
+            }
             PositionImpl newSlowestConsumer = heap.get(0).position;
             return Pair.of(previousSlowestConsumer, newSlowestConsumer);
         } finally {

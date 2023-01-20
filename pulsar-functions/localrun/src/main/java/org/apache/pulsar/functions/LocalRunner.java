@@ -34,7 +34,7 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +114,7 @@ public class LocalRunner implements AutoCloseable {
         @Override
         public FunctionConfig convert(String value) {
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(value, FunctionConfig.class);
+                return ObjectMapperFactory.getMapper().reader().readValue(value, FunctionConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse function config:", e);
             }
@@ -125,7 +125,7 @@ public class LocalRunner implements AutoCloseable {
         @Override
         public SourceConfig convert(String value) {
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(value, SourceConfig.class);
+                return ObjectMapperFactory.getMapper().reader().readValue(value, SourceConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse source config:", e);
             }
@@ -136,7 +136,7 @@ public class LocalRunner implements AutoCloseable {
         @Override
         public SinkConfig convert(String value) {
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(value, SinkConfig.class);
+                return ObjectMapperFactory.getMapper().reader().readValue(value, SinkConfig.class);
             } catch (IOException e) {
                 throw new RuntimeException("Failed to parse sink config:", e);
             }
@@ -267,11 +267,13 @@ public class LocalRunner implements AutoCloseable {
     }
 
     private static String getPulsarDirectory(String directory) {
-        String pulsarHome = System.getenv("PULSAR_HOME");
-        if (pulsarHome == null) {
-            pulsarHome = Paths.get("").toAbsolutePath().toString();
+        final Path directoryPath;
+        if (System.getenv("PULSAR_HOME") != null) {
+            directoryPath = Path.of(System.getenv("PULSAR_HOME"), directory);
+        } else {
+            directoryPath = Path.of(directory);
         }
-        return Paths.get(pulsarHome, directory).toString();
+        return directoryPath.toAbsolutePath().toString();
     }
 
     private static File createNarExtractionTempDirectory() {

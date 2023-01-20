@@ -45,12 +45,12 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
-    @Test(enabled = false, groups = "sink")
+    @Test(groups = "sink")
     public void testCassandraSink() throws Exception {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test(enabled = false, groups = "sink")
+    @Test(groups = "sink")
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }

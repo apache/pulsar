@@ -18,18 +18,16 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import lombok.Cleanup;
 import org.apache.pulsar.client.api.TlsProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.util.SecurityUtility;
@@ -75,7 +73,8 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createConfigMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
@@ -134,18 +133,10 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
             log.error(t.getMessage());
             Assert.fail(t.getMessage());
         } finally {
-            @Cleanup("shutdownNow")
-            ExecutorService executor = newFixedThreadPool(1);
             try {
-                executor.submit(() -> {
-                    try {
-                        consumeClient.stop();
-                        produceClient.stop();
-                        log.info("proxy clients are stopped successfully");
-                    } catch (Exception e) {
-                        log.error(e.getMessage());
-                    }
-                }).get(2, TimeUnit.SECONDS);
+                consumeClient.stop();
+                produceClient.stop();
+                log.info("proxy clients are stopped successfully");
             } catch (Exception e) {
                 log.error("failed to close clients ", e);
             }

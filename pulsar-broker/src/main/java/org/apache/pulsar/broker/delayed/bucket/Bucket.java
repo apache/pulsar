@@ -123,15 +123,16 @@ abstract class Bucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            ImmutableBucket bucketState, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
+            ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
             List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
-
-        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments)
+        final String bucketKey = bucket.bucketKey();
+        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
                 .thenCompose(newBucketId -> {
-                    bucketState.setBucketId(newBucketId);
-                    String bucketKey = bucketState.bucketKey();
+                    bucket.setBucketId(newBucketId);
+
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn("Failed to record bucketId to cursor property, bucketKey: {}", bucketKey);
+                        log.warn("Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
+                                bucketKey, bucketId);
                         return null;
                     }).thenApply(__ -> newBucketId);
                 });
@@ -140,6 +141,11 @@ abstract class Bucket {
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         Objects.requireNonNull(bucketId);
         return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
+                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+    }
+
+    protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
+        return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
                 ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
     }
 }

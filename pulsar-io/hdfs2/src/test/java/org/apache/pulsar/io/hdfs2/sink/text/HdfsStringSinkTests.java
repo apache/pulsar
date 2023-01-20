@@ -21,6 +21,7 @@ package org.apache.pulsar.io.hdfs2.sink.text;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import org.apache.pulsar.io.hdfs2.sink.AbstractHdfsSinkTest;
+import org.testng.SkipException;
 import org.testng.annotations.Test;
 
 public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
@@ -93,6 +94,21 @@ public class HdfsStringSinkTests extends AbstractHdfsSinkTest<String, String> {
         map.put("filenamePrefix", "deflateCompressionTest");
         map.put("compression", "DEFLATE");
         map.put("fileExtension", ".deflate");
+        map.put("separator", '\n');
+        sink.open(map, mockSinkContext);
+        send(50000);
+        sink.close();
+        verify(mockRecord, times(50000)).ack();
+    }
+
+    @Test
+    public final void zStandardCompressionTest() throws Exception {
+        if (System.getenv("LD_LIBRARY_PATH") == null) {
+            throw new SkipException("Skip zStandardCompressionTest since LD_LIBRARY_PATH is not set");
+        }
+        map.put("filenamePrefix", "zStandardCompressionTest");
+        map.put("compression", "ZSTANDARD");
+        map.put("fileExtension", ".zstandard");
         map.put("separator", '\n');
         sink.open(map, mockSinkContext);
         send(50000);

@@ -164,7 +164,6 @@ public class LoadBalancerTest {
     }
 
     private void loopUntilLeaderChangesForAllBroker(List<PulsarService> activePulsars, LeaderBroker oldLeader) {
-        int loopCount = 0;
         Awaitility.await()
             .pollInterval(1, TimeUnit.SECONDS)
             .atMost(MAX_RETRIES, TimeUnit.SECONDS)
@@ -181,8 +180,6 @@ public class LoadBalancerTest {
                 }
                 return settled;
             });
-        // Check if maximum retries are already done. If yes, assert.
-        Assert.assertNotEquals(loopCount, MAX_RETRIES, "Leader is not changed even after maximum retries.");
     }
 
     /*
@@ -200,7 +197,7 @@ public class LoadBalancerTest {
             assertTrue(loadReportData.length > 0);
             log.info("LoadReport {}, {}", lookupAddresses[i], new String(loadReportData));
 
-            LoadReport loadReport = ObjectMapperFactory.getThreadLocal().readValue(loadReportData, LoadReport.class);
+            LoadReport loadReport = ObjectMapperFactory.getMapper().reader().readValue(loadReportData, LoadReport.class);
             assertEquals(loadReport.getName(), lookupAddresses[i]);
 
             // Check Initial Ranking is populated in both the brokers
@@ -439,7 +436,7 @@ public class LoadBalancerTest {
     private void printResourceQuotas(Map<String, ResourceQuota> resourceQuotas) throws Exception {
         log.info("Realtime Resource Quota:");
         for (Map.Entry<String, ResourceQuota> entry : resourceQuotas.entrySet()) {
-            String quotaStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(entry.getValue());
+            String quotaStr = ObjectMapperFactory.getMapper().writer().writeValueAsString(entry.getValue());
             log.info(" {}, {}", entry.getKey(), quotaStr);
         }
     }

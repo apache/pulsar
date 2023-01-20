@@ -38,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -56,6 +58,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.NoOpLock;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -78,6 +81,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ExecutorProvider executorProvider;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
+    protected UnAckedMessageTracker unAckedMessageTracker;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -93,6 +97,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             .newUpdater(ConsumerBase.class, "incomingMessagesSize");
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
+
+    // Only work when subscription type is Failover or Exclusive
+    protected final Lock incomingQueueLock;
 
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
@@ -159,6 +166,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         } else {
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
         }
+        if (getSubType() == CommandSubscribe.SubType.Failover || getSubType() == CommandSubscribe.SubType.Exclusive) {
+            incomingQueueLock = new ReentrantLock();
+        } else {
+            incomingQueueLock = new NoOpLock();
+        }
+
+        if (conf.getAckTimeoutMillis() != 0) {
+            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
+                this.unAckedMessageTracker = new UnAckedTopicMessageRedeliveryTracker(client, this, conf);
+            } else {
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf);
+            }
+        } else {
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+        }
 
         initReceiverQueueSize();
     }
@@ -191,6 +213,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             int newSize = Math.min(maxReceiverQueueSize, oldSize * 2);
             setCurrentReceiverQueueSize(newSize);
         }
+    }
+
+    // if lister is not null, we will track unAcked msg in callMessageListener
+    protected void trackUnAckedMsgIfNoListener(MessageId messageId, int redeliveryCount) {
+        if (listener == null) {
+            unAckedMessageTracker.add(messageId, redeliveryCount);
+        }
+    }
+
+    protected MessageId normalizeMessageId(MessageId messageId) {
+        if (messageId instanceof BatchMessageIdImpl) {
+            // do not add each item in batch message into tracker
+            return ((BatchMessageIdImpl) messageId).toMessageIdImpl();
+        }
+        return messageId;
     }
 
     protected void reduceCurrentReceiverQueueSize() {
@@ -836,12 +873,19 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected boolean enqueueMessageAndCheckBatchReceive(Message<T> message) {
         int messageSize = message.size();
-        if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
-            // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance
-            // anymore, since for pooled messages, this instance was possibly already been released and recycled.
-            INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
-            getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
-            updateAutoScaleReceiverQueueHint();
+        // synchronize redeliverUnacknowledgedMessages().
+        incomingQueueLock.lock();
+        try {
+            if (canEnqueueMessage(message) && incomingMessages.offer(message)) {
+                // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message
+                // instance anymore, since for pooled messages, this instance was possibly already been released
+                // and recycled.
+                INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+                getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
+                updateAutoScaleReceiverQueueHint();
+            }
+        } finally {
+            incomingQueueLock.unlock();
         }
         return hasEnoughMessagesForBatchReceive();
     }
@@ -957,7 +1001,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected abstract void messageProcessed(Message<?> msg);
 
-
     private void pendingBatchReceiveTask(Timeout timeout) {
         internalPinnedExecutor.execute(() -> doPendingBatchReceiveTask(timeout));
     }
@@ -1071,6 +1114,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
+            MessageId id;
+            if (this instanceof ConsumerImpl) {
+                id = normalizeMessageId(msg.getMessageId());
+            } else {
+                id = msg.getMessageId();
+            }
+            unAckedMessageTracker.add(id, msg.getRedeliveryCount());
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
