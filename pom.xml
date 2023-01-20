@@ -113,6 +113,8 @@ flexible messaging model and an intuitive client API.</description>
     <testJacocoAgentArgument/>
     <integrationtest.coverage.enabled>false</integrationtest.coverage.enabled>
     <integrationtest.coverage.dir>${project.build.directory}</integrationtest.coverage.dir>
+    <!-- skip jacoco report by default since it's not a proper aggregate report -->
+    <jacoco.report.skip>true</jacoco.report.skip>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
@@ -1959,14 +1961,20 @@ flexible messaging model and an intuitive client API.</description>
             </configuration>
             <executions>
               <execution>
-                <id>pre-unit-test</id>
+                <id>prepare-agent</id>
                 <goals>
                   <goal>prepare-agent</goal>
                 </goals>
+                <configuration>
+                  <includes>
+                    <include>org.apache.pulsar.*</include>
+                    <include>org.apache.bookkeeper.mledger.*</include>
+                  </includes>
+                </configuration>
               </execution>
               <execution>
-                <id>post-test</id>
-                <phase>test</phase>
+                <id>report</id>
+                <phase>verify</phase>
                 <goals>
                   <goal>report</goal>
                 </goals>
@@ -1974,6 +1982,7 @@ flexible messaging model and an intuitive client API.</description>
                   <excludes>
                     <exclude>META-INF/**</exclude>
                   </excludes>
+                  <skip>${jacoco.report.skip}</skip>
                 </configuration>
               </execution>
             </executions>

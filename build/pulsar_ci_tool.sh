@@ -20,6 +20,8 @@
 
 # shell function library for Pulsar CI builds
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
 set -e
 set -o pipefail
 
@@ -91,14 +93,18 @@ function ci_install_tool() {
   local tool_executable=$1
   local tool_package=${2:-$1}
   if ! command -v $tool_executable &>/dev/null; then
-    echo "::group::Installing ${tool_package}"
-    sudo apt-get -y install ${tool_package} >/dev/null || {
-      echo "Installing the package failed. Switching the ubuntu mirror and retrying..."
-      ci_pick_ubuntu_mirror
-      # retry after picking the ubuntu mirror
-      sudo apt-get -y install ${tool_package}
-    }
-    echo '::endgroup::'
+    if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+      echo "::group::Installing ${tool_package}"
+      sudo apt-get -y install ${tool_package} >/dev/null || {
+        echo "Installing the package failed. Switching the ubuntu mirror and retrying..."
+        ci_pick_ubuntu_mirror
+        # retry after picking the ubuntu mirror
+        sudo apt-get -y install ${tool_package}
+      }
+      echo '::endgroup::'
+    else
+      fail "$tool_executable wasn't found on PATH. You should first install $tool_package with your package manager."
+    fi
   fi
 }
 
@@ -115,8 +121,8 @@ function ci_docker_save_image_to_github_actions_artifacts() {
   ci_install_tool pv
   echo "::group::Saving docker image ${image} with name ${artifactname} in GitHub Actions Artifacts"
   # delete possible previous artifact that might exist when re-running
-  gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
-  docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
+  timeout 1m gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
+  docker save ${image} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | timeout 20m gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
   echo "::endgroup::"
 }
 
@@ -125,7 +131,7 @@ function ci_docker_load_image_from_github_actions_artifacts() {
   local artifactname="${1}.zst"
   ci_install_tool pv
   echo "::group::Loading docker image from name ${artifactname} in GitHub Actions Artifacts"
-  gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | unzstd | docker load
+  timeout 20m gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | unzstd | docker load
   echo "::endgroup::"
 }
 
@@ -134,7 +140,7 @@ function ci_restore_tar_from_github_actions_artifacts() {
   local artifactname="${1}.tar.zst"
   ci_install_tool pv
   echo "::group::Restoring tar from name ${artifactname} in GitHub Actions Artifacts to $PWD"
-  gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | tar -I zstd -xf -
+  timeout 5m gh-actions-artifact-client.js download "${artifactname}" | pv -batf -i 5 | tar -I zstd -xf -
   echo "::endgroup::"
 }
 
@@ -142,12 +148,18 @@ function ci_restore_tar_from_github_actions_artifacts() {
 function ci_store_tar_to_github_actions_artifacts() {
   local artifactname="${1}.tar.zst"
   shift
-  ci_install_tool pv
-  echo "::group::Storing $1 tar command output to name ${artifactname} in GitHub Actions Artifacts"
-  # delete possible previous artifact that might exist when re-running
-  gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
-  "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
-  echo "::endgroup::"
+  if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+    ci_install_tool pv
+    echo "::group::Storing $1 tar command output to name ${artifactname} in GitHub Actions Artifacts"
+    # delete possible previous artifact that might exist when re-running
+    timeout 1m gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
+    "$@" | pv -ft -i 5 | pv -Wbaf -i 5 | timeout 10m gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
+    echo "::endgroup::"
+  else
+    local artifactfile="$(mktemp -t artifact.XXXX)"
+    echo "Storing output for debugging in $artifactfile"
+    "$@" | pv -ft -i 5 | pv -Wbaf -i 5 > $artifactfile
+  fi
 }
 
 # copies test reports into test-reports and surefire-reports directory
@@ -282,6 +294,319 @@ If you have any trouble you can get support in multiple ways:
 
 EOF
   return 1
+}
+
+ci_snapshot_pulsar_maven_artifacts() {
+  (
+  if [ -n "$GITHUB_WORKSPACE" ]; then
+    cd "$GITHUB_WORKSPACE"
+  else
+    fail "This script can only be run in GitHub Actions"
+  fi
+  mkdir -p target
+  find $HOME/.m2/repository/org/apache/pulsar -name "*.jar" > /tmp/provided_pulsar_maven_artifacts
+  )
+}
+
+ci_upload_unittest_coverage_files() {
+  _ci_upload_coverage_files unittest "$1"
+}
+
+ci_upload_inttest_coverage_files() {
+  _ci_upload_coverage_files_inttest inttest "$1" integration-tests
+}
+
+ci_upload_systest_coverage_files() {
+  _ci_upload_coverage_files_inttest systest "$1" system-tests
+}
+
+_ci_upload_coverage_files_inttest() {
+  local testtype="$1"
+  local testgroup="$2"
+  local job_name="$3"
+  local store_deps=0
+  local firsttestgroup="$(_ci_list_testgroups_with_coverage "${job_name}" | head -1)"
+  if [[ "${firsttestgroup}" == "${testgroup}" ]]; then
+    store_deps=1
+  fi
+  _ci_upload_coverage_files "${testtype}" "${testgroup}" $store_deps
+}
+
+_ci_upload_coverage_files() {
+  (
+  testtype="$1"
+  testgroup="$2"
+  store_deps="${3:-1}"
+  echo "::group::Uploading $testtype coverage files"
+  if [ -n "$GITHUB_WORKSPACE" ]; then
+    cd "$GITHUB_WORKSPACE"
+  else
+    fail "This script can only be run in GitHub Actions"
+  fi
+
+  if [ ! -f /tmp/provided_pulsar_maven_artifacts ]; then
+    fail "It is necessary to run '$0 snapshot_pulsar_maven_artifacts' before running any tests."
+  fi
+
+  set -x
+
+  local classpathFile="target/classpath_${testtype}_${testgroup}"
+
+  local execFiles=$(find . -path "*/target/jacoco.exec" -printf "%P\n")
+  if [[ -n "$execFiles" ]]; then
+    # create temp file
+    local completeClasspathFile=$(mktemp -t tmp.classpath.XXXX)
+
+    ci_install_tool xmlstarlet
+
+    # iterate the exec files that were found
+    for execFile in $execFiles; do
+      local project="${execFile/%"/target/jacoco.exec"}"
+      local artifactId=$(xmlstarlet sel -t -m _:project -v _:artifactId -n $project/pom.xml)
+      local scope=runtime
+      # for integration tests, there's no dependencies in the runtime scope
+      # detect a plain test project based on missing src/main/java
+      if [ ! -d $project/src/main/java ]; then
+        scope=test
+      fi
+      # find the runtime classpath for the project to ensure that only production classes get covered
+      mvn -f $project/pom.xml -DincludeScope=$scope -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
+                                    | sed 's/:/\n/g' | { grep 'org/apache/pulsar' || true; } \
+                                    | { tee -a $completeClasspathFile || true; } > target/classpath_$artifactId || true
+    done
+
+    cat $completeClasspathFile | sort | uniq > $classpathFile
+    # delete temp file
+    rm $completeClasspathFile
+
+    # upload target/jacoco.exec, target/classes and any dependent jar files that were built during the unit test execution
+    # transform jacoco exec filenames by appending "_${testtype}_${testgroup}" to the filename part to make the files unique
+    # so that they don't get overridden when all files are extracted to the same working directory before merging
+    (
+      cd /
+      ci_store_tar_to_github_actions_artifacts coverage_and_deps_${testtype}_${testgroup} \
+                tar -I zstd -cPf - \
+                  --transform="flags=r;s|/jacoco.exec$|/jacoco_${testtype}_${testgroup}.exec|" \
+                  --transform="flags=r;s|\\(/tmp/jacocoDir/.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
+                  $GITHUB_WORKSPACE/target/classpath_* \
+                  $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco.exec" -printf "%p\n%h/classes\n") \
+                  $([ -d /tmp/jacocoDir ] && echo "/tmp/jacocoDir" ) \
+                  $([[ $store_deps -eq 1 ]] && { cat $GITHUB_WORKSPACE/$classpathFile | sort | uniq | { grep -v -Fx -f /tmp/provided_pulsar_maven_artifacts || true; }; } || true)
+    )
+  fi
+  echo "::endgroup::"
+  )
+}
+
+ci_restore_unittest_coverage_files() {
+  _ci_restore_coverage_files unittest unit-tests
+}
+
+ci_restore_inttest_coverage_files() {
+  _ci_restore_coverage_files inttest integration-tests
+}
+
+ci_restore_systest_coverage_files() {
+  _ci_restore_coverage_files systest system-tests
+}
+
+_ci_restore_coverage_files() {
+  (
+  test_type="$1"
+  job_name="$2"
+  cd /
+  for testgroup in $(_ci_list_testgroups_with_coverage "${job_name}"); do
+    ci_restore_tar_from_github_actions_artifacts coverage_and_deps_${test_type}_${testgroup} || true
+  done
+  )
+}
+
+_ci_list_testgroups_with_coverage() {
+  local job_name="$1"
+  yq e ".jobs.${job_name}.strategy.matrix.include.[] | select(.no_coverage != true) | .group" "$GITHUB_WORKSPACE/.github/workflows/pulsar-ci.yaml"
+}
+
+ci_delete_unittest_coverage_files() {
+  _ci_delete_coverage_files unittest unit-tests
+}
+
+ci_delete_inttest_coverage_files() {
+  _ci_delete_coverage_files inttest integration-tests
+}
+
+ci_delete_systest_coverage_files() {
+  _ci_delete_coverage_files systest system-tests
+}
+
+_ci_delete_coverage_files() {
+  (
+  test_type="$1"
+  job_name="$2"
+  for testgroup in $(yq e ".jobs.${job_name}.strategy.matrix.include.[] | select(.no_coverage != true) | .group" "$GITHUB_WORKSPACE/.github/workflows/pulsar-ci.yaml"); do
+    timeout 1m gh-actions-artifact-client.js delete coverage_and_deps_${test_type}_${testgroup}.tar.zst || true
+  done
+  )
+}
+
+# creates an aggregated jacoco xml report for all projects that contain a target/jacoco.exec file
+#
+# the default maven jacoco report has multiple problems:
+# - by default, jacoco:report goal will only report coverage for the current project. it is not suitable for Pulsar's
+#   unit tests that test production code that resides in multiple modules.
+#    - there's jacoco:report-aggregate that is supposed to resolve this. It has 2 issues:
+#       - 0.8.8 version doesn't yet support the required "includeCurrentProject" feature
+#       - the dependent projects must be built as part of the same mvn execution and belong to the same maven "reactor"
+#          - this isn't compatible with the way how Pulsar CI builds in "Build and License check" job and reuses
+#            the build results to run unit tests.
+#
+# This solution resolves the problem by using the Jacoco command line tool to generate the report.
+# It assumes that all projects that contain a target/jacoco.exec file will also contain compiled classfiles.
+ci_create_test_coverage_report() {
+  echo "::group::Create test coverage report"
+  if [ -n "$GITHUB_WORKSPACE" ]; then
+    cd "$GITHUB_WORKSPACE"
+  else
+    cd "$SCRIPT_DIR/.."
+  fi
+  local execFiles=$(find . '(' -path "*/target/jacoco.exec" -or -path "*/target/jacoco_*.exec" ')' -printf "%P\n")
+  if [[ -n "$execFiles" ]]; then
+    mkdir -p /tmp/jacocoDir
+    if [ ! -f /tmp/jacocoDir/jacococli.jar ]; then
+      local jacoco_version=$(mvn help:evaluate -Dscan=false -Dexpression=jacoco-maven-plugin.version -q -DforceStdout)
+      curl -sL -o /tmp/jacocoDir/jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${jacoco_version}/org.jacoco.cli-${jacoco_version}-nodeps.jar"
+    fi
+
+    ci_install_tool xmlstarlet
+    # create mapping from project directory to project artifactId
+    local projectToArtifactIdMapping=$(find -name pom.xml -printf "%P\n" |xargs -I{} bash -c 'echo -n "$(dirname $1) "; xmlstarlet sel -t -m _:project -v _:artifactId -n $1' -- {})
+
+    # create temp files
+    local completeClasspathFile=$(mktemp -t tmp.classpath.XXXX)
+    local filterArtifactsFile=$(mktemp -t tmp.artifacts.XXXX)
+    local classesDir=$(mktemp -d -t tmp.classes.XXXX)
+    local sourcefilesFile=$(mktemp -t tmp.sources.XXXX)
+
+    local projects=$({
+      for execFile in $execFiles; do
+        echo $(dirname "$(dirname "$execFile")")
+      done
+    } | sort | uniq)
+
+    # iterate projects
+    for project in $projects; do
+      local artifactId="$(printf "%s" "$projectToArtifactIdMapping" | grep -F "$project " | cut -d' ' -f2)"
+      if [ -d "$project/target/classes" ]; then
+        mkdir -p "$classesDir/$project"
+        cp -Rl "$project/target/classes" "$classesDir/$project"
+        echo "/$artifactId/" >> $filterArtifactsFile
+      fi
+      local scope=runtime
+      if [ -d $project/src/main/java ]; then
+        echo "$project/src/main/java" >> $sourcefilesFile
+      else
+        # for integration tests, there's no dependencies in the runtime scope
+        scope=test
+      fi
+      if [ -f "target/classpath_$artifactId" ]; then
+        echo "Found cached classpath for $artifactId."
+        cat "target/classpath_$artifactId" >> $completeClasspathFile
+      else
+        echo "Resolving classpath for $project..."
+        # find the runtime classpath for the project to ensure that only production classes get covered
+        mvn -f $project/pom.xml -DincludeScope=$scope -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
+                                      | sed 's/:/\n/g' | { grep 'org/apache/pulsar' || true; } \
+                                      >> $completeClasspathFile || true
+      fi
+    done
+
+    # delete any possible embedded jar files in the classes directory
+    find "$classesDir" -name "*.jar" -print -delete
+
+    filterJarsPattern="bouncy-castle-bc|tests|/buildtools/"
+
+    local classfilesArgs="--classfiles $({
+      {
+        for classpathEntry in $(cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E $filterJarsPattern || true; }); do
+            if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 2>/dev/null)" ]]; then
+              # file must be processed by removing META-INF/bundled-dependencies
+              local jartempfile=$(mktemp -t jarfile.XXXX --suffix=.jar)
+              cp $classpathEntry $jartempfile
+              zip -q -d $jartempfile 'META-INF/bundled-dependencies/*' &> /dev/null
+              echo $jartempfile
+            else
+              echo $classpathEntry
+            fi
+        done
+      }
+      echo $classesDir
+    } | tr '\n' ':' | sed -e 's/:$//' -e 's/:/ --classfiles /g')"
+
+    local sourcefilesArgs="--sourcefiles $({
+      # find the source file folders for the pulsar .jar files that are on the classpath
+      for artifactId in $(cat $completeClasspathFile  | sort | uniq | { grep -v -E $filterJarsPattern || true; } | perl -p -e 's|.*/org/apache/pulsar/([^/]*)/.*|$1|'); do
+        local project="$(printf "%s" "$projectToArtifactIdMapping" | { grep $artifactId || true; } | cut -d' ' -f1)"
+        if [[ -n "$project" && -d "$project/src/main/java" ]]; then
+          echo "$project/src/main/java"
+        fi
+      done
+      cat $sourcefilesFile
+    } | tr '\n' ':' | sed -e 's/:$//' -e 's/:/ --sourcefiles /g')"
+
+    rm $completeClasspathFile $filterArtifactsFile $sourcefilesFile
+
+    set -x
+    mkdir -p target/jacoco_test_coverage_report/html
+    java -jar /tmp/jacocoDir/jacococli.jar report $execFiles \
+          $classfilesArgs \
+          --encoding UTF-8 --name "Apache Pulsar test coverage" \
+          $sourcefilesArgs \
+          --xml target/jacoco_test_coverage_report/jacoco.xml \
+          --html target/jacoco_test_coverage_report/html \
+          --csv target/jacoco_test_coverage_report/jacoco.csv
+    set +x
+
+    rm -rf "$classesDir"
+  fi
+  echo "::endgroup::"
+}
+
+# creates a jacoco xml report of the jacoco exec files produced in docker containers which have /tmp/jacocoDir mounted as /jacocoDir
+# this is used to calculate test coverage for the apache/pulsar code that is run inside the containers in integration tests
+# and system tests
+ci_create_inttest_coverage_report() {
+  echo "::group::Create int test coverage in containers report"
+  if [[ -n "$(find /tmp/jacocoDir -name "*.exec" -print -quit)" ]]; then
+    cd "$GITHUB_WORKSPACE"
+    echo "Creating coverage report to target/jacoco_inttest_coverage_report"
+    set -x
+    mkdir -p target/jacoco_inttest_coverage_report
+    # install jacococli.jar command line tool
+    if [ ! -f /tmp/jacocoDir/jacococli.jar ]; then
+      local jacoco_version=$(mvn help:evaluate -Dexpression=jacoco-maven-plugin.version -Dscan=false -q -DforceStdout)
+      curl -sL -o /tmp/jacocoDir/jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${jacoco_version}/org.jacoco.cli-${jacoco_version}-nodeps.jar"
+    fi
+    # extract the Pulsar jar files from the docker image that was used to run the tests in the docker containers
+    # the class files used to produce the jacoco exec files are needed in the xml report generation
+    if [ ! -d /tmp/jacocoDir/pulsar_lib ]; then
+      mkdir /tmp/jacocoDir/pulsar_lib
+      docker run --rm -u "$UID:${GID:-"$(id -g)"}" -v /tmp/jacocoDir/pulsar_lib:/pulsar_lib:rw ${PULSAR_TEST_IMAGE_NAME:-apachepulsar/java-test-image:latest} bash -c "cp -p /pulsar/lib/org.apache.pulsar-* /pulsar_lib; [ -d /pulsar/connectors ] && cp -R /pulsar/connectors /pulsar_lib || true"
+      # remove jar file that causes duplicate classes issue
+      rm /tmp/jacocoDir/pulsar_lib/org.apache.pulsar-bouncy-castle* || true
+      # remove any bundled dependencies as part of .jar/.nar files
+      find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' \; |grep -E -v "Nothing to do|^$" || true
+    fi
+    # produce jacoco XML coverage report from the exec files and using the extracted jar files
+    java -jar /tmp/jacocoDir/jacococli.jar report /tmp/jacocoDir/*.exec \
+      --classfiles /tmp/jacocoDir/pulsar_lib --encoding UTF-8 --name "Pulsar Integration Tests - coverage in containers" \
+      $(find -path "*/src/main/java" -printf "--sourcefiles %P ") \
+      --xml target/jacoco_inttest_coverage_report/jacoco.xml \
+      --html target/jacoco_inttest_coverage_report/html \
+      --csv target/jacoco_inttest_coverage_report/jacoco.csv
+    set +x
+  else
+    echo "No /tmp/jacocoDir/*.exec files to process"
+  fi
+  echo "::endgroup::"
 }
 
 if [ -z "$1" ]; then

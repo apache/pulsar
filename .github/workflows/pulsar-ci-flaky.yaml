@@ -127,6 +127,19 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
 
+      - name: Create Jacoco reports
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
+          cd $GITHUB_WORKSPACE/target
+          zip -r jacoco_test_coverage_report_flaky.zip jacoco_test_coverage_report
+
+      - name: Upload Jacoco report files to build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Jacoco-coverage-report-flaky
+          path: target/jacoco_test_coverage_report_flaky.zip
+          retention-days: 3
+
       - name: Upload to Codecov
         uses: ./.github/actions/upload-coverage
         with:

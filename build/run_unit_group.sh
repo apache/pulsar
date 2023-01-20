@@ -192,6 +192,11 @@ function list_test_groups() {
 
 # Test Groups  -- end --
 
+if [[ "$1" == "--list" ]]; then
+  list_test_groups
+  exit 0
+fi
+
 TEST_GROUP=$1
 if [ -z "$TEST_GROUP" ]; then
   echo "usage: $0 [test_group]"

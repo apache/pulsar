@@ -229,6 +229,7 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh snapshot_pulsar_maven_artifacts
 
       - name: Run setup commands
         run: |
@@ -238,6 +239,9 @@ jobs:
         run: |
           CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./build/run_unit_group.sh ${{ matrix.group }}
 
+      - name: Upload coverage to build artifacts
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh upload_unittest_coverage_files ${{ matrix.group }}
+
       - name: print JVM thread dumps when cancelled
         if: cancelled()
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
@@ -245,11 +249,6 @@ jobs:
       - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
-
-      - name: Upload to Codecov
-        uses: ./.github/actions/upload-coverage
-        with:
-          flags: unittests
 
       - name: Publish Test Report
         uses: apache/pulsar-test-infra/action-junit-report@master
@@ -277,6 +276,86 @@ jobs:
             **/core.*
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Wait for ssh connection when build fails
+        # ssh access is enabled for builds in own forks
+        uses: ./.github/actions/ssh-access
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        continue-on-error: true
+        with:
+          action: wait
+
+
+  unit-tests-upload-coverage:
+    name: CI - Unit - Upload Coverage
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    needs: ['unit-tests']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/ssh-access
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK ${{ matrix.jdk || '17' }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.jdk || '17' }}
+
+      - name: Install gh-actions-artifact-client.js
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh snapshot_pulsar_maven_artifacts
+
+      - name: Restore coverage files from build artifacts and create Jacoco reports
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_unittest_coverage_files
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
+          cd $GITHUB_WORKSPACE/target
+          zip -r jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report
+
+      - name: Upload Jacoco report files to build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Jacoco-coverage-report-unittests
+          path: target/jacoco_test_coverage_report_unittests.zip
+          retention-days: 3
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: unittests
+
+      - name: Delete coverage files from build artifacts
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh delete_unittest_coverage_files
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -451,6 +530,7 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh snapshot_pulsar_maven_artifacts
 
       - name: Load docker image apachepulsar/java-test-image:latest from Github artifact cache
         run: |
@@ -475,10 +555,8 @@ jobs:
           fi
           ./build/run_integration_group.sh ${{ matrix.group }} $coverage_args
 
-      - name: Upload to Codecov
-        uses: ./.github/actions/upload-coverage
-        with:
-          flags: inttests
+      - name: Upload coverage to build artifacts
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh upload_inttest_coverage_files ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -520,13 +598,99 @@ jobs:
         with:
           action: wait
 
+  integration-tests-upload-coverage:
+    name: CI - Integration - Upload Coverage
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    needs: ['integration-tests']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    env:
+      PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/ssh-access
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Install gh-actions-artifact-client.js
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh snapshot_pulsar_maven_artifacts
+
+      - name: Load docker image apachepulsar/java-test-image:latest from Github artifact cache
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-java-test-image
+
+      - name: Restore coverage files from build artifacts and create Jacoco reports
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_inttest_coverage_files
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report 
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
+          cd $GITHUB_WORKSPACE/target
+          zip -r jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report
+
+      - name: Upload Jacoco report files to build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Jacoco-coverage-report-inttests
+          path: target/jacoco_test_coverage_report_inttests.zip
+          retention-days: 3
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: inttests
+
+      - name: Delete coverage files from build artifacts
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh delete_inttest_coverage_files
+
+      - name: Wait for ssh connection when build fails
+        # ssh access is enabled for builds in own forks
+        uses: ./.github/actions/ssh-access
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        continue-on-error: true
+        with:
+          action: wait
+
   delete-integration-test-docker-image-artifact:
     name: "Delete integration test docker image artifact"
     runs-on: ubuntu-20.04
     timeout-minutes: 10
     needs: [
       'preconditions',
-      'integration-tests'
+      'integration-tests',
+      'integration-tests-upload-coverage'
     ]
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
@@ -738,6 +902,7 @@ jobs:
         run: |
           cd $HOME
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh snapshot_pulsar_maven_artifacts
 
       - name: Load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
         run: |
@@ -752,10 +917,8 @@ jobs:
         run: |
           ./build/run_integration_group.sh ${{ matrix.group }} --coverage
 
-      - name: Upload to Codecov
-        uses: ./.github/actions/upload-coverage
-        with:
-          flags: systests
+      - name: Upload coverage to build artifacts
+        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh upload_systest_coverage_files ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -797,6 +960,92 @@ jobs:
         with:
           action: wait
 
+  system-tests-upload-coverage:
+    name: CI - System - Upload Coverage
+    runs-on: ubuntu-20.04
+    timeout-minutes: 30
+    needs: ['system-tests']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    env:
+      PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/ssh-access
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        timeout-minutes: 5
+        with:
+          path: |
+            ~/.m2/repository/*/*/*
+            !~/.m2/repository/org/apache/pulsar
+          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-core-modules-
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Install gh-actions-artifact-client.js
+        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+
+      - name: Restore maven build results from Github artifact cache
+        run: |
+          cd $HOME
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+
+      - name: Load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-test-latest-version-image
+
+      - name: Restore coverage files from build artifacts and create Jacoco reports
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_systest_coverage_files
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
+          cd $GITHUB_WORKSPACE/target
+          zip -r jacoco_test_coverage_report_systests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report
+
+      - name: Upload Jacoco report files to build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Jacoco-coverage-report-systests
+          path: target/jacoco_test_coverage_report_systests.zip
+          retention-days: 3
+
+      - name: Upload to Codecov
+        uses: ./.github/actions/upload-coverage
+        with:
+          flags: systests
+
+      - name: Delete coverage files from build artifacts
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh delete_systest_coverage_files
+
+      - name: Wait for ssh connection when build fails
+        # ssh access is enabled for builds in own forks
+        uses: ./.github/actions/ssh-access
+        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        continue-on-error: true
+        with:
+          action: wait
+
   flaky-system-tests:
     name: CI Flaky - System - ${{ matrix.name }}
     runs-on: ubuntu-20.04
@@ -815,7 +1064,6 @@ jobs:
 
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
-
 
     steps:
       - name: checkout
@@ -923,6 +1171,7 @@ jobs:
     needs: [
       'preconditions',
       'system-tests',
+      'system-tests-upload-coverage',
       'flaky-system-tests'
     ]
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -1069,7 +1318,10 @@ jobs:
       'integration-tests',
       'system-tests',
       'flaky-system-tests',
-      'macos-build'
+      'macos-build',
+      'unit-tests-upload-coverage',
+      'integration-tests-upload-coverage',
+      'system-tests-upload-coverage'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
