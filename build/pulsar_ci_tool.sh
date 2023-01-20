@@ -363,14 +363,8 @@ _ci_upload_coverage_files() {
     for execFile in $execFiles; do
       local project="${execFile/%"/target/jacoco.exec"}"
       local artifactId=$(xmlstarlet sel -t -m _:project -v _:artifactId -n $project/pom.xml)
-      local scope=runtime
-      # for integration tests, there's no dependencies in the runtime scope
-      # detect a plain test project based on missing src/main/java
-      if [ ! -d $project/src/main/java ]; then
-        scope=test
-      fi
-      # find the runtime classpath for the project to ensure that only production classes get covered
-      mvn -f $project/pom.xml -DincludeScope=$scope -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
+      # find the test scope classpath for the project
+      mvn -f $project/pom.xml -DincludeScope=test -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
                                     | sed 's/:/\n/g' | { grep 'org/apache/pulsar' || true; } \
                                     | { tee -a $completeClasspathFile || true; } > target/classpath_$artifactId || true
     done
@@ -468,7 +462,8 @@ ci_create_test_coverage_report() {
   else
     cd "$SCRIPT_DIR/.."
   fi
-  local execFiles=$(find . '(' -path "*/target/jacoco.exec" -or -path "*/target/jacoco_*.exec" ')' -printf "%P\n")
+
+  local execFiles=$(find . '(' -path "*/target/jacoco.exec" -or -path "*/target/jacoco_*.exec" ')' -printf "%P\n" )
   if [[ -n "$execFiles" ]]; then
     mkdir -p /tmp/jacocoDir
     if [ ! -f /tmp/jacocoDir/jacococli.jar ]; then
@@ -492,41 +487,42 @@ ci_create_test_coverage_report() {
       done
     } | sort | uniq)
 
+    # projects that aren't considered as production code and their own src/main/java source code shouldn't be analysed
+    local excludeProjectsPattern="testmocks|testclient|buildtools"
+
     # iterate projects
     for project in $projects; do
       local artifactId="$(printf "%s" "$projectToArtifactIdMapping" | grep -F "$project " | cut -d' ' -f2)"
-      if [ -d "$project/target/classes" ]; then
+      if [[ -d "$project/target/classes" && -d "$project/src/main/java" ]]; then
         mkdir -p "$classesDir/$project"
         cp -Rl "$project/target/classes" "$classesDir/$project"
-        echo "/$artifactId/" >> $filterArtifactsFile
-      fi
-      local scope=runtime
-      if [ -d $project/src/main/java ]; then
         echo "$project/src/main/java" >> $sourcefilesFile
-      else
-        # for integration tests, there's no dependencies in the runtime scope
-        scope=test
       fi
-      if [ -f "target/classpath_$artifactId" ]; then
-        echo "Found cached classpath for $artifactId."
-        cat "target/classpath_$artifactId" >> $completeClasspathFile
+      echo "/$artifactId/" >> $filterArtifactsFile
+      if [[ -n "$(echo "$project" | grep -v -E "$excludeProjectsPattern")" ]]; then
+        if [ -f "target/classpath_$artifactId" ]; then
+          echo "Found cached classpath for $artifactId."
+          cat "target/classpath_$artifactId" >> $completeClasspathFile
+        else
+          echo "Resolving classpath for $project..."
+          # find the test scope classpath for the project
+          mvn -f $project/pom.xml -DincludeScope=test -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
+                                        | sed 's/:/\n/g' | { grep 'org/apache/pulsar' || true; } \
+                                        >> $completeClasspathFile || true
+        fi
       else
-        echo "Resolving classpath for $project..."
-        # find the runtime classpath for the project to ensure that only production classes get covered
-        mvn -f $project/pom.xml -DincludeScope=$scope -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
-                                      | sed 's/:/\n/g' | { grep 'org/apache/pulsar' || true; } \
-                                      >> $completeClasspathFile || true
+        echo "Skipping analysing of $project"
       fi
     done
 
     # delete any possible embedded jar files in the classes directory
     find "$classesDir" -name "*.jar" -print -delete
 
-    filterJarsPattern="bouncy-castle-bc|tests|/buildtools/"
+    local excludeJarsPattern="bouncy-castle-bc|tests|$excludeProjectsPattern"
 
     local classfilesArgs="--classfiles $({
       {
-        for classpathEntry in $(cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E $filterJarsPattern || true; }); do
+        for classpathEntry in $(cat $completeClasspathFile | { grep -v -f $filterArtifactsFile || true; } | sort | uniq | { grep -v -E "$excludeJarsPattern" || true; }); do
             if [[ -f $classpathEntry && -n "$(unzip -Z1C $classpathEntry 'META-INF/bundled-dependencies/*' 2>/dev/null)" ]]; then
               # file must be processed by removing META-INF/bundled-dependencies
               local jartempfile=$(mktemp -t jarfile.XXXX --suffix=.jar)
@@ -543,7 +539,7 @@ ci_create_test_coverage_report() {
 
     local sourcefilesArgs="--sourcefiles $({
       # find the source file folders for the pulsar .jar files that are on the classpath
-      for artifactId in $(cat $completeClasspathFile  | sort | uniq | { grep -v -E $filterJarsPattern || true; } | perl -p -e 's|.*/org/apache/pulsar/([^/]*)/.*|$1|'); do
+      for artifactId in $(cat $completeClasspathFile  | sort | uniq | { grep -v -E "$excludeJarsPattern" || true; } | perl -p -e 's|.*/org/apache/pulsar/([^/]*)/.*|$1|'); do
         local project="$(printf "%s" "$projectToArtifactIdMapping" | { grep $artifactId || true; } | cut -d' ' -f1)"
         if [[ -n "$project" && -d "$project/src/main/java" ]]; then
           echo "$project/src/main/java"
@@ -595,10 +591,12 @@ ci_create_inttest_coverage_report() {
       # remove any bundled dependencies as part of .jar/.nar files
       find /tmp/jacocoDir/pulsar_lib '(' -name "*.jar" -or -name "*.nar" ')' -exec echo "Processing {}" \; -exec zip -q -d {} 'META-INF/bundled-dependencies/*' \; |grep -E -v "Nothing to do|^$" || true
     fi
+    # projects that aren't considered as production code and their own src/main/java source code shouldn't be analysed
+    local excludeProjectsPattern="testmocks|testclient|buildtools"
     # produce jacoco XML coverage report from the exec files and using the extracted jar files
     java -jar /tmp/jacocoDir/jacococli.jar report /tmp/jacocoDir/*.exec \
       --classfiles /tmp/jacocoDir/pulsar_lib --encoding UTF-8 --name "Pulsar Integration Tests - coverage in containers" \
-      $(find -path "*/src/main/java" -printf "--sourcefiles %P ") \
+      $(find -path "*/src/main/java" -printf "--sourcefiles %P " | grep -v -E "$excludeProjectsPattern") \
       --xml target/jacoco_inttest_coverage_report/jacoco.xml \
       --html target/jacoco_inttest_coverage_report/html \
       --csv target/jacoco_inttest_coverage_report/jacoco.csv
