@@ -964,7 +964,7 @@ public class CmdTopicPolicies extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
-        private String limitStr = "-1";
+        private String limitStr = null;
 
         @Parameter(names = { "-lt", "--limitTime" },
                 description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
