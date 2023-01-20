@@ -90,6 +90,6 @@ runs:
         tee -a "$GITHUB_STEP_SUMMARY" <<EOF
         ## Code Coverage report in Codecov
         
-        [Code coverage report](https://app.codecov.io/github/${{ github.repository }}/commit/${{ github.sha }}/tree)
+        [Code coverage report](https://app.codecov.io/github/${{ github.repository }}/commit/$(git rev-parse "${GITHUB_HEAD_REF:-HEAD}")/tree)
         
         EOF
