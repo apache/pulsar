@@ -1266,7 +1266,7 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)", required = true)
+        @Parameter(names = { "-l", "--limit" }, description = "Size limit (eg: 10M, 16G)")
         private String limitStr;
 
         @Parameter(names = { "-lt", "--limitTime" },
@@ -1280,8 +1280,8 @@ public class CmdNamespaces extends CmdBase {
         private String policyStr;
 
         @Parameter(names = {"-t", "--type"}, description = "Backlog quota type to set. Valid options are: "
-                + "destination_storage and message_age. "
-                + "destination_storage limits backlog by size (in bytes). "
+                + "destination_storage (default) and message_age. "
+                + "destination_storage limits backlog by size. "
                 + "message_age limits backlog by time, that is, message timestamp (broker or publish timestamp). "
                 + "You can set size or time to control the backlog, or combine them together to control the backlog. ")
         private String backlogQuotaTypeStr = BacklogQuota.BacklogQuotaType.destination_storage.name();
@@ -1289,7 +1289,6 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             BacklogQuota.RetentionPolicy policy;
-            long limit = validateSizeString(limitStr);
             BacklogQuota.BacklogQuotaType backlogQuotaType;
 
             try {
@@ -1306,26 +1305,30 @@ public class CmdNamespaces extends CmdBase {
                         backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
             }
 
-            long limitTimeInSec = -1;
-            if (limitTimeStr != null) {
+            String namespace = validateNamespace(params);
+
+            BacklogQuota.Builder builder = BacklogQuota.builder().retentionPolicy(policy);
+            if (backlogQuotaType == BacklogQuota.BacklogQuotaType.destination_storage) {
+                // set quota by storage size
+                if (limitStr == null) {
+                    throw new ParameterException("Quota type of 'destination_storage' needs a size limit");
+                }
+                long limit = validateSizeString(limitStr);
+                builder.limitSize(limit);
+            } else {
+                // set quota by time
+                if (limitTimeStr == null) {
+                    throw new ParameterException("Quota type of 'message_age' needs a time limit");
+                }
+                long limitTimeInSec;
                 try {
                     limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
                 } catch (IllegalArgumentException e) {
                     throw new ParameterException(e.getMessage());
                 }
+                builder.limitTime((int) limitTimeInSec);
             }
-            if (limitTimeInSec > Integer.MAX_VALUE) {
-                throw new ParameterException(
-                        String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
-            }
-
-            String namespace = validateNamespace(params);
-            getAdmin().namespaces().setBacklogQuota(namespace,
-                    BacklogQuota.builder().limitSize(limit)
-                            .limitTime((int) limitTimeInSec)
-                            .retentionPolicy(policy)
-                            .build(),
-                    backlogQuotaType);
+            getAdmin().namespaces().setBacklogQuota(namespace, builder.build(), backlogQuotaType);
         }
     }
 
