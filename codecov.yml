@@ -47,3 +47,12 @@ coverage:
       default:
         target: auto
         informational: true
+
+# ignore test code
+ignore:
+  - tests
+  - testmocks
+  - buildtools
+  - pulsar-testclient
+  - pulsar-client-tools-customcommand-example
+  - pulsar-functions/java-examples
