@@ -87,9 +87,14 @@ runs:
     - name: "Show link to Codecov report"
       shell: bash
       run: |
+        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+          head_sha=$(jq -r '.pull_request.head.sha' "${GITHUB_EVENT_PATH}")
+        else
+          head_sha=$(git rev-parse HEAD)
+        fi
         tee -a "$GITHUB_STEP_SUMMARY" <<EOF
         ## Code Coverage report in Codecov
         
-        [Code coverage report](https://app.codecov.io/github/${{ github.repository }}/commit/$(git rev-parse "${GITHUB_HEAD_REF:-HEAD}")/tree)
+        [Code coverage report](https://app.codecov.io/github/$GITHUB_REPOSITORY/commit/${head_sha}/tree)
         
         EOF
