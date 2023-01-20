@@ -18,12 +18,20 @@
  */
 package org.apache.pulsar.websocket;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
+import java.io.Closeable;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -43,22 +51,11 @@ import org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedExcepti
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 public abstract class AbstractWebSocketHandler extends WebSocketAdapter implements Closeable {
 
@@ -167,18 +164,15 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
     @Override
     public void onWebSocketConnect(Session session) {
         super.onWebSocketConnect(session);
-        WebSocketProxyConfiguration webSocketProxyConfig = service.getWebSocketProxyConfig();
-        if (webSocketProxyConfig != null) {
-            int webSocketPingDurationSeconds = webSocketProxyConfig.getWebSocketPingDurationSeconds();
-            if (webSocketPingDurationSeconds > 0) {
-                pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
-                    try {
-                        session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
-                    } catch (IOException e) {
-                        log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
-                    }
-                }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
-            }
+        int webSocketPingDurationSeconds = service.getConfig().getWebSocketPingDurationSeconds();
+        if (webSocketPingDurationSeconds > 0) {
+            pingFuture = service.getExecutor().scheduleAtFixedRate(() -> {
+                try {
+                    session.getRemote().sendPing(ByteBuffer.wrap("PING".getBytes(StandardCharsets.UTF_8)));
+                } catch (IOException e) {
+                    log.warn("[{}] WebSocket send ping", getSession().getRemoteAddress(), e);
+                }
+            }, webSocketPingDurationSeconds, webSocketPingDurationSeconds, TimeUnit.SECONDS);
         }
         log.info("[{}] New WebSocket session on topic {}", session.getRemoteAddress(), topic);
     }

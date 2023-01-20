@@ -70,9 +70,6 @@ public class WebSocketService implements Closeable {
     private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
 
-    @Getter
-    private WebSocketProxyConfiguration webSocketProxyConfig;
-
     private ClusterData localCluster;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
@@ -81,7 +78,6 @@ public class WebSocketService implements Closeable {
 
     public WebSocketService(WebSocketProxyConfiguration config) {
         this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
-        this.webSocketProxyConfig = config;
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
