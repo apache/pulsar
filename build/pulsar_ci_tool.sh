@@ -359,9 +359,14 @@ _ci_upload_coverage_files() {
 
     ci_install_tool xmlstarlet
 
-    # iterate the exec files that were found
-    for execFile in $execFiles; do
-      local project=$(dirname "$(dirname "$execFile")")
+    local projects=$({
+      for execFile in $execFiles; do
+        echo $(dirname "$(dirname "$execFile")")
+      done
+    } | sort | uniq)
+
+    # iterate the projects
+    for project in $projects; do
       local artifactId=$(xmlstarlet sel -t -m _:project -v _:artifactId -n $project/pom.xml)
       # find the test scope classpath for the project
       mvn -f $project/pom.xml -DincludeScope=test -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
