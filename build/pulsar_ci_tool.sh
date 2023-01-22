@@ -387,6 +387,7 @@ _ci_upload_coverage_files() {
                 tar -I zstd -cPf - \
                   --transform="flags=r;s|\\(/jacoco.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
                   --transform="flags=r;s|\\(/tmp/jacocoDir/.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
+                  --exclude="*/META-INF/bundled-dependencies/*" \
                   $GITHUB_WORKSPACE/target/classpath_* \
                   $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco*.exec" -printf "%p\n%h/classes\n" | sort | uniq) \
                   $([ -d /tmp/jacocoDir ] && echo "/tmp/jacocoDir" ) \
