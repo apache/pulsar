@@ -468,7 +468,7 @@ ci_create_test_coverage_report() {
     cd "$SCRIPT_DIR/.."
   fi
 
-  local execFiles=$(find . -path "*/target/jacoco*.exec" -printf "%P\n" )
+  local execFiles=$(find . -path "*/target/jacoco*.exec" -size +10c -printf "%P\n" )
   if [[ -n "$execFiles" ]]; then
     mkdir -p /tmp/jacocoDir
     if [ ! -f /tmp/jacocoDir/jacococli.jar ]; then
