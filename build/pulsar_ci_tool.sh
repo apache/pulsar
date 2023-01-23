@@ -352,16 +352,21 @@ _ci_upload_coverage_files() {
 
   local classpathFile="target/classpath_${testtype}_${testgroup}"
 
-  local execFiles=$(find . -path "*/target/jacoco.exec" -printf "%P\n")
+  local execFiles=$(find . -path "*/target/jacoco*.exec" -printf "%P\n")
   if [[ -n "$execFiles" ]]; then
     # create temp file
     local completeClasspathFile=$(mktemp -t tmp.classpath.XXXX)
 
     ci_install_tool xmlstarlet
 
-    # iterate the exec files that were found
-    for execFile in $execFiles; do
-      local project="${execFile/%"/target/jacoco.exec"}"
+    local projects=$({
+      for execFile in $execFiles; do
+        echo $(dirname "$(dirname "$execFile")")
+      done
+    } | sort | uniq)
+
+    # iterate the projects
+    for project in $projects; do
       local artifactId=$(xmlstarlet sel -t -m _:project -v _:artifactId -n $project/pom.xml)
       # find the test scope classpath for the project
       mvn -f $project/pom.xml -DincludeScope=test -Dscan=false dependency:build-classpath  -B | { grep 'Dependencies classpath:' -A1 || true; } | tail -1 \
@@ -373,17 +378,18 @@ _ci_upload_coverage_files() {
     # delete temp file
     rm $completeClasspathFile
 
-    # upload target/jacoco.exec, target/classes and any dependent jar files that were built during the unit test execution
+    # upload target/jacoco*.exec, target/classes and any dependent jar files that were built during the unit test execution
     # transform jacoco exec filenames by appending "_${testtype}_${testgroup}" to the filename part to make the files unique
     # so that they don't get overridden when all files are extracted to the same working directory before merging
     (
       cd /
       ci_store_tar_to_github_actions_artifacts coverage_and_deps_${testtype}_${testgroup} \
                 tar -I zstd -cPf - \
-                  --transform="flags=r;s|/jacoco.exec$|/jacoco_${testtype}_${testgroup}.exec|" \
+                  --transform="flags=r;s|\\(/jacoco.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
                   --transform="flags=r;s|\\(/tmp/jacocoDir/.*\\).exec$|\\1_${testtype}_${testgroup}.exec|" \
+                  --exclude="*/META-INF/bundled-dependencies/*" \
                   $GITHUB_WORKSPACE/target/classpath_* \
-                  $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco.exec" -printf "%p\n%h/classes\n") \
+                  $(find "$GITHUB_WORKSPACE" -path "*/target/jacoco*.exec" -printf "%p\n%h/classes\n" | sort | uniq) \
                   $([ -d /tmp/jacocoDir ] && echo "/tmp/jacocoDir" ) \
                   $([[ $store_deps -eq 1 ]] && { cat $GITHUB_WORKSPACE/$classpathFile | sort | uniq | { grep -v -Fx -f /tmp/provided_pulsar_maven_artifacts || true; }; } || true)
     )
@@ -442,7 +448,7 @@ _ci_delete_coverage_files() {
   )
 }
 
-# creates an aggregated jacoco xml report for all projects that contain a target/jacoco.exec file
+# creates an aggregated jacoco xml report for all projects that contain a target/jacoco*.exec file
 #
 # the default maven jacoco report has multiple problems:
 # - by default, jacoco:report goal will only report coverage for the current project. it is not suitable for Pulsar's
@@ -454,7 +460,7 @@ _ci_delete_coverage_files() {
 #            the build results to run unit tests.
 #
 # This solution resolves the problem by using the Jacoco command line tool to generate the report.
-# It assumes that all projects that contain a target/jacoco.exec file will also contain compiled classfiles.
+# It assumes that all projects that contain a target/jacoco*.exec file will also contain compiled classfiles.
 ci_create_test_coverage_report() {
   echo "::group::Create test coverage report"
   if [ -n "$GITHUB_WORKSPACE" ]; then
@@ -463,7 +469,7 @@ ci_create_test_coverage_report() {
     cd "$SCRIPT_DIR/.."
   fi
 
-  local execFiles=$(find . '(' -path "*/target/jacoco.exec" -or -path "*/target/jacoco_*.exec" ')' -printf "%P\n" )
+  local execFiles=$(find . -path "*/target/jacoco*.exec" -size +10c -printf "%P\n" )
   if [[ -n "$execFiles" ]]; then
     mkdir -p /tmp/jacocoDir
     if [ ! -f /tmp/jacocoDir/jacococli.jar ]; then

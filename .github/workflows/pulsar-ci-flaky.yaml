@@ -22,6 +22,8 @@ on:
   pull_request:
     branches:
       - master
+  schedule:
+    - cron: '0 12 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -39,6 +41,7 @@ jobs:
   preconditions:
     name: Preconditions
     runs-on: ubuntu-20.04
+    if: (github.event_name != 'schedule') || (github.repository == 'apache/pulsar')
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
@@ -131,7 +134,7 @@ jobs:
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
           cd $GITHUB_WORKSPACE/target
-          zip -r jacoco_test_coverage_report_flaky.zip jacoco_test_coverage_report
+          zip -qr jacoco_test_coverage_report_flaky.zip jacoco_test_coverage_report
 
       - name: Upload Jacoco report files to build artifacts
         uses: actions/upload-artifact@v3

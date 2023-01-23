@@ -1966,6 +1966,9 @@ flexible messaging model and an intuitive client API.</description>
                   <goal>prepare-agent</goal>
                 </goals>
                 <configuration>
+                  <!-- use unique jacoco exec files for every forked test process -->
+                  <destFile>${project.build.directory}/jacoco_${maven.build.timestamp}_${surefire.forkNumber}.exec</destFile>
+                  <append>true</append>
                   <includes>
                     <include>org.apache.pulsar.*</include>
                     <include>org.apache.bookkeeper.mledger.*</include>
