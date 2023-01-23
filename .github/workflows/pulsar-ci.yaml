@@ -1321,7 +1321,8 @@ jobs:
       'macos-build',
       'unit-tests-upload-coverage',
       'integration-tests-upload-coverage',
-      'system-tests-upload-coverage'
+      'system-tests-upload-coverage',
+      'owasp-dep-check'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
@@ -1350,7 +1351,7 @@ jobs:
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
       - name: Delete maven repository binaries from GitHub Actions Artifacts
-        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
         run: |
           gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst || true
           gh-actions-artifact-client.js delete pulsar-server-distribution.tar.zst || true
