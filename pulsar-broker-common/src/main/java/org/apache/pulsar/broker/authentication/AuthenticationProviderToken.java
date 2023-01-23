@@ -343,9 +343,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
             this.provider = provider;
-            String token = new String(authData.getBytes(), UTF_8);
-            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
-            this.checkExpiration(token);
             this.remoteAddress = remoteAddress;
             this.sslSession = sslSession;
         }
@@ -371,6 +368,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public String getAuthRole() throws AuthenticationException {
+            if (jwt == null) {
+                throw new AuthenticationException("Must authenticate before calling getAuthRole");
+            }
             return provider.getPrincipal(jwt);
         }
 
@@ -404,8 +404,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public boolean isComplete() {
-            // The authentication of tokens is always done in one single stage
-            return true;
+            // The authentication of tokens is always done in one single stage, so once jwt is set, it is "complete"
+            return jwt != null;
         }
 
         @Override
