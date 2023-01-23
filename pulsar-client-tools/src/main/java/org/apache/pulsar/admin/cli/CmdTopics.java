@@ -792,7 +792,7 @@ public class CmdTopics extends CmdBase {
 
         @Parameter(names = { "-sbs",
                 "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
-        + ", locking required.")
+        + ", locking required. If set to false, the attribute 'backlogSize' in the response will be -1")
         private boolean subscriptionBacklogSize = true;
 
         @Parameter(names = { "-etb",
