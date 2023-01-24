@@ -1555,9 +1555,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     ledgersStat = stat;
                     ledgers.put(lh.getId(), newLedger);
-                    currentLedger = lh;
-                    currentLedgerEntries = 0;
-                    currentLedgerSize = 0;
+                    if (lh.getId() > currentLedger.getId()) {
+                        currentLedger = lh;
+                        currentLedgerEntries = 0;
+                        currentLedgerSize = 0;
+                    }
                     metadataMutex.unlock();
                     updateLedgersIdsComplete();
                     synchronized (ManagedLedgerImpl.this) {
