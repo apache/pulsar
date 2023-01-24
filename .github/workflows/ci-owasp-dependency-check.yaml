@@ -29,9 +29,9 @@ env:
 jobs:
   run-owasp-dependency-check:
     if: ${{ github.repository == 'apache/pulsar' || github.event_name == 'workflow_dispatch' }}
-    name: Run OWASP Dependency Check for ${{ matrix.branch }}
+    name: Check ${{ matrix.branch }}
     env:
-      JOB_NAME: Run OWASP Dependency Check for ${{ matrix.branch }}
+      JOB_NAME: Check ${{ matrix.branch }}
     runs-on: ubuntu-20.04
     timeout-minutes: 45
     strategy:
