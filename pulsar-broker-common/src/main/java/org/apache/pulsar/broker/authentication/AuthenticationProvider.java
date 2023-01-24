@@ -156,7 +156,7 @@ public interface AuthenticationProvider extends Closeable {
     @Deprecated
     default boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
         AuthenticationState authenticationState = newHttpAuthState(request);
-        String role = authenticate(authenticationState.getAuthDataSource());
+        String role = authenticateAsync(authenticationState.getAuthDataSource()).get();
         request.setAttribute(AuthenticatedRoleAttributeName, role);
         request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
         return true;
