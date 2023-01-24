@@ -1720,9 +1720,22 @@ public class ServerCnxTest {
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(matches("pulsar.dedup"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
+
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class), any(Map.class),
+                any(OpenCursorCallback.class), any());
+
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            Thread.sleep(300);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
+            return null;
+        }).when(ledgerMock).asyncOpenCursor(matches("pulsar.dedup"), any(InitialPosition.class), any(Map.class), any(Map.class),
                 any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
@@ -1744,6 +1757,11 @@ public class ServerCnxTest {
             ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
             return null;
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
+
+        doAnswer((Answer<Object>) invocationOnMock -> {
+            ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
+            return null;
+        }).when(ledgerMock).asyncDeleteCursor(matches("pulsar.dedup"), any(DeleteCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((DeleteCursorCallback) invocationOnMock.getArguments()[1])

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -32,11 +33,15 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -48,8 +53,13 @@ import org.apache.pulsar.broker.service.BacklogQuotaManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
+import org.apache.pulsar.common.policies.data.PolicyHierarchyValue;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -436,5 +446,128 @@ public class MessageDuplicationTest {
 
             }
         });
+    }
+
+    @Test
+    public void testCheckStatus() throws ExecutionException, InterruptedException {
+        MessageDeduplication messageDeduplication;
+        /** Test case: {@link MessageDeduplication.Status.Initialized --> {@link MessageDeduplication.Status.Enabled} **/
+        messageDeduplication = mockMessageDeduplicationForCheckStatus(true, true,
+                true, true, false);
+        messageDeduplication.checkStatus().get();
+        assertEquals(messageDeduplication.getStatus(), MessageDeduplication.Status.Enabled);
+        /** Test case: {@link MessageDeduplication.Status.Initialized --> {@link MessageDeduplication.Status.DeleteCursorFailed} **/
+        messageDeduplication = mockMessageDeduplicationForCheckStatus(true, false,
+                true, true, false);
+        try {
+            messageDeduplication.checkStatus().get();
+            fail("expect exception when open cursor failure");
+        } catch (Exception ex){
+            // ignore
+        }
+        assertEquals(messageDeduplication.getStatus(), MessageDeduplication.Status.OpenCursorFailed);
+        /** Test case: {@link MessageDeduplication.Status.Initialized --> {@link MessageDeduplication.Status.RecoverSequenceFailed} **/
+        messageDeduplication = mockMessageDeduplicationForCheckStatus(true, true,
+                false, true, false);
+        try {
+            messageDeduplication.checkStatus().get();
+            fail("expect exception when recover sequence id failure");
+        } catch (Exception ex){
+            // ignore
+        }
+        assertEquals(messageDeduplication.getStatus(), MessageDeduplication.Status.RecoverSequenceFailed);
+        /** Test case: {@link MessageDeduplication.Status.Initialized --> {@link MessageDeduplication.Status.Disabled} **/
+        messageDeduplication = mockMessageDeduplicationForCheckStatus(false, true,
+                true, true, false);
+        messageDeduplication.checkStatus().get();
+        assertEquals(messageDeduplication.getStatus(), MessageDeduplication.Status.Disabled);
+        /**
+         * Test case: {@link MessageDeduplication.Status.Initialized --> {@link MessageDeduplication.Status.Disabled}
+         *     delete cursor but cursor not exists
+         */
+        messageDeduplication = mockMessageDeduplicationForCheckStatus(false, true,
+                true, false, true);
+        messageDeduplication.checkStatus().get();
+        assertEquals(messageDeduplication.getStatus(), MessageDeduplication.Status.Disabled);
+        /** Test case: {@link MessageDeduplication.Status.Initialized --> {@link MessageDeduplication.Status.DeleteCursorFailed} **/
+        messageDeduplication = mockMessageDeduplicationForCheckStatus(false, true,
+                true, false, false);
+        try {
+            messageDeduplication.checkStatus().get();
+            fail("expect exception when delete cursor failure");
+        } catch (Exception ex){
+            // ignore
+        }
+        assertEquals(messageDeduplication.getStatus(), MessageDeduplication.Status.DeleteCursorFailed);
+    }
+
+    private MessageDeduplication mockMessageDeduplicationForCheckStatus(boolean enabled, boolean openCursorSuccess,
+                                                                        boolean recoverSequenceSuccess,
+                                                                        boolean deleteCursorSuccess,
+                                                                        boolean deleteCursorButCursorNotExists){
+        // Mock managedLedger
+        ManagedLedger managedLedgerMock = Mockito.mock(ManagedLedger.class);
+        ManagedCursor managedCursorMock = Mockito.mock(ManagedCursor.class);
+        Mockito.when(managedCursorMock.getProperties()).thenReturn(Collections.emptyMap());
+        ManagedCursor managedCursor = Mockito.mock(ManagedCursor.class);
+        Mockito.when(managedCursor.getName()).thenReturn("pulsar.dedup");
+        Mockito.when(managedLedgerMock.getCursors()).thenReturn(Collections.singleton(managedCursor));
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                if (recoverSequenceSuccess) {
+                    ((AsyncCallbacks.ReadEntriesCallback) invocationOnMock.getArgument(1))
+                            .readEntriesComplete(Collections.emptyList(), invocationOnMock.getArgument(3));
+                } else {
+                    ((AsyncCallbacks.ReadEntriesCallback) invocationOnMock.getArgument(1))
+                            .readEntriesFailed(new ManagedLedgerException(""), invocationOnMock.getArgument(3));
+                }
+                return null;
+            }
+        }).when(managedCursorMock).asyncReadEntries(Mockito.anyInt(), any(), any(), any());
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                if (openCursorSuccess) {
+                    ((AsyncCallbacks.OpenCursorCallback) invocationOnMock.getArgument(1))
+                            .openCursorComplete(managedCursorMock, invocationOnMock.getArgument(2));
+                } else {
+                    ((AsyncCallbacks.OpenCursorCallback) invocationOnMock.getArgument(1))
+                            .openCursorFailed(new ManagedLedgerException(""), invocationOnMock.getArgument(2));
+                }
+                return null;
+            }
+        }).when(managedLedgerMock).asyncOpenCursor(anyString(), any(), any());
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                if (deleteCursorSuccess){
+                    ((AsyncCallbacks.DeleteCursorCallback) invocationOnMock.getArgument(1))
+                            .deleteCursorComplete(null);
+                } else if (deleteCursorButCursorNotExists) {
+                    ((AsyncCallbacks.DeleteCursorCallback) invocationOnMock.getArgument(1))
+                            .deleteCursorFailed(new ManagedLedgerException.CursorNotFoundException(""), invocationOnMock.getArgument(2));
+                } else {
+                    ((AsyncCallbacks.DeleteCursorCallback) invocationOnMock.getArgument(1))
+                            .deleteCursorFailed(new ManagedLedgerException(""), invocationOnMock.getArgument(2));
+                }
+                return null;
+            }
+        }).when(managedLedgerMock).asyncDeleteCursor(anyString(), any(AsyncCallbacks.DeleteCursorCallback.class), any());
+        // Mock pulsarService
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+        Mockito.when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
+        // Mock persistentTopic
+        PersistentTopic topic = Mockito.mock(PersistentTopic.class);
+        HierarchyTopicPolicies policies = Mockito.mock(HierarchyTopicPolicies.class);
+        PolicyHierarchyValue policyHierarchyValue = Mockito.mock(PolicyHierarchyValue.class);
+        Mockito.when(policyHierarchyValue.get()).thenReturn(enabled);
+        Mockito.when(policies.getDeduplicationEnabled()).thenReturn(policyHierarchyValue);
+        Mockito.when(topic.getHierarchyTopicPolicies()).thenReturn(policies);
+        // Create MessageDeduplication
+        MessageDeduplication messageDeduplication = spy(new MessageDeduplication(pulsarService,
+                topic, managedLedgerMock));
+        return messageDeduplication;
     }
 }
