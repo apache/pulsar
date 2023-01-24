@@ -41,8 +41,11 @@ jobs:
           - branch: master
           - branch: branch-2.11
           - branch: branch-2.10
+            jdk: 11
           - branch: branch-2.9
+            jdk: 11
           - branch: branch-2.8
+            jdk: 11
 
     steps:
       - name: checkout
@@ -72,19 +75,11 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
-        if: ${{ matrix.branch != 'branch-2.8' && matrix.branch != 'branch-2.9' && matrix.branch != 'branch-2.10' }}
+      - name: Set up JDK ${{ matrix.jdk || '17' }}
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
-
-      - name: Set up JDK 11
-        if: ${{ matrix.branch == 'branch-2.8' || matrix.branch == 'branch-2.9' || matrix.branch == 'branch-2.10' }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: 11
+          java-version: ${{ matrix.jdk || '17' }}
 
       - name: run install by skip tests
         run: mvn -B -ntp clean install -DskipTests -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DskipDocker=true
