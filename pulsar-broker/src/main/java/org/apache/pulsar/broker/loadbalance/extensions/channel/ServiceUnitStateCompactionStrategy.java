@@ -26,7 +26,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrategy<ServiceUnitStateData> {
@@ -36,7 +35,7 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
     private boolean checkBrokers = true;
 
     public ServiceUnitStateCompactionStrategy() {
-        schema = JSONSchema.of(ServiceUnitStateData.class);
+        schema = Schema.JSON(ServiceUnitStateData.class);
     }
 
     @Override

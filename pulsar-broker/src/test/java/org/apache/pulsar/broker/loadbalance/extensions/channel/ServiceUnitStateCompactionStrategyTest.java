@@ -50,8 +50,8 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Free), data(Assigned, "")));
         assertFalse(strategy.shouldKeepLeft(data(Free), data(Owned)));
         assertTrue(strategy.shouldKeepLeft(data(Free), data(Owned, "")));
-        assertTrue(strategy.shouldKeepLeft(data(Free), data(Released)));
-        assertTrue(strategy.shouldKeepLeft(data(Free), data(Splitting)));
+        assertFalse(strategy.shouldKeepLeft(data(Free), data(Released)));
+        assertFalse(strategy.shouldKeepLeft(data(Free), data(Splitting)));
 
         assertFalse(strategy.shouldKeepLeft(data(Assigned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Assigned)));

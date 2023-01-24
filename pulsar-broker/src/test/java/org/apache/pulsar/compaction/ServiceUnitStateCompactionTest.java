@@ -60,8 +60,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -78,7 +78,7 @@ import org.testng.annotations.Test;
 public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
-    private JSONSchema<ServiceUnitStateData> schema;
+    private Schema<ServiceUnitStateData> schema;
     private ServiceUnitStateCompactionStrategy strategy;
 
     private ServiceUnitState testState0 = Free;
@@ -132,7 +132,6 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .filter(to -> to != Free && to != Splitting && isValidTransition(from, to))
                 .collect(Collectors.toList());
         var state=  candidates.get(RANDOM.nextInt(candidates.size()));
-        System.out.println("test state:" + state);
         return state;
     }
 
@@ -171,7 +170,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
-        schema = JSONSchema.of(ServiceUnitStateData.class);
+        schema = Schema.JSON(ServiceUnitStateData.class);
         strategy = new ServiceUnitStateCompactionStrategy();
         strategy.checkBrokers(false);
 
@@ -222,13 +221,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         for (int j = 0; j < numMessages; j++) {
             int keyIndex = r.nextInt(maxKeys);
             String key = "key" + keyIndex;
-            ServiceUnitStateData expectedData = expected.get(key);
-            ServiceUnitState state = expectedData == null ? nextValidState(Assigned) :
-                    r.nextInt(2) == 0 ? nextInvalidState(expectedData.state()) :
-                            nextValidState(expectedData.state());
+            ServiceUnitStateData prev = expected.get(key);
+            ServiceUnitState prevState = prev == null ? Free : prev.state();
+            ServiceUnitState state = r.nextBoolean() ? nextInvalidState(prevState) :
+                    nextValidState(prevState);
             ServiceUnitStateData value = new ServiceUnitStateData(state, key + ":" + j);
             producer.newMessage().key(key).value(value).send();
-            ServiceUnitStateData prev = expected.get(key);
             if (!strategy.shouldKeepLeft(prev, value)) {
                 expected.put(key, value);
             }
