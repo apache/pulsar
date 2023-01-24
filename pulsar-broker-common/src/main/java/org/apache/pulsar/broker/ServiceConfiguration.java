@@ -2160,7 +2160,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "load balance placement strategy"
     )
     private String loadBalancerLoadPlacementStrategy =
-            "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
+            "org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight";
 
     @FieldContext(
         dynamic = true,
