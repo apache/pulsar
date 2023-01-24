@@ -254,6 +254,10 @@ class TopicStats {
         stats.subscriptionStats.forEach((sub, subsStats) -> {
             writeSubscriptionMetric(stream, "pulsar_subscription_back_log", subsStats.msgBacklog,
                     cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            if (subsStats.msgBacklogSize >= 0) {
+                writeSubscriptionMetric(stream, "pulsar_subscription_back_log_size", subsStats.msgBacklogSize,
+                        cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            }
             writeSubscriptionMetric(stream, "pulsar_subscription_back_log_no_delayed",
                     subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
