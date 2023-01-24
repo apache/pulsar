@@ -21,33 +21,28 @@
 <FindBugsFilter>
   <!-- Ignore violations that were present when the rule was enabled -->
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="getAddress"/>
+    <Class name="org.apache.pulsar.client.api.ClientConfiguration"/>
+    <Method name="getConfigurationData"/>
     <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="getCompany"/>
+    <Class name="org.apache.pulsar.client.api.ConsumerConfiguration"/>
+    <Method name="getConfigurationData"/>
     <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
+    <Class name="org.apache.pulsar.client.api.ProducerConfiguration"/>
+    <Method name="getProducerConfigurationData"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.client.api.ReaderConfiguration"/>
+    <Method name="getReaderConfigurationData"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.client.impl.v1.ProducerV1Impl"/>
     <Method name="&lt;init&gt;"/>
-    <Bug pattern="EI_EXPOSE_REP2"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="&lt;init&gt;"/>
-    <Bug pattern="EI_EXPOSE_REP2"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="setAddress"/>
-    <Bug pattern="EI_EXPOSE_REP2"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="setCompany"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
 </FindBugsFilter>

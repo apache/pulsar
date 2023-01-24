@@ -21,33 +21,28 @@
 <FindBugsFilter>
   <!-- Ignore violations that were present when the rule was enabled -->
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="getAddress"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="getCompany"/>
-    <Bug pattern="EI_EXPOSE_REP"/>
-  </Match>
-  <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
+    <Class name="org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl"/>
     <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
+    <Class name="org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloader"/>
+    <Method name="streamingOffload"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.bookkeeper.mledger.offload.jcloud.impl.BufferedOffloadStream"/>
     <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="setAddress"/>
-    <Bug pattern="EI_EXPOSE_REP2"/>
+    <Class name="org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration"/>
+    <Method name="getConfigProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
   <Match>
-    <Class name="org.apache.pulsar.io.batchdatagenerator.Person"/>
-    <Method name="setCompany"/>
+    <Class name="org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration"/>
+    <Method name="&lt;init&gt;"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
 </FindBugsFilter>
