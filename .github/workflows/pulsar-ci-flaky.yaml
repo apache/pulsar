@@ -25,6 +25,11 @@ on:
   schedule:
     - cron: '0 12 * * *'
   workflow_dispatch:
+    inputs:
+      collect_coverage:
+        description: 'Collect test coverage and upload to Codecov'
+        required: true
+        default: 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,6 +50,7 @@ jobs:
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
+      collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
@@ -59,11 +65,20 @@ jobs:
       - name: Check changed files
         id: check_changes
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" != "schedule" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
             echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
           else
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
+
+      - name: Check if coverage should be collected
+        id: check_coverage
+        run: |
+          echo "collect_coverage=${{ 
+          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch' 
+            && (github.base_ref == 'master' || github.ref == 'master')) 
+          || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
+          }}"  >> $GITHUB_OUTPUT
 
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -78,6 +93,7 @@ jobs:
     name: Flaky tests suite
     env:
       JOB_NAME: Flaky tests suite
+      COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
     runs-on: ubuntu-20.04
     timeout-minutes: 100
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -135,12 +151,14 @@ jobs:
         uses: ./.github/actions/copy-test-reports
 
       - name: Create Jacoco reports
+        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
           cd $GITHUB_WORKSPACE/target
-          zip -qr jacoco_test_coverage_report_flaky.zip jacoco_test_coverage_report
+          zip -qr jacoco_test_coverage_report_flaky.zip jacoco_test_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
+        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
         uses: actions/upload-artifact@v3
         with:
           name: Jacoco-coverage-report-flaky
@@ -148,6 +166,7 @@ jobs:
           retention-days: 3
 
       - name: Upload to Codecov
+        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
         uses: ./.github/actions/upload-coverage
         with:
           flags: unittests

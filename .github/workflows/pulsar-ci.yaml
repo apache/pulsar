@@ -25,6 +25,11 @@ on:
   schedule:
     - cron: '0 12 * * *'
   workflow_dispatch:
+    inputs:
+      collect_coverage:
+        description: 'Collect test coverage and upload to Codecov'
+        required: true
+        default: 'true'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -46,6 +51,7 @@ jobs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
       need_owasp: ${{ steps.changes.outputs.need_owasp }}
+      collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
 
     steps:
       - name: checkout
@@ -61,11 +67,20 @@ jobs:
       - name: Check changed files
         id: check_changes
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" != "schedule" ]]; then
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
             echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
           else
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
+
+      - name: Check if coverage should be collected
+        id: check_coverage
+        run: |
+          echo "collect_coverage=${{ 
+          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch' 
+            && (github.base_ref == 'master' || github.ref == 'master')) 
+          || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
+          }}"  >> $GITHUB_OUTPUT
 
       - name: Check if the PR has been approved for testing
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
@@ -159,6 +174,7 @@ jobs:
     name: CI - Unit - ${{ matrix.name }}
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
+      COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -243,6 +259,7 @@ jobs:
           CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./build/run_unit_group.sh ${{ matrix.group }}
 
       - name: Upload coverage to build artifacts
+        if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh upload_unittest_coverage_files ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
@@ -293,8 +310,8 @@ jobs:
     name: CI - Unit - Upload Coverage
     runs-on: ubuntu-20.04
     timeout-minutes: 30
-    needs: ['unit-tests']
-    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'unit-tests']
+    if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
 
     steps:
       - name: checkout
@@ -342,7 +359,7 @@ jobs:
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_unittest_coverage_files
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report 
           cd $GITHUB_WORKSPACE/target
-          zip -qr jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report
+          zip -qr jacoco_test_coverage_report_unittests.zip jacoco_test_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
         uses: actions/upload-artifact@v3
@@ -553,12 +570,13 @@ jobs:
 
       - name: Run integration test group '${{ matrix.group }}'
         run: |
-          if [[ "${{ matrix.no_coverage }}" != "true" ]]; then
+          if [[ "${{ matrix.no_coverage }}" != "true" && "${{ needs.preconditions.outputs.collect_coverage }}" == "true" ]]; then
             coverage_args="--coverage"
           fi
           ./build/run_integration_group.sh ${{ matrix.group }} $coverage_args
 
       - name: Upload coverage to build artifacts
+        if: ${{ !matrix.no_coverage && needs.preconditions.outputs.collect_coverage == 'true' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh upload_inttest_coverage_files ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
@@ -605,8 +623,8 @@ jobs:
     name: CI - Integration - Upload Coverage
     runs-on: ubuntu-20.04
     timeout-minutes: 30
-    needs: ['integration-tests']
-    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'integration-tests']
+    if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
     steps:
@@ -660,7 +678,7 @@ jobs:
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report 
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
           cd $GITHUB_WORKSPACE/target
-          zip -qr jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report
+          zip -qr jacoco_test_coverage_report_inttests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
         uses: actions/upload-artifact@v3
@@ -918,9 +936,13 @@ jobs:
 
       - name: Run system test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }} --coverage
+          if [[ "${{ matrix.no_coverage }}" != "true" && "${{ needs.preconditions.outputs.collect_coverage }}" == "true" ]]; then
+            coverage_args="--coverage"
+          fi
+          ./build/run_integration_group.sh ${{ matrix.group }} $coverage_args
 
       - name: Upload coverage to build artifacts
+        if: ${{ !matrix.no_coverage && needs.preconditions.outputs.collect_coverage == 'true' }}
         run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh upload_systest_coverage_files ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
@@ -967,8 +989,8 @@ jobs:
     name: CI - System - Upload Coverage
     runs-on: ubuntu-20.04
     timeout-minutes: 30
-    needs: ['system-tests']
-    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'system-tests']
+    if: ${{ needs.preconditions.outputs.collect_coverage == 'true' }}
     env:
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
 
@@ -1023,7 +1045,7 @@ jobs:
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_inttest_coverage_report
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh create_test_coverage_report
           cd $GITHUB_WORKSPACE/target
-          zip -qr jacoco_test_coverage_report_systests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report
+          zip -qr jacoco_test_coverage_report_systests.zip jacoco_test_coverage_report jacoco_inttest_coverage_report || true
 
       - name: Upload Jacoco report files to build artifacts
         uses: actions/upload-artifact@v3
