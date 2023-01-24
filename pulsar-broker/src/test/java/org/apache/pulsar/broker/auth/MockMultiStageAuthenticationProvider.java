@@ -27,7 +27,7 @@ import org.apache.pulsar.common.api.AuthData;
 /**
  * Class that provides the same authentication semantics as the {@link MockAuthenticationProvider} except
  * that this one initializes the {@link MockMultiStageAuthenticationState} class to support testing
- * multi-staged authentication.
+ * multistage authentication.
  */
 public class MockMultiStageAuthenticationProvider extends MockAuthenticationProvider {
 
