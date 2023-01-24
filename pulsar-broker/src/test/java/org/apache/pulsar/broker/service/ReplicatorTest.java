@@ -1520,15 +1520,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
         transaction.commit();
 
-        // wait before evaluating stats for the system topics
+        Assert.assertEquals(consumerFromR2.receive(5, TimeUnit.SECONDS).getValue(),
+                "1".getBytes(StandardCharsets.UTF_8));
+
+        // wait extra 500ms before evaluating stats for the system topics
         Thread.sleep(500L);
 
         Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
         Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
         Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
 
-        Assert.assertEquals(consumerFromR2.receive(5, TimeUnit.SECONDS).getValue(),
-                "1".getBytes(StandardCharsets.UTF_8));
         cleanup();
         setup();
     }
