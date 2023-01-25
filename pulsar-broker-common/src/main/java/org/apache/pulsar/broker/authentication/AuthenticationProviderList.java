@@ -179,6 +179,11 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 providers,
                 provider -> {
                     AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
+                    // This code relied on the implementation detail that newAuthState for AuthenticationProviderToken
+                    // would authenticate the token. In order to maintain that behavior, and to make that behavior
+                    // uniform for all providers, we now call authenticate. As a result, the states array only ever
+                    // has one element. This may not be the intended implementation.
+                    state.authenticate(authData);
                     states.add(state);
                     return state;
                 }
