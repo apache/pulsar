@@ -164,7 +164,7 @@ public class AuthenticationProviderListTest {
     private AuthenticationState newAuthState(String token, String expectedSubject) throws Exception {
         // Must pass the token to the newAuthState for legacy reasons.
         AuthenticationState authState = authProvider.newAuthState(
-                AuthData.of(token.getBytes(UTF_8)),
+            AuthData.of(token.getBytes(UTF_8)),
             null,
             null
         );
