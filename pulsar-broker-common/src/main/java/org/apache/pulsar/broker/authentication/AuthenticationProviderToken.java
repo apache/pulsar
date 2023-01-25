@@ -352,6 +352,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
 
+            // Set this for backwards compatibility with AuthenticationProvider#newHttpAuthState
+            this.authenticationDataSource = new AuthenticationDataHttps(request);
+
             // These are not used when this constructor is invoked, set them to null.
             this.sslSession = null;
             this.remoteAddress = null;
