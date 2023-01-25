@@ -209,5 +209,33 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
         return initSocks5Future;
     }
+
+    CompletableFuture<Channel> initializeClientCnx(Channel ch,
+                                                   InetSocketAddress logicalAddress,
+                                                   InetSocketAddress resolvedPhysicalAddress) {
+        CompletableFuture<Channel> initFuture = new CompletableFuture<>();
+        ch.eventLoop().execute(() -> {
+            final ClientCnx cnx = (ClientCnx) ch.pipeline().get("handler");
+
+            if (cnx == null) {
+                initFuture
+                        .completeExceptionally(new IllegalStateException("Missing ClientCnx. This should not happen."));
+            }
+
+            // Need to do our own equality because the physical address is resolved already
+            if (!(logicalAddress.getHostString().equalsIgnoreCase(resolvedPhysicalAddress.getHostString())
+                    && logicalAddress.getPort() == resolvedPhysicalAddress.getPort())) {
+                // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
+                // it can be specified when sending the CommandConnect.
+                cnx.setTargetBroker(logicalAddress);
+            }
+
+            cnx.setRemoteHostName(resolvedPhysicalAddress.getHostString());
+
+            initFuture.complete(ch);
+        });
+
+        return initFuture;
+    }
 }
 
