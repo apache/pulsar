@@ -351,15 +351,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 AuthenticationProviderToken provider,
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
-            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
-            }
-
-            // Remove prefix
-            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            this.authenticationDataSource = new AuthenticationDataHttps(request);
-            this.checkExpiration(token);
 
             // These are not used when this constructor is invoked, set them to null.
             this.sslSession = null;
