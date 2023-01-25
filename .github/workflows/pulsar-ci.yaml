@@ -78,7 +78,7 @@ jobs:
         run: |
           echo "collect_coverage=${{ 
           (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch' 
-            && (github.base_ref == 'master' || github.ref == 'master')) 
+            && (github.base_ref == 'master' || github.ref_name == 'master')) 
           || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
           }}"  >> $GITHUB_OUTPUT
 
