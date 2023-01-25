@@ -27,14 +27,13 @@ set -o errexit
 JAVA_MAJOR_VERSION="$(java -version 2>&1 |grep " version " | awk -F\" '{ print $2 }' | awk -F. '{ if ($1=="1") { print $2 } else { print $1 } }')"
 # Used to shade run test on Java 8, because the latest TestNG requires Java 11 or higher.
 TESTNG_VERSION="7.3.0"
-COVERAGE_COLLECTED=0
 
 # lists all active maven modules with given parameters
 # parses the modules from the "mvn initialize" output
 # returns a CSV value
 mvn_list_modules() {
   (
-    mvn -B -ntp "$@" initialize \
+    mvn -B -ntp -Dscan=false "$@" initialize \
       | grep -- "-< .* >-" \
       | sed -E 's/.*-< (.*) >-.*/\1/' \
       | tr '\n' ',' | sed 's/,$/\n/'
@@ -85,7 +84,6 @@ mvn_run_integration_test() {
           sudo chmod 0777 /tmp/jacocoDir || chmod 0777 /tmp/jacocoDir
       fi
       coverage_args="-Pcoverage -Dintegrationtest.coverage.enabled=true -Dintegrationtest.coverage.dir=/tmp/jacocoDir"
-      COVERAGE_COLLECTED=1
       shift
   fi
   (
@@ -107,38 +105,6 @@ mvn_run_integration_test() {
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports || true
   fi
   )
-}
-
-# creates a jacoco xml report of the jacoco exec files produced in docker containers which have /tmp/jacocoDir mounted as /jacocoDir
-# this is used to calculate test coverage for the apache/pulsar code that is run inside the containers in integration tests
-# and system tests
-produce_integration_test_coverage_xml_report() {
-  if [[ -d /tmp/jacocoDir && "$OSTYPE" == "linux-gnu"* && -n "$(find /tmp/jacocoDir -name "*.exec" -print -quit)" ]]; then
-    cd "$GITHUB_WORKSPACE"
-    local jacoco_xml_file=tests/integration/target/site/jacoco/jacoco_inttests.xml
-    echo "Creating coverage report to $jacoco_xml_file"
-    local jacoco_version=$(mvn help:evaluate -Dexpression=jacoco-maven-plugin.version -q -DforceStdout)
-    set -x
-    mkdir -p $(dirname $jacoco_xml_file)
-    # install jacococli.jar command line tool
-    if [ ! -f /tmp/jacocoDir/jacococli.jar ]; then
-      curl -sL -o /tmp/jacocoDir/jacococli.jar "https://repo1.maven.org/maven2/org/jacoco/org.jacoco.cli/${jacoco_version}/org.jacoco.cli-${jacoco_version}-nodeps.jar"
-    fi
-    # extract the Pulsar jar files from the docker image that was used to run the tests in the docker containers
-    # the class files used to produce the jacoco exec files are needed in the xml report generation
-    if [ ! -d /tmp/jacocoDir/pulsar_lib ]; then
-      mkdir /tmp/jacocoDir/pulsar_lib
-      docker run --rm -u "$UID:${GID:-"$(id -g)"}" -v /tmp/jacocoDir/pulsar_lib:/pulsar_lib:rw ${PULSAR_TEST_IMAGE_NAME:-apachepulsar/java-test-image:latest} bash -c "cp -p /pulsar/lib/org.apache.pulsar-* /pulsar_lib"
-      # remove jar file that causes duplicate classes issue
-      rm /tmp/jacocoDir/pulsar_lib/org.apache.pulsar-bouncy-castle*
-    fi
-    # produce jacoco XML coverage report from the exec files and using the extracted jar files
-    java -jar /tmp/jacocoDir/jacococli.jar report /tmp/jacocoDir/*.exec \
-      --classfiles /tmp/jacocoDir/pulsar_lib --encoding UTF-8 --name "Pulsar Integration Tests - coverage in containers" \
-      $(find -path "*/src/main/java" -printf "--sourcefiles %P ") \
-      --xml $jacoco_xml_file
-    set +x
-  fi
 }
 
 test_group_shade() {
@@ -266,9 +232,6 @@ echo "Test Group : $TEST_GROUP"
 test_group_function_name="test_group_$(echo "$TEST_GROUP" | tr '[:upper:]' '[:lower:]')"
 if [[ "$(LC_ALL=C type -t "${test_group_function_name}")" == "function" ]]; then
   eval "$test_group_function_name" "$@"
-  if [ $COVERAGE_COLLECTED -eq 1 ]; then
-      produce_integration_test_coverage_xml_report
-  fi
 else
   echo "INVALID TEST GROUP"
   echo "Available test groups:"

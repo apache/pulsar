@@ -57,6 +57,10 @@ runs:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
         verbose: true
+    - name: "Wait 15 seconds before next attempt"
+      if: steps.codecov-upload-1.outcome == 'failure'
+      shell: bash
+      run: sleep 15
     - name: "Upload to Codecov (attempt #2)"
       id: codecov-upload-2
       if: steps.codecov-upload-1.outcome == 'failure'
@@ -66,12 +70,31 @@ runs:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
         verbose: true
+    - name: "Wait 60 seconds before next attempt"
+      if: steps.codecov-upload-2.outcome == 'failure'
+      shell: bash
+      run: sleep 60
     - name: "Upload to Codecov (attempt #3)"
       id: codecov-upload-3
       if: steps.codecov-upload-2.outcome == 'failure'
       uses: codecov/codecov-action@v3
-      continue-on-error: true
+      # fail on last attempt
+      continue-on-error: false
       with:
         flags: ${{ inputs.flags }}
         fail_ci_if_error: true
         verbose: true
+    - name: "Show link to Codecov report"
+      shell: bash
+      run: |
+        if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+          head_sha=$(jq -r '.pull_request.head.sha' "${GITHUB_EVENT_PATH}")
+        else
+          head_sha=$(git rev-parse HEAD)
+        fi
+        tee -a "$GITHUB_STEP_SUMMARY" <<EOF
+        ## Code Coverage report in Codecov
+        
+        [Code coverage report](https://app.codecov.io/github/$GITHUB_REPOSITORY/commit/${head_sha}/tree)
+        
+        EOF

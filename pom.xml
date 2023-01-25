@@ -26,7 +26,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>23</version>
+    <version>29</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
@@ -113,6 +113,8 @@ flexible messaging model and an intuitive client API.</description>
     <testJacocoAgentArgument/>
     <integrationtest.coverage.enabled>false</integrationtest.coverage.enabled>
     <integrationtest.coverage.dir>${project.build.directory}</integrationtest.coverage.dir>
+    <!-- skip jacoco report by default since it's not a proper aggregate report -->
+    <jacoco.report.skip>true</jacoco.report.skip>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
     <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
@@ -267,12 +269,12 @@ flexible messaging model and an intuitive client API.</description>
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
     <surefire.version>3.0.0-M3</surefire.version>
-    <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
+    <maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+    <maven-dependency-plugin.version>3.4.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.4.0</maven-shade-plugin>
-    <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
+    <maven-shade-plugin>3.4.1</maven-shade-plugin>
+    <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
     <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
     <nifi-nar-maven-plugin.version>1.3.4</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
@@ -280,8 +282,8 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
-    <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
-    <spotbugs.version>4.2.2</spotbugs.version>
+    <spotbugs-maven-plugin.version>4.7.3.0</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.7.3</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
@@ -1959,14 +1961,28 @@ flexible messaging model and an intuitive client API.</description>
             </configuration>
             <executions>
               <execution>
-                <id>pre-unit-test</id>
+                <id>prepare-agent</id>
                 <goals>
                   <goal>prepare-agent</goal>
                 </goals>
+                <configuration>
+                  <!-- use unique jacoco exec files for every forked test process -->
+                  <destFile>${project.build.directory}/jacoco_${maven.build.timestamp}_${surefire.forkNumber}.exec</destFile>
+                  <append>true</append>
+                  <includes>
+                    <include>org.apache.pulsar.*</include>
+                    <include>org.apache.bookkeeper.mledger.*</include>
+                  </includes>
+                  <excludes>
+                    <exclude>*.proto.*</exclude>
+                    <exclude>*.shade.*</exclude>
+                    <exclude>*.shaded.*</exclude>
+                  </excludes>
+                </configuration>
               </execution>
               <execution>
-                <id>post-test</id>
-                <phase>test</phase>
+                <id>report</id>
+                <phase>verify</phase>
                 <goals>
                   <goal>report</goal>
                 </goals>
@@ -1974,6 +1990,7 @@ flexible messaging model and an intuitive client API.</description>
                   <excludes>
                     <exclude>META-INF/**</exclude>
                   </excludes>
+                  <skip>${jacoco.report.skip}</skip>
                 </configuration>
               </execution>
             </executions>
