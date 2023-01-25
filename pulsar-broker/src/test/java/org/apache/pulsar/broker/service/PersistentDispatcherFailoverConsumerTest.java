@@ -98,7 +98,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+        ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("pulsar-cluster");
