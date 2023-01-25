@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
 import javax.naming.AuthenticationException;
+import javax.servlet.AsyncContext;
+import javax.servlet.AsyncEvent;
+import javax.servlet.AsyncListener;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -52,20 +55,69 @@ public class AuthenticationFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
+        if (request.getAttribute(AuthenticatedRoleAttributeName) != null) {
+            chain.doFilter(request, response);
+            return;
+        }
+        AsyncContext asyncContext = request.startAsync();
+        asyncContext.addListener(new AsyncListener() {
+            @Override
+            public void onComplete(AsyncEvent event) throws IOException {
+                try {
+                    chain.doFilter(event.getSuppliedRequest(), event.getSuppliedResponse());
+                } catch (ServletException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            @Override
+            public void onTimeout(AsyncEvent event) throws IOException {
+
+            }
+
+            @Override
+            public void onError(AsyncEvent event) throws IOException {
+
+            }
+
+            @Override
+            public void onStartAsync(AsyncEvent event) throws IOException {
+
+            }
+        });
+        authenticationService
+                .authenticateHttpRequestAsync((HttpServletRequest) request, (HttpServletResponse) response)
+                .whenComplete((doFilter, throwable) -> {
+                    if (throwable != null) {
+                        try {
+                            HttpServletResponse httpResponse = (HttpServletResponse) asyncContext.getResponse();
+                            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
+                            if (throwable instanceof AuthenticationException) {
+                                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(),
+                                        throwable.getMessage());
+                            } else {
+                                LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(),
+                                        throwable);
+                            }
+                        } catch (IOException e) {
+                            LOG.error("Error while responding to HTTP request", e);
+                        } finally {
+                            asyncContext.complete();
+                        }
+                    } else {
+                        asyncContext.getRequest().setAttribute("do_filter", doFilter);
+                        asyncContext.complete();
+                    }
+                });
+    }
+
+    private void runFilter(FilterChain chain, AsyncContext asyncContext) {
         try {
-            boolean doFilter = authenticationService
-                    .authenticateHttpRequest((HttpServletRequest) request, (HttpServletResponse) response);
-            if (doFilter) {
-                chain.doFilter(request, response);
-            }
-        } catch (Exception e) {
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-            httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
-            if (e instanceof AuthenticationException) {
-                LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
-            } else {
-                LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
-            }
+            chain.doFilter(asyncContext.getRequest(), asyncContext.getResponse());
+        } catch (IOException | ServletException e) {
+            LOG.error("Error in HTTP filtering", e);
+        } finally {
+            asyncContext.complete();
         }
     }
 

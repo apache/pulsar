@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
@@ -102,56 +103,60 @@ public class AuthenticationService implements Closeable {
         return providerToUse;
     }
 
-    public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
-            throws Exception {
+    /**
+     *
+     * @param request
+     * @param response
+     * @return
+     */
+    public CompletableFuture<Boolean> authenticateHttpRequestAsync(HttpServletRequest request,
+                                                                   HttpServletResponse response) {
         String authMethodName = getAuthMethodName(request);
+        authMethodName = authMethodName == null ? "BasicAuthentication" : authMethodName;
         if (authMethodName == null
                 && SaslConstants.SASL_TYPE_VALUE.equalsIgnoreCase(request.getHeader(SaslConstants.SASL_HEADER_TYPE))) {
             // This edge case must be handled because the Pulsar SASL implementation does not add the
             // X-Pulsar-Auth-Method-Name header.
             authMethodName = SaslConstants.AUTH_METHOD_NAME;
         }
-        if (authMethodName != null) {
-            AuthenticationProvider providerToUse = getAuthProvider(authMethodName);
-            try {
-                return providerToUse.authenticateHttpRequest(request, response);
-            } catch (AuthenticationException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
-                }
-                throw e;
+//        if (authMethodName != null) {
+            AuthenticationProvider providerToUse = providers.get(authMethodName);
+            if (providerToUse == null) {
+                return CompletableFuture.failedFuture(new AuthenticationException(
+                        String.format("Unsupported authentication method: [%s].", authMethodName)));
             }
-        } else {
-            for (AuthenticationProvider provider : providers.values()) {
-                try {
-                    return provider.authenticateHttpRequest(request, response);
-                } catch (AuthenticationException e) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
-                                + e.getMessage(), e);
-                    }
-                    // Ignore the exception because we don't know which authentication method is expected here.
-                }
-            }
-            // No authentication provided
-            if (!providers.isEmpty()) {
-                if (StringUtils.isNotBlank(anonymousUserRole)) {
-                    request.setAttribute(AuthenticatedRoleAttributeName, anonymousUserRole);
-                    request.setAttribute(AuthenticatedDataAttributeName, new AuthenticationDataHttps(request));
-                    return true;
-                }
-                // If at least a provider was configured, then the authentication needs to be provider
-                throw new AuthenticationException("Authentication required");
-            } else {
-                // No authentication required
-                return true;
-            }
-        }
+            return providerToUse.authenticateHttpRequestAsync(request, response);
+            // todo how to handle exceptional case?
+//        } else {
+//            for (AuthenticationProvider provider : providers.values()) {
+//                try {
+//                    return provider.authenticateHttpRequest(request, response);
+//                } catch (AuthenticationException e) {
+//                    if (LOG.isDebugEnabled()) {
+//                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
+//                                + e.getMessage(), e);
+//                    }
+//                    // Ignore the exception because we don't know which authentication method is expected here.
+//                }
+//            }
+//            // No authentication provided
+//            if (!providers.isEmpty()) {
+//                if (StringUtils.isNotBlank(anonymousUserRole)) {
+//                    request.setAttribute(AuthenticatedRoleAttributeName, anonymousUserRole);
+//                    request.setAttribute(AuthenticatedDataAttributeName, new AuthenticationDataHttps(request));
+//                    return true;
+//                }
+//                // If at least a provider was configured, then the authentication needs to be provider
+//                throw new AuthenticationException("Authentication required");
+//            } else {
+//                // No authentication required
+//                return true;
+//            }
+//        }
     }
 
     /**
-     * @deprecated use {@link #authenticateHttpRequest(HttpServletRequest, HttpServletResponse)}
+     * @deprecated use {@link #authenticateHttpRequestAsync(HttpServletRequest, HttpServletResponse)}
      */
     @Deprecated(since = "2.12.0")
     public String authenticateHttpRequest(HttpServletRequest request, AuthenticationDataSource authData)
@@ -159,7 +164,11 @@ public class AuthenticationService implements Closeable {
         String authMethodName = getAuthMethodName(request);
 
         if (authMethodName != null) {
-            AuthenticationProvider providerToUse = getAuthProvider(authMethodName);
+            AuthenticationProvider providerToUse = providers.get(authMethodName);
+            if (providerToUse == null) {
+                throw new AuthenticationException(
+                        String.format("Unsupported authentication method: [%s].", authMethodName));
+            }
             try {
                 if (authData == null) {
                     AuthenticationState authenticationState = providerToUse.newHttpAuthState(request);
@@ -205,7 +214,7 @@ public class AuthenticationService implements Closeable {
     /**
      * Mark this function as deprecated, it is recommended to use a method with the AuthenticationDataSource
      * signature to implement it.
-     * @deprecated use {@link #authenticateHttpRequest(HttpServletRequest, HttpServletResponse)}.
+     * @deprecated use {@link #authenticateHttpRequestAsync(HttpServletRequest, HttpServletResponse)}.
      */
     @Deprecated
     public String authenticateHttpRequest(HttpServletRequest request) throws AuthenticationException {

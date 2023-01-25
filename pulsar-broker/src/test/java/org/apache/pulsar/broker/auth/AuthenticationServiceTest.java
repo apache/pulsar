@@ -102,7 +102,7 @@ public class AuthenticationServiceTest {
         when(request.getRemoteAddr()).thenReturn("192.168.1.1");
         when(request.getRemotePort()).thenReturn(8080);
         when(request.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("auth");
-        boolean doFilter = service.authenticateHttpRequest(request, (HttpServletResponse) null);
+        boolean doFilter = service.authenticateHttpRequestAsync(request, (HttpServletResponse) null).get();
         assertTrue(doFilter, "Authentication should have succeeded");
         verify(request).setAttribute(AuthenticatedRoleAttributeName, s_authentication_success);
         verify(request).setAttribute(eq(AuthenticatedDataAttributeName), any(AuthenticationDataHttps.class));
@@ -122,7 +122,7 @@ public class AuthenticationServiceTest {
         when(requestDefaultAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestDefaultAuthProvider.getRemotePort()).thenReturn(8080);
         when(requestDefaultAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("auth");
-        doFilter = service.authenticateHttpRequest(requestDefaultAuthProvider, (HttpServletResponse) null);
+        doFilter = service.authenticateHttpRequestAsync(requestDefaultAuthProvider, (HttpServletResponse) null).get();
         assertTrue(doFilter, "Authentication should have succeeded");
         verify(requestDefaultAuthProvider).setAttribute(AuthenticatedRoleAttributeName, s_authentication_success);
 
@@ -130,7 +130,7 @@ public class AuthenticationServiceTest {
         when(requestCustomAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestCustomAuthProvider.getRemotePort()).thenReturn(8080);
         when(requestCustomAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("customAuthProvider");
-        doFilter = service.authenticateHttpRequest(requestCustomAuthProvider, (HttpServletResponse) null);
+        doFilter = service.authenticateHttpRequestAsync(requestCustomAuthProvider, (HttpServletResponse) null).get();
         assertTrue(doFilter, "Authentication should have succeeded");
         verify(requestCustomAuthProvider).setAttribute(AuthenticatedRoleAttributeName, s_authentication_success);
 
@@ -139,7 +139,7 @@ public class AuthenticationServiceTest {
         when(requestUnsupportedAuthProvider.getRemotePort()).thenReturn(8080);
         when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("unsupportedAuthProvider");
         Assert.assertThrows(() ->
-                service.authenticateHttpRequest(requestUnsupportedAuthProvider, (HttpServletResponse) null));
+                service.authenticateHttpRequestAsync(requestUnsupportedAuthProvider, (HttpServletResponse) null));
 
         service.close();
     }
@@ -159,7 +159,7 @@ public class AuthenticationServiceTest {
         HttpServletRequest requestCustomAuthProvider = mock(HttpServletRequest.class);
         when(requestCustomAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestCustomAuthProvider.getRemotePort()).thenReturn(8080);
-        doFilter = service.authenticateHttpRequest(requestCustomAuthProvider, (HttpServletResponse) null);
+        doFilter = service.authenticateHttpRequestAsync(requestCustomAuthProvider, (HttpServletResponse) null).get();
         assertTrue(doFilter, "Authentication should have succeeded");
         verify(requestCustomAuthProvider).setAttribute(AuthenticatedRoleAttributeName, anonRole);
 

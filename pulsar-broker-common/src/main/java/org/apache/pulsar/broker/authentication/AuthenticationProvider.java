@@ -26,6 +26,8 @@ import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import javax.servlet.AsyncContext;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -135,8 +137,16 @@ public interface AuthenticationProvider extends Closeable {
      */
     default CompletableFuture<Boolean> authenticateHttpRequestAsync(HttpServletRequest request,
                                                                     HttpServletResponse response) {
+        AsyncContext ctx = request.getAsyncContext();
         try {
-            return CompletableFuture.completedFuture(this.authenticateHttpRequest(request, response));
+            final AuthenticationDataSource authDataSource = newHttpAuthState(request).getAuthDataSource();
+            return authenticateAsync(authDataSource)
+                    .thenApply(role -> {
+                        ServletRequest r = ctx.getRequest();
+                        r.setAttribute(AuthenticatedRoleAttributeName, role);
+                        r.setAttribute(AuthenticatedDataAttributeName, authDataSource);
+                        return true;
+                    });
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
