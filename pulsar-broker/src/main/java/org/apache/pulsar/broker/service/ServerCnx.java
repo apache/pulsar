@@ -2777,7 +2777,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      * consumers from connection-map.
      */
     protected void close() {
-        ctx.close();
+        if (ctx != null) {
+            ctx.close();
+        }
     }
 
     @Override
