@@ -2435,7 +2435,7 @@ flexible messaging model and an intuitive client API.</description>
     <repository>
       <id>zk-staging</id>
       <name>zk-staging</name>
-      <url>https://repository.apache.org/content/repositories/orgapachezookeeper-1085/</url>
+      <url>https://repository.apache.org/content/repositories/orgapachezookeeper-1088/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>
