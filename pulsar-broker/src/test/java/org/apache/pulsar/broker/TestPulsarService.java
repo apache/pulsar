@@ -22,13 +22,16 @@ package org.apache.pulsar.broker;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -37,6 +40,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
@@ -49,6 +53,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -168,7 +173,7 @@ public class TestPulsarService extends PulsarService {
                     throw new RuntimeException(e);
                 }
                 if (super.config == null) {
-                    ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+                    ServiceConfiguration svcConfig = new ServiceConfiguration();
                     svcConfig.setBrokerShutdownTimeoutMs(0L);
                     svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
                     svcConfig.setClusterName("pulsar-cluster");
@@ -225,9 +230,9 @@ public class TestPulsarService extends PulsarService {
                         brokerServiceFunction(pulsarService -> {
                             try {
                                 if (!super.useSpies) {
-                                    return new BrokerService(pulsarService, super.eventLoopGroup);
+                                    return new TestBrokerService(pulsarService, super.eventLoopGroup);
                                 } else {
-                                    return spyWithClassAndConstructorArgs(BrokerService.class, pulsarService,
+                                    return spyWithClassAndConstructorArgs(TestBrokerService.class, pulsarService,
                                             super.eventLoopGroup);
                                 }
                             } catch (Exception e) {
@@ -312,6 +317,18 @@ public class TestPulsarService extends PulsarService {
         }
     }
 
+    private static class TestBrokerService extends BrokerService {
+
+        TestBrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
+            super(pulsar, eventLoopGroup);
+        }
+
+        @Override
+        protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
+            return CompletableFuture.completedFuture(Collections.emptyMap());
+        }
+    }
+
     private final MetadataStoreExtended localMetadataStore;
     private final MetadataStoreExtended configurationMetadataStore;
     private final PulsarResources pulsarResources;
@@ -325,6 +342,8 @@ public class TestPulsarService extends PulsarService {
     private final SchemaRegistryService schemaRegistryService;
 
     private final PulsarClient pulsarClient;
+
+    private final NamespaceService namespaceService;
 
     protected TestPulsarService(ServiceConfiguration config, MetadataStoreExtended localMetadataStore,
                                 MetadataStoreExtended configurationMetadataStore, PulsarResources pulsarResources,
@@ -341,6 +360,18 @@ public class TestPulsarService extends PulsarService {
         this.compactor = compactor;
         this.schemaRegistryService = spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class);
         this.pulsarClient = mock(PulsarClientImpl.class);
+        this.namespaceService = mock(NamespaceService.class);
+        try {
+            startNamespaceService();
+        } catch (PulsarServerException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    @Override
+    public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
+        return () -> namespaceService;
     }
 
     @Override
