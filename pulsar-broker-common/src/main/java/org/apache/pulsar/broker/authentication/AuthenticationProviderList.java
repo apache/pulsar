@@ -174,22 +174,17 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
         AuthenticationException authenticationException = null;
-        try {
-            applyAuthProcessor(
-                providers,
-                provider -> {
-                    AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
-                    // This code relied on the implementation detail that newAuthState for AuthenticationProviderToken
-                    // would authenticate the token. In order to maintain that behavior, and to make that behavior
-                    // uniform for all providers, we now call authenticate. As a result, the states array only ever
-                    // has one element. This may not be the intended implementation.
-                    state.authenticate(authData);
-                    states.add(state);
-                    return state;
+        for (AuthenticationProvider provider : providers) {
+            try {
+                AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
+                states.add(state);
+            } catch (AuthenticationException ae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
                 }
-            );
-        } catch (AuthenticationException ae) {
-            authenticationException = ae;
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = ae;
+            }
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
@@ -208,17 +203,17 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
         AuthenticationException authenticationException = null;
-        try {
-            applyAuthProcessor(
-                    providers,
-                    provider -> {
-                        AuthenticationState state = provider.newHttpAuthState(request);
-                        states.add(state);
-                        return state;
-                    }
-            );
-        } catch (AuthenticationException ae) {
-            authenticationException = ae;
+        for (AuthenticationProvider provider : providers) {
+            try {
+                AuthenticationState state = provider.newHttpAuthState(request);
+                states.add(state);
+            } catch (AuthenticationException ae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
+                }
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = ae;
+            }
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new http auth state from {}",
