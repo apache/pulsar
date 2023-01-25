@@ -361,7 +361,8 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Attempt to establish a TCP connection to an already resolved single IP address.
      */
-    private CompletableFuture<Channel> connectToAddress(InetSocketAddress logicalAddress, InetSocketAddress physicalAddress, InetSocketAddress sniHost) {
+    private CompletableFuture<Channel> connectToAddress(InetSocketAddress logicalAddress,
+                                                        InetSocketAddress physicalAddress, InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channel -> channelInitializerHandler
