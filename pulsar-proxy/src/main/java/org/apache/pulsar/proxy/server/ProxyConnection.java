@@ -421,27 +421,15 @@ public class ProxyConnection extends PulsarHandler {
     // According to auth result, send newConnected or newAuthChallenge command.
     private void doAuthentication(AuthData clientData)
             throws Exception {
-        CompletableFuture<AuthData> authChallengeFuture = authState.authenticateAsync(clientData);
-        if (authChallengeFuture.isDone()) {
-            if (!authChallengeFuture.isCompletedExceptionally()) {
-                authChallengeSuccessCallback(authChallengeFuture.get());
-            } else {
-                try {
-                    authChallengeFuture.get();
-                } catch (ExecutionException e) {
-                    authenticationFailedCallback(e.getCause());
-                }
-            }
-        } else {
-            state = State.Connecting;
-            authChallengeFuture.whenCompleteAsync((authChallenge, throwable) -> {
-                if (throwable == null) {
-                    authChallengeSuccessCallback(authChallenge);
-                } else {
-                    authenticationFailedCallback(throwable);
-                }
-            }, ctx.executor());
-        }
+        state = State.Connecting;
+        authState
+                .authenticateAsync(clientData)
+                .whenCompleteAsync((authChallenge, throwable) -> {
+                    if (throwable == null) {
+                        authChallengeSuccessCallback(authChallenge);
+                    } else {
+                        authenticationFailedCallback(throwable);
+                    }}, ctx.executor());
     }
 
     protected void authenticationFailedCallback(Throwable t) {
