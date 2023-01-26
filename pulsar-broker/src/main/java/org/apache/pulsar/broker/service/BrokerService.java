@@ -2156,9 +2156,7 @@ public class BrokerService implements Closeable {
             TopicName topicName = TopicName.get(topic);
             if (serviceUnit.includes(topicName) && getTopicReference(topic).isPresent()) {
                 log.info("[{}][{}] Clean unloaded topic from cache.", serviceUnit.toString(), topic);
-                topicEventsDispatcher.notify(topicName.toString(), TopicEvent.UNLOAD, EventStage.BEFORE);
                 pulsar.getBrokerService().removeTopicFromCache(topicName.toString(), serviceUnit, null);
-                topicEventsDispatcher.notify(topicName.toString(), TopicEvent.UNLOAD, EventStage.SUCCESS);
             }
         }
     }
@@ -2211,9 +2209,7 @@ public class BrokerService implements Closeable {
         TopicName topicName = TopicName.get(topic);
         return pulsar.getNamespaceService().getBundleAsync(topicName)
                 .thenAccept(namespaceBundle -> {
-                    topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
                     removeTopicFromCache(topic, namespaceBundle, createTopicFuture);
-                    topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
                 });
     }
 
@@ -2221,6 +2217,8 @@ public class BrokerService implements Closeable {
                                      CompletableFuture<Optional<Topic>> createTopicFuture) {
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
+
+        topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
 
         synchronized (multiLayerTopicsMap) {
             ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
@@ -2256,6 +2254,7 @@ public class BrokerService implements Closeable {
         if (compactor != null) {
             compactor.getStats().removeTopic(topic);
         }
+        topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
     }
 
     public int getNumberOfNamespaceBundles() {
