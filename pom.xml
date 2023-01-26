@@ -1442,42 +1442,6 @@ flexible messaging model and an intuitive client API.</description>
         </exclusion>
       </exclusions>
     </dependency>
-
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-sasl-digest</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-sasl-external</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-sasl-gs2</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-sasl-oauth2</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-sasl-plain</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-sasl-scram</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.wildfly.security</groupId>
-      <artifactId>wildfly-elytron-password-impl</artifactId>
-      <version>${wildfly-elytron.version}</version>
-    </dependency>
   </dependencies>
 
   <build>
