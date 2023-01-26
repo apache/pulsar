@@ -92,8 +92,6 @@ public class TestPulsarService extends PulsarService {
 
         private final ManagedLedgerStorage managedLedgerClientFactory;
 
-        private final Function<PulsarService, BrokerService> brokerServiceFunction;
-
         private final boolean useSpies;
 
         private final PulsarService pulsarService;
@@ -145,6 +143,7 @@ public class TestPulsarService extends PulsarService {
         public static class FactoryBuilder {
             protected boolean useTestPulsarResources = false;
             protected MetadataStore pulsarResourcesMetadataStore;
+            protected Function<PulsarService, BrokerService> brokerServiceFunction;
 
             public FactoryBuilder useTestPulsarResources() {
                 useTestPulsarResources = true;
@@ -161,6 +160,12 @@ public class TestPulsarService extends PulsarService {
                                                        ManagedLedgerFactory managedLedgerFactory) {
                 return managedLedgerClientFactory(
                         Factory.createManagedLedgerClientFactory(bookKeeperClient, managedLedgerFactory));
+            }
+
+            public FactoryBuilder brokerServiceFunction(
+                    Function<PulsarService, BrokerService> brokerServiceFunction) {
+                this.brokerServiceFunction = brokerServiceFunction;
+                return this;
             }
         }
 
