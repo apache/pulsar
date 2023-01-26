@@ -188,6 +188,8 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <!-- Override version that brings CVE-2022-3143 with debezium -->
+    <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop2.version>2.10.2</hadoop2.version>
@@ -1439,6 +1441,42 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-sasl-digest</artifactId>
+      <version>${wildfly-elytron.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-sasl-external</artifactId>
+      <version>${wildfly-elytron.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-sasl-gs2</artifactId>
+      <version>${wildfly-elytron.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-sasl-oauth2</artifactId>
+      <version>${wildfly-elytron.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-sasl-plain</artifactId>
+      <version>${wildfly-elytron.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-sasl-scram</artifactId>
+      <version>${wildfly-elytron.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.wildfly.security</groupId>
+      <artifactId>wildfly-elytron-password-impl</artifactId>
+      <version>${wildfly-elytron.version}</version>
     </dependency>
   </dependencies>
 
