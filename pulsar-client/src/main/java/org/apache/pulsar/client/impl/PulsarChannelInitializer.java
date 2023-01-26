@@ -43,6 +43,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
 @Slf4j
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -213,13 +214,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     CompletableFuture<Channel> initializeClientCnx(Channel ch,
                                                    InetSocketAddress logicalAddress,
                                                    InetSocketAddress resolvedPhysicalAddress) {
-        CompletableFuture<Channel> initFuture = new CompletableFuture<>();
-        ch.eventLoop().execute(() -> {
+        return NettyFutureUtil.toCompletableFuture(ch.eventLoop().submit(() -> {
             final ClientCnx cnx = (ClientCnx) ch.pipeline().get("handler");
 
             if (cnx == null) {
-                initFuture
-                        .completeExceptionally(new IllegalStateException("Missing ClientCnx. This should not happen."));
+                throw new IllegalStateException("Missing ClientCnx. This should not happen.");
             }
 
             // Need to do our own equality because the physical address is resolved already
@@ -232,10 +231,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
             cnx.setRemoteHostName(resolvedPhysicalAddress.getHostString());
 
-            initFuture.complete(ch);
-        });
-
-        return initFuture;
+            return ch;
+        }));
     }
 }
 
