@@ -421,7 +421,6 @@ public class ProxyConnection extends PulsarHandler {
     // According to auth result, send newConnected or newAuthChallenge command.
     private void doAuthentication(AuthData clientData)
             throws Exception {
-        state = State.Connecting;
         authState
                 .authenticateAsync(clientData)
                 .whenCompleteAsync((authChallenge, throwable) -> {
@@ -464,7 +463,6 @@ public class ProxyConnection extends PulsarHandler {
                 LOG.debug("[{}] Authentication in progress client by method {}.",
                         remoteAddress, authMethod);
             }
-            state = State.Connecting;
         } catch (Exception e) {
             authenticationFailedCallback(e);
         }
@@ -473,6 +471,7 @@ public class ProxyConnection extends PulsarHandler {
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Init);
+        state = State.Connecting;
         this.setRemoteEndpointProtocolVersion(connect.getProtocolVersion());
         this.hasProxyToBrokerUrl = connect.hasProxyToBrokerUrl();
         this.protocolVersionToAdvertise = getProtocolVersionToAdvertise(connect);
