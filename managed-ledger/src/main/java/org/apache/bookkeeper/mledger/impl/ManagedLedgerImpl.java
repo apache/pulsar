@@ -3662,7 +3662,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void activateCursor(ManagedCursor cursor) {
         synchronized (activeCursors) {
-            if (!cursor.isActive()) {
+            if (!isCursorActive(cursor)) {
                 Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
                         ? cursor.getMarkDeletedPosition()
                         : cursor.getReadPosition();
