@@ -27,15 +27,20 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Singular;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.stats.NullStatsProvider;
@@ -50,7 +55,6 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
-import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
@@ -68,9 +72,11 @@ import org.jetbrains.annotations.NotNull;
  * This was written as a replacement for the previous Mockito Spy over PulsarService solution which caused
  * a flaky test issue https://github.com/apache/pulsar/issues/13620.
  */
+
 public class TestPulsarService extends PulsarService {
 
 
+    @Slf4j
     @ToString
     @Getter
     @Builder
@@ -86,8 +92,6 @@ public class TestPulsarService extends PulsarService {
 
         private final ManagedLedgerStorage managedLedgerClientFactory;
 
-        private final Function<PulsarService, BrokerService> brokerServiceFunction;
-
         private final boolean useSpies;
 
         private final PulsarService pulsarService;
@@ -95,6 +99,10 @@ public class TestPulsarService extends PulsarService {
         private final Compactor compactor;
 
         private final BrokerService brokerService;
+
+        @Getter(AccessLevel.NONE)
+        @Singular
+        private final List<AutoCloseable> cleanupFunctions;
 
         public ManagedLedgerFactory getManagedLedgerFactory() {
             return managedLedgerClientFactory.getManagedLedgerFactory();
@@ -118,6 +126,13 @@ public class TestPulsarService extends PulsarService {
             } else {
                 localMetadataStore.close();
             }
+            for (AutoCloseable cleanup : cleanupFunctions) {
+                try {
+                    cleanup.close();
+                } catch (Exception e) {
+                    log.error("Failure in calling cleanup function", e);
+                }
+            }
         }
 
         public ServerCnx createServerCnxSpy() {
@@ -128,6 +143,7 @@ public class TestPulsarService extends PulsarService {
         public static class FactoryBuilder {
             protected boolean useTestPulsarResources = false;
             protected MetadataStore pulsarResourcesMetadataStore;
+            protected Function<PulsarService, BrokerService> brokerServiceFunction;
 
             public FactoryBuilder useTestPulsarResources() {
                 useTestPulsarResources = true;
@@ -144,6 +160,12 @@ public class TestPulsarService extends PulsarService {
                                                        ManagedLedgerFactory managedLedgerFactory) {
                 return managedLedgerClientFactory(
                         Factory.createManagedLedgerClientFactory(bookKeeperClient, managedLedgerFactory));
+            }
+
+            public FactoryBuilder brokerServiceFunction(
+                    Function<PulsarService, BrokerService> brokerServiceFunction) {
+                this.brokerServiceFunction = brokerServiceFunction;
+                return this;
             }
         }
 
@@ -162,8 +184,14 @@ public class TestPulsarService extends PulsarService {
                             super.executor = OrderedExecutor.newBuilder().numThreads(1)
                                     .name(TestPulsarService.class.getSimpleName() + "-executor").build();
                         }
-                        TransactionTestBase.NonClosableMockBookKeeper mockBookKeeper =
-                                TransactionTestBase.createMockBookKeeper(super.executor);
+                        NonClosableMockBookKeeper mockBookKeeper;
+                        if (super.useSpies) {
+                            mockBookKeeper =
+                                    spyWithClassAndConstructorArgs(NonClosableMockBookKeeper.class, super.executor);
+                        } else {
+                            mockBookKeeper = new NonClosableMockBookKeeper(super.executor);
+                        }
+                        cleanupFunction(() -> mockBookKeeper.reallyShutdown());
                         ManagedLedgerFactory mlFactoryMock = mock(ManagedLedgerFactory.class);
 
                         managedLedgerClientFactory(
@@ -326,6 +354,28 @@ public class TestPulsarService extends PulsarService {
         @Override
         protected CompletableFuture<Map<String, String>> fetchTopicPropertiesAsync(TopicName topicName) {
             return CompletableFuture.completedFuture(Collections.emptyMap());
+        }
+    }
+
+    // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
+    private static class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
+
+        public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+            super(executor);
+        }
+
+        @Override
+        public void close() {
+            // no-op
+        }
+
+        @Override
+        public void shutdown() {
+            // no-op
+        }
+
+        public void reallyShutdown() {
+            super.shutdown();
         }
     }
 
