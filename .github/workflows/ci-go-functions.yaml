@@ -1,0 +1,110 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: CI - Go Functions
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/**'
+      - 'pulsar-function-go/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: -Xss1500k -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+
+jobs:
+  preconditions:
+    name: Preconditions
+    runs-on: ubuntu-20.04
+    outputs:
+      docs_only: ${{ steps.check_changes.outputs.docs_only }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+
+      - name: Detect changed files
+        id: changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+          list-files: csv
+
+      - name: Check changed files
+        id: check_changes
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" ]]; then
+            echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
+          else
+            echo docs_only=false >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if the PR has been approved for testing
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        env:
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          build/pulsar_ci_tool.sh check_ready_to_test
+
+  check-style:
+    needs: preconditions
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    name: Go ${{ matrix.go-version }} Functions style check
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        go-version: [1.15, 1.16, 1.17]
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v3
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+        id: go
+
+      - name: InstallTool
+        run: |
+          cd pulsar-function-go
+          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.18.0
+          ./bin/golangci-lint --version
+
+      - name: Build
+        run: |
+          cd pulsar-function-go
+          export GO111MODULE=on
+          go build ./...
+
+      - name: Test
+        run: |
+          cd pulsar-function-go
+          export GO111MODULE=on
+          ./bin/golangci-lint run -c ./golangci.yml ./pf
+          go test -v $(go list ./... | grep -v examples)

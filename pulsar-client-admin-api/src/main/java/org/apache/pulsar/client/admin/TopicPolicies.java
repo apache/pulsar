@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,9 +22,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -1763,4 +1765,152 @@ public interface TopicPolicies {
      * @param topic The topic in whose policy should be removed
      */
     CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic);
+
+    /**
+     * Get applied entry filters for a topic.
+     * @param topic
+     * @param applied
+     * @return entry filters classes info.
+     * @throws PulsarAdminException
+     */
+    EntryFilters getEntryFiltersPerTopic(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied entry filters for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<EntryFilters> getEntryFiltersPerTopicAsync(String topic, boolean applied);
+
+    /**
+     * Set entry filters on a topic.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters) throws PulsarAdminException;
+
+    /**
+     * Set entry filters on a topic asynchronously.
+     *
+     * @param topic    The topic in whose policy should be set
+     * @param entryFilters The entry filters
+     */
+    CompletableFuture<Void> setEntryFiltersPerTopicAsync(String topic, EntryFilters entryFilters);
+
+    /**
+     * remove entry filters of a topic.
+     * @param topic
+     * @throws PulsarAdminException
+     */
+    void removeEntryFiltersPerTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * remove entry filters of a topic asynchronously.
+     * @param topic
+     * @return
+     */
+    CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic);
+
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the namespace level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     *
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Topic does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setAutoSubscriptionCreation(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+            throws PulsarAdminException;
+
+    /**
+     * Sets the autoSubscriptionCreation policy for a given topic, overriding namespace settings asynchronously.
+     * <p/>
+     * When autoSubscriptionCreationOverride is enabled, new subscriptions will be created upon connection,
+     * regardless of the namespace level configuration.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>
+     *  {
+     *      "allowAutoSubscriptionCreation" : true
+     *  }
+     * </code>
+     * </pre>
+     *
+     * @param topic
+     *            Topic name
+     * @param autoSubscriptionCreationOverride
+     *            Override policies for auto subscription creation
+     */
+    CompletableFuture<Void> setAutoSubscriptionCreationAsync(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride);
+
+    /**
+     * Get the autoSubscriptionCreation info within a topic.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     * @throws PulsarAdminException
+     */
+    AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
+                                                                 boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get the autoSubscriptionCreation info within a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return
+     */
+    CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String topic, boolean applied);
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given topic.
+     *
+     * @param topic
+     *            Topic name
+     *
+     * @throws PulsarAdminException.NotAuthorizedException
+     *             Don't have admin permission
+     * @throws PulsarAdminException.NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeAutoSubscriptionCreation(String topic) throws PulsarAdminException;
+
+    /**
+     * Removes the autoSubscriptionCreation policy for a given topic asynchronously.
+     *
+     * @param topic
+     *            Topic name
+     */
+    CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic);
 }

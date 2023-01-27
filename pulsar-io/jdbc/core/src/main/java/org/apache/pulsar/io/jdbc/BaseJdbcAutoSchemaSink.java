@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.jdbc;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,6 +48,11 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
     }
 
     @Override
+    public List<ColumnId> getColumnsForUpsert() {
+        throw new IllegalStateException("UPSERT not supported");
+    }
+
+    @Override
     public void bindValue(PreparedStatement statement, Mutation mutation) throws Exception {
         final List<ColumnId> columns = new ArrayList<>();
         switch (mutation.getType()) {
@@ -56,8 +60,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                 columns.addAll(tableDefinition.getColumns());
                 break;
             case UPSERT:
-                columns.addAll(tableDefinition.getColumns());
-                columns.addAll(tableDefinition.getNonKeyColumns());
+                columns.addAll(getColumnsForUpsert());
                 break;
             case UPDATE:
                 columns.addAll(tableDefinition.getNonKeyColumns());

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import static org.testng.Assert.assertFalse;
@@ -29,6 +28,7 @@ import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -40,7 +40,6 @@ import javax.security.auth.login.Configuration;
 import com.google.common.collect.ImmutableSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
-import org.apache.curator.shaded.com.google.common.collect.Maps;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -141,7 +140,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         Configuration.getConfiguration().refresh();
 
         // Client config
-        Map<String, String> clientSaslConfig = Maps.newHashMap();
+        Map<String, String> clientSaslConfig = new HashMap<>();
         clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
         clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
@@ -192,7 +191,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
-        Map<String, String> clientSaslConfig = Maps.newHashMap();
+        Map<String, String> clientSaslConfig = new HashMap<>();
         clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
         clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");

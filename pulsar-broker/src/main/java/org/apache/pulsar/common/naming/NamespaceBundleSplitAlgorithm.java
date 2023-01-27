@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,14 +30,16 @@ public interface NamespaceBundleSplitAlgorithm {
     String RANGE_EQUALLY_DIVIDE_NAME = "range_equally_divide";
     String TOPIC_COUNT_EQUALLY_DIVIDE = "topic_count_equally_divide";
     String SPECIFIED_POSITIONS_DIVIDE = "specified_positions_divide";
+    String FLOW_OR_QPS_EQUALLY_DIVIDE = "flow_or_qps_equally_divide";
 
     List<String> AVAILABLE_ALGORITHMS = Lists.newArrayList(RANGE_EQUALLY_DIVIDE_NAME,
-            TOPIC_COUNT_EQUALLY_DIVIDE, SPECIFIED_POSITIONS_DIVIDE);
+            TOPIC_COUNT_EQUALLY_DIVIDE, SPECIFIED_POSITIONS_DIVIDE, FLOW_OR_QPS_EQUALLY_DIVIDE);
 
     NamespaceBundleSplitAlgorithm RANGE_EQUALLY_DIVIDE_ALGO = new RangeEquallyDivideBundleSplitAlgorithm();
     NamespaceBundleSplitAlgorithm TOPIC_COUNT_EQUALLY_DIVIDE_ALGO = new TopicCountEquallyDivideBundleSplitAlgorithm();
     NamespaceBundleSplitAlgorithm SPECIFIED_POSITIONS_DIVIDE_ALGO =
             new SpecifiedPositionsBundleSplitAlgorithm();
+    NamespaceBundleSplitAlgorithm FLOW_OR_QPS_EQUALLY_DIVIDE_ALGO = new FlowOrQpsEquallyDivideBundleSplitAlgorithm();
 
     static NamespaceBundleSplitAlgorithm of(String algorithmName) {
         if (algorithmName == null) {
@@ -50,6 +52,8 @@ public interface NamespaceBundleSplitAlgorithm {
                 return TOPIC_COUNT_EQUALLY_DIVIDE_ALGO;
             case SPECIFIED_POSITIONS_DIVIDE:
                 return SPECIFIED_POSITIONS_DIVIDE_ALGO;
+            case FLOW_OR_QPS_EQUALLY_DIVIDE:
+                return FLOW_OR_QPS_EQUALLY_DIVIDE_ALGO;
             default:
                 return null;
         }

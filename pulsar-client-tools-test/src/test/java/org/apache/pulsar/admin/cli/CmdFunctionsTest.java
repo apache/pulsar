@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -857,6 +857,44 @@ public class CmdFunctionsTest {
         UpdateOptionsImpl updateOptions = new UpdateOptionsImpl();
         updateOptions.setUpdateAuthData(true);
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(updateOptions));
+    }
+
+    @Test
+    public void testDownloadFunction() throws Exception {
+        cmd.run(new String[] {
+                "download",
+                "--destination-file", JAR_NAME,
+                "--name", FN_NAME,
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE
+        });
+        verify(functions, times(1))
+                .downloadFunction(JAR_NAME, TENANT, NAMESPACE, FN_NAME, false);
+    }
+
+    @Test
+    public void testDownloadFunctionByPath() throws Exception {
+        cmd.run(new String[] {
+                "download",
+                "--destination-file", JAR_NAME,
+                "--path", PACKAGE_URL
+        });
+        verify(functions, times(1))
+                .downloadFunction(JAR_NAME, PACKAGE_URL);
+    }
+
+    @Test
+    public void testDownloadTransformFunction() throws Exception {
+        cmd.run(new String[] {
+                "download",
+                "--destination-file", JAR_NAME,
+                "--name", FN_NAME,
+                "--tenant", TENANT,
+                "--namespace", NAMESPACE,
+                "--transform-function"
+        });
+        verify(functions, times(1))
+                .downloadFunction(JAR_NAME, TENANT, NAMESPACE, FN_NAME, true);
     }
 
 

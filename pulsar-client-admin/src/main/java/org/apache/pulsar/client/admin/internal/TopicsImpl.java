@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -131,6 +131,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     private static final String ENCRYPTION_KEYS = "X-Pulsar-Base64-encryption-keys";
     // CHECKSTYLE.ON: MemberName
 
+    public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
+
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
@@ -195,40 +197,18 @@ public class TopicsImpl extends BaseResource implements Topics {
         nonPersistentPath = nonPersistentPath
                 .queryParam("bundle", options.getBundle())
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
-        final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
-        final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
+        final CompletableFuture<List<String>> persistentList;
+        final CompletableFuture<List<String>> nonPersistentList;
         if (topicDomain == null || TopicDomain.persistent.equals(topicDomain)) {
-            asyncGetRequest(persistentPath,
-                    new InvocationCallback<List<String>>() {
-                        @Override
-                        public void completed(List<String> topics) {
-                            persistentList.complete(topics);
-                        }
-
-                        @Override
-                        public void failed(Throwable throwable) {
-                            persistentList.completeExceptionally(getApiException(throwable.getCause()));
-                        }
-                    });
+            persistentList = asyncGetRequest(persistentPath, new FutureCallback<List<String>>() {});
         } else {
-            persistentList.complete(Collections.emptyList());
+            persistentList = CompletableFuture.completedFuture(Collections.emptyList());
         }
 
         if (topicDomain == null || TopicDomain.non_persistent.equals(topicDomain)) {
-            asyncGetRequest(nonPersistentPath,
-                    new InvocationCallback<List<String>>() {
-                        @Override
-                        public void completed(List<String> a) {
-                            nonPersistentList.complete(a);
-                        }
-
-                        @Override
-                        public void failed(Throwable throwable) {
-                            nonPersistentList.completeExceptionally(getApiException(throwable.getCause()));
-                        }
-                    });
+            nonPersistentList = asyncGetRequest(nonPersistentPath, new FutureCallback<List<String>>() {});
         } else {
-            nonPersistentList.complete(Collections.emptyList());
+            nonPersistentList = CompletableFuture.completedFuture(Collections.emptyList());
         }
 
         return persistentList.thenCombine(nonPersistentList,
@@ -258,32 +238,10 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
         persistentPath = persistentPath.queryParam("includeSystemTopic", options.isIncludeSystemTopic());
         nonPersistentPath = nonPersistentPath.queryParam("includeSystemTopic", options.isIncludeSystemTopic());
-        final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
-        final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
-        asyncGetRequest(persistentPath,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> topics) {
-                        persistentList.complete(topics);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        persistentList.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        asyncGetRequest(nonPersistentPath,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> topics) {
-                        nonPersistentList.complete(topics);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        nonPersistentList.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
+        final CompletableFuture<List<String>> persistentList =
+                asyncGetRequest(persistentPath, new FutureCallback<List<String>>() {});
+        final CompletableFuture<List<String>> nonPersistentList =
+                asyncGetRequest(nonPersistentPath, new FutureCallback<List<String>>() {});
 
         return persistentList.thenCombine(nonPersistentList,
                 (l1, l2) -> new ArrayList<>(Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet())));
@@ -457,8 +415,36 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void updateProperties(String topic, Map<String, String> properties) throws PulsarAdminException {
+        sync(() -> updatePropertiesAsync(topic, properties));
+    }
+
+    @Override
+    public CompletableFuture<Void> updatePropertiesAsync(String topic, Map<String, String> properties) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "properties");
+        if (properties == null) {
+            properties = new HashMap<>();
+        }
+        return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public void deletePartitionedTopic(String topic) throws PulsarAdminException {
         deletePartitionedTopic(topic, false);
+    }
+
+    @Override
+    public void removeProperties(String topic, String key) throws PulsarAdminException {
+        sync(() -> removePropertiesAsync(topic, key));
+    }
+
+    @Override
+    public CompletableFuture<Void> removePropertiesAsync(String topic, String key) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "properties")
+                .queryParam("key", key);
+        return asyncDeleteRequest(path);
     }
 
     @Override
@@ -1160,6 +1146,18 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public void trimTopic(String topic) throws PulsarAdminException {
+        sync(() -> trimTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> trimTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "trim");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public LongRunningProcessStatus compactionStatus(String topic)
             throws PulsarAdminException {
         return sync(() -> compactionStatusAsync(topic));
@@ -1463,25 +1461,14 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<MessageId> getLastMessageIdAsync(String topic) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "lastMessageId");
-        final CompletableFuture<MessageId> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BatchMessageIdImpl>() {
-
-                    @Override
-                    public void completed(BatchMessageIdImpl response) {
-                        if (response.getBatchIndex() == -1) {
-                            future.complete(new MessageIdImpl(response.getLedgerId(),
-                                    response.getEntryId(), response.getPartitionIndex()));
-                        }
-                        future.complete(response);
+        return asyncGetRequest(path, new FutureCallback<BatchMessageIdImpl>() {})
+                .thenApply(response -> {
+                    if (response.getBatchIndex() == -1) {
+                        return new MessageIdImpl(response.getLedgerId(),
+                                response.getEntryId(), response.getPartitionIndex());
                     }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
+                    return response;
                 });
-        return future;
     }
 
     @Override
@@ -2697,6 +2684,78 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "replication");
         return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setShadowTopics(String sourceTopic, List<String> shadowTopics) throws PulsarAdminException {
+        sync(() -> setShadowTopicsAsync(sourceTopic, shadowTopics));
+    }
+
+    @Override
+    public void removeShadowTopics(String sourceTopic) throws PulsarAdminException {
+        sync(() -> removeShadowTopicsAsync(sourceTopic));
+    }
+
+    @Override
+    public List<String> getShadowTopics(String sourceTopic) throws PulsarAdminException {
+        return sync(() -> getShadowTopicsAsync(sourceTopic));
+    }
+
+    @Override
+    public CompletableFuture<Void> setShadowTopicsAsync(String sourceTopic, List<String> shadowTopics) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncPutRequest(path, Entity.entity(shadowTopics, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeShadowTopicsAsync(String sourceTopic) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic) {
+        TopicName tn = validateTopic(sourceTopic);
+        WebTarget path = topicPath(tn, "shadowTopics");
+        return asyncGetRequest(path, new FutureCallback<List<String>>() {});
+    }
+
+    @Override
+    public String getShadowSource(String shadowTopic) throws PulsarAdminException {
+        return sync(() -> getShadowSourceAsync(shadowTopic));
+    }
+
+    @Override
+    public CompletableFuture<String> getShadowSourceAsync(String shadowTopic) {
+        return getPropertiesAsync(shadowTopic).thenApply(
+                properties -> properties != null ? properties.get(PROPERTY_SHADOW_SOURCE_KEY) : null);
+    }
+
+    @Override
+    public void createShadowTopic(String shadowTopic, String sourceTopic, Map<String, String> properties)
+            throws PulsarAdminException {
+        sync(() -> createShadowTopicAsync(shadowTopic, sourceTopic, properties));
+    }
+
+    @Override
+    public CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic,
+                                                          Map<String, String> properties) {
+        checkArgument(TopicName.get(shadowTopic).isPersistent(), "Shadow topic must be persistent");
+        checkArgument(TopicName.get(sourceTopic).isPersistent(), "Source topic must be persistent");
+        return getPartitionedTopicMetadataAsync(sourceTopic).thenCompose(sourceTopicMeta -> {
+            HashMap<String, String> shadowProperties = new HashMap<>();
+            if (properties != null) {
+                shadowProperties.putAll(properties);
+            }
+            shadowProperties.put(PROPERTY_SHADOW_SOURCE_KEY, sourceTopic);
+            if (sourceTopicMeta.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
+                return createNonPartitionedTopicAsync(shadowTopic, shadowProperties);
+            } else {
+                return createPartitionedTopicAsync(shadowTopic, sourceTopicMeta.partitions, shadowProperties);
+            }
+        });
     }
 
     private static final Logger log = LoggerFactory.getLogger(TopicsImpl.class);

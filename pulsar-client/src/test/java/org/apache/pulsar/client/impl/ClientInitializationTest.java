@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -33,7 +33,9 @@ public class ClientInitializationTest {
     public void testInitializeAuthWithTls() throws PulsarClientException {
         Authentication auth = mock(Authentication.class);
 
-        PulsarClient.builder()
+        @Cleanup
+        PulsarClient pulsarClient =
+                PulsarClient.builder()
                 .serviceUrl("pulsar+ssl://my-host:6650")
                 .authentication(auth)
                 .build();

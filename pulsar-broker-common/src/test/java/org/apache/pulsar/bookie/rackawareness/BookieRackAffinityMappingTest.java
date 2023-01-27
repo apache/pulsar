@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,6 +80,18 @@ public class BookieRackAffinityMappingTest {
         assertEquals(racks.get(0), "/rack0");
         assertEquals(racks.get(1), "/rack1");
         assertNull(racks.get(2));
+    }
+
+    @Test
+    public void testMultipleMetadataServiceUris() {
+        BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
+        ClientConfiguration bkClientConf1 = new ClientConfiguration();
+        bkClientConf1.setProperty("metadataServiceUri", "memory:local,memory:local");
+        bkClientConf1.setProperty("zkTimeout", "100000");
+
+        mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        // This previously threw an exception when the metadataServiceUri was a comma delimited list.
+        mapping1.setConf(bkClientConf1);
     }
 
     @Test

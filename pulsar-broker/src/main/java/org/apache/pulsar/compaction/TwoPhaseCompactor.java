@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.time.Duration;
@@ -60,7 +59,7 @@ import org.slf4j.LoggerFactory;
 public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
-    private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
+    protected static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
@@ -201,12 +200,12 @@ public class TwoPhaseCompactor extends Compactor {
 
         reader.seekAsync(from).thenCompose((v) -> {
             Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
-            CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
+            CompletableFuture<Void> loopPromise = new CompletableFuture<>();
             phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
             return loopPromise;
         }).thenCompose((v) -> closeLedger(ledger))
                 .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
-                        ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
+                        Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
                 .whenComplete((res, exception) -> {
                     if (exception != null) {
                         deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
@@ -310,7 +309,7 @@ public class TwoPhaseCompactor extends Compactor {
         });
     }
 
-    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
+    protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
 
         try {
@@ -333,7 +332,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
+    protected CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         try {
             bk.asyncDeleteLedger(lh.getId(),
@@ -350,7 +349,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> closeLedger(LedgerHandle lh) {
+    protected CompletableFuture<Void> closeLedger(LedgerHandle lh) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         try {
             lh.asyncClose((rc, ledger, ctx) -> {

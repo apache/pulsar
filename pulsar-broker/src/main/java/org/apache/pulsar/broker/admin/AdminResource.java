@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +39,6 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -61,10 +62,12 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
@@ -157,13 +160,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i, null));
+            futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition, CompletableFuture<Void> reuseFuture) {
-        CompletableFuture<Void> result = reuseFuture == null ? new CompletableFuture<>() : reuseFuture;
+    private CompletableFuture<Void> tryCreatePartitionAsync(final int partition) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
         getPulsarResources().getTopicResources().createPersistentTopicAsync(topicName.getPartition(partition))
                 .thenAccept(r -> {
                     if (log.isDebugEnabled()) {
@@ -280,6 +283,14 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected WorkerService validateAndGetWorkerService() {
+        try {
+            return pulsar().getWorkerService();
+        } catch (UnsupportedOperationException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        }
+    }
+
     protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
             Policies policies = namespaceResources().getPolicies(namespaceName)
@@ -355,17 +366,21 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected boolean checkBacklogQuota(BacklogQuota quota, RetentionPolicies retention) {
-        if (retention == null || retention.getRetentionSizeInMB() <= 0 || retention.getRetentionTimeInMinutes() <= 0) {
+        if (retention == null
+                || (retention.getRetentionSizeInMB() <= 0 && retention.getRetentionTimeInMinutes() <= 0)) {
             return true;
         }
         if (quota == null) {
             quota = pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota();
         }
-        if (quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
+
+        if (retention.getRetentionSizeInMB() > 0
+                && quota.getLimitSize() >= (retention.getRetentionSizeInMB() * 1024 * 1024)) {
             return false;
         }
         // time based quota is in second
-        if (quota.getLimitTime() >= (retention.getRetentionTimeInMinutes() * 60)) {
+        if (retention.getRetentionTimeInMinutes() > 0
+                && quota.getLimitTime() >= retention.getRetentionTimeInMinutes() * 60) {
             return false;
         }
         return true;
@@ -409,8 +424,19 @@ public abstract class AdminResource extends PulsarWebResource {
         );
     }
 
-    public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getThreadLocal();
+    protected AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride() {
+        boolean allowAutoSubscriptionCreation = pulsar().getConfiguration().isAllowAutoSubscriptionCreation();
+        return AutoSubscriptionCreationOverrideImpl.builder()
+                .allowAutoSubscriptionCreation(allowAutoSubscriptionCreation)
+                .build();
+    }
+
+    protected ObjectWriter objectWriter() {
+        return ObjectMapperFactory.getMapper().writer();
+    }
+
+    protected ObjectReader objectReader() {
+        return ObjectMapperFactory.getMapper().reader();
     }
 
     protected Set<String> clusters() {
@@ -459,30 +485,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }
                 });
-    }
-
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
-        try {
-            return pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
-    }
-
-    protected static PartitionedTopicMetadata fetchPartitionedTopicMetadataCheckAllowAutoCreation(
-            PulsarService pulsar, TopicName topicName) {
-        try {
-            return pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName)
-                    .get();
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
     }
 
    protected void validateClusterExists(String cluster) {
@@ -747,33 +749,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return validateTopicPolicyOperationAsync(topicName,
                 PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
                 PolicyOperation.READ)
-                .thenCompose((__) -> {
-                    CompletableFuture<SchemaCompatibilityStrategy> future;
-                    if (config().isTopicLevelPoliciesEnabled()) {
-                        future = getTopicPoliciesAsyncWithRetry(topicName)
-                                .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
-                    } else {
-                        future = CompletableFuture.completedFuture(null);
-                    }
-
-                    return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
-                        if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
-                            return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
-                        }
-                        return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
-                            SchemaCompatibilityStrategy schemaCompatibilityStrategy =
-                                    policies.schema_compatibility_strategy;
-                            if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                                schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
-                                        policies.schema_auto_update_compatibility_strategy);
-                                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
-                                    schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
-                                }
-                            }
-                            return schemaCompatibilityStrategy;
-                        });
-                    });
-                }).whenComplete((__, ex) -> {
+                .thenCompose((__) -> getSchemaCompatibilityStrategyAsyncWithoutAuth()).whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("[{}] Failed to get schema compatibility strategy of topic {} {}",
                                 clientAppId(), topicName, ex);
@@ -781,9 +757,35 @@ public abstract class AdminResource extends PulsarWebResource {
                 });
     }
 
+    protected CompletableFuture<SchemaCompatibilityStrategy> getSchemaCompatibilityStrategyAsyncWithoutAuth() {
+        CompletableFuture<SchemaCompatibilityStrategy> future = CompletableFuture.completedFuture(null);
+        if (config().isTopicLevelPoliciesEnabled()) {
+            future = getTopicPoliciesAsyncWithRetry(topicName)
+                    .thenApply(op -> op.map(TopicPolicies::getSchemaCompatibilityStrategy).orElse(null));
+        }
+
+        return future.thenCompose((topicSchemaCompatibilityStrategy) -> {
+            if (!SchemaCompatibilityStrategy.isUndefined(topicSchemaCompatibilityStrategy)) {
+                return CompletableFuture.completedFuture(topicSchemaCompatibilityStrategy);
+            }
+            return getNamespacePoliciesAsync(namespaceName).thenApply(policies -> {
+                SchemaCompatibilityStrategy schemaCompatibilityStrategy =
+                        policies.schema_compatibility_strategy;
+                if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                    schemaCompatibilityStrategy = SchemaCompatibilityStrategy.fromAutoUpdatePolicy(
+                            policies.schema_auto_update_compatibility_strategy);
+                    if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {
+                        schemaCompatibilityStrategy = pulsar().getConfig().getSchemaCompatibilityStrategy();
+                    }
+                }
+                return schemaCompatibilityStrategy;
+            });
+        });
+    }
+
     @CanIgnoreReturnValue
     public static <T> T checkNotNull(T reference) {
-        return com.google.common.base.Preconditions.checkNotNull(reference);
+        return Objects.requireNonNull(reference);
     }
 
     protected void checkNotNull(Object o, String errorMessage) {
@@ -832,6 +834,13 @@ public abstract class AdminResource extends PulsarWebResource {
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
+    }
+
+    protected static boolean isNotFoundException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return realCause instanceof WebApplicationException
+                && ((WebApplicationException) realCause).getResponse().getStatus()
+                == Status.NOT_FOUND.getStatusCode();
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {

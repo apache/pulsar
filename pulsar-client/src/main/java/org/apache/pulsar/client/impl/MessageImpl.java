@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -436,7 +436,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     public SchemaHash getSchemaHash() {
-        return schemaHash == null ? SchemaHash.of(new byte[0], null) : schemaHash;
+        return schemaHash == null ? SchemaHash.empty() : schemaHash;
     }
 
     public void setSchemaInfoForReplicator(SchemaInfo schemaInfo) {
@@ -753,7 +753,7 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadata.hasReplicatedFrom();
     }
 
-    void setMessageId(MessageId messageId) {
+    public void setMessageId(MessageId messageId) {
         this.messageId = messageId;
     }
 

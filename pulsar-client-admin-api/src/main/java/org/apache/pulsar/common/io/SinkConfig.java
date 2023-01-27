@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -91,4 +91,7 @@ public class SinkConfig {
     // to change behavior at runtime. Currently, this primarily used by the KubernetesManifestCustomizer
     // interface
     private String customRuntimeOptions;
+    private String transformFunction;
+    private String transformFunctionClassName;
+    private String transformFunctionConfig;
 }

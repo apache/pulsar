@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,8 +28,8 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -172,9 +173,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         // A corner case that we have to retry a readMoreEntries in order to preserver order delivery.
         // This may happen when consumer closed. See issue #12885 for details.
         if (!allowOutOfOrderDelivery) {
-            Set<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
+            NavigableSet<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
             if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty()) {
-                PositionImpl replayPosition = messagesToReplayNow.stream().findFirst().get();
+                PositionImpl replayPosition = messagesToReplayNow.first();
+
                 // We have received a message potentially from the delayed tracker and, since we're not using it
                 // right now, it needs to be added to the redelivery tracker or we won't attempt anymore to
                 // resend it (until we disconnect consumer).
@@ -232,19 +234,22 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
         for (Map.Entry<Consumer, List<Entry>> current : groupedEntries.entrySet()) {
             Consumer consumer = current.getKey();
+            assert consumer != null; // checked when added to groupedEntries
             List<Entry> entriesWithSameKey = current.getValue();
             int entriesWithSameKeyCount = entriesWithSameKey.size();
-            int availablePermits = consumer == null ? 0 : Math.max(consumer.getAvailablePermits(), 0);
-            if (consumer != null && consumer.getMaxUnackedMessages() > 0) {
-                availablePermits = Math.min(availablePermits,
-                        consumer.getMaxUnackedMessages() - consumer.getUnackedMessages());
+            int availablePermits = Math.max(consumer.getAvailablePermits(), 0);
+            if (consumer.getMaxUnackedMessages() > 0) {
+                int remainUnAckedMessages =
+                        // Avoid negative number
+                        Math.max(consumer.getMaxUnackedMessages() - consumer.getUnackedMessages(), 0);
+                availablePermits = Math.min(availablePermits, remainUnAckedMessages);
             }
             int maxMessagesForC = Math.min(entriesWithSameKeyCount, availablePermits);
             int messagesForC = getRestrictedMaxEntriesForConsumer(consumer, entriesWithSameKey, maxMessagesForC,
                     readType, consumerStickyKeyHashesMap.get(consumer));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] select consumer {} with messages num {}, read type is {}",
-                        name, consumer == null ? "null" : consumer.consumerName(), messagesForC, readType);
+                        name, consumer.consumerName(), messagesForC, readType);
             }
 
             if (messagesForC < entriesWithSameKeyCount) {
@@ -293,19 +298,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         }
 
         // acquire message-dispatch permits for already delivered messages
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
-            long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
-            if (topic.getBrokerDispatchRateLimiter().isPresent()) {
-                topic.getBrokerDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
-            }
-            if (topic.getDispatchRateLimiter().isPresent()) {
-                topic.getDispatchRateLimiter().get().tryDispatchPermit(permits, totalBytesSent);
-            }
-
-            if (dispatchRateLimiter.isPresent()) {
-                dispatchRateLimiter.get().tryDispatchPermit(permits, totalBytesSent);
-            }
-        }
+        acquirePermitsForDeliveredMessages(topic, cursor, totalEntries, totalMessagesSent, totalBytesSent);
 
         stuckConsumers.clear();
 
@@ -327,17 +320,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 isDispatcherStuckOnReplays = true;
                 stuckConsumers.addAll(nextStuckConsumers);
             }
-            // readMoreEntries should run regardless whether or not stuck is caused by
-            // stuckConsumers for avoid stopping dispatch.
-            sendInProgress = false;
-            topic.getBrokerService().executor().execute(() -> readMoreEntries());
+            return true;
         }  else if (currentThreadKeyNumber == 0) {
-            sendInProgress = false;
-            topic.getBrokerService().executor().schedule(() -> {
-                synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
-                    readMoreEntries();
-                }
-            }, 100, TimeUnit.MILLISECONDS);
+            return true;
         }
         return false;
     }
@@ -411,7 +396,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public void markDeletePositionMoveForward() {
         // Execute the notification in different thread to avoid a mutex chain here
         // from the delete operation that was completed
-        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().execute(safeRun(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                 if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
                         && removeConsumersFromRecentJoinedConsumers()) {
@@ -420,7 +405,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     readMoreEntries();
                 }
             }
-        });
+        }));
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
@@ -444,13 +429,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    protected synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
+    protected synchronized NavigableSet<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
         if (isDispatcherStuckOnReplays) {
             // If we're stuck on replay, we want to move forward reading on the topic (until the overall max-unacked
             // messages kicks in), instead of keep replaying the same old messages, since the consumer that these
             // messages are routing to might be busy at the moment
             this.isDispatcherStuckOnReplays = false;
-            return Collections.emptySet();
+            return Collections.emptyNavigableSet();
         } else {
             return super.getMessagesToReplayNow(maxMessagesToRead);
         }

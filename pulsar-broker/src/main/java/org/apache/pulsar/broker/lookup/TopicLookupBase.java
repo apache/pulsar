@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -68,11 +68,12 @@ public class TopicLookupBase extends PulsarWebResource {
                     // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists
                     // in the broker, it doesn't have metadata. If the topic is non-persistent and non-partitioned,
                     // we'll return the true flag.
-                    CompletableFuture<Boolean> existFuture = pulsar().getBrokerService()
-                            .isAllowAutoTopicCreation(topicName)
-                            || (!topicName.isPersistent() && !topicName.isPartitioned())
+                    CompletableFuture<Boolean> existFuture = (!topicName.isPersistent() && !topicName.isPartitioned())
                             ? CompletableFuture.completedFuture(true)
-                            : pulsar().getNamespaceService().checkTopicExists(topicName);
+                            : pulsar().getNamespaceService().checkTopicExists(topicName)
+                                .thenCompose(exists -> exists ? CompletableFuture.completedFuture(true)
+                                        : pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName));
+
                     return existFuture;
                 })
                 .thenCompose(exist -> {
@@ -134,15 +135,6 @@ public class TopicLookupBase extends PulsarWebResource {
                         throw FutureUtil.wrapToCompletionException(ex);
                     });
                 });
-    }
-
-    private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
-        try {
-            validateTopicOperation(topic, TopicOperation.LOOKUP);
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            throw new RestException(e);
-        }
     }
 
     protected String internalGetNamespaceBundle(TopicName topicName) {
@@ -250,9 +242,19 @@ public class TopicLookupBase extends PulsarWebResource {
                                     requestId,
                                     false));
                         }).exceptionally(ex -> {
+                            Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+                            if (throwable instanceof RestException restException){
+                                if (restException.getResponse().getStatus()
+                                        == Response.Status.NOT_FOUND.getStatusCode()) {
+                                    validationFuture.complete(
+                                            newLookupErrorResponse(ServerError.TopicNotFound,
+                                                    throwable.getMessage(), requestId));
+                                    return null;
+                                }
+                            }
                             validationFuture.complete(
                                     newLookupErrorResponse(ServerError.MetadataError,
-                                            FutureUtil.unwrapCompletionException(ex).getMessage(), requestId));
+                                            throwable.getMessage(), requestId));
                             return null;
                         });
                     })

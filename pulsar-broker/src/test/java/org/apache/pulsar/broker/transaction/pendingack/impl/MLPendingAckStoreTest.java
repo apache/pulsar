@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,11 +43,13 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import static org.mockito.Mockito.*;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -64,17 +66,21 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
 
     private int pendingAckLogIndexMinLag = 1;
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         setUpBase(1, 1, NAMESPACE1 + "/test", 0);
+    }
+
+    @BeforeMethod
+    public void beforeMethod() throws Exception {
         String topic = NAMESPACE1 + "/test-txn-topic";
         admin.topics().createNonPartitionedTopic(topic);
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(topic, false).get().get();
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(pendingAckLogIndexMinLag);
         CompletableFuture<Subscription> subscriptionFuture = persistentTopic .createSubscription("test",
-                        CommandSubscribe.InitialPosition.Earliest, false, null);
+                CommandSubscribe.InitialPosition.Earliest, false, null);
         PersistentSubscription subscription = (PersistentSubscription) subscriptionFuture.get();
         ManagedCursor managedCursor = subscription.getCursor();
         this.managedCursorMock = spy(managedCursor);
@@ -88,7 +94,25 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
                 .getExecutor(this);
     }
 
-    @AfterMethod
+    @AfterMethod(alwaysRun = true)
+    private void afterMethod() throws Exception {
+        ServiceConfiguration defaultConfig = new ServiceConfiguration();
+        ServiceConfiguration serviceConfiguration =
+                persistentSubscriptionMock.getTopic().getBrokerService().getPulsar().getConfiguration();
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxRecords(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxRecords()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxSize(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxSize()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteMaxDelayInMillis(
+                defaultConfig.getTransactionPendingAckBatchedWriteMaxDelayInMillis()
+        );
+        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(defaultConfig.isTransactionPendingAckBatchedWriteEnabled());
+        admin.topics().delete("persistent://" + NAMESPACE1 + "/test-txn-topic", true);
+    }
+
+    @AfterClass
     public void cleanup(){
         super.internalCleanup();
     }
@@ -232,8 +256,24 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         Assert.assertTrue(mlPendingAckStoreForRead.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);
 
         // cleanup.
-        mlPendingAckStoreForWrite.closeAsync().get();
-        mlPendingAckStoreForRead.closeAsync().get();
+        closePendingAckStoreWithRetry(mlPendingAckStoreForWrite);
+        closePendingAckStoreWithRetry(mlPendingAckStoreForRead);
+    }
+
+    /**
+     * Why should retry?
+     * Because when the cursor close and cursor switch ledger are concurrent executing, the bad version exception is
+     * thrown.
+     */
+    private void closePendingAckStoreWithRetry(MLPendingAckStore pendingAckStore){
+        Awaitility.await().until(() -> {
+            try {
+                pendingAckStore.closeAsync().get();
+                return true;
+            } catch (Exception ex){
+                return false;
+            }
+        });
     }
 
     /**

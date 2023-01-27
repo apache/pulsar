@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.*;
 import io.netty.channel.socket.SocketChannel;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.proxy.server.ProxyConfiguration;
 import org.apache.pulsar.proxy.server.ProxyService;
@@ -43,12 +43,15 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
@@ -59,6 +62,8 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
     public static final class MyProxyExtension implements ProxyExtension {
 
         private ProxyConfiguration conf;
+
+        private final List<Integer> ports = new ArrayList<>();
 
         @Override
         public String extensionName() {
@@ -81,7 +86,9 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
-            return Collections.singletonMap(new InetSocketAddress(conf.getBindAddress(), PortManager.nextFreePort()),
+            int port = nextLockedFreePort();
+            this.ports.add(port);
+            return Collections.singletonMap(new InetSocketAddress(conf.getBindAddress(), port),
                     new ChannelInitializer<SocketChannel>() {
                 @Override
                 protected void initChannel(SocketChannel socketChannel) throws Exception {
@@ -106,7 +113,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public void close() {
-
+            ports.removeIf(PortManager::releaseLockedPort);
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -67,6 +67,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
@@ -151,7 +152,7 @@ public class PulsarFunctionPublishTest {
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setBrokerClientTlsEnabled(true);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         functionsWorkerService = createPulsarFunctionWorker(config);
 
@@ -178,7 +179,7 @@ public class PulsarFunctionPublishTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrlTls(urlTls.toString()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());
@@ -234,7 +235,8 @@ public class PulsarFunctionPublishTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
         workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
         workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());

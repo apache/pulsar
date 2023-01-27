@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,11 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import com.beust.jcommander.internal.Lists;
-import com.google.common.collect.Maps;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,9 +75,6 @@ public class LoadManagerShared {
             return new HashSet<>();
         }
     };
-
-    // update LoadReport at most every 5 seconds
-    public static final long LOAD_REPORT_UPDATE_MINIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
 
     private static final String DEFAULT_DOMAIN = "default";
 
@@ -392,7 +389,7 @@ public class LoadManagerShared {
             return;
         }
 
-        final Map<String, Integer> domainNamespaceCount = Maps.newHashMap();
+        final Map<String, Integer> domainNamespaceCount = new HashMap<>();
         int leastNamespaceCount = Integer.MAX_VALUE;
         candidates.forEach(broker -> {
             final String domain = brokerToDomainMap.getOrDefault(broker, DEFAULT_DOMAIN);
@@ -436,7 +433,7 @@ public class LoadManagerShared {
             }
             final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
-            final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
                 nsToBundleRange.forEach((ns, bundleRange) -> {
                     if (bundleRange.isEmpty()) {

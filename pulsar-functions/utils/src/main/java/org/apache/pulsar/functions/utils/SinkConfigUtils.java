@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,8 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getFunctionTypes;
+import static org.apache.pulsar.functions.utils.FunctionCommon.getRawFunctionTypes;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.gson.Gson;
@@ -50,9 +52,11 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.config.validation.ConfigValidation;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
 @Slf4j
@@ -64,6 +68,7 @@ public class SinkConfigUtils {
     public static class ExtractedSinkDetails {
         private String sinkClassName;
         private String typeArg;
+        private String functionClassName;
     }
 
     public static FunctionDetails convert(SinkConfig sinkConfig, ExtractedSinkDetails sinkDetails) throws IOException {
@@ -88,7 +93,14 @@ public class SinkConfigUtils {
         } else {
             functionDetailsBuilder.setParallelism(1);
         }
-        functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+        if (sinkDetails.getFunctionClassName() != null) {
+            functionDetailsBuilder.setClassName(sinkDetails.getFunctionClassName());
+        } else {
+            functionDetailsBuilder.setClassName(IdentityFunction.class.getName());
+        }
+        if (sinkConfig.getTransformFunctionConfig() != null) {
+            functionDetailsBuilder.setUserConfig(sinkConfig.getTransformFunctionConfig());
+        }
         if (sinkConfig.getProcessingGuarantees() != null) {
             functionDetailsBuilder.setProcessingGuarantees(
                     convertProcessingGuarantee(sinkConfig.getProcessingGuarantees()));
@@ -224,6 +236,11 @@ public class SinkConfigUtils {
             sinkSpecBuilder.setBuiltin(builtin);
         }
 
+        if (!isEmpty(sinkConfig.getTransformFunction())
+                && sinkConfig.getTransformFunction().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+            functionDetailsBuilder.setBuiltin(sinkConfig.getTransformFunction().replaceFirst("^builtin://", ""));
+        }
+
         if (sinkConfig.getConfigs() != null) {
             sinkSpecBuilder.setConfigs(new Gson().toJson(sinkConfig.getConfigs()));
         }
@@ -333,7 +350,8 @@ public class SinkConfigUtils {
             Map<String, Object> configMap;
             try {
                 configMap =
-                        ObjectMapperFactory.getThreadLocal().readValue(functionDetails.getSink().getConfigs(), typeRef);
+                        ObjectMapperFactory.getMapper().getObjectMapper()
+                                .readValue(functionDetails.getSink().getConfigs(), typeRef);
             } catch (IOException e) {
                 log.error("Failed to read configs for sink {}", FunctionCommon.getFullyQualifiedName(functionDetails),
                         e);
@@ -369,11 +387,23 @@ public class SinkConfigUtils {
             }
         }
 
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            sinkConfig.setTransformFunction("builtin://" + functionDetails.getBuiltin());
+        }
+        if (!functionDetails.getClassName().equals(IdentityFunction.class.getName())) {
+            sinkConfig.setTransformFunctionClassName(functionDetails.getClassName());
+        }
+        if (!isEmpty(functionDetails.getUserConfig())) {
+            sinkConfig.setTransformFunctionConfig(functionDetails.getUserConfig());
+        }
+
+
         return sinkConfig;
     }
 
     public static ExtractedSinkDetails validateAndExtractDetails(SinkConfig sinkConfig,
                                                                  ClassLoader sinkClassLoader,
+                                                                 ClassLoader functionClassLoader,
                                                                  boolean validateConnectorConfig) {
         if (isEmpty(sinkConfig.getTenant())) {
             throw new IllegalArgumentException("Sink tenant cannot be null");
@@ -429,18 +459,47 @@ public class SinkConfigUtils {
                     String.format("Sink class %s not found in class loader", sinkClassName), e);
         }
 
-        // extract type from sink class
-        Class<?> typeArg = getSinkType(sinkClass);
+        String functionClassName = sinkConfig.getTransformFunctionClassName();
+        Class<?> typeArg;
+        ClassLoader inputClassLoader;
+        if (functionClassLoader != null) {
+            // if function class name in sink config is not set, this should be a built-in function
+            // thus we should try to find it class name in the NAR service definition
+            if (functionClassName == null) {
+                try {
+                    functionClassName = FunctionUtils.getFunctionClass(functionClassLoader);
+                } catch (IOException e) {
+                    throw new IllegalArgumentException("Failed to extract function class from archive", e);
+                }
+            }
+            Class functionClass;
+            try {
+                functionClass = functionClassLoader.loadClass(functionClassName);
+            } catch (ClassNotFoundException e) {
+                throw new IllegalArgumentException(
+                        String.format("Function class %s not found in class loader", functionClassName), e);
+            }
+            // extract type from transform function class
+            if (!getRawFunctionTypes(functionClass, false)[1].equals(Record.class)) {
+                throw new IllegalArgumentException("Sink transform function output must be of type Record");
+            }
+            typeArg = getFunctionTypes(functionClass, false)[0];
+            inputClassLoader = functionClassLoader;
+        } else {
+            // extract type from sink class
+            typeArg = getSinkType(sinkClass);
+            inputClassLoader = sinkClassLoader;
+        }
 
         if (sinkConfig.getTopicToSerdeClassName() != null) {
            for (String serdeClassName : sinkConfig.getTopicToSerdeClassName().values()) {
-               ValidatorUtils.validateSerde(serdeClassName, typeArg, sinkClassLoader, true);
+               ValidatorUtils.validateSerde(serdeClassName, typeArg, inputClassLoader, true);
            }
         }
 
         if (sinkConfig.getTopicToSchemaType() != null) {
             for (String schemaType : sinkConfig.getTopicToSchemaType().values()) {
-                ValidatorUtils.validateSchema(schemaType, typeArg, sinkClassLoader, true);
+                ValidatorUtils.validateSchema(schemaType, typeArg, inputClassLoader, true);
             }
         }
 
@@ -453,13 +512,13 @@ public class SinkConfigUtils {
                     throw new IllegalArgumentException("Only one of serdeClassName or schemaType should be set");
                 }
                 if (!isEmpty(consumerSpec.getSerdeClassName())) {
-                    ValidatorUtils.validateSerde(consumerSpec.getSerdeClassName(), typeArg, sinkClassLoader, true);
+                    ValidatorUtils.validateSerde(consumerSpec.getSerdeClassName(), typeArg, inputClassLoader, true);
                 }
                 if (!isEmpty(consumerSpec.getSchemaType())) {
-                    ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, sinkClassLoader, true);
+                    ValidatorUtils.validateSchema(consumerSpec.getSchemaType(), typeArg, inputClassLoader, true);
                 }
                 if (consumerSpec.getCryptoConfig() != null) {
-                    ValidatorUtils.validateCryptoKeyReader(consumerSpec.getCryptoConfig(), sinkClassLoader, false);
+                    ValidatorUtils.validateCryptoKeyReader(consumerSpec.getCryptoConfig(), inputClassLoader, false);
                 }
             }
         }
@@ -469,7 +528,7 @@ public class SinkConfigUtils {
             validateSinkConfig(sinkConfig, (NarClassLoader) sinkClassLoader);
         }
 
-        return new ExtractedSinkDetails(sinkClassName, typeArg.getName());
+        return new ExtractedSinkDetails(sinkClassName, typeArg.getName(), functionClassName);
     }
 
     private static Collection<String> collectAllInputTopics(SinkConfig sinkConfig) {
@@ -494,8 +553,8 @@ public class SinkConfigUtils {
 
     @SneakyThrows
     public static SinkConfig clone(SinkConfig sinkConfig) {
-        return ObjectMapperFactory.getThreadLocal().readValue(
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(sinkConfig), SinkConfig.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(sinkConfig), SinkConfig.class);
     }
 
     public static SinkConfig validateUpdate(SinkConfig existingConfig, SinkConfig newConfig) {
@@ -528,7 +587,7 @@ public class SinkConfigUtils {
 
         if (newConfig.getInputs() != null) {
             newConfig.getInputs().forEach((topicName -> {
-                newConfig.getInputSpecs().put(topicName,
+                newConfig.getInputSpecs().putIfAbsent(topicName,
                         ConsumerConfig.builder().isRegexPattern(false).build());
             }));
         }
@@ -615,6 +674,15 @@ public class SinkConfigUtils {
         if (newConfig.getCleanupSubscription() != null) {
             mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
+        if (newConfig.getTransformFunction() != null) {
+            mergedConfig.setTransformFunction(newConfig.getTransformFunction());
+        }
+        if (newConfig.getTransformFunctionClassName() != null) {
+            mergedConfig.setTransformFunctionClassName(newConfig.getTransformFunctionClassName());
+        }
+        if (newConfig.getTransformFunctionConfig() != null) {
+            mergedConfig.setTransformFunctionConfig(newConfig.getTransformFunctionConfig());
+        }
 
         return mergedConfig;
     }
@@ -650,7 +718,8 @@ public class SinkConfigUtils {
     public static void validateSinkConfig(SinkConfig sinkConfig, Class configClass) {
         try {
             Object configObject =
-                    ObjectMapperFactory.getThreadLocal().convertValue(sinkConfig.getConfigs(), configClass);
+                    ObjectMapperFactory.getMapper().getObjectMapper()
+                            .convertValue(sinkConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

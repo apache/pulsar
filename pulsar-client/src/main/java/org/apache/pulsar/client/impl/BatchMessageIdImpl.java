@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
@@ -68,7 +69,7 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     }
 
     @Override
-    public int compareTo(MessageId o) {
+    public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
             int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
@@ -90,30 +91,12 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     @Override
     public boolean equals(Object o) {
-        if (o instanceof MessageIdImpl) {
-            MessageIdImpl other = (MessageIdImpl) o;
-            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
-            return messageIdEquals(
-                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
-                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
-            );
-        } else if (o instanceof TopicMessageIdImpl) {
-            return equals(((TopicMessageIdImpl) o).getInnerMessageId());
-        }
-        return false;
+        return super.equals(o);
     }
 
     @Override
     public String toString() {
-        return new StringBuilder()
-          .append(ledgerId)
-          .append(':')
-          .append(entryId)
-          .append(':')
-          .append(partitionIndex)
-          .append(':')
-          .append(batchIndex)
-          .toString();
+        return ledgerId + ":" + entryId + ":" + partitionIndex + ":" + batchIndex;
     }
 
     // Serialization
@@ -145,6 +128,12 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     public MessageIdImpl prevBatchMessageId() {
         return new MessageIdImpl(
             ledgerId, entryId - 1, partitionIndex);
+    }
+
+    // MessageIdImpl is widely used as the key of a hash map, in this case, we should convert the batch message id to
+    // have the correct hash code.
+    public MessageIdImpl toMessageIdImpl() {
+        return new MessageIdImpl(ledgerId, entryId, partitionIndex);
     }
 
     public BatchMessageAcker getAcker() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -226,23 +226,44 @@ public class ElasticSearchExtractTests {
         assertEquals(pair.getLeft(), "[\"1\",1]");
         assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
-        ElasticSearchSink elasticSearchSink2 = new ElasticSearchSink();
-        elasticSearchSink2.open(ImmutableMap.of(
+        elasticSearchSink = new ElasticSearchSink();
+        elasticSearchSink.open(ImmutableMap.of(
+                "elasticSearchUrl", "http://localhost:9200",
+                "compatibilityMode", "ELASTICSEARCH",
+                "schemaEnable", "true",
+                "keyIgnore", "false",
+                "copyKeyFields", "true"), null);
+        pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
+        assertEquals(pair.getLeft(), "[\"1\",1]");
+        assertEquals(pair.getRight(), "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+
+        elasticSearchSink = new ElasticSearchSink();
+        elasticSearchSink.open(ImmutableMap.of(
                 "elasticSearchUrl", "http://localhost:9200",
                 "compatibilityMode", "ELASTICSEARCH",
                 "schemaEnable", "true"), null);
-        Pair<String, String> pair2 = elasticSearchSink2.extractIdAndDocument(genericObjectRecord);
-        assertNull(pair2.getLeft());
-        assertEquals(pair2.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+
+        pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
+        assertNull(pair.getLeft());
+        assertEquals(pair.getRight(), "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
+
+        elasticSearchSink = new ElasticSearchSink();
+        elasticSearchSink.open(ImmutableMap.of("elasticSearchUrl", "http://localhost:9200",
+                "schemaEnable", "true",
+                "compatibilityMode", "ELASTICSEARCH",
+                "copyKeyFields", "true"), null);
+        pair = elasticSearchSink.extractIdAndDocument(genericObjectRecord);
+        assertNull(pair.getLeft());
+        assertEquals(pair.getRight(), "{\"a\":\"1\",\"b\":1,\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}");
 
         // test null value
-        ElasticSearchSink elasticSearchSink3 = new ElasticSearchSink();
-        elasticSearchSink3.open(ImmutableMap.of(
+        elasticSearchSink = new ElasticSearchSink();
+        elasticSearchSink.open(ImmutableMap.of(
                 "elasticSearchUrl", "http://localhost:9200",
                 "compatibilityMode", "ELASTICSEARCH",
                 "schemaEnable", "true",
                 "keyIgnore", "false"), null);
-        Pair<String, String> pair3 = elasticSearchSink.extractIdAndDocument(new Record<GenericObject>() {
+        pair = elasticSearchSink.extractIdAndDocument(new Record<GenericObject>() {
             @Override
             public Optional<String> getTopicName() {
                 return Optional.of("data-ks1.table1");
@@ -268,8 +289,8 @@ public class ElasticSearchExtractTests {
                 };
             }
         });
-        assertEquals(pair3.getLeft(), "[\"1\",1]");
-        assertNull(pair3.getRight());
+        assertEquals(pair.getLeft(), "[\"1\",1]");
+        assertNull(pair.getRight());
     }
 
     @Test(dataProvider = "schemaType")

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,16 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import com.google.common.collect.Lists;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
@@ -228,12 +224,12 @@ public class HashRangeExclusiveStickyKeyConsumerSelectorTest {
         Assert.assertEquals(selector.getRangeConsumer().size(),2);
 
         final List<List<IntRange>> testRanges = new ArrayList<>();
-        testRanges.add(Lists.newArrayList(
+        testRanges.add(List.of(
                 new IntRange().setStart(2).setEnd(2),
                 new IntRange().setStart(3).setEnd(3),
                 new IntRange().setStart(4).setEnd(5))
         );
-        testRanges.add(Lists.newArrayList(
+        testRanges.add(List.of(
                 new IntRange().setStart(0).setEnd(0),
                 new IntRange().setStart(1).setEnd(2))
         );

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.io.sources;
 import static org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase.randomName;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -35,7 +36,6 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.KafkaContainer;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 
 /**
  * A tester for testing kafka source.
@@ -118,29 +118,30 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
 
     @Override
     public Map<String, String> produceSourceMessages(int numMessages) throws Exception{
-        KafkaProducer<String, String> producer = new KafkaProducer<>(
+        try (KafkaProducer<String, String> producer = new KafkaProducer<>(
                 ImmutableMap.of(
                         ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers(),
                         ProducerConfig.CLIENT_ID_CONFIG, UUID.randomUUID().toString()
                 ),
                 new StringSerializer(),
                 new StringSerializer()
-        );
-        LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
-        for (int i = 0; i < numMessages; i++) {
-            String key = "key-" + i;
-            String value = "value-" + i;
-            ProducerRecord<String, String> record = new ProducerRecord<>(
-                kafkaTopicName,
-                key,
-                value
-            );
-            kvs.put(key, value);
-            producer.send(record).get();
-        }
+        )) {
+            LinkedHashMap<String, String> kvs = new LinkedHashMap<>();
+            for (int i = 0; i < numMessages; i++) {
+                String key = "key-" + i;
+                String value = "value-" + i;
+                ProducerRecord<String, String> record = new ProducerRecord<>(
+                        kafkaTopicName,
+                        key,
+                        value
+                );
+                kvs.put(key, value);
+                producer.send(record).get();
+            }
 
-        log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
-        return kvs;
+            log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
+            return kvs;
+        }
     }
 
     @Override

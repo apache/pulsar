@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,7 +32,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
@@ -45,12 +45,15 @@ import org.apache.pulsar.broker.service.streamingdispatch.StreamingEntryReader;
 public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDispatcherMultipleConsumers
     implements StreamingDispatcher {
 
+    private int sendingTaskCounter = 0;
     private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
+    private final Executor topicExecutor;
 
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription) {
         super(topic, cursor, subscription);
+        this.topicExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(topic.getName());
     }
 
     /**
@@ -93,21 +96,27 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                 .getNextValidPosition((PositionImpl) entry.getPosition()));
 
+        long size = entry.getLength();
+        updatePendingBytesToDispatch(size);
         // dispatch messages to a separate thread, but still in order for this subscription
         // sendMessagesToConsumers is responsible for running broker-side filters
         // that may be quite expensive
         if (serviceConfig.isDispatcherDispatchMessagesInSubscriptionThread()) {
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
-            sendInProgress = true;
+            acquireSendInProgress();
             dispatchMessagesThread.execute(safeRun(() -> {
-                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+                if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), false)) {
                     readMoreEntries();
+                } else {
+                    updatePendingBytesToDispatch(-size);
                 }
             }));
         } else {
-            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry))) {
+            if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), true)) {
                 readMoreEntriesAsync();
+            } else {
+                updatePendingBytesToDispatch(-size);
             }
         }
         ctx.recycle();
@@ -120,7 +129,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     public void canReadMoreEntries(boolean withBackoff) {
         havePendingRead = false;
         topic.getBrokerService().executor().schedule(() -> {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+            topicExecutor.execute(SafeRun.safeRun(() -> {
                 synchronized (PersistentStreamingDispatcherMultipleConsumers.this) {
                     if (!havePendingRead) {
                         log.info("[{}] Scheduling read operation", name);
@@ -142,7 +151,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
         if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Topic has been terminated and there are no more entries to read
             // Notify the consumer only if all the messages were already acknowledged
-            consumerList.forEach(Consumer::reachedEndOfTopic);
+            checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
         }
     }
 
@@ -154,8 +163,23 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized void acquireSendInProgress() {
+        sendingTaskCounter++;
+    }
+
+    @Override
+    protected synchronized void releaseSendInProgress() {
+        sendingTaskCounter--;
+    }
+
+    @Override
+    protected synchronized boolean isSendInProgress() {
+        return sendingTaskCounter > 0;
+    }
+
+    @Override
     public synchronized void readMoreEntries() {
-        if (sendInProgress) {
+        if (isSendInProgress()) {
             // we cannot read more entries while sending the previous batch
             // otherwise we could re-read the same entries and send duplicates
             return;
@@ -192,7 +216,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                     havePendingReplayRead = false;
                     // We should not call readMoreEntries() recursively in the same thread
                     // as there is a risk of StackOverflowError
-                    topic.getBrokerService().executor().execute(() -> readMoreEntries());
+                    topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,

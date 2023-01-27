@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -27,7 +26,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
@@ -66,6 +64,7 @@ import org.apache.pulsar.common.util.NettyClientSslContextRefresher;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -209,7 +208,8 @@ public class DirectProxyHandler {
                             new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                    Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+                        service.getConfiguration().getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0,
+                        4));
                 ch.pipeline().addLast("proxyOutboundHandler",
                         (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }
@@ -238,22 +238,22 @@ public class DirectProxyHandler {
 
     private void writeHAProxyMessage() {
         if (proxyConnection.hasHAProxyMessage()) {
-            outboundChannel.writeAndFlush(encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage()))
-                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            final ByteBuf msg = encodeProxyProtocolMessage(proxyConnection.getHAProxyMessage());
+            writeAndFlush(msg);
         } else {
             if (inboundChannel.remoteAddress() instanceof InetSocketAddress
-                    && outboundChannel.localAddress() instanceof InetSocketAddress) {
+                    && inboundChannel.localAddress() instanceof InetSocketAddress) {
                 InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
                 String sourceAddress = clientAddress.getAddress().getHostAddress();
                 int sourcePort = clientAddress.getPort();
-                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.localAddress();
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
                         HAProxyProxiedProtocol.TCP4, sourceAddress, destinationAddress, sourcePort,
                         destinationPort);
-                outboundChannel.writeAndFlush(encodeProxyProtocolMessage(msg))
-                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+                final ByteBuf encodedMsg = encodeProxyProtocolMessage(msg);
+                writeAndFlush(encodedMsg);
                 msg.release();
             }
         }
@@ -323,11 +323,11 @@ public class DirectProxyHandler {
             // Send the Connect command to broker
             authenticationDataProvider = authentication.getAuthData(remoteHostName);
             AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-            ByteBuf command;
-            command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
-                    null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
-            outboundChannel.writeAndFlush(command)
-                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            ByteBuf command = Commands.newConnect(
+                    authentication.getAuthMethodName(), authData, protocolVersion,
+                    "Pulsar proxy", null /* target broker */,
+                    originalPrincipal, clientAuthData, clientAuthMethod);
+            writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }
 
@@ -358,8 +358,7 @@ public class DirectProxyHandler {
                 if (msg instanceof ByteBuf) {
                     ProxyService.BYTES_COUNTER.inc(((ByteBuf) msg).readableBytes());
                 }
-                inboundChannel.writeAndFlush(msg)
-                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+                inboundChannel.writeAndFlush(msg, inboundChannel.voidPromise());
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
@@ -412,8 +411,7 @@ public class DirectProxyHandler {
                     log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
                 }
 
-                outboundChannel.writeAndFlush(request)
-                        .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+                writeAndFlush(request);
             } catch (Exception e) {
                 log.error("Error mutual verify", e);
             }
@@ -493,6 +491,10 @@ public class DirectProxyHandler {
             log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
             ctx.close();
         }
+    }
+
+    private void writeAndFlush(ByteBuf cmd) {
+        NettyChannelUtil.writeAndFlushWithVoidPromise(outboundChannel, cmd);
     }
 
     private static final Logger log = LoggerFactory.getLogger(DirectProxyHandler.class);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,10 +24,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Sets;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -43,9 +43,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
-
-import com.google.common.collect.Sets;
 
 @Test(groups = "broker")
 public class PeerReplicatorTest extends ReplicatorTestBase {
@@ -130,7 +127,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         }
 
         // set peer-clusters : r3->r1
-        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
+        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r1")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);
@@ -145,7 +142,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         producer.close();
 
         // set peer-clusters : r3->r2
-        admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r2")));
+        admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r2")));
         producer = client3.newProducer().topic(topic2).create();
         topic = (PersistentTopic) pulsar2.getBrokerService().getOrCreateTopic(topic2).get();
         assertNotNull(topic);
@@ -172,7 +169,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         final String mainClusterName = "r1";
         assertNull(admin1.clusters().getPeerClusterNames(mainClusterName));
-        LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
+        LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(List.of("r2", "r3"));
         admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
         retryStrategically((test) -> {
             try {
@@ -214,8 +211,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         @Cleanup
         PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
         // set peer-clusters : r3->r1
-        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
-        admin1.clusters().updatePeerClusterNames("r1", Sets.newLinkedHashSet(Lists.newArrayList("r3")));
+        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r1")));
+        admin1.clusters().updatePeerClusterNames("r1", Sets.newLinkedHashSet(List.of("r3")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);

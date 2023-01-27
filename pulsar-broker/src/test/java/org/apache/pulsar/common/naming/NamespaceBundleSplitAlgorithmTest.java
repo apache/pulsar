@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,10 @@
 package org.apache.pulsar.common.naming;
 
 
-import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME;
-import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE;
-import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.*;
 
 
 public class NamespaceBundleSplitAlgorithmTest {
@@ -40,5 +39,7 @@ public class NamespaceBundleSplitAlgorithmTest {
         Assert.assertTrue(topicCountEquallyDivide instanceof TopicCountEquallyDivideBundleSplitAlgorithm);
         NamespaceBundleSplitAlgorithm specifiedTopicCountEquallyDivide = NamespaceBundleSplitAlgorithm.of(SPECIFIED_POSITIONS_DIVIDE);
         Assert.assertTrue(specifiedTopicCountEquallyDivide instanceof SpecifiedPositionsBundleSplitAlgorithm);
+        NamespaceBundleSplitAlgorithm flowOrQPSEquallyDivide = NamespaceBundleSplitAlgorithm.of(FLOW_OR_QPS_EQUALLY_DIVIDE);
+        Assert.assertTrue(flowOrQPSEquallyDivide instanceof FlowOrQpsEquallyDivideBundleSplitAlgorithm);
     }
 }

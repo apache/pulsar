@@ -21,40 +21,50 @@ name: CI - OWASP Dependency Check
 on:
   schedule:
     - cron: '15 0 * * *'
+  workflow_dispatch:
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xss1500k -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
   run-owasp-dependency-check:
-    if: ${{ github.repository == 'apache/pulsar' }}
-    name: Run OWASP Dependency Check
-    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'apache/pulsar' || github.event_name == 'workflow_dispatch' }}
+    name: Check ${{ matrix.branch }}
+    env:
+      JOB_NAME: Check ${{ matrix.branch }}
+    runs-on: ubuntu-20.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: master
-            checkout_branch: 'master'
-          - name: branch-2.10
-            checkout_branch: 'branch-2.10'
-          - name: branch-2.9
-            checkout_branch: 'branch-2.9'
-          - name: branch-2.8
-            checkout_branch: 'branch-2.8'
+          - branch: master
+          - branch: branch-2.11
+          - branch: branch-2.10
+            jdk: 11
+          - branch: branch-2.9
+            jdk: 11
+          - branch: branch-2.8
+            jdk: 11
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
-          ref: ${{ matrix.checkout_branch }}
+          ref: ${{ matrix.branch }}
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
+      - name: Configure Gradle Enterprise
+        if: ${{ matrix.branch == 'master' }}
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
+
       - name: Cache local Maven repository
-        uses: actions/cache@v2
+        uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -65,22 +75,14 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 17
-        if: ${{ matrix.name != 'branch-2.8' && matrix.name != 'branch-2.9' && matrix.name != 'branch-2.10' }}
-        uses: actions/setup-java@v2
+      - name: Set up JDK ${{ matrix.jdk || '17' }}
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 17
-
-      - name: Set up JDK 11
-        if: ${{ matrix.name == 'branch-2.8' || matrix.name == 'branch-2.9' || matrix.name == 'branch-2.10' }}
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 11
+          java-version: ${{ matrix.jdk || '17' }}
 
       - name: run install by skip tests
-        run: mvn -q -B -ntp clean install -DskipTests
+        run: mvn -B -ntp clean install -DskipTests -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DskipDocker=true
 
       - name: run OWASP Dependency Check for distribution/server (-DfailBuildOnAnyVulnerability=true)
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/server -DfailBuildOnAnyVulnerability=true
@@ -92,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: always()
         with:
-          name: owasp-dependency-check-reports-${{ matrix.checkout_branch }}
+          name: owasp-dependency-check-reports-${{ matrix.branch }}
           path: |
             distribution/server/target/dependency-check-report.html
             distribution/offloaders/target/dependency-check-report.html

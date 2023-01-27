@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -125,7 +124,7 @@ class LockManagerImpl<T> implements LockManager<T> {
             if (se == SessionEvent.SessionReestablished) {
                 log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
                 for (ResourceLockImpl<T> lock : locks.values()) {
-                    futures.add(lock.revalidate(lock.getValue()));
+                    futures.add(lock.revalidate(lock.getValue(), true));
                 }
 
             } else if (se == SessionEvent.Reconnected) {
@@ -178,10 +177,8 @@ class LockManagerImpl<T> implements LockManager<T> {
             this.state = State.Closed;
         }
 
-        return FutureUtils.collect(
-                locks.values().stream()
-                        .map(ResourceLock::release)
-                        .collect(Collectors.toList()))
-                .thenApply(x -> null);
+        return FutureUtil.waitForAll(locks.values().stream()
+                .map(ResourceLock::release)
+                .collect(Collectors.toList()));
     }
 }

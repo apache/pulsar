@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -319,7 +319,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-tenant/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrlTls.toString()).build());
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .serviceUrlTls(brokerUrlTls.toString()).build());
 
         admin.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
@@ -410,7 +411,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         String namespaceName = "my-tenant/my-ns";
         createAdminClient();
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrlTls.toString()).build());
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .serviceUrlTls(brokerUrlTls.toString()).build());
 
         admin.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));

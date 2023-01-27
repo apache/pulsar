@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.WithSNISslEngineFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -171,6 +172,10 @@ public class AsyncHttpConnector implements Connector {
                                 conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
+                    if (!conf.isTlsHostnameVerificationEnable()) {
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
+                                .resolveHostUri().getHost()));
+                    }
                 }
             }
             confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
@@ -205,7 +210,7 @@ public class AsyncHttpConnector implements Connector {
     private URI replaceWithNew(InetSocketAddress address, URI uri) {
         String originalUri = uri.toString();
         String newUri = (originalUri.split(":")[0] + "://")
-                + address.getHostName() + ":"
+                + address.getHostString() + ":"
                 + address.getPort()
                 + uri.getRawPath();
         if (uri.getRawQuery() != null) {
@@ -236,6 +241,9 @@ public class AsyncHttpConnector implements Connector {
 
                     @Override
                     public String getReasonPhrase() {
+                        if (response.hasResponseBody()) {
+                            return response.getResponseBody();
+                        }
                         return response.getStatusText();
                     }
                 });

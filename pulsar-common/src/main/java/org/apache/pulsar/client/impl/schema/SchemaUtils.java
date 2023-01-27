@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -31,7 +31,6 @@ import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -44,6 +43,7 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import org.apache.pulsar.client.internal.DefaultImplementation;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
@@ -339,13 +339,13 @@ public final class SchemaUtils {
      */
     public static String convertKeyValueSchemaInfoDataToString(
             KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
-        ObjectMapper objectMapper = ObjectMapperFactory.create();
+        ObjectReader objectReader = ObjectMapperFactory.getMapper().reader();
         KeyValue<Object, Object> keyValue = new KeyValue<>(
                 SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
-                        : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()),
+                        : objectReader.readTree(kvSchemaInfo.getKey().getSchema()),
                 SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ? ""
-                        : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
-        return objectMapper.writeValueAsString(keyValue);
+                        : objectReader.readTree(kvSchemaInfo.getValue().getSchema()));
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {
@@ -367,7 +367,7 @@ public final class SchemaUtils {
         int dataLength = 4 + keyBytes.length + 4 + valueBytes.length;
         byte[] schema = new byte[dataLength];
         //record the key value schema respective length
-        ByteBuf byteBuf = ByteBufAllocator.DEFAULT.heapBuffer(dataLength);
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.heapBuffer(dataLength);
         byteBuf.writeInt(keyBytes.length).writeBytes(keyBytes).writeInt(valueBytes.length).writeBytes(valueBytes);
         byteBuf.readBytes(schema);
         return schema;

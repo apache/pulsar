@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,6 +43,10 @@ public interface MetaStore {
         void operationFailed(MetaStoreException e);
     }
 
+    interface UpdateCallback<T> {
+        void onUpdate(T result, Stat stat);
+    }
+
     /**
      * Get the metadata used by the ManagedLedger.
      *
@@ -70,6 +74,19 @@ public interface MetaStore {
      */
     void getManagedLedgerInfo(String ledgerName, boolean createIfMissing, Map<String, String> properties,
                               MetaStoreCallback<ManagedLedgerInfo> callback);
+
+    /**
+     * Watch the metadata used by the ManagedLedger.
+     * @param ledgerName
+     * @param callback
+     */
+    void watchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback);
+
+    /**
+     * Unwatch the metadata changes for ledgerName.
+     * @param ledgerName
+     */
+    void unwatchManagedLedgerInfo(String ledgerName);
 
     /**
      *
@@ -158,4 +175,13 @@ public interface MetaStore {
      *         if the operation succeeds.
      */
     CompletableFuture<Boolean> asyncExists(String ledgerName);
+
+
+    /**
+     * Get managed ledger properties from meta store.
+     *
+     * @param name ledgerName
+     * @return a future represents the result of the operation.
+     */
+    CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
 }

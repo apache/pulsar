@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,9 @@ import org.testng.annotations.BeforeClass;
 @Slf4j
 public abstract class PulsarTieredStorageTestSuite extends PulsarClusterTestBase {
 
-    protected static final int ENTRIES_PER_LEDGER = 1024;
+    protected int getNumEntriesPerLedger() {
+        return 1024;
+    }
 
     @BeforeClass(alwaysRun = true)
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,15 +31,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -205,7 +204,7 @@ public class CmdProduce {
         }
 
         if (messages.size() > 0){
-            messages = Collections.unmodifiableList(Arrays.asList(messages.get(0).split(separator)));
+            messages = messages.stream().map(str -> str.split(separator)).flatMap(Stream::of).toList();
         }
 
         if (messages.size() == 0 && messageFileNames.size() == 0) {
@@ -480,7 +479,7 @@ public class CmdProduce {
             ProducerMessage msg = new ProducerMessage();
             msg.payload = Base64.getEncoder().encodeToString(content);
             msg.key = Integer.toString(index);
-            return ObjectMapperFactory.getThreadLocal().writeValueAsString(msg);
+            return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
         }
 
         public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {

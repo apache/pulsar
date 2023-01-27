@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,10 +23,10 @@ import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMo
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -35,7 +35,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -113,7 +112,7 @@ public class PersistentSubscriptionTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-subscription-test").build();
         eventLoopGroup = new NioEventLoopGroup();
 
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+        ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setTransactionCoordinatorEnabled(true);
@@ -222,50 +221,6 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
-    public void testCanAcknowledgeAndCommitForTransaction() throws ExecutionException, InterruptedException {
-        doAnswer((invocationOnMock) -> {
-            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
-                    .deleteComplete(invocationOnMock.getArguments()[2]);
-            return null;
-        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
-
-        List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 1), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 3), 0));
-        positionsPair.add(new MutablePair<>(new PositionImpl(1, 5), 0));
-
-        doAnswer((invocationOnMock) -> {
-            assertTrue(Arrays.deepEquals(((List)invocationOnMock.getArguments()[0]).toArray(),
-                    positionsPair.toArray()));
-            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
-                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
-            return null;
-        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
-        // Single ack for txn
-        persistentSubscription.transactionIndividualAcknowledge(txnID1, positionsPair);
-
-        // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
-
-        List<PositionImpl> positions = new ArrayList<>();
-        positions.add(new PositionImpl(3, 100));
-
-        // Cumulative ack for txn
-        persistentSubscription.transactionCumulativeAcknowledge(txnID1, positions);
-
-        doAnswer((invocationOnMock) -> {
-            assertEquals(((PositionImpl) invocationOnMock.getArguments()[0]).compareTo(new PositionImpl(3, 100)), 0);
-            ((AsyncCallbacks.MarkDeleteCallback) invocationOnMock.getArguments()[2])
-                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
-            return null;
-        }).when(cursorMock).asyncMarkDelete(any(), any(), any(AsyncCallbacks.MarkDeleteCallback.class), any());
-
-        // Commit txn
-        persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
-    }
-
-    @Test
     public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
         List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 1), 0));
@@ -347,5 +302,26 @@ public class PersistentSubscriptionTest {
         positionsPair.add(new MutablePair(new PositionImpl(2, 1), 0));
 
         persistentSubscription.transactionIndividualAcknowledge(txnID2, positionsPair);
+    }
+
+    @Test
+    public void testAcknowledgeUpdateCursorLastActive() throws Exception {
+        doAnswer((invocationOnMock) -> {
+            ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
+                    .deleteComplete(invocationOnMock.getArguments()[2]);
+            return null;
+        }).when(cursorMock).asyncDelete(any(List.class), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        doCallRealMethod().when(cursorMock).updateLastActive();
+        doCallRealMethod().when(cursorMock).getLastActive();
+
+        List<Position> positionList = new ArrayList<>();
+        positionList.add(new PositionImpl(1, 1));
+        long beforeAcknowledgeTimestamp = System.currentTimeMillis();
+        Thread.sleep(1);
+        persistentSubscription.acknowledgeMessage(positionList, AckType.Individual, Collections.emptyMap());
+
+        // `acknowledgeMessage` should update cursor last active
+        assertTrue(persistentSubscription.cursor.getLastActive() > beforeAcknowledgeTimestamp);
     }
 }

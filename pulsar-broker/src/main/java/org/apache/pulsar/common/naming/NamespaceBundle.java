@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,10 @@
 package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import com.google.common.base.Objects;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
+import java.util.Objects;
 
 public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundle> {
     private final NamespaceName nsname;
@@ -36,8 +35,8 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     private final String bundleRange;
 
     public NamespaceBundle(NamespaceName nsname, Range<Long> keyRange, NamespaceBundleFactory factory) {
-        this.nsname = checkNotNull(nsname);
-        this.keyRange = checkNotNull(keyRange);
+        this.nsname = Objects.requireNonNull(nsname);
+        this.keyRange = Objects.requireNonNull(keyRange);
         checkArgument(this.keyRange.lowerBoundType().equals(BoundType.CLOSED),
                 "Invalid hash range. Lower Endpoint has to be inclusive");
         checkArgument(
@@ -47,7 +46,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
                                 && this.keyRange.upperBoundType().equals(BoundType.OPEN)),
                 "Invalid hash range. Upper Endpoint should be exclusive unless it is 0xffffffff");
         checkArgument(!this.keyRange.isEmpty(), "Cannot create bundle object for an empty key range");
-        this.factory = checkNotNull(factory);
+        this.factory = Objects.requireNonNull(factory);
         this.key = getKey(this.nsname, this.keyRange);
         this.bundleRange = String.format("0x%08x_0x%08x", keyRange.lowerEndpoint(), keyRange.upperEndpoint());
     }
@@ -94,7 +93,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(nsname,
+        return Objects.hash(nsname,
                 keyRange.lowerEndpoint(), keyRange.lowerBoundType(),
                 keyRange.upperEndpoint(), keyRange.upperBoundType());
     }
@@ -103,11 +102,11 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     public boolean equals(Object other) {
         if (other instanceof NamespaceBundle) {
             NamespaceBundle obj = (NamespaceBundle) other;
-            return Objects.equal(this.nsname, obj.nsname)
-                    && (Objects.equal(this.keyRange.lowerEndpoint(), obj.keyRange.lowerEndpoint())
-                            && Objects.equal(this.keyRange.lowerBoundType(), obj.keyRange.lowerBoundType())
-                            && Objects.equal(this.keyRange.upperEndpoint(), obj.keyRange.upperEndpoint())
-                            && Objects.equal(this.keyRange.upperBoundType(), obj.keyRange.upperBoundType()));
+            return Objects.equals(this.nsname, obj.nsname)
+                    && (Objects.equals(this.keyRange.lowerEndpoint(), obj.keyRange.lowerEndpoint())
+                            && Objects.equals(this.keyRange.lowerBoundType(), obj.keyRange.lowerBoundType())
+                            && Objects.equals(this.keyRange.upperEndpoint(), obj.keyRange.upperEndpoint())
+                            && Objects.equals(this.keyRange.upperBoundType(), obj.keyRange.upperBoundType()));
         }
         return false;
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -174,7 +173,7 @@ public class KubernetesRuntimeFactoryTest {
 
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
 
         workerConfig.setFunctionInstanceMinResources(minResources);
         workerConfig.setFunctionInstanceMaxResources(maxResources);
@@ -502,7 +501,7 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,6 +38,15 @@ public class NettyServerSslContextBuilder extends SslContextAutoRefreshBuilder<S
     protected final Set<String> tlsProtocols;
     protected final boolean tlsRequireTrustedClientCertOnConnect;
     protected final SslProvider sslProvider;
+
+    public NettyServerSslContextBuilder(boolean allowInsecure, String trustCertsFilePath,
+                                        String certificateFilePath,
+                                        String keyFilePath, Set<String> ciphers, Set<String> protocols,
+                                        boolean requireTrustedClientCertOnConnect,
+                                        long delayInSeconds) {
+        this(null, allowInsecure, trustCertsFilePath, certificateFilePath, keyFilePath, ciphers, protocols,
+                requireTrustedClientCertOnConnect, delayInSeconds);
+    }
 
     public NettyServerSslContextBuilder(SslProvider sslProvider, boolean allowInsecure, String trustCertsFilePath,
                                         String certificateFilePath,

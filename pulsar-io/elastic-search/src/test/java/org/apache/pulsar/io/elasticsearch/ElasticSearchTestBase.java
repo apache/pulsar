@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,10 +39,10 @@ import org.testcontainers.utility.DockerImageName;
 public abstract class ElasticSearchTestBase {
 
     public static final String ELASTICSEARCH_8 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V8"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.1.0");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:8.5.1");
 
     public static final String ELASTICSEARCH_7 = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE_V7"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
+            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.17.7");
 
     public static final String OPENSEARCH = Optional.ofNullable(System.getenv("OPENSEARCH_IMAGE"))
             .orElse("opensearchproject/opensearch:1.2.4");

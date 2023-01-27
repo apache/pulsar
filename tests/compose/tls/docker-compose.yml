@@ -83,9 +83,9 @@ services:
       configurationStoreServers: zk:2181
       brokerServicePortTls: 6651
       webServicePortTls: 8443
-      tlsCertificateFilePath: /pulsar/ssl/broker.cert.pem
-      tlsKeyFilePath: /pulsar/ssl/broker.key-pk8.pem
-      tlsTrustCertsFilePath: /pulsar/ssl/ca.cert.pem
+      tlsCertificateFilePath: /pulsar/certificate-authority/server-keys/broker.cert.pem
+      tlsKeyFilePath: /pulsar/certificate-authority/server-keys/broker.key-pk8.pem
+      tlsTrustCertsFilePath: /pulsar/certificate-authority/certs/ca.cert.pem
       authenticationEnabled: "true"
       authenticationProviders: org.apache.pulsar.broker.authentication.AuthenticationProviderTls
       authorizationEnabled: "true"
@@ -105,15 +105,15 @@ services:
       configurationStoreServers: zk:2181
       servicePortTls: 6651
       webServicePortTls: 8443
-      tlsCertificateFilePath: /pulsar/ssl/broker.cert.pem
-      tlsKeyFilePath: /pulsar/ssl/broker.key-pk8.pem
-      tlsTrustCertsFilePath: /pulsar/ssl/ca.cert.pem
-      brokerClientTrustCertsFilePath: /pulsar/ssl/ca.cert.pem
+      tlsCertificateFilePath: /pulsar/certificate-authority/server-keys/broker.cert.pem
+      tlsKeyFilePath: /pulsar/certificate-authority/server-keys/broker.key-pk8.pem
+      tlsTrustCertsFilePath: /pulsar/certificate-authority/certs/ca.cert.pem
+      brokerClientTrustCertsFilePath: /pulsar/certificate-authority/certs/ca.cert.pem
       authenticationEnabled: "true"
       authenticationProviders: org.apache.pulsar.broker.authentication.AuthenticationProviderTls
       tlsEnabledWithBroker: "true"
       brokerClientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationTls
-      brokerClientAuthenticationParameters: tlsCertFile:/pulsar/ssl/superproxy.cert.pem,tlsKeyFile:/pulsar/ssl/superproxy.key-pk8.pem
+      brokerClientAuthenticationParameters: tlsCertFile:/pulsar/certificate-authority/client-keys/superproxy.cert.pem,tlsKeyFile:/pulsar/certificate-authority/client-keys/superproxy.key-pk8.pem
     networks:
       pulsar:
 

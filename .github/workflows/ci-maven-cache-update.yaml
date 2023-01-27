@@ -42,11 +42,13 @@ on:
     - cron: '30 */12 * * *'
 
 env:
-  MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  MAVEN_OPTS: -Xss1500k -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
 
 jobs:
   update-maven-dependencies-cache:
     name: Update Maven dependency cache for ${{ matrix.name }}
+    env:
+      JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
 
@@ -55,25 +57,30 @@ jobs:
       matrix:
         include:
           - name: all modules
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-20.04
             cache_name: 'm2-dependencies-all'
             mvn_arguments: ''
 
           - name: all modules - macos
-            runs-on: macos-latest
+            runs-on: macos-11
             cache_name: 'm2-dependencies-all'
 
           - name: core-modules
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-20.04
             cache_name: 'm2-dependencies-core-modules'
             mvn_arguments: '-Pcore-modules,-main'
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Configure Gradle Enterprise
+        uses: ./.github/actions/gradle-enterprise
+        with:
+          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Detect changed files
         if: ${{ github.event_name != 'schedule' }}
@@ -88,7 +95,8 @@ jobs:
       - name: Cache local Maven repository
         if: ${{ github.event_name == 'schedule' || steps.changes.outputs.poms == 'true' }}
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
+        timeout-minutes: 5
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -99,7 +107,7 @@ jobs:
           # cache would be used as the starting point for a new cache entry
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v3
         if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
         with:
           distribution: 'temurin'

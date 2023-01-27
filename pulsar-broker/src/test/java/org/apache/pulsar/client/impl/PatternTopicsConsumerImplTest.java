@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -132,6 +132,31 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         } catch (IllegalArgumentException e) {
             // expected
         }
+
+        // test failing builder with empty pattern should fail
+        try {
+            pattern = Pattern.compile("");
+            pulsarClient.newConsumer()
+                    .topicsPattern(pattern)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .subscribe();
+            fail("subscribe4 with empty pattern should fail.");
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "Pattern has already been set or is empty.");
+        }
+        try {
+            pulsarClient.newConsumer()
+                    .topicsPattern("")
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .subscribe();
+            fail("subscribe5 with empty pattern should fail.");
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "topicsPattern should not be null or empty");
+        }
     }
 
     // verify consumer create success, and works well.
@@ -228,16 +253,15 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
     @Test(timeOut = testTimeout)
     public void testPubRateOnNonPersistent() throws Exception {
-        internalCleanup();
+        cleanup();
         conf.setMaxPublishRatePerTopicInBytes(10000L);
         conf.setMaxPublishRatePerTopicInMessages(100);
         Thread.sleep(500);
         isTcpLookup = true;
-        super.internalSetup();
-        super.producerBaseSetup();
+        setup();
         testBinaryProtoToGetTopicsOfNamespaceNonPersistent();
     }
-    
+
 	// verify consumer create success, and works well.
     @Test(timeOut = testTimeout)
     public void testBinaryProtoToGetTopicsOfNamespaceNonPersistent() throws Exception {

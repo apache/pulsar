@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -195,7 +195,18 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
-    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
+    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumerParam) {
+        forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            Range<T> range = Range.openClosed(
+                    consumerParam.apply(lowerKey, lowerValue),
+                    consumerParam.apply(upperKey, upperValue)
+            );
+            return action.process(range);
+        });
+    }
+
+    @Override
+    public void forEachRawRange(RawRangeProcessor processor) {
         AtomicBoolean completed = new AtomicBoolean(false);
         rangeBitSetMap.forEach((key, set) -> {
             if (completed.get()) {
@@ -209,9 +220,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 int nextOpenMark = set.nextClearBit(currentClosedMark);
-                Range<T> range = Range.openClosed(consumer.apply(key, currentClosedMark - 1),
-                        consumer.apply(key, nextOpenMark - 1));
-                if (!action.process(range)) {
+                if (!processor.processRawRange(key, currentClosedMark - 1,
+                        key, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
@@ -219,6 +229,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
         });
     }
+
 
     @Override
     public Range<T> firstRange() {
@@ -243,13 +254,39 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
+    public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+        NavigableMap<Long, BitSet> subMap = rangeBitSetMap.subMap(lowerKey, true, upperKey, true);
+        MutableInt v = new MutableInt(0);
+        subMap.forEach((key, bitset) -> {
+            if (key == lowerKey || key == upperKey) {
+                BitSet temp = (BitSet) bitset.clone();
+                // Trim the bitset index which < lowerValue
+                if (key == lowerKey) {
+                    temp.clear(0, (int) Math.max(0, lowerValue));
+                }
+                // Trim the bitset index which > upperValue
+                if (key == upperKey) {
+                    temp.clear((int) Math.min(upperValue + 1, temp.length()), temp.length());
+                }
+                v.add(temp.cardinality());
+            } else {
+                v.add(bitset.cardinality());
+            }
+        });
+        return v.intValue();
+    }
+
+    @Override
     public int size() {
         if (updatedAfterCachedForSize) {
             MutableInt size = new MutableInt(0);
-            forEach((range) -> {
+
+            // ignore result because we just want to count
+            forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
                 size.increment();
                 return true;
             });
+
             cachedSize = size.intValue();
             updatedAfterCachedForSize = false;
         }

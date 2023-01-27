@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,6 +45,13 @@ public class JsonConverter {
 
     private static Map<String, LogicalTypeConverter<?>> logicalTypeConverters = new HashMap<>();
     private static final JsonNodeFactory jsonNodeFactory = JsonNodeFactory.withExactBigDecimals(true);
+
+    public static JsonNode topLevelMerge(JsonNode n1, JsonNode n2) {
+        ObjectNode objectNode = jsonNodeFactory.objectNode();
+        n1.fieldNames().forEachRemaining(f -> objectNode.put(f, n1.get(f)));
+        n2.fieldNames().forEachRemaining(f -> objectNode.put(f, n2.get(f)));
+        return objectNode;
+    }
 
     public static JsonNode toJson(GenericRecord genericRecord) {
         if (genericRecord == null) {

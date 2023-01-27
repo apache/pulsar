@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import com.google.common.collect.Sets;
@@ -35,7 +36,7 @@ public class LoadManagerSharedTest {
         String namespace = "tenant1/ns1";
         String assignedBundle = namespace + "/0x00000000_0x40000000";
 
-        Set<String> candidates = Sets.newHashSet();
+        Set<String> candidates = new HashSet<>();
         ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>> map =
                 ConcurrentOpenHashMap.<String,
                         ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()

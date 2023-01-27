@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,8 @@ import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
@@ -112,12 +114,21 @@ public class PerformanceReader {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
+        }
+
+        for (String arg : arguments.topic) {
+            if (arg.startsWith("-")) {
+                System.out.printf("invalid option: '%s'\nTo use a topic with the name '%s', "
+                        + "please use a fully qualified topic name\n", arg, arg);
+                jc.usage();
+                PerfClientUtils.exit(1);
+            }
         }
 
         if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
@@ -132,7 +143,7 @@ public class PerformanceReader {
             } else {
                 System.out.println("The size of topics list should be equal to --num-topics");
                 jc.usage();
-                PerfClientUtils.exit(-1);
+                PerfClientUtils.exit(1);
             }
         }
         arguments.fillArgumentsFromProperties();
@@ -144,26 +155,18 @@ public class PerformanceReader {
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-        long startTime = System.nanoTime();
-        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
         ReaderListener<byte[]> listener = (reader, msg) -> {
-            if (arguments.testTime > 0) {
-                if (System.nanoTime() > testEndTime) {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
-                            + "--------------", arguments.testTime);
-                    PerfClientUtils.exit(0);
-                }
-            }
-            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
-                        arguments.numMessages);
-                PerfClientUtils.exit(0);
-            }
             messagesReceived.increment();
             bytesReceived.add(msg.getData().length);
 
             totalMessagesReceived.increment();
             totalBytesReceived.add(msg.getData().length);
+
+            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
+                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------",
+                        arguments.numMessages);
+                PerfClientUtils.exit(0);
+            }
 
             if (limiter != null) {
                 limiter.acquire();
@@ -213,6 +216,20 @@ public class PerformanceReader {
             printAggregatedThroughput(start);
             printAggregatedStats();
         }));
+
+        if (arguments.testTime > 0) {
+            TimerTask timoutTask = new TimerTask() {
+                @Override
+                public void run() {
+                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) "
+                            + "--------------", arguments.testTime);
+                    PerfClientUtils.exit(0);
+                }
+            };
+            Timer timer = new Timer();
+            timer.schedule(timoutTask, arguments.testTime * 1000);
+        }
+
 
         long oldTime = System.nanoTime();
         Histogram reportHistogram = null;

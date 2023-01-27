@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
@@ -47,6 +48,7 @@ public class TopicPolicies {
     @Builder.Default
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
     private List<String> replicationClusters;
+    private List<String> shadowTopics;
     private Boolean isGlobal = false;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;
@@ -71,6 +73,9 @@ public class TopicPolicies {
     private Integer maxSubscriptionsPerTopic;
     private DispatchRateImpl replicatorDispatchRate;
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
+    private EntryFilters entryFilters;
+    // If set, it will override the namespace settings for allowing auto subscription creation
+    private AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride;
 
     /**
      * Subscription level policies for specific subscription.

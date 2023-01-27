@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
-import com.google.common.collect.Lists;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
@@ -63,7 +63,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
-        List<InetSocketAddress> result = Lists.newArrayList();
+        List<InetSocketAddress> result = new ArrayList<>();
         result.add(new InetSocketAddress("127.0.0.1", brokerPort));
         Mockito.when(pool.resolveName(InetSocketAddress.createUnresolved("non-existing-dns-name",
                 brokerPort)))
@@ -83,7 +83,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         conf.setServiceUrl(serviceUrl);
         PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
-        List<InetSocketAddress> result = Lists.newArrayList();
+        List<InetSocketAddress> result = new ArrayList<>();
 
         // Add a non existent IP to the response to check that we're trying the 2nd address as well
         result.add(new InetSocketAddress("127.0.0.99", brokerPort));

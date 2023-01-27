@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -101,16 +101,12 @@ public class CmdGenerateDocs {
     private String generateDocument(String module, JCommander commander) {
         JCommander cmd = commander.getCommands().get(module);
         StringBuilder sb = new StringBuilder();
-        sb.append("------------\n\n");
         sb.append("# ").append(module).append("\n\n");
-        sb.append("### Usage\n\n");
-        sb.append("`$").append(module).append("`\n\n");
-        sb.append("------------\n\n");
         String desc = commander.getUsageFormatter().getCommandDescription(module);
         if (null != desc && !desc.isEmpty()) {
             sb.append(desc).append("\n");
         }
-        sb.append("\n\n```bdocs-tab:example_shell\n")
+        sb.append("\n\n```shell\n")
                 .append("$ ");
         if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
             sb.append(jcommander.getProgramName()).append(" ");
@@ -120,12 +116,6 @@ public class CmdGenerateDocs {
                 && cmd.getObjects().get(0).getClass().getName().equals("com.beust.jcommander.JCommander")) {
             JCommander cmdObj = (JCommander) cmd.getObjects().get(0);
             sb.append(" subcommand").append("\n```").append("\n\n");
-            for (String s : cmdObj.getCommands().keySet()) {
-                if (s.equals(name)) {
-                    continue;
-                }
-                sb.append("* `").append(s).append("`\n");
-            }
             cmdObj.getCommands().forEach((subK, subV) -> {
                 if (!subK.equals(name)) {
                     sb.append("\n\n## <em>").append(subK).append("</em>\n\n");
@@ -133,16 +123,13 @@ public class CmdGenerateDocs {
                     if (null != subDesc && !subDesc.isEmpty()) {
                         sb.append(subDesc).append("\n");
                     }
-                    sb.append("### Usage\n\n");
-                    sb.append("------------\n\n\n");
-                    sb.append("```bdocs-tab:example_shell\n$ ");
+                    sb.append("```shell\n$ ");
                     if (null != jcommander.getProgramName() && !jcommander.getProgramName().isEmpty()) {
                         sb.append(jcommander.getProgramName()).append(" ");
                     }
                     sb.append(module).append(" ").append(subK).append(" options").append("\n```\n\n");
                     List<ParameterDescription> options = cmdObj.getCommands().get(subK).getParameters();
                     if (options.size() > 0) {
-                        sb.append("Options\n\n\n");
                         sb.append("|Flag|Description|Default|\n");
                         sb.append("|---|---|---|\n");
                     }

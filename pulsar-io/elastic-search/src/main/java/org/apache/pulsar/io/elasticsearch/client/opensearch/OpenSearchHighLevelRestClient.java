@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.elasticsearch.client.opensearch;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -337,6 +336,16 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         } catch (IOException e) {
             log.warn("Elasticsearch client close error:", e);
         }
+    }
+
+    @VisibleForTesting
+    public void setClient(RestHighLevelClient client) {
+        this.client = client;
+    }
+
+    @VisibleForTesting
+    public void setInternalBulkProcessor(org.opensearch.action.bulk.BulkProcessor internalBulkProcessor) {
+        this.internalBulkProcessor = internalBulkProcessor;
     }
 
     @VisibleForTesting

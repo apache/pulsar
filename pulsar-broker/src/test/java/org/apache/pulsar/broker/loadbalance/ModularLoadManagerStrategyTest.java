@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,10 @@ package org.apache.pulsar.broker.loadbalance;
 
 import static org.testng.Assert.assertEquals;
 
+import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 
@@ -129,6 +132,56 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("2"));
+
+        // test restart broker can load bundle as one of the best brokers.
+        brokerData1 = initBrokerData(35,100);
+        brokerData2 = initBrokerData(20,100);
+        brokerData3 = initBrokerData(0,100);
+        brokerData3.getLocalData().setBundles(Collections.emptySet());
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("3"));
+    }
+
+    public void testLeastResourceUsageWithWeightWithArithmeticException()
+            throws NoSuchFieldException, IllegalAccessException {
+        BundleData bundleData = new BundleData();
+        BrokerData brokerData1 = initBrokerData(10, 100);
+        BrokerData brokerData2 = initBrokerData(30, 100);
+        BrokerData brokerData3 = initBrokerData(60, 100);
+        BrokerData brokerData4 = initBrokerData(5, 100);
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        brokerDataMap.put("4", brokerData4);
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setLoadBalancerCPUResourceWeight(1.0);
+        conf.setLoadBalancerMemoryResourceWeight(0.1);
+        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
+        conf.setLoadBalancerBandwithInResourceWeight(1.0);
+        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerHistoryResourcePercentage(0.5);
+        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
+
+        LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
+
+        // Should choice broker from broker1 2 3.
+        Set<String> candidates = new HashSet<>();
+        candidates.add("1");
+        candidates.add("2");
+        candidates.add("3");
+        Field strategyUpdater = LeastResourceUsageWithWeight.class.getDeclaredField("brokerAvgResourceUsageWithWeight");
+        strategyUpdater.setAccessible(true);
+        Map<String, Double> brokerAvgResourceUsageWithWeight = new HashMap<>();
+        brokerAvgResourceUsageWithWeight.put("1", 0.1d);
+        brokerAvgResourceUsageWithWeight.put("2", 0.3d);
+        brokerAvgResourceUsageWithWeight.put("4", 0.05d);
+        strategyUpdater.set(strategy, brokerAvgResourceUsageWithWeight);
+        assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
     }
 
     private BrokerData initBrokerData(double usage, double limit) {
@@ -138,6 +191,12 @@ public class ModularLoadManagerStrategyTest {
         localBrokerData.setDirectMemory(new ResourceUsage(usage, limit));
         localBrokerData.setBandwidthIn(new ResourceUsage(usage, limit));
         localBrokerData.setBandwidthOut(new ResourceUsage(usage, limit));
+        // add msgRate and bundle for update resource usage check.
+        localBrokerData.setMsgRateIn(100.00);
+        localBrokerData.setMsgRateOut(100.00);
+        Set<String> bundles = new HashSet<>();
+        bundles.add("0x00000000_0xffffffff");
+        localBrokerData.setBundles(bundles);
         BrokerData brokerData = new BrokerData(localBrokerData);
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         brokerData.setTimeAverageData(timeAverageBrokerData);

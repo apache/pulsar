@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,10 +30,12 @@ import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -1175,6 +1177,86 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeSchemaCompatibilityStrategyAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "schemaCompatibilityStrategy");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public EntryFilters getEntryFiltersPerTopic(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getEntryFiltersPerTopicAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<EntryFilters> getEntryFiltersPerTopicAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "entryFilters");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<EntryFilters>(){});
+    }
+
+    @Override
+    public void setEntryFiltersPerTopic(String topic, EntryFilters entryFilters)
+            throws PulsarAdminException {
+        sync(() -> setEntryFiltersPerTopicAsync(topic, entryFilters));
+    }
+
+    @Override
+    public CompletableFuture<Void> setEntryFiltersPerTopicAsync(String topic, EntryFilters entryFilters) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "entryFilters");
+        return asyncPostRequest(path, Entity.entity(entryFilters, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void removeEntryFiltersPerTopic(String topic) throws PulsarAdminException {
+        sync(() -> removeEntryFiltersPerTopicAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeEntryFiltersPerTopicAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "entryFilters");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setAutoSubscriptionCreation(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+            throws PulsarAdminException {
+        sync(() -> setAutoSubscriptionCreationAsync(topic, autoSubscriptionCreationOverride));
+    }
+
+    @Override
+    public CompletableFuture<Void> setAutoSubscriptionCreationAsync(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "autoSubscriptionCreation");
+        return asyncPostRequest(path, Entity.entity(autoSubscriptionCreationOverride, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
+                                                                        boolean applied) throws PulsarAdminException {
+        return sync(() -> getAutoSubscriptionCreationAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String topic,
+                                                                                                boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "autoSubscriptionCreation");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<AutoSubscriptionCreationOverride>() {});
+    }
+
+    @Override
+    public void removeAutoSubscriptionCreation(String topic) throws PulsarAdminException {
+        sync(() -> removeAutoSubscriptionCreationAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "autoSubscriptionCreation");
         return asyncDeleteRequest(path);
     }
 

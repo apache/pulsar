@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-functions</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-functions-instance</artifactId>
@@ -62,12 +62,6 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-io-common</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -204,6 +198,24 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.gaul</groupId>
+        <artifactId>modernizer-maven-plugin</artifactId>
+        <configuration>
+          <failOnViolations>true</failOnViolations>
+          <javaVersion>17</javaVersion>
+        </configuration>
+        <executions>
+          <execution>
+            <id>modernizer</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>modernizer</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      
       <!-- this task is used for copy all python files together to provide a instance directory
            for running python instance -->
       <plugin>
@@ -220,9 +232,6 @@
                 <echo>building python instance</echo>
                 <mkdir dir="${basedir}/target/python-instance"/>
                 <copydir src="${basedir}/src/main/python" dest="${basedir}/target/python-instance"/>
-                <mkdir dir="${basedir}/target/python-instance/pulsar"/>
-                <copydir src="${basedir}/../../pulsar-client-cpp/python/pulsar"
-                         dest="${basedir}/target/python-instance/pulsar"/>
                 <mkdir dir="${basedir}/target/python-instance/tests"/>
                 <copydir src="${basedir}/src/test/python" dest="${basedir}/target/python-instance/tests"/>
               </target>

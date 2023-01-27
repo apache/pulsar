@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -50,9 +50,9 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
 
     public ManagedLedgerMetrics(PulsarService pulsar) {
         super(pulsar);
-        this.metricsCollection = Lists.newArrayList();
-        this.ledgersByDimensionMap = Maps.newHashMap();
-        this.tempAggregatedMetricsMap = Maps.newHashMap();
+        this.metricsCollection = new ArrayList<>();
+        this.ledgersByDimensionMap = new HashMap<>();
+        this.tempAggregatedMetricsMap = new HashMap<>();
         this.statsPeriodSeconds = ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory())
                 .getConfig().getStatsPeriodSeconds();
     }

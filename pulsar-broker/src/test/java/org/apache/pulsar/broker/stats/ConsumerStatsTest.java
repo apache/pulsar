@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,17 +19,16 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.AssertJUnit.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -84,9 +83,18 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        conf.setMaxUnackedMessagesPerConsumer(0);
         super.internalSetup();
         super.producerBaseSetup();
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        conf.setMaxUnackedMessagesPerConsumer(0);
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -226,7 +234,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "avgMessagesPerEntry",
                 "blockedConsumerOnUnackedMsgs",
                 "readPositionWhenJoining",
+                "lastAckedTime",
                 "lastAckedTimestamp",
+                "lastConsumedTime",
                 "lastConsumedTimestamp",
                 "lastConsumedFlowTimestamp",
                 "keyHashRanges",
@@ -409,9 +419,13 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         EntryFilterWithClassLoader
                 loader = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter,
                 narClassLoader);
-        ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("filter", loader);
-        BrokerService brokerService = pulsar.getBrokerService();
-        doReturn(entryFilters).when(brokerService).getEntryFilters();
+        Map<String, EntryFilterWithClassLoader> entryFilters = Map.of("filter", loader);
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get();
+        Field field1 = topicRef.getClass().getSuperclass().getDeclaredField("entryFilters");
+        field1.setAccessible(true);
+        field1.set(topicRef, entryFilters);
 
         Map<String, String> metadataConsumer = new HashMap<>();
         metadataConsumer.put("matchValueAccept", "producer1");

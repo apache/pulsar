@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -141,6 +140,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
             throws Exception {
         log.info("-- Starting {} test --", methodName);
+        cleanup();
 
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
         clientTrustCertFilePath = TLS_MIM_TRUST_CERT_FILE_PATH;
@@ -184,7 +184,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     @Test
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
         log.info("-- Starting {} test --", methodName);
-
+        cleanup();
         // setup broker cert which has CN = "localhost"
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
@@ -205,7 +205,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         }
 
         Message<byte[]> msg = null;
-        Set<String> messageSet = Sets.newHashSet();
+        Set<String> messageSet = new HashSet<>();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());

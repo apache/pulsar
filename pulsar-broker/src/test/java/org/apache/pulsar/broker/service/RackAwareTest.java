@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,10 +40,9 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.NetworkTopologyImpl;
 import org.apache.bookkeeper.test.ServerTester;
+import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
-import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
-import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -132,7 +131,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .map(Map::values)
                     .flatMap(bookieId -> bookieId.stream().map(rackInfo -> rackInfo.get("rack")))
                     .collect(Collectors.toSet());
-            assertTrue(racks.containsAll(Lists.newArrayList("rack-1", "rack-2")));
+            assertTrue(racks.containsAll(List.of("rack-1", "rack-2")));
         });
 
         BookKeeper bkc = this.pulsar.getBookKeeperClient();
@@ -284,7 +283,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .flatMap(bookieId -> bookieId.stream().map(rackInfo -> rackInfo.get("rack")))
                     .collect(Collectors.toSet());
             assertEquals(racks.size(), 2);
-            assertTrue(racks.containsAll(Lists.newArrayList("rack-0", "rack-1")));
+            assertTrue(racks.containsAll(List.of("rack-0", "rack-1")));
         });
 
         Awaitility.await().untilAsserted(() -> {

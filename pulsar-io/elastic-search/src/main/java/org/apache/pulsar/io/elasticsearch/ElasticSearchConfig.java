@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,8 @@ import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.io.common.IOConfigUtils;
+import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -294,6 +296,20 @@ public class ElasticSearchConfig implements Serializable {
     )
     private IdHashingAlgorithm idHashingAlgorithm = IdHashingAlgorithm.NONE;
 
+    @FieldDoc(
+            defaultValue = "false",
+            help = "This option only works if idHashingAlgorithm is set."
+                    + "If enabled, the hashing is performed only if the id is greater than 512 bytes otherwise "
+                    + "the hashing is performed on each document in any case."
+    )
+    private boolean conditionalIdHashing = false;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "When the message key schema is AVRO or JSON, copy the message key fields into the Elasticsearch _source."
+    )
+    private boolean copyKeyFields = false;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
@@ -324,9 +340,8 @@ public class ElasticSearchConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), ElasticSearchConfig.class);
     }
 
-    public static ElasticSearchConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), ElasticSearchConfig.class);
+    public static ElasticSearchConfig load(Map<String, Object> map, SinkContext sinkContext) throws IOException {
+        return IOConfigUtils.loadWithSecrets(map, ElasticSearchConfig.class, sinkContext);
     }
 
     public void validate() {

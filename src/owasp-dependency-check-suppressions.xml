@@ -37,6 +37,23 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
+    <suppress>
+        <notes><![CDATA[
+       file name: snakeyaml-1.32.jar
+       ]]></notes>
+        <sha1>e80612549feb5c9191c498de628c1aa80693cf0b</sha1>
+        <cve>CVE-2022-1471</cve>
+    </suppress>
+
+    <!-- influxdb dependencies -->
+    <suppress>
+        <notes><![CDATA[
+       file name: msgpack-core-0.9.0.jar
+       ]]></notes>
+        <sha1>87d9ce0b22de48428fa32bb8ad476e18b6969548</sha1>
+        <cve>CVE-2022-41719</cve>
+    </suppress>
+
     <!-- see https://github.com/apache/pulsar/pull/16110 -->
     <suppress>
         <notes><![CDATA[
@@ -345,6 +362,13 @@
         <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12692</cve>
     </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: openstack-keystone-2.5.0.jar
+       ]]></notes>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
+        <cve>CVE-2021-3563</cve>
+    </suppress>
 
     <!-- Solr misdetection.
     Cannot be tied to a sha1,
@@ -368,65 +392,29 @@
     <!-- debezium-related misdetections -->
     <suppress>
         <notes><![CDATA[
-       file name: debezium-connector-mysql-1.7.2.Final.jar
+       file name: debezium-connector-mysql-1.9.7.Final.jar
        ]]></notes>
-        <sha1>a501bd758344d60fd400f5ce58694d52b2dbc6d8</sha1>
-        <cve>CVE-2010-1626</cve>
-        <cve>CVE-2009-4028</cve>
-        <cve>CVE-2007-1420</cve>
-        <cve>CVE-2007-5925</cve>
-        <cve>CVE-2007-2691</cve>
-        <cve>CVE-2009-0819</cve>
-        <cve>CVE-2010-1621</cve>
-        <cve>CVE-2010-3677</cve>
-        <cve>CVE-2010-3682</cve>
-        <cve>CVE-2012-5627</cve>
-        <cve>CVE-2015-2575</cve>
+        <sha1>74c623b4a9b231e2f0e8f6053b38abd3bc487ce2</sha1>
         <cve>CVE-2017-15945</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: mysql-binlog-connector-java-0.25.3.jar
+       file name: mysql-binlog-connector-java-0.27.2.jar
        ]]></notes>
-        <sha1>45b3fdd0b953d744a8570f74eb5e1016f8ed5ca9</sha1>
-        <cve>CVE-2007-1420</cve>
-        <cve>CVE-2007-2691</cve>
-        <cve>CVE-2007-5925</cve>
-        <cve>CVE-2009-0819</cve>
-        <cve>CVE-2009-4028</cve>
-        <cve>CVE-2010-1621</cve>
-        <cve>CVE-2010-1626</cve>
-        <cve>CVE-2010-3677</cve>
-        <cve>CVE-2010-3682</cve>
-        <cve>CVE-2012-5627</cve>
-        <cve>CVE-2015-2575</cve>
+        <sha1>23294cd730e29c00b8ddfbde517dfc955aba090f</sha1>
         <cve>CVE-2017-15945</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: debezium-connector-postgres-1.7.2.Final.jar
+       file name: debezium-connector-postgres-1.9.7.Final.jar
        ]]></notes>
-        <sha1>69c1edfa7d89531af511fcd07e8516fa450f746a</sha1>
-        <cve>CVE-2007-2138</cve>
-        <cve>CVE-2010-0733</cve>
-        <cve>CVE-2014-0060</cve>
-        <cve>CVE-2014-0061</cve>
-        <cve>CVE-2014-0062</cve>
-        <cve>CVE-2014-0063</cve>
-        <cve>CVE-2014-0064</cve>
-        <cve>CVE-2014-0065</cve>
-        <cve>CVE-2014-0066</cve>
-        <cve>CVE-2014-0067</cve>
-        <cve>CVE-2014-8161</cve>
+        <sha1>300ff0bbf795643e914b7c8a6d6ba812a8354d62</sha1>
         <cve>CVE-2015-0241</cve>
         <cve>CVE-2015-0242</cve>
         <cve>CVE-2015-0243</cve>
         <cve>CVE-2015-0244</cve>
-        <cve>CVE-2015-3165</cve>
         <cve>CVE-2015-3166</cve>
         <cve>CVE-2015-3167</cve>
-        <cve>CVE-2015-5288</cve>
-        <cve>CVE-2015-5289</cve>
         <cve>CVE-2016-0766</cve>
         <cve>CVE-2016-0768</cve>
         <cve>CVE-2016-0773</cve>
@@ -442,7 +430,7 @@
         <cve>CVE-2019-10211</cve>
         <cve>CVE-2020-25694</cve>
         <cve>CVE-2020-25695</cve>
-        <cve>CVE-2021-3393</cve>
+        <cve>CVE-2021-23214</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[

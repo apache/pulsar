@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,6 @@ public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
-        pulsar.getConfiguration().setStreamingDispatch(true);
+        testPulsarServiceFactory.getConfig().setStreamingDispatch(true);
     }
 }

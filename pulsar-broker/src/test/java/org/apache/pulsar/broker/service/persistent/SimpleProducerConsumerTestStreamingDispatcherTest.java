@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 /**
  * SimpleProducerConsumerTest with {@link StreamingDispatcher}
  */
-@Test(groups = "broker-api")
+@Test(groups = "flaky")
 public class SimpleProducerConsumerTestStreamingDispatcherTest extends SimpleProducerConsumerTest {
 
     @Override

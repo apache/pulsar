@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect.schema;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -30,9 +29,13 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
+import org.apache.kafka.connect.data.Date;
+import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
+import org.apache.kafka.connect.data.Time;
+import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 
@@ -122,6 +125,34 @@ public class KafkaConnectData {
     }
 
     public static Object castToKafkaSchema(Object nativeObject, Schema kafkaSchema) {
+        // special case for a few classes defined in org.apache.kafka.connect.data
+        // and listed as LOGICAL_TYPE_CLASSES in org.apache.kafka.connect.data.ConnectSchema
+        if (PulsarSchemaToKafkaSchema.matchesToKafkaLogicalSchema(kafkaSchema)) {
+            if (Timestamp.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                if (nativeObject instanceof java.util.Date) {
+                    return nativeObject;
+                }
+                return Timestamp.toLogical(kafkaSchema, ((Number) nativeObject).longValue());
+            } else if (Date.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                if (nativeObject instanceof java.util.Date) {
+                    return nativeObject;
+                }
+                return Date.toLogical(kafkaSchema, ((Number) nativeObject).intValue());
+            } else if (Time.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                if (nativeObject instanceof java.util.Date) {
+                    return nativeObject;
+                }
+                return Time.toLogical(kafkaSchema, ((Number) nativeObject).intValue());
+            } else if (Decimal.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                if (nativeObject instanceof java.math.BigDecimal) {
+                    return nativeObject;
+                }
+                return Decimal.toLogical(kafkaSchema, (byte[]) nativeObject);
+            }
+            throw new IllegalStateException("Unsupported Kafka Logical Schema " + kafkaSchema.name()
+                    + " for value " + nativeObject);
+        }
+
         if (nativeObject instanceof Number) {
             // This is needed in case
             // jackson decided to fit value into some other type internally
@@ -240,6 +271,32 @@ public class KafkaConnectData {
 
         if (jsonNode == null || jsonNode.isNull()) {
             return defaultOrThrow(kafkaSchema);
+        }
+
+        // special case for a few classes defined in org.apache.kafka.connect.data
+        // and listed as LOGICAL_TYPE_CLASSES in org.apache.kafka.connect.data.ConnectSchema
+        // time/date as String not supported as the format to parse is not clear
+        // (add it as a config param?)
+        if (PulsarSchemaToKafkaSchema.matchesToKafkaLogicalSchema(kafkaSchema)) {
+            if (Timestamp.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                return Timestamp.toLogical(kafkaSchema, jsonNode.longValue());
+            } else if (Date.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                return Date.toLogical(kafkaSchema, jsonNode.intValue());
+            } else if (Time.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                return Time.toLogical(kafkaSchema, jsonNode.intValue());
+            } else if (Decimal.LOGICAL_NAME.equals(kafkaSchema.name())) {
+                if (jsonNode.isNumber()) {
+                    return jsonNode.decimalValue();
+                }
+                try {
+                    return Decimal.toLogical(kafkaSchema, jsonNode.binaryValue());
+                } catch (IOException e) {
+                    throw new IllegalStateException("Could not convert Kafka Logical Schema " + kafkaSchema.name()
+                            + " for jsonNode " + jsonNode + " into Decimal");
+                }
+            }
+            throw new IllegalStateException("Unsupported Kafka Logical Schema " + kafkaSchema.name()
+                    + " for jsonNode " + jsonNode);
         }
 
         switch (kafkaSchema.type()) {

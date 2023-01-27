@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -97,7 +97,7 @@ public class EntryCacheDisabled implements EntryCache {
                     ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
 
                     callback.readEntriesComplete(entries, ctx);
-                }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                }, ml.getExecutor()).exceptionally(exception -> {
             callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
             return null;
         });
@@ -130,7 +130,7 @@ public class EntryCacheDisabled implements EntryCache {
                     } finally {
                         ledgerEntries.close();
                     }
-                }, ml.getExecutor().chooseThread(ml.getName()));
+                }, ml.getExecutor());
     }
 
     @Override

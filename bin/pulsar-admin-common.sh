@@ -95,7 +95,7 @@ IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
 # Start --add-opens options
 # '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
-  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED"
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
@@ -108,10 +108,12 @@ PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 PULSAR_ROUTING_APPENDER_DEFAULT=${PULSAR_ROUTING_APPENDER_DEFAULT:-"Console"}
+PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
+OPTS="$OPTS -Dpulsar.log.immediateFlush=$PULSAR_LOG_IMMEDIATE_FLUSH"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"

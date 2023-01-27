@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -88,6 +87,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -98,6 +98,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -132,7 +133,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     // method for resetting state explicitly
@@ -578,8 +578,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
 
-        List<String> nsList = Lists.newArrayList(ns1, ns2);
-        List<Producer<byte[]>> producerList = Lists.newArrayList();
+        List<String> nsList = List.of(ns1, ns2);
+        List<Producer<byte[]>> producerList = new ArrayList<>();
 
         BrokerStats brokerStatsClient = admin.brokerStats();
 
@@ -1473,5 +1473,51 @@ public class BrokerServiceTest extends BrokerTestBase {
         NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
+    }
+
+    @Test
+    public void testGetTopic() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = ns + "/topic-1";
+        admin.topics().createNonPartitionedTopic(String.format("persistent://%s", topicName));
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        producer1.close();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
+        persistentTopic.close().join();
+        List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keys());
+        topics.removeIf(item -> item.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
+        Assert.assertEquals(topics.size(), 0);
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteNamespaceAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteNamespaceAllowed());
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteTenantAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteTenantAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteTenantAllowed());
+        });
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,8 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
@@ -41,7 +43,6 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarTestClient;
 import org.apache.pulsar.common.stats.Metrics;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -53,9 +54,19 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        super.internalSetup();
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
-        super.internalSetup();
+
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @AfterClass
@@ -171,7 +182,8 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
             producer.send(message.getBytes());
             consumer.acknowledge(consumer.receive().getMessageId());
             // Make BK error.
-            LedgerHandle ledgerHandle = Whitebox.getInternalState(managedCursor, "cursorLedger");
+            LedgerHandle ledgerHandle = (LedgerHandle) FieldUtils.readField(
+                    managedCursor, "cursorLedger", true);
             ledgerHandle.close();
             return managedCursorMXBean.getPersistLedgerErrors() > 0
                     && managedCursorMXBean.getPersistZookeeperSucceed() > 0;

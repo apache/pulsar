@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -91,6 +91,21 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
             return PositionImpl.get(ledgerId, 0);
         } else {
             return PositionImpl.get(ledgerId, entryId + 1);
+        }
+    }
+
+    /**
+     * Position after moving entryNum messages,
+     * if entryNum < 1, then return the current position.
+     * */
+    public PositionImpl getPositionAfterEntries(int entryNum) {
+        if (entryNum < 1) {
+            return this;
+        }
+        if (entryId < 0) {
+            return PositionImpl.get(ledgerId, entryNum - 1);
+        } else {
+            return PositionImpl.get(ledgerId, entryId + entryNum);
         }
     }
 

@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -182,7 +182,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-messagecrypto-bc</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -339,6 +338,16 @@
     </dependency>
 
     <dependency>
+      <groupId>org.roaringbitmap</groupId>
+      <artifactId>RoaringBitmap</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.oshi</groupId>
+      <artifactId>oshi-core-java11</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-api-examples</artifactId>
       <version>${project.version}</version>
@@ -421,6 +430,7 @@
       <artifactId>pulsar-package-filesystem-storage</artifactId>
       <version>${project.version}</version>
     </dependency>
+
   </dependencies>
 
   <build>
@@ -429,9 +439,11 @@
         <groupId>org.gaul</groupId>
         <artifactId>modernizer-maven-plugin</artifactId>
         <configuration>
-          <failOnViolations>false</failOnViolations>
+          <failOnViolations>true</failOnViolations>
           <javaVersion>17</javaVersion>
-          <violationLogLevel>warn</violationLogLevel>
+          <exclusionPatterns>
+            <exclusionPattern>java/lang/StringBuffer."&lt;init&gt;":.*</exclusionPattern>
+          </exclusionPatterns>
         </configuration>
         <executions>
           <execution>
@@ -690,7 +702,25 @@
               <apiSources>
                 <apiSource>
                   <springmvc>false</springmvc>
-                  <locations>org.apache.pulsar.broker.admin.v2</locations>
+                  <locations>
+                    <location>org.apache.pulsar.broker.admin.v2.Bookies</location>
+                    <location>org.apache.pulsar.broker.admin.v2.BrokerStats</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Brokers</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Clusters</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Functions</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Namespaces</location>
+                    <location>org.apache.pulsar.broker.admin.v2.NonPersistentTopics</location>
+                    <location>org.apache.pulsar.broker.admin.v2.PersistentTopics</location>
+                    <!-- See https://github.com/apache/pulsar/issues/18947 -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtPersistentTopics</location> -->
+                    <!-- <location>org.apache.pulsar.broker.admin.v2.ExtNonPersistentTopics</location> -->
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceGroups</location>
+                    <location>org.apache.pulsar.broker.admin.v2.ResourceQuotas</location>
+                    <location>org.apache.pulsar.broker.admin.v2.SchemasResource</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Tenants</location>
+                    <location>org.apache.pulsar.broker.admin.v2.Worker</location>
+                    <location>org.apache.pulsar.broker.admin.v2.WorkerStats</location>
+                  </locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v2</basePath>
                   <info>
@@ -850,7 +880,7 @@
                         </goals>
                       </pluginExecutionFilter>
                       <action>
-                        <ignore></ignore>
+                        <ignore/>
                       </action>
                     </pluginExecution>
                   </pluginExecutions>

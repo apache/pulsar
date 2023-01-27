@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -47,7 +48,6 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
-import org.apache.curator.shaded.com.google.common.util.concurrent.RateLimiter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -136,6 +136,10 @@ public class PerformanceTransaction {
         @Parameter(names = {"-st", "--subscription-type"}, description = "Subscription type")
         public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
+        @Parameter(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        private boolean replicatedSubscription = false;
+
         @Parameter(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
@@ -191,12 +195,12 @@ public class PerformanceTransaction {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
         arguments.fillArgumentsFromProperties();
 
@@ -231,7 +235,7 @@ public class PerformanceTransaction {
                             log.error(
                                     "Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
                                     topic, partitionedTopicMetadata.partitions, arguments.partitions);
-                            PerfClientUtils.exit(-1);
+                            PerfClientUtils.exit(1);
                         }
                     }
                 }
@@ -288,7 +292,7 @@ public class PerformanceTransaction {
                     } catch (Exception e) {
                         log.error("Failed to build Producer/Consumer with exception : ", e);
                         executorService.shutdownNow();
-                        PerfClientUtils.exit(-1);
+                        PerfClientUtils.exit(1);
                     }
                     //The while loop has no break, and finally ends the execution through the shutdownNow of
                     //the executorService
@@ -326,7 +330,7 @@ public class PerformanceTransaction {
                                         } catch (PulsarClientException e) {
                                             log.error("Receive message failed", e);
                                             executorService.shutdownNow();
-                                            PerfClientUtils.exit(-1);
+                                            PerfClientUtils.exit(1);
                                         }
                                         long receiveTime = System.nanoTime();
                                         if (!arguments.isDisableTransaction) {
@@ -625,10 +629,11 @@ public class PerformanceTransaction {
 
     private static  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client, Arguments arguments)
             throws ExecutionException, InterruptedException {
-        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES) //
+        ConsumerBuilder<byte[]> consumerBuilder = client.newConsumer(Schema.BYTES)
                 .subscriptionType(arguments.subscriptionType)
                 .receiverQueueSize(arguments.receiverQueueSize)
-                .subscriptionInitialPosition(arguments.subscriptionInitialPosition);
+                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
+                .replicateSubscriptionState(arguments.replicatedSubscription);
 
         Iterator<String> consumerTopicsIterator = arguments.consumerTopic.iterator();
         List<List<Consumer<byte[]>>> consumers = new ArrayList<>(arguments.consumerTopic.size());

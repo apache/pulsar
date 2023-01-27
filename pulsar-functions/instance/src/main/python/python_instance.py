@@ -136,6 +136,10 @@ class PythonInstance(object):
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
+    position = pulsar._pulsar.InitialPosition.Latest
+    if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
+      position = pulsar._pulsar.InitialPosition.Earliest
+
     subscription_name = self.instance_config.function_details.source.subscriptionName    
 
     if not (subscription_name and subscription_name.strip()):
@@ -162,6 +166,7 @@ class PythonInstance(object):
         consumer_type=mode,
         message_listener=partial(self.message_listener, self.input_serdes[topic]),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+        initial_position=position,
         properties=properties
       )
 
@@ -177,6 +182,7 @@ class PythonInstance(object):
         "consumer_type": mode,
         "message_listener": partial(self.message_listener, self.input_serdes[topic]),
         "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
+        "initial_position": position,
         "properties": properties
       }
       if consumer_conf.HasField("receiverQueueSize"):

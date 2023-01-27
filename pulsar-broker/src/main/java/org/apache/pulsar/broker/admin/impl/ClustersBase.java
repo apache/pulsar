@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
@@ -59,6 +60,7 @@ import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
@@ -131,6 +133,7 @@ public class ClustersBase extends AdminResource {
     )
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Cluster has been created."),
+            @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster."),
             @ApiResponse(code = 409, message = "Cluster already exists."),
             @ApiResponse(code = 412, message = "Cluster name is not valid."),
@@ -146,11 +149,12 @@ public class ClustersBase extends AdminResource {
             examples = @Example(
                 value = @ExampleProperty(
                     mediaType = MediaType.APPLICATION_JSON,
-                    value =
-                          "{\n"
-                        + "   'serviceUrl': 'http://pulsar.example.com:8080',\n"
-                        + "   'brokerServiceUrl': 'pulsar://pulsar.example.com:6651',\n"
-                        + "}"
+                    value = """
+                            {
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651",
+                            }
+                            """
                 )
             )
         ) ClusterDataImpl clusterData) {
@@ -158,6 +162,11 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     NamedEntity.checkName(cluster);
+                    try {
+                        clusterData.checkPropertiesIfPresent();
+                    } catch (IllegalArgumentException ex) {
+                        throw new RestException(Status.BAD_REQUEST, ex.getMessage());
+                    }
                     return clusterResources().getClusterAsync(cluster);
                 }).thenCompose(clusterOpt -> {
                     if (clusterOpt.isPresent()) {
@@ -187,6 +196,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
@@ -201,17 +211,84 @@ public class ClustersBase extends AdminResource {
             examples = @Example(
                 value = @ExampleProperty(
                     mediaType = MediaType.APPLICATION_JSON,
-                    value =
-                          "{\n"
-                        + "   'serviceUrl': 'http://pulsar.example.com:8080',\n"
-                        + "   'brokerServiceUrl': 'pulsar://pulsar.example.com:6651'\n"
-                        + "}"
+                    value = """
+                            {
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651"
+                            }
+                            """
                 )
             )
         ) ClusterDataImpl clusterData) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> clusterData))
+                .thenCompose(__ -> {
+                    try {
+                        clusterData.checkPropertiesIfPresent();
+                    } catch (IllegalArgumentException ex) {
+                        throw new RestException(Status.BAD_REQUEST, ex.getMessage());
+                    }
+                    return clusterResources().updateClusterAsync(cluster, old -> clusterData);
+                }).thenAccept(__ -> {
+                    log.info("[{}] Updated cluster {}", clientAppId(), cluster);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{cluster}/migrate")
+    @ApiOperation(
+        value = "Update the configuration for a cluster migration.",
+        notes = "This operation requires Pulsar superuser privileges.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 400, message = "Cluster url must not be empty."),
+            @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
+            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
+            @ApiResponse(code = 500, message = "Internal server error.")
+    })
+    public void updateClusterMigration(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
+        @PathParam("cluster") String cluster,
+        @ApiParam(value = "Is cluster migrated", required = true)
+        @QueryParam("migrated") boolean isMigrated,
+        @ApiParam(
+            value = "The cluster url data",
+            required = true,
+            examples = @Example(
+                value = @ExampleProperty(
+                    mediaType = MediaType.APPLICATION_JSON,
+                    value = """
+                            {
+                               "serviceUrl": "http://pulsar.example.com:8080",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651"
+                            }
+                            """
+                )
+            )
+        ) ClusterUrl clusterUrl) {
+        if (isMigrated && clusterUrl.isEmpty()) {
+            asyncResponse.resume(new RestException(Status.BAD_REQUEST, "Cluster url must not be empty"));
+            return;
+        }
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> {
+                    ClusterDataImpl data = (ClusterDataImpl) old;
+                    data.setMigrated(isMigrated);
+                    data.setMigratedClusterUrl(clusterUrl);
+                    return data;
+                }))
                 .thenAccept(__ -> {
                     log.info("[{}] Updated cluster {}", clientAppId(), cluster);
                     asyncResponse.resume(Response.ok().build());
@@ -247,10 +324,11 @@ public class ClustersBase extends AdminResource {
                                         required = true,
                                         examples = @Example(
                                         value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
-                                        value = "[\n"
-                                                + "   'cluster-a',\n"
-                                                + "   'cluster-b'\n"
-                                                + "]")))
+                                        value = """
+                                                [
+                                                   "cluster-a",
+                                                   "cluster-b"
+                                                ]""")))
                                     LinkedHashSet<String> peerClusterNames) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())

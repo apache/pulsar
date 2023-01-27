@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,14 +51,16 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
     private final ManagedLedgerFactoryImpl mlFactory;
     protected final ManagedLedgerFactoryMBeanImpl mlFactoryMBean;
+    private final InflightReadsLimiter inflightReadsLimiter;
 
     protected static final double MB = 1024 * 1024;
-
     private static final double evictionTriggerThresholdPercent = 0.98;
 
 
     public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
+        this.inflightReadsLimiter = new InflightReadsLimiter(
+                factory.getConfig().getManagedLedgerMaxReadsInFlightSize());
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
         this.cacheEvictionWatermark = factory.getConfig().getCacheEvictionWatermark();
         this.evictionPolicy = new EntryCacheDefaultEvictionPolicy();
@@ -141,10 +143,12 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     }
 
     void entryAdded(long size) {
+        mlFactoryMBean.recordCacheInsertion();
         currentSize.addAndGet(size);
     }
 
-    void entriesRemoved(long size) {
+    void entriesRemoved(long size, int count) {
+        mlFactoryMBean.recordNumberOfCacheEntriesEvicted(count);
         currentSize.addAndGet(-size);
     }
 
@@ -191,6 +195,10 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             ledgerEntry.close();
         }
         return returnEntry;
+    }
+
+    public InflightReadsLimiter getInflightReadsLimiter() {
+        return inflightReadsLimiter;
     }
 
     private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheManagerImpl.class);

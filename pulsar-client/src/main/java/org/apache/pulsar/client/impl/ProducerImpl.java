@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -101,7 +101,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Producer id, used to identify a producer within a single connection
     protected final long producerId;
 
-    // Variable is used through the atomic updater
+    // Variable is updated in a synchronized block
     private volatile long msgIdGenerator;
 
     private final OpSendMsgQueue pendingMessages;
@@ -168,10 +168,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     private boolean errorState;
-
-    @SuppressWarnings("rawtypes")
-    private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
-            .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -459,9 +455,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             int compressedSize = compressedPayload.readableBytes();
             if (compressedSize > ClientCnx.getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
                 compressedPayload.release();
-                String compressedStr = (!isBatchMessagingEnabled() && conf.getCompressionType() != CompressionType.NONE)
-                                           ? "Compressed"
-                                           : "";
+                String compressedStr = conf.getCompressionType() != CompressionType.NONE ? "Compressed" : "";
                 PulsarClientException.InvalidMessageException invalidMessageException =
                         new PulsarClientException.InvalidMessageException(
                                 format("The producer %s of the topic %s sends a %s message with %d bytes that exceeds"
@@ -489,7 +483,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
         // into chunks.
-        final long sequenceId = updateMessageMetadata(msgMetadata, uncompressedSize);
+        updateMessageMetadata(msgMetadata, uncompressedSize);
 
         // send in chunks
         int totalChunks;
@@ -519,7 +513,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // chunked message also sent individually so, try to acquire send-permits
         for (int i = 0; i < (totalChunks - 1); i++) {
-            if (!canEnqueueRequest(callback, message.getSequenceId(), 0 /* The memory was already reserved */)) {
+            if (!conf.isBlockIfQueueFull() && !canEnqueueRequest(callback, message.getSequenceId(),
+                    0 /* The memory was already reserved */)) {
                 client.getMemoryLimitController().releaseMemory(uncompressedSize);
                 semaphoreRelease(i + 1);
                 return;
@@ -527,30 +522,42 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
 
         try {
-            synchronized (this) {
-                int readStartIndex = 0;
-                String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
-                ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get(totalChunks) : null;
-                byte[] schemaVersion = totalChunks > 1 && msg.getMessageBuilder().hasSchemaVersion()
-                        ? msg.getMessageBuilder().getSchemaVersion() : null;
-                byte[] orderingKey = totalChunks > 1 && msg.getMessageBuilder().hasOrderingKey()
-                        ? msg.getMessageBuilder().getOrderingKey() : null;
-                for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
-                    // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
-                    // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
-                    // we need to reset the ByteBuf of the schemaVersion in `MessageMetadata`, I think we need to
-                    // reset `ByteBuf` objects in `MessageMetadata` after call the method `MessageMetadata#writeTo()`.
-                    if (chunkId > 0) {
-                        if (schemaVersion != null) {
-                            msg.getMessageBuilder().setSchemaVersion(schemaVersion);
-                        }
-                        if (orderingKey != null) {
-                            msg.getMessageBuilder().setOrderingKey(orderingKey);
-                        }
+            int readStartIndex = 0;
+            ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get(totalChunks) : null;
+            byte[] schemaVersion = totalChunks > 1 && msg.getMessageBuilder().hasSchemaVersion()
+                    ? msg.getMessageBuilder().getSchemaVersion() : null;
+            byte[] orderingKey = totalChunks > 1 && msg.getMessageBuilder().hasOrderingKey()
+                    ? msg.getMessageBuilder().getOrderingKey() : null;
+            // msg.messageId will be reset if previous message chunk is sent successfully.
+            final MessageId messageId = msg.getMessageId();
+            for (int chunkId = 0; chunkId < totalChunks; chunkId++) {
+                // Need to reset the schemaVersion, because the schemaVersion is based on a ByteBuf object in
+                // `MessageMetadata`, if we want to re-serialize the `SEND` command using a same `MessageMetadata`,
+                // we need to reset the ByteBuf of the schemaVersion in `MessageMetadata`, I think we need to
+                // reset `ByteBuf` objects in `MessageMetadata` after call the method `MessageMetadata#writeTo()`.
+                if (chunkId > 0) {
+                    if (schemaVersion != null) {
+                        msg.getMessageBuilder().setSchemaVersion(schemaVersion);
                     }
+                    if (orderingKey != null) {
+                        msg.getMessageBuilder().setOrderingKey(orderingKey);
+                    }
+                }
+                if (chunkId > 0 && conf.isBlockIfQueueFull() && !canEnqueueRequest(callback,
+                        message.getSequenceId(), 0 /* The memory was already reserved */)) {
+                    client.getMemoryLimitController().releaseMemory(uncompressedSize - readStartIndex);
+                    semaphoreRelease(totalChunks - chunkId);
+                    return;
+                }
+                synchronized (this) {
+                    // Update the message metadata before computing the payload chunk size
+                    // to avoid a large message cannot be split into chunks.
+                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
+                    String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
+
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
-                            compressedPayload.readableBytes(), callback, chunkedMessageCtx);
+                            compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
                     readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }
@@ -570,15 +577,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param uncompressedSize
      * @return the sequence id
      */
-    private long updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
-        final long sequenceId;
-        if (!msgMetadata.hasSequenceId()) {
-            sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
-            msgMetadata.setSequenceId(sequenceId);
-        } else {
-            sequenceId = msgMetadata.getSequenceId();
-        }
-
+    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
         if (!msgMetadata.hasPublishTime()) {
             msgMetadata.setPublishTime(client.getClientClock().millis());
 
@@ -591,6 +590,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
             }
             msgMetadata.setUncompressedSize(uncompressedSize);
+        }
+    }
+
+    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata) {
+        final long sequenceId;
+        if (!msgMetadata.hasSequenceId()) {
+            sequenceId = msgIdGenerator++;
+            msgMetadata.setSequenceId(sequenceId);
+        } else {
+            sequenceId = msgMetadata.getSequenceId();
         }
         return sequenceId;
     }
@@ -612,7 +621,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                          boolean compressed,
                                          int compressedPayloadSize,
                                          SendCallback callback,
-                                         ChunkedMessageCtx chunkedMessageCtx) throws IOException {
+                                         ChunkedMessageCtx chunkedMessageCtx,
+                                         MessageId messageId) throws IOException {
         ByteBuf chunkPayload = compressedPayload;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         if (totalChunks > 1 && TopicName.get(topic).isPersistent()) {
@@ -655,11 +665,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         boolean isBatchFull = batchMessageContainer.add(msg, callback);
                         lastSendFuture = callback.getFuture();
                         payload.release();
-                        if (isBatchFull) {
-                            batchMessageAndSend(false);
-                        } else {
-                            maybeScheduleBatchFlushTask();
-                        }
+                        triggerSendIfFullOrScheduleFlush(isBatchFull);
                     }
                     isLastSequenceIdPotentialDuplicated = false;
                 }
@@ -681,13 +687,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     : 1;
             final OpSendMsg op;
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
-                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, msgMetadata, encryptedPayload);
+                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
+                        encryptedPayload);
                 op = OpSendMsg.create(msg, cmd, sequenceId, callback);
             } else {
                 op = OpSendMsg.create(msg, null, sequenceId, callback);
                 final MessageMetadata finalMsgMetadata = msgMetadata;
                 op.rePopulate = () -> {
-                    op.cmd = sendMessage(producerId, sequenceId, numMessages, finalMsgMetadata, encryptedPayload);
+                    op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, finalMsgMetadata,
+                            encryptedPayload);
                 };
             }
             op.setNumMessagesInBatch(numMessages);
@@ -702,13 +710,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private boolean populateMessageSchema(MessageImpl msg, SendCallback callback) {
+    @VisibleForTesting
+    boolean populateMessageSchema(MessageImpl msg, SendCallback callback) {
         MessageMetadata msgMetadataBuilder = msg.getMessageBuilder();
         if (msg.getSchemaInternal() == schema) {
             schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(v));
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
             return true;
         }
+        // If the message is from the replicator and without replicated schema
+        // Which means the message is written with BYTES schema
+        // So we don't need to replicate schema to the remote cluster
+        if (msg.hasReplicateFrom() && msg.getSchemaInfoForReplicator() == null) {
+            msg.setSchemaState(MessageImpl.SchemaState.Ready);
+            return true;
+        }
+
         if (!isMultiSchemaEnabled(true)) {
             PulsarClientException.InvalidMessageException e = new PulsarClientException.InvalidMessageException(
                     format("The producer %s of the topic %s is disabled the `MultiSchema`", producerName, topic)
@@ -813,9 +830,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
-            ByteBuf compressedPayload) {
-        return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), msgMetadata, compressedPayload);
+    protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages,
+                                      MessageId messageId, MessageMetadata msgMetadata,
+                                      ByteBuf compressedPayload) {
+        if (messageId instanceof MessageIdImpl) {
+            return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(),
+                    ((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId(),
+                    msgMetadata, compressedPayload);
+        } else {
+            return Commands.newSend(producerId, sequenceId, numMessages, getChecksumType(), -1, -1, msgMetadata,
+                    compressedPayload);
+        }
     }
 
     protected ByteBufPair sendMessage(long producerId, long lowestSequenceId, long highestSequenceId, int numMessages,
@@ -844,6 +869,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 && batchMessageContainer.hasSameTxn(msg);
     }
 
+    private void triggerSendIfFullOrScheduleFlush(boolean isBatchFull) {
+        if (isBatchFull) {
+            batchMessageAndSend(false);
+        } else {
+            maybeScheduleBatchFlushTask();
+        }
+    }
+
     private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
@@ -851,7 +884,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         try {
             batchMessageAndSend(false);
-            batchMessageContainer.add(msg, callback);
+            boolean isBatchFull = batchMessageContainer.add(msg, callback);
+            triggerSendIfFullOrScheduleFlush(isBatchFull);
             lastSendFuture = callback.getFuture();
         } finally {
             payload.release();
@@ -1392,7 +1426,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback,
+                                int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.msgs = msgs;
@@ -1404,11 +1439,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
+            op.uncompressedSize += batchAllocatedSize;
             return op;
         }
 
         static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long lowestSequenceId,
-                                long highestSequenceId,  SendCallback callback) {
+                                long highestSequenceId,  SendCallback callback, int batchAllocatedSize) {
             OpSendMsg op = RECYCLER.get();
             op.initialize();
             op.msgs = msgs;
@@ -1421,6 +1457,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             for (int i = 0; i < msgs.size(); i++) {
                 op.uncompressedSize += msgs.get(i).getUncompressedSize();
             }
+            op.uncompressedSize += batchAllocatedSize;
             return op;
         }
 
@@ -1436,7 +1473,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             SendCallback callback = this.callback;
             if (null != callback) {
                 Exception finalEx = e;
-                if (finalEx != null && finalEx instanceof TimeoutException) {
+                if (finalEx instanceof TimeoutException) {
                     TimeoutException te = (TimeoutException) e;
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();
@@ -1479,6 +1516,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         void setMessageId(long ledgerId, long entryId, int partitionIndex) {
             if (msg != null) {
                 msg.setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
+            } else if (msgs.size() == 1) {
+                // If there is only one message in batch, the producer will publish messages like non-batch
+                msgs.get(0).setMessageId(new MessageIdImpl(ledgerId, entryId, partitionIndex));
             } else {
                 for (int batchIndex = 0; batchIndex < msgs.size(); batchIndex++) {
                     msgs.get(batchIndex)
@@ -2026,8 +2066,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         final int numMessagesInBatch = batchMessageContainer.getNumMessagesInBatch();
         final long currentBatchSize = batchMessageContainer.getCurrentBatchSize();
+        final int batchAllocatedSizeBytes = batchMessageContainer.getBatchAllocatedSizeBytes();
         semaphoreRelease(numMessagesInBatch);
-        client.getMemoryLimitController().releaseMemory(currentBatchSize);
+        client.getMemoryLimitController().releaseMemory(currentBatchSize + batchAllocatedSizeBytes);
         batchMessageContainer.discard(ex);
     }
 

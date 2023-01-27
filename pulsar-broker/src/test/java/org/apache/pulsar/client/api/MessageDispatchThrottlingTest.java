@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,12 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import lombok.Cleanup;
-
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,9 +37,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.cache.PendingReadsManager;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -57,8 +53,9 @@ import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -66,7 +63,7 @@ import org.testng.annotations.Test;
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         this.conf.setClusterName("test");
@@ -74,12 +71,34 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         super.producerBaseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        super.resetConfig();
     }
+
+    @AfterMethod(alwaysRun = true)
+    protected void reset() throws Exception {
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+
+        for (String tenant : admin.tenants().getTenants()) {
+            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                admin.namespaces().deleteNamespace(namespace, true);
+            }
+            admin.tenants().deleteTenant(tenant, true);
+        }
+
+        for (String cluster : admin.clusters().getClusters()) {
+            admin.clusters().deleteCluster(cluster);
+        }
+
+        pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
+        pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
+
+        super.producerBaseSetup();
+    }
+
 
     @DataProvider(name = "subscriptions")
     public Object[][] subscriptionsProvider() {
@@ -158,7 +177,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         Assert.assertTrue(isDispatchRateUpdate);
         Assert.assertEquals(admin.namespaces().getDispatchRate(namespace), dispatchRate);
         Policies policies = admin.namespaces().getPolicies(namespace);
-        Map<String, DispatchRate> dispatchRateMap = Maps.newHashMap();
+        Map<String, DispatchRate> dispatchRateMap = new HashMap<>();
         dispatchRateMap.put("test", dispatchRate);
         Assert.assertEquals(policies.clusterDispatchRate, dispatchRateMap);
         Assert.assertEquals(policies.topicDispatchRate, dispatchRateMap);
@@ -285,6 +304,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         final long byteRate = 1024 * 1024;// 1MB rate enough to let all msg to be delivered
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
+        long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
                 Integer.toString(messageRate));
@@ -330,7 +350,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
-        pulsar.getConfiguration().setDispatchThrottlingRatePerTopicInMsg(initValue);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(initValue));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(initBytes));
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -680,7 +702,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
-        pulsar.getConfiguration().setDispatchThrottlingRatePerTopicInMsg(initValue);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(initValue));
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -986,7 +1009,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         producer.close();
         producer2.close();
-
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(initValue));
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -1194,7 +1218,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     /**
      * Validates that backlog consumers cache the reads and reused by other backlog consumers while draining the
      * backlog.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1235,6 +1259,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         cacheField.setAccessible(true);
         RangeEntryCacheImpl entryCache = spy((RangeEntryCacheImpl) cacheField.get(ledger));
         cacheField.set(ledger, entryCache);
+
+        Field pendingReadsManagerField = RangeEntryCacheImpl.class.getDeclaredField("pendingReadsManager");
+        pendingReadsManagerField.setAccessible(true);
+        PendingReadsManager pendingReadsManager = (PendingReadsManager) pendingReadsManagerField.get(entryCache);
+        Field cacheFieldInManager = PendingReadsManager.class.getDeclaredField("rangeEntryCache");
+        cacheFieldInManager.setAccessible(true);
+        cacheFieldInManager.set(pendingReadsManager, entryCache);
 
         // 2. Produce messages
         for (int i = 0; i < totalMessages; i++) {

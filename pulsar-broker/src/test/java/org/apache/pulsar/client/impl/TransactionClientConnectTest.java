@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,9 +35,12 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -171,6 +174,15 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         TransactionMetaStoreHandler transactionMetaStoreHandler = handlers[0];
         Assert.assertEquals(transactionMetaStoreHandler.getConnectHandleState(), HandlerState.State.Ready);
         Assert.assertTrue(transactionMetaStoreHandler.changeToReadyState());
+    }
+
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testNotEnableTransactionInBroker() throws Exception {
+        getPulsarServiceList().get(0).getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .deletePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
+        PulsarClient.builder().enableTransaction(true)
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl()).build();
     }
 
     public void start() throws Exception {

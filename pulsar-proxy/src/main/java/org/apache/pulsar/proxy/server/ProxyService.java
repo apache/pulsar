@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,6 +56,7 @@ import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -146,6 +147,9 @@ public class ProxyService implements Closeable {
     private PrometheusMetricsServlet metricsServlet;
     private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
 
+    @Getter
+    private final ConnectionController connectionController;
+
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
         requireNonNull(proxyConfig);
@@ -202,6 +206,9 @@ public class ProxyService implements Closeable {
         } else {
             proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
         }
+        this.connectionController = new ConnectionController.DefaultConnectionController(
+                proxyConfig.getMaxConcurrentInboundConnections(),
+                proxyConfig.getMaxConcurrentInboundConnectionsPerIp());
     }
 
     public void start() throws Exception {
@@ -440,13 +447,15 @@ public class ProxyService implements Closeable {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getMetadataStoreUrl(),
-                proxyConfig.getMetadataStoreSessionTimeoutMillis());
+        return PulsarResources.createLocalMetadataStore(proxyConfig.getMetadataStoreUrl(),
+                proxyConfig.getMetadataStoreSessionTimeoutMillis(),
+                proxyConfig.isMetadataStoreAllowReadOnlyOperations());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
-                proxyConfig.getMetadataStoreSessionTimeoutMillis());
+        return PulsarResources.createConfigMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
+                proxyConfig.getMetadataStoreSessionTimeoutMillis(),
+                proxyConfig.isMetadataStoreAllowReadOnlyOperations());
     }
 
     public Authentication getProxyClientAuthenticationPlugin() {

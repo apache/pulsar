@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  */
 @Slf4j
 public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy {
+    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Map<String, Double> brokerAvgResourceUsageWithWeight;
@@ -90,7 +91,12 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                                                           ServiceConfiguration conf) {
         final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
-        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeightWithinLimit(
+        LocalBrokerData localData = brokerData.getLocalData();
+        // If the broker restarted or MsgRate is 0, should use current resourceUsage to cover the historyUsage
+        if (localData.getBundles().size() == 0 || (localData.getMsgRateIn() == 0 && localData.getMsgRateOut() == 0)){
+            historyUsage = null;
+        }
+        double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
                 conf.getLoadBalancerMemoryResourceWeight(),
                 conf.getLoadBalancerDirectMemoryResourceWeight(),
@@ -144,7 +150,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         final double diffThreshold =
                 conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
         candidates.forEach(broker -> {
-            Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, Double.MAX_VALUE);
+            Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, MAX_RESOURCE_USAGE);
             if ((avgResUsage + diffThreshold <= avgUsage)) {
                 bestBrokers.add(broker);
             }

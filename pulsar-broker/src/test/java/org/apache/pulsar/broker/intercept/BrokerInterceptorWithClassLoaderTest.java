@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import java.util.HashMap;
+import java.util.Map;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -38,10 +42,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.testng.annotations.Test;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import java.util.Map;
 
 /**
  * Unit test {@link BrokerInterceptorWithClassLoader}.
@@ -67,6 +67,12 @@ public class BrokerInterceptorWithClassLoaderTest {
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
             public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
+                assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
+            }
+
+            @Override
+            public void beforeSendMessage(Subscription subscription,
+                                          Entry entry, long[] ackSet, MessageMetadata msgMetadata, Consumer consumer) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
             @Override
@@ -164,11 +170,11 @@ public class BrokerInterceptorWithClassLoaderTest {
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test consumerCreated
         brokerInterceptorWithClassLoader
-                .consumerCreated(mock(ServerCnx.class), mock(Consumer.class), Maps.newHashMap());
+                .consumerCreated(mock(ServerCnx.class), mock(Consumer.class), new HashMap<>());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test producerCreated
         brokerInterceptorWithClassLoader
-                .producerCreated(mock(ServerCnx.class), mock(Producer.class), Maps.newHashMap());
+                .producerCreated(mock(ServerCnx.class), mock(Producer.class), new HashMap<>());
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test onConnectionCreated
         brokerInterceptorWithClassLoader
@@ -177,6 +183,8 @@ public class BrokerInterceptorWithClassLoaderTest {
         // test beforeSendMessage
         brokerInterceptorWithClassLoader
                 .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null);
+        brokerInterceptorWithClassLoader
+                .beforeSendMessage(mock(Subscription.class), mock(Entry.class), null, null, null);
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);
         // test close
         brokerInterceptorWithClassLoader.close();
