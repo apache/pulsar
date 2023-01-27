@@ -16,26 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
+package org.apache.pulsar.broker.testcontext;
 
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.PersistentTopicTest;
-import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 
-/**
- * PersistentTopicTest with {@link StreamingDispatcher}
- */
-@Test(groups = "broker")
-public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
+// Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
+class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws Exception {
-        super.setup();
-        ServiceConfiguration config = pulsarTestContext.getConfig();
-        config.setTopicLevelPoliciesEnabled(false);
-        config.setSystemTopicEnabled(false);
-        config.setStreamingDispatch(true);
+    public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+        super(executor);
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
+
+    @Override
+    public void shutdown() {
+        // no-op
+    }
+
+    public void reallyShutdown() {
+        super.shutdown();
     }
 }

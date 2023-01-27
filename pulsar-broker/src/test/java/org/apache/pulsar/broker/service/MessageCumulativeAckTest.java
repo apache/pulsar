@@ -38,7 +38,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.TestPulsarService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -57,14 +57,14 @@ public class MessageCumulativeAckTest {
 
     private ServerCnx serverCnx;
     private PersistentSubscription sub;
-    private TestPulsarService.Factory testPulsarServiceFactory;
+    private PulsarTestContext pulsarTestContext;
 
     @BeforeMethod
     public void setup() throws Exception {
-        testPulsarServiceFactory = TestPulsarService.Factory.builder()
+        pulsarTestContext = PulsarTestContext.builder()
                 .build();
 
-        serverCnx = testPulsarServiceFactory.createServerCnxSpy();
+        serverCnx = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -74,7 +74,7 @@ public class MessageCumulativeAckTest {
                 .when(serverCnx).getCommandSender();
 
         String topicName = TopicName.get("MessageCumulativeAckTest").toString();
-        PersistentTopic persistentTopic = new PersistentTopic(topicName, mock(ManagedLedger.class), testPulsarServiceFactory.getBrokerService());
+        PersistentTopic persistentTopic = new PersistentTopic(topicName, mock(ManagedLedger.class), pulsarTestContext.getBrokerService());
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
             mock(ManagedCursorImpl.class), false));
         doNothing().when(sub).acknowledgeMessage(any(), any(), any());
@@ -82,9 +82,9 @@ public class MessageCumulativeAckTest {
 
     @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
-        if (testPulsarServiceFactory != null) {
-            testPulsarServiceFactory.close();
-            testPulsarServiceFactory = null;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
         sub = null;
     }

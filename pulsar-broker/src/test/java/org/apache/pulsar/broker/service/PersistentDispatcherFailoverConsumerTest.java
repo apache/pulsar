@@ -60,7 +60,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TestPulsarService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
@@ -91,7 +91,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     private ChannelHandlerContext channelCtx;
     private LinkedBlockingQueue<CommandActiveConsumerChange> consumerChanges;
 
-    protected TestPulsarService.Factory testPulsarServiceFactory;
+    protected PulsarTestContext pulsarTestContext;
 
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
@@ -104,9 +104,9 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setClusterName("pulsar-cluster");
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
-        testPulsarServiceFactory = TestPulsarService.Factory.builder()
+        pulsarTestContext = PulsarTestContext.builder()
                 .config(svcConfig)
-                .useSpies(true)
+                .spyByDefault()
                 .build();
 
         consumerChanges = new LinkedBlockingQueue<>();
@@ -132,7 +132,7 @@ public class PersistentDispatcherFailoverConsumerTest {
             return null;
         }).when(channelCtx).writeAndFlush(any(), any());
 
-        serverCnx = testPulsarServiceFactory.createServerCnxSpy();
+        serverCnx = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -141,7 +141,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
 
-        serverCnxWithOldVersion = testPulsarServiceFactory.createServerCnxSpy();
+        serverCnxWithOldVersion = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnxWithOldVersion).isActive();
         doReturn(true).when(serverCnxWithOldVersion).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234))
@@ -153,7 +153,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(testPulsarServiceFactory.getPulsarService()).getNamespaceService();
+        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
@@ -164,9 +164,9 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
-        if (testPulsarServiceFactory != null) {
-            testPulsarServiceFactory.close();
-            testPulsarServiceFactory = null;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
     }
 
@@ -181,7 +181,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doAnswer(invocationOnMock -> {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -190,7 +190,7 @@ public class PersistentDispatcherFailoverConsumerTest {
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -231,7 +231,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testConsumerGroupChangesWithOldNewConsumers() throws Exception {
         PersistentTopic topic =
-                new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         int partitionIndex = 0;
@@ -272,7 +272,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         int partitionIndex = 4;
@@ -404,7 +404,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
         PersistentTopic topic =
-                new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         // Non partitioned topic.
@@ -465,7 +465,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testMultipleDispatcherGetNextConsumerWithDifferentPriorityLevel() throws Exception {
 
         PersistentTopic topic =
-                new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
@@ -510,7 +510,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testFewBlockedConsumerSamePriority() throws Exception{
         PersistentTopic topic =
-                new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
@@ -538,7 +538,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
         PersistentTopic topic =
-                new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
@@ -593,7 +593,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
         PersistentTopic topic =
-                new PersistentTopic(successTopicName, ledgerMock, testPulsarServiceFactory.getBrokerService());
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, true, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, true, 2);

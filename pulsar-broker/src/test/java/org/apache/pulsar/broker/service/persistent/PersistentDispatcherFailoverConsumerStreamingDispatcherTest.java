@@ -32,6 +32,6 @@ public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
-        testPulsarServiceFactory.getConfig().setStreamingDispatch(true);
+        pulsarTestContext.getConfig().setStreamingDispatch(true);
     }
 }
