@@ -87,16 +87,15 @@ public class TopicEventsDispatcher {
      * @param topic
      * @param event
      * @param <T>
-     * @return original future
+     * @return future of a new completion stage
      */
     public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
                                                        String topic,
                                                        TopicEventsListener.TopicEvent event) {
-        future.whenComplete((r, ex) -> notify(topic,
+        return future.whenComplete((r, ex) -> notify(topic,
                 event,
                 ex == null ? TopicEventsListener.EventStage.SUCCESS : TopicEventsListener.EventStage.FAILURE,
                 ex));
-        return future;
     }
 
     /**
