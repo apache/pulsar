@@ -68,7 +68,7 @@ public class MultiConsumerPulsarSource<T> extends PushPulsarSource<T> implements
 
             Consumer<T> consumer = cb.subscribeAsync().join();
 
-            if (pulsarSourceConfig.getSkipToLatest()) {
+            if (pulsarSourceConfig.getSkipToLatest() != null && pulsarSourceConfig.getSkipToLatest()) {
                 consumer.seek(MessageId.latest);
             }
 

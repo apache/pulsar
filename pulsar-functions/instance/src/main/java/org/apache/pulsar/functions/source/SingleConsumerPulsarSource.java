@@ -75,7 +75,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();
 
-        if (this.pulsarSourceConfig.getSkipToLatest()) {
+        if (this.pulsarSourceConfig.getSkipToLatest() != null && this.pulsarSourceConfig.getSkipToLatest()) {
             consumer.seek(MessageId.latest);
         }
 
