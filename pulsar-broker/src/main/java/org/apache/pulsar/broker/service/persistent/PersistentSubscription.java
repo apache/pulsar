@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -86,6 +87,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.MLSnapshotForBacklogSize;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
@@ -1066,7 +1068,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                          boolean getEarliestTimeInBacklog) {
+                                          boolean getEarliestTimeInBacklog,
+                                          @Nullable MLSnapshotForBacklogSize mlSnapshot) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1130,7 +1133,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
         if (subscriptionBacklogSize) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
-                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition(), mlSnapshot);
         } else {
             subStats.backlogSize = -1;
         }
