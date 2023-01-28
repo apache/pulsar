@@ -136,7 +136,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
            Calculate the segment capital according to its size configuration.
            <p>
                The empty transaction segment size is 5.
-               Adding a empty linkedList, the size increase to 6.
+               Adding an empty linkedList, the size increase to 6.
                Add the topic name the size increase to the 7 + topic.getName().length().
                Add the aborted transaction IDs, the size increase to 8 +
                topic.getName().length() + 3 * aborted transaction ID size.
