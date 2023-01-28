@@ -132,15 +132,15 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
         this.persistentWorker = new PersistentWorker(topic);
-        /**
-         *  Calculate the segment capital according to its size configuration.
-         *  <p>
-         *      The empty transaction segment size is 5.
-         *      Adding a empty linkedList, the size increase to 6.
-         *      Add the topic name the size increase to the 7 + topic.getName().length().
-         *      Add the aborted transaction IDs, the size increase to 8 +
-         *      topic.getName().length() + 3 * aborted transaction ID size.
-         *  </p>
+        /*
+           Calculate the segment capital according to its size configuration.
+           <p>
+               The empty transaction segment size is 5.
+               Adding a empty linkedList, the size increase to 6.
+               Add the topic name the size increase to the 7 + topic.getName().length().
+               Add the aborted transaction IDs, the size increase to 8 +
+               topic.getName().length() + 3 * aborted transaction ID size.
+           </p>
          */
         this.snapshotSegmentCapacity = (topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize() - 8 - topic.getName().length()) / 3;
@@ -151,10 +151,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     public void putAbortedTxnAndPosition(TxnID txnID, PositionImpl position) {
         unsealedTxnIds.add(txnID);
         aborts.put(txnID, txnID);
-        /**
-         *  The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
-         *  Append a task to persistent the segment with the aborted transaction IDs and the latest
-         *  transaction mark persistent position passed by param.
+        /*
+           The size of lastAbortedTxns reaches the configuration of the size of snapshot segment.
+           Append a task to persistent the segment with the aborted transaction IDs and the latest
+           transaction mark persistent position passed by param.
          */
         if (unsealedTxnIds.size() >= snapshotSegmentCapacity) {
             LinkedList<TxnID> abortedSegment = unsealedTxnIds;
@@ -225,14 +225,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     TransactionBufferSnapshotIndexes persistentSnapshotIndexes = null;
                     boolean hasIndex = false;
                     try {
-                        /**
-                         * Read the transaction snapshot segment index.
-                         * <p>
-                         *     The processor can get the sequence ID, unsealed transaction IDs,
-                         *     segment index list and max read position in the snapshot segment index.
-                         *     Then we can traverse the index list to read all aborted transaction IDs
-                         *     in segments to aborts.
-                         * </p>
+                        /*
+                          Read the transaction snapshot segment index.
+                          <p>
+                              The processor can get the sequence ID, unsealed transaction IDs,
+                              segment index list and max read position in the snapshot segment index.
+                              Then we can traverse the index list to read all aborted transaction IDs
+                              in segments to aborts.
+                          </p>
                          */
                         while (reader.hasMoreEvents()) {
                             Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
@@ -301,16 +301,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                                                 if (exception instanceof ManagedLedgerException
                                                         .NonRecoverableLedgerException) {
-                                                    /**
-                                                     * The logic flow of deleting expired segment is:
-                                                     * <p>
-                                                     *     1. delete segment
-                                                     *     2. update segment index
-                                                     * </p>
-                                                     * If the worker delete segment successfully
-                                                     * but failed to update segment index,
-                                                     * the segment can not be read according to the index.
-                                                     * We update index again if there are invalid indexes.
+                                                    /*
+                                                      The logic flow of deleting expired segment is:
+                                                      <p>
+                                                          1. delete segment
+                                                          2. update segment index
+                                                      </p>
+                                                      If the worker delete segment successfully
+                                                      but failed to update segment index,
+                                                      the segment can not be read according to the index.
+                                                      We update index again if there are invalid indexes.
                                                      */
                                                     if (((ManagedLedgerImpl)topic.getManagedLedger())
                                                             .ledgerExists(index.getAbortedMarkLedgerID())) {
@@ -343,15 +343,15 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             .getPersistenceNamingEncoding(), callback,
                                     topic.getManagedLedger().getConfig(),
                                     null);
-                    /**
-                     *  Wait the processor recover completely and then allow TB
-                     *  to recover the messages after the startReadCursorPosition.
+                    /*
+                       Wait the processor recover completely and then allow TB
+                       to recover the messages after the startReadCursorPosition.
                      */
                     return openManagedLedgerFuture
                             .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures))
                             .thenCompose((i) -> {
-                                /**
-                                 * Update the snapshot segment index if there exist invalid indexes.
+                                /*
+                                  Update the snapshot segment index if there exist invalid indexes.
                                  */
                                 if (hasInvalidIndex.get()) {
                                     persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, ()
@@ -359,17 +359,17 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             .updateSnapshotIndex(finalPersistentSnapshotIndexes.getSnapshot(),
                                             indexes.values().stream().toList()));
                                 }
-                                /**
-                                 *  If there is no segment index, the persistent worker will write segment begin from 0.
+                                /*
+                                   If there is no segment index, the persistent worker will write segment begin from 0.
                                  */
                                 if (indexes.size() != 0) {
                                     persistentWorker.sequenceID.set(indexes.get(indexes.lastKey()).sequenceID + 1);
                                 }
-                                /**
-                                 * Append the aborted txn IDs in the index metadata
-                                 * can keep the order of the aborted txn in the aborts.
-                                 * So that we can trim the expired snapshot segment in aborts
-                                 * according to the latest transaction IDs in the segmentIndex.
+                                /*
+                                  Append the aborted txn IDs in the index metadata
+                                  can keep the order of the aborted txn in the aborts.
+                                  So that we can trim the expired snapshot segment in aborts
+                                  according to the latest transaction IDs in the segmentIndex.
                                  */
                                 convertTypeToTxnID(finalPersistentSnapshotIndexes.getSnapshot().getAborts())
                                         .forEach(txnID -> aborts.put(txnID, txnID));
@@ -426,6 +426,22 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         });
     }
 
+    /**
+     * The PersistentWorker be responsible for executing the persistent tasks, including:
+     * <p>
+     *     1. Write snapshot segment --- Encapsulate a sealed snapshot segment and persistent it.
+     *     2. Delete snapshot segment --- Evict expired snapshot segments.
+     *     3. Update snapshot indexes --- Update snapshot indexes after writing or deleting snapshot segment
+     *                                  or update snapshot indexes metadata regularly.
+     *     4. Clear all snapshot segments and indexes.  --- Executed when deleting this topic.
+     * </p>
+     * * Task 1 and task 2 will be put into a task queue. The tasks in the queue will be executed in order.
+     * * If the task queue is empty, task 3 will be executed immediately when it is appended to the worker.
+     * Else, the worker will try to execute the tasks in the task queue.
+     * * When task 4 was appended into worker, the worker will change the operation state to closed
+     * and cancel all tasks in the task queue. finally, execute the task 4 (clear task).
+     * If there are race conditions, throw an Exception to let users try again.
+     */
     public class PersistentWorker {
         protected final AtomicLong sequenceID = new AtomicLong(0);
 
@@ -483,10 +499,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             CompletableFuture<Void> taskExecutedResult = new CompletableFuture<>();
             switch (operationType) {
                 case UpdateIndex -> {
-                    /**
-                     * The update index operation  can be canceled when the task queue is not empty,
-                     * so it should be executed immediately instead of appending to the task queue.
-                     * If the taskQueue is not empty, the worker will execute the task in the queue.
+                    /*
+                      The update index operation can be canceled when the task queue is not empty,
+                      so it should be executed immediately instead of appending to the task queue.
+                      If the taskQueue is not empty, the worker will execute the tasks in the queue.
                      */
                     if (!taskQueue.isEmpty()) {
                         topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
@@ -503,9 +519,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         return CompletableFuture.completedFuture(null);
                     }
                 }
-                /**
-                 * Only the operations of WriteSegment and DeleteSegment will be appended into the taskQueue.
-                 * The operation will be canceled when the worker is close which means the topic is deleted.
+                /*
+                  Only the operations of WriteSegment and DeleteSegment will be appended into the taskQueue.
+                  The operation will be canceled when the worker is close which means the topic is deleted.
                  */
                 case WriteSegment, DeleteSegment -> {
                     if (!STATE_UPDATER.get(this).equals(OperationState.Closed)) {
@@ -517,9 +533,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                 }
                 case Clear -> {
-                    /**
-                     * Do not clear the snapshots if the topic is used.
-                     * If the users want to delete a topic, he should stop the usage of the topic.
+                    /*
+                      Do not clear the snapshots if the topic is used.
+                      If the users want to delete a topic, they should stop the usage of the topic.
                      */
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Closed)) {
                         taskQueue.forEach(pair ->
@@ -529,8 +545,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                                 + " transaction buffer of the topic[%s] already closed",
                                                         pair.getLeft().name(), this.topic.getName()))));
                         taskQueue.clear();
-                        /**
-                         * The task of clear all snapshot segment and index is executed immediately too.
+                        /*
+                          The task of clear all snapshot segments and indexes is executed immediately.
                          */
                         return task.get();
                     } else {
@@ -658,9 +674,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         snapshotIndexes.setSnapshot(snapshotSegment);
                         return indexesWriter.writeAsync(topic.getName(), snapshotIndexes);
                     })
-                    .thenRun(() -> {
-                        lastSnapshotTimestamps = System.currentTimeMillis();
-                    })
+                    .thenRun(() -> lastSnapshotTimestamps = System.currentTimeMillis())
                     .exceptionally(e -> {
                         log.error("[{}] Failed to update snapshot segment index", snapshotIndexes.getTopicName(), e);
                         return null;
