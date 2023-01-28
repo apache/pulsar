@@ -792,8 +792,8 @@ public class CmdTopics extends CmdBase {
 
         @Parameter(names = { "-sbs",
                 "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
-        + ", locking required.")
-        private boolean subscriptionBacklogSize = false;
+        + ", locking required. If set to false, the attribute 'backlogSize' in the response will be -1")
+        private boolean subscriptionBacklogSize = true;
 
         @Parameter(names = { "-etb",
                 "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
@@ -858,7 +858,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-sbs",
                 "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
                 + ", locking required.")
-        private boolean subscriptionBacklogSize = false;
+        private boolean subscriptionBacklogSize = true;
 
         @Parameter(names = { "-etb",
                 "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
