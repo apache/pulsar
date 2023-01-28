@@ -69,6 +69,7 @@ import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.DataProvider;
 
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
@@ -495,6 +496,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
             admin.namespaces().createNamespace(namespace);
         }
+    }
+
+    @DataProvider(name = "invalidPersistentPolicies")
+    public Object[][] incorrectPersistentPolicies() {
+        return new Object[][] {
+                {0, 0, 0},
+                {1, 0, 0},
+                {0, 0, 1},
+                {0, 1, 0},
+                {1, 1, 0},
+                {1, 0, 1}
+        };
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

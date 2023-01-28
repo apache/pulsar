@@ -1069,6 +1069,18 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(persistence2, persistence1);
     }
 
+    @Test(dataProvider = "invalidPersistentPolicies")
+    public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
+        NamespaceName testNs = this.testLocalNamespaces.get(0);
+        PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
+        try {
+            namespaces.setPersistence(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence1);
+            fail();
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.BAD_REQUEST.getStatusCode());
+        }
+    }
+
     @Test
     public void testPersistenceUnauthorized() throws Exception {
         try {
