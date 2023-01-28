@@ -43,7 +43,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -101,7 +101,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalCleanupCnt = 0;
     private long totalBrokerCleanupTombstoneCnt = 0;
     private long totalServiceUnitCleanupTombstoneCnt = 0;
-    private long totalServiceUnitCleanupErrorCnt = 0;
+    private AtomicLong totalCleanupErrorCnt = new AtomicLong();
     private long totalCleanupScheduledCnt = 0;
     private long totalCleanupIgnoredCnt = 0;
     private long totalCleanupCancelledCnt = 0;
@@ -598,7 +598,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     .delayedExecutor(delayInSecs, TimeUnit.SECONDS, pulsar.getLoadManagerExecutor());
             totalCleanupScheduledCnt++;
             return CompletableFuture
-                    .runAsync(() -> doCleanup(broker), delayed);
+                    .runAsync(() -> {
+                                try {
+                                    doCleanup(broker);
+                                } catch (Throwable e) {
+                                    log.error("Failed to run the cleanup job for the broker {}, "
+                                                    + "totalCleanupErrorCnt:{}.",
+                                            broker, totalCleanupErrorCnt.incrementAndGet(), e);
+                                }
+                            }
+                            , delayed);
         });
 
         log.info("Scheduled ownership cleanup for broker:{} with delay:{} secs. Pending clean jobs:{}.",
@@ -609,8 +618,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void doCleanup(String broker) {
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
-        AtomicInteger serviceUnitTombstoneCnt = new AtomicInteger();
-        AtomicInteger serviceUnitTombstoneErrorCnt = new AtomicInteger();
+        int serviceUnitTombstoneCnt = 0;
+        long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
         for (Map.Entry<String, ServiceUnitStateData> etr : tableview.entrySet()) {
             ServiceUnitStateData stateData = etr.getValue();
             String serviceUnit = etr.getKey();
@@ -619,12 +628,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.info("Cleaning ownership serviceUnit:{}, stateData:{}.", serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}.",
-                                serviceUnit, stateData);
-                        serviceUnitTombstoneErrorCnt.incrementAndGet();
+                        log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}, "
+                                        + "cleanupErrorCnt:{}.",
+                                serviceUnit, stateData,
+                                totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart);
                     }
                 });
-                serviceUnitTombstoneCnt.incrementAndGet();
+                serviceUnitTombstoneCnt++;
             }
         }
 
@@ -634,14 +644,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to flush the in-flight messages.", e);
         }
 
-        if (serviceUnitTombstoneCnt.get() > 0) {
+        if (serviceUnitTombstoneCnt > 0) {
             this.totalCleanupCnt++;
-            this.totalServiceUnitCleanupTombstoneCnt += serviceUnitTombstoneCnt.get();
+            this.totalServiceUnitCleanupTombstoneCnt += serviceUnitTombstoneCnt;
             this.totalBrokerCleanupTombstoneCnt++;
-        }
-
-        if (serviceUnitTombstoneErrorCnt.get() > 0) {
-            this.totalServiceUnitCleanupErrorCnt += serviceUnitTombstoneErrorCnt.get();
         }
 
         double cleanupTime = TimeUnit.NANOSECONDS
@@ -649,11 +655,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         // TODO: clean load data stores
         log.info("Completed a cleanup for the inactive broker:{} in {} ms. "
                         + "Published tombstone for orphan service units: serviceUnitTombstoneCnt:{}, "
-                        + "serviceUnitTombstoneErrorCnt:{}, metrics:{} ",
+                        + "approximate cleanupErrorCnt:{}, metrics:{} ",
                 broker,
                 cleanupTime,
                 serviceUnitTombstoneCnt,
-                serviceUnitTombstoneErrorCnt,
+                totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
                 printCleanupMetrics());
         cleanupJobs.remove(broker);
     }
@@ -673,8 +679,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         long startTime = System.nanoTime();
         Set<String> inactiveBrokers = new HashSet<>();
         Set<String> activeBrokers = new HashSet<>(brokers);
-        AtomicInteger serviceUnitTombstoneCnt = new AtomicInteger();
-        AtomicInteger serviceUnitTombstoneErrorCnt = new AtomicInteger();
+        int serviceUnitTombstoneCnt = 0;
+        long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
         long now = System.currentTimeMillis();
         for (Map.Entry<String, ServiceUnitStateData> etr : tableview.entrySet()) {
             String serviceUnit = etr.getKey();
@@ -689,12 +695,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}.",
-                                serviceUnit, stateData);
-                        serviceUnitTombstoneErrorCnt.incrementAndGet();
+                        log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}, "
+                                        + "cleanupErrorCnt:{}.",
+                                serviceUnit, stateData,
+                                totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart);
                     }
                 });
-                serviceUnitTombstoneCnt.incrementAndGet();
+                serviceUnitTombstoneCnt++;
             }
         }
 
@@ -708,22 +715,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to flush the in-flight messages.", e);
         }
 
-        if (serviceUnitTombstoneCnt.get() > 0) {
-            this.totalServiceUnitCleanupTombstoneCnt += serviceUnitTombstoneCnt.get();
+        if (serviceUnitTombstoneCnt > 0) {
+            this.totalServiceUnitCleanupTombstoneCnt += serviceUnitTombstoneCnt;
         }
-        this.totalServiceUnitCleanupErrorCnt += serviceUnitTombstoneErrorCnt.get();
 
         double monitorTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));
         log.info("Completed the ownership monitor run in {} ms. "
                         + "Scheduled cleanups for inactiveBrokers:{}. inactiveBrokerCount:{}. "
                         + "Published tombstone for orphan service units: serviceUnitTombstoneCnt:{}, "
-                        + "serviceUnitTombstoneErrorCnt:{}, metrics:{} ",
+                        + "approximate cleanupErrorCnt:{}, metrics:{} ",
                 monitorTime,
                 inactiveBrokers,
                 inactiveBrokers.size(),
                 serviceUnitTombstoneCnt,
-                serviceUnitTombstoneErrorCnt,
+                totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
                 printCleanupMetrics());
 
     }
@@ -731,13 +737,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private String printCleanupMetrics() {
         return String.format(
                 "{totalCleanupCnt:%d, totalBrokerCleanupTombstoneCnt:%d, "
-                        + "totalServiceUnitCleanupTombstoneCnt:%d, totalServiceUnitCleanupErrorCnt:%d, "
+                        + "totalServiceUnitCleanupTombstoneCnt:%d, totalCleanupErrorCnt:%d, "
                         + "totalCleanupScheduledCnt%d, totalCleanupIgnoredCnt:%d, totalCleanupCancelledCnt:%d, "
                         + "  activeCleanupJobs:%d}",
                 totalCleanupCnt,
                 totalBrokerCleanupTombstoneCnt,
                 totalServiceUnitCleanupTombstoneCnt,
-                totalServiceUnitCleanupErrorCnt,
+                totalCleanupErrorCnt.get(),
                 totalCleanupScheduledCnt,
                 totalCleanupIgnoredCnt,
                 totalCleanupCancelledCnt,
