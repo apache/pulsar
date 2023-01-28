@@ -207,6 +207,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
     private volatile boolean isActive = false;
 
+    // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
+    private volatile boolean isActive = false;
+
     class MarkDeleteEntry {
         final PositionImpl newPosition;
         final MarkDeleteCallback callback;
