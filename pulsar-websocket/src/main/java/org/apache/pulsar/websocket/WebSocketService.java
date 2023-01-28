@@ -70,9 +70,6 @@ public class WebSocketService implements Closeable {
     private ServiceConfiguration config;
 
     @Getter
-    private WebSocketProxyConfiguration webSocketProxyConfig;
-
-    @Getter
     private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
 
     private ClusterData localCluster;
@@ -83,7 +80,6 @@ public class WebSocketService implements Closeable {
 
     public WebSocketService(WebSocketProxyConfiguration config) {
         this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
-        this.webSocketProxyConfig = config;
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {

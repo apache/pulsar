@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.testng.annotations.BeforeMethod;
@@ -32,8 +33,9 @@ public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
-        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
-        pulsar.getConfiguration().setSystemTopicEnabled(false);
-        pulsar.getConfiguration().setStreamingDispatch(true);
+        ServiceConfiguration config = testPulsarServiceFactory.getConfig();
+        config.setTopicLevelPoliciesEnabled(false);
+        config.setSystemTopicEnabled(false);
+        config.setStreamingDispatch(true);
     }
 }

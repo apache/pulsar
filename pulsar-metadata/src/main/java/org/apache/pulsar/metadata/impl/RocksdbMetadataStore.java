@@ -47,8 +47,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -75,6 +77,7 @@ import org.rocksdb.WriteOptions;
 @Slf4j
 public class RocksdbMetadataStore extends AbstractMetadataStore {
 
+    static final String ROCKSDB_SCHEME = "rocksdb";
     static final String ROCKSDB_SCHEME_IDENTIFIER = "rocksdb:";
 
     private static final byte[] SEQUENTIAL_ID_KEY = toBytes("__metadata_sequentialId_key");
@@ -568,5 +571,19 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     @Override
     public Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.ofNullable(synchronizer);
+    }
+}
+
+class RocksdbMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return RocksdbMetadataStore.ROCKSDB_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
     }
 }

@@ -2614,6 +2614,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
     @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Interval of time to sending the ping to keep alive in WebSocket proxy. "
+                    + "This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
+    @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "The maximum size of a text message during parsing in WebSocket proxy."
     )
