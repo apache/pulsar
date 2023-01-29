@@ -812,7 +812,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         readCompacted, keySharedMeta, startMessageId, consumerEpoch);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
-                    checkBackloggedCursors();
+                    if (subscription instanceof PersistentSubscription persistentSubscription) {
+                        checkBackloggedCursor(persistentSubscription);
+                    }
                     if (!cnx.isActive()) {
                         try {
                             consumer.close();
@@ -2566,15 +2568,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkBackloggedCursors() {
-        // activate caught up cursors which include consumers
         subscriptions.forEach((subName, subscription) -> {
-            if (!subscription.getConsumers().isEmpty()
-                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
-                subscription.getCursor().setActive();
-            } else {
-                subscription.getCursor().setInactive();
-            }
+            checkBackloggedCursor(subscription);
         });
+    }
+
+    private void checkBackloggedCursor(PersistentSubscription subscription) {
+        // activate caught up cursor which include consumers
+        if (!subscription.getConsumers().isEmpty()
+                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+            subscription.getCursor().setActive();
+        } else {
+            subscription.getCursor().setInactive();
+        }
     }
 
     public void checkInactiveLedgers() {
