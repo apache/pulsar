@@ -3869,12 +3869,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         for (int i = 0; i < 10; i++) {
             positions.add(ledger.addEntry(new byte[1]));
         }
+        PositionImpl largerThanLastLedgerId = PositionImpl.get(positions.get(9).getLedgerId() + 100, 1);
 
         // case1: Slowest position is null.
         MLSnapshotForBacklogSize mlSnapshot1 = ledger.snapshotForBacklogSize(false);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), mlSnapshot1), 10);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1)), mlSnapshot1), 8);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), mlSnapshot1), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(largerThanLastLedgerId, mlSnapshot1), 0);
         mlSnapshot1.recycle();
 
         // case2: Slowest position is not null.
@@ -3885,6 +3887,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), mlSnapshot2), 8);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(5)), mlSnapshot2), 4);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), mlSnapshot2), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(largerThanLastLedgerId, mlSnapshot2), 0);
         mlSnapshot2.recycle();
 
         // case3: Slowest position is not null & @param containsConsumedLedgers is true.
@@ -3892,6 +3895,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), mlSnapshot3), 10);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(5)), mlSnapshot3), 4);
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), mlSnapshot3), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(largerThanLastLedgerId, mlSnapshot3), 0);
         mlSnapshot3.recycle();
 
         // cleanup.
