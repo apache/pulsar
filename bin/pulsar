@@ -313,6 +313,17 @@ OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR
 OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
 OPTS="$OPTS -Dpulsar.functions.log.conf=${FUNCTIONS_LOG_CONF}"
 
+
+IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
+# Start --add-opens options
+# '--add-opens' option is not supported in jdk8
+if [[ -z "$IS_JAVA_8" ]]; then
+    # JvmDefaultGCMetricsLogger & MBeanStatsGenerator
+    OPTS="$OPTS --add-opens java.management/sun.management=ALL-UNNAMED"
+    # MBeanStatsGenerator
+    OPTS="$OPTS --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED"
+fi
+
 ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true -Dzookeeper.tcpKeepAlive=true"
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
