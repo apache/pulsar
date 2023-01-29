@@ -363,4 +363,41 @@ public class ThresholdShedderTest {
         assertEquals(bundlesToUnload.size(), 1);
         assertTrue(bundlesToUnload.containsKey("broker-3"));
     }
+
+    @Test
+    public void testLowerBoundarySheddingBrokerWithLowBroker() {
+        LoadData loadData = new LoadData();
+        double throughput = 100 * 1024 * 1024;
+
+        int brokerNum = 3;
+        int highLoadNode = 0;
+        for (int i = 0; i < brokerNum; i++) {
+            LocalBrokerData broker = new LocalBrokerData();
+            for (int j = 0; j < 2; j++) {
+                BundleData bundle = new BundleData();
+                TimeAverageMessageData timeAverageMessageData = new TimeAverageMessageData();
+                timeAverageMessageData.setMsgThroughputIn( throughput);
+                timeAverageMessageData.setMsgThroughputOut( throughput);
+                bundle.setShortTermData(timeAverageMessageData);
+                String broker2BundleName = "broker-" + i + "-bundle-" + j;
+                loadData.getBundleData().put(broker2BundleName, bundle);
+                broker.getBundles().add(broker2BundleName);
+            }
+            broker.setBandwidthIn(new ResourceUsage(i == highLoadNode ? 10 : 0, 100));
+            broker.setBandwidthOut(new ResourceUsage(i == highLoadNode ? 10 : 0, 100));
+            broker.setMsgThroughputIn(i == highLoadNode ? throughput : 0);
+            broker.setMsgThroughputOut(i == highLoadNode ? throughput : 0);
+            loadData.getBrokerData().put("broker-" + i, new BrokerData(broker));
+        }
+
+        ThresholdShedder shedder = new ThresholdShedder();
+        Multimap<String, String> bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
+        assertTrue(bundlesToUnload.isEmpty());
+
+        conf.setLowerBoundarySheddingEnabled(true);
+        bundlesToUnload = shedder.findBundlesForUnloading(loadData, conf);
+        assertFalse(bundlesToUnload.isEmpty());
+        assertEquals(bundlesToUnload.size(), 1);
+        assertTrue(bundlesToUnload.containsKey("broker-0"));
+    }
 }

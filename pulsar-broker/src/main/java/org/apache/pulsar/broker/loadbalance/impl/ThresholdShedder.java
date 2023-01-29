@@ -227,7 +227,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
                 maxUsageBrokerName = broker;
             }
             // Whether any brokers with low usage in the cluster.
-            if (currentUsage < avgUsage - threshold) {
+            double lowerUsage = avgUsage - threshold;
+            if (currentUsage < lowerUsage || lowerUsage <= 0) {
                 hasBrokerBelowLowerBound = true;
             }
         }
