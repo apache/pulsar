@@ -473,6 +473,11 @@ public class Consumer {
             long ackedCount = 0;
             long batchSize = getBatchSize(msgId);
             Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
+            if (Subscription.isIndividualAckMode(ackOwnerConsumer.subType())
+                && !ackOwnerConsumer.getPendingAcks().containsKey(msgId.getLedgerId(), msgId.getEntryId())) {
+                // this message has been acked, skip to keep stats correct
+                continue;
+            }
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
                 for (int j = 0; j < msgId.getAckSetsCount(); j++) {

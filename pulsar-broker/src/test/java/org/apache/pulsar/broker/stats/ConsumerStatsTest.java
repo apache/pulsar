@@ -457,4 +457,30 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         int avgMessagesPerEntry = consumerStats.getAvgMessagesPerEntry();
         assertEquals(3, avgMessagesPerEntry);
     }
+
+
+    @Test
+    public void testDuplicateAcknowledgement()
+            throws PulsarClientException, PulsarAdminException {
+        final String topicName = "persistent://public/default/duplicated-acknowledgement-test";
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub-1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        producer1.send("1".getBytes());
+        Message<byte[]> message = consumer1.receive();
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions()
+                .get("sub-1").getUnackedMessages(), 1);
+        consumer1.acknowledge(message);
+        consumer1.acknowledge(message);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions()
+                .get("sub-1").getUnackedMessages(), 0);
+    }
 }
