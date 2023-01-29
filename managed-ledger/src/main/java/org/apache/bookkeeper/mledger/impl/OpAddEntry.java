@@ -234,8 +234,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
 
         PositionImpl lastEntry = PositionImpl.get(ledgerId, entryId);
+        ml.entriesAddedCounterState = -1;
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
+        ml.entriesAddedCounterState = ml.getEntriesAddedCounter();
 
         if (closeWhenDone) {
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledgerId);
