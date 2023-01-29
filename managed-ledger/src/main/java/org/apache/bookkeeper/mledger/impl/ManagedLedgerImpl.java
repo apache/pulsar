@@ -1554,7 +1554,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
-                    metadataMutex.unlock();
                     synchronized (ManagedLedgerImpl.this) {
                         ledgers.put(lh.getId(), newLedger);
                         currentLedger = lh;
@@ -1564,6 +1563,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
                                 - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
                     }
+                    metadataMutex.unlock();
 
                     // May need to update the cursor position
                     maybeUpdateCursorBeforeTrimmingConsumedLedger();
