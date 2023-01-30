@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import static org.apache.pulsar.common.policies.data.stats.MLSnapshotForBacklogSize.SimpleLedgerInfo;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
@@ -68,6 +69,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
@@ -135,6 +137,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadedReadPriority;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.stats.MLSnapshotForBacklogSize;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1259,11 +1262,60 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     /**
      * Get estimated backlog size from a specific position.
      */
-    public long getEstimatedBacklogSize(PositionImpl pos) {
+    public long getEstimatedBacklogSize(PositionImpl pos, @Nullable MLSnapshotForBacklogSize mlSnapshot) {
         if (pos == null) {
             return 0;
         }
-        return estimateBacklogFromPosition(pos);
+        if (mlSnapshot == null) {
+            return estimateBacklogFromPosition(pos);
+        } else {
+            return estimateBacklogFromPosition(pos, mlSnapshot);
+        }
+    }
+
+    /**
+     * Gets a value object containing the following properties of managed ledger:
+     *   [ledgers, currentLedger, currentLedgerSize, currentLedgerEntries, totalSize]. It's worth noting that ledgers
+     *   only include ledgers that have not been fully consumed.
+     * Note: After {@link MLSnapshotForBacklogSize} is used, you need to manually recycle it.
+     * {@link MLSnapshotForBacklogSize} is an object managed by thread local, it is not available across threads,
+     * and each thread can use at most one instance.
+     */
+    public MLSnapshotForBacklogSize snapshotForBacklogSize(boolean containsConsumedLedgers) {
+        synchronized (this) {
+            PositionImpl slowestReaderPosition;
+            if (containsConsumedLedgers){
+                slowestReaderPosition = PositionImpl.EARLIEST;
+            } else {
+                slowestReaderPosition = cursors.getSlowestReaderPosition();
+                if (slowestReaderPosition == null) {
+                    slowestReaderPosition = PositionImpl.EARLIEST;
+                }
+            }
+            MLSnapshotForBacklogSize mlSnapshot = MLSnapshotForBacklogSize.newInstance(
+                    currentLedger.getId(), currentLedgerSize, currentLedgerEntries, getTotalSize());
+            for (LedgerInfo ledger : ledgers.subMap(slowestReaderPosition.getLedgerId(), Long.MAX_VALUE).values()){
+                mlSnapshot.getLedgers().put(ledger.getLedgerId(),
+                        SimpleLedgerInfo.newInstance(ledger.getSize(), ledger.getEntries()));
+            }
+            return mlSnapshot;
+        }
+    }
+
+    static long estimateBacklogFromPosition(PositionImpl pos, MLSnapshotForBacklogSize mlSnapshot) {
+        long sizeAfterPosLedger = mlSnapshot.getLedgers().subMap(pos.getLedgerId() + 1, Long.MAX_VALUE)
+                .values().stream().mapToLong(p -> p.getSize()).sum();
+        SimpleLedgerInfo ledgerInfo = mlSnapshot.getLedgers().get(pos.getLedgerId());
+        if (ledgerInfo == null) {
+            return sizeAfterPosLedger;
+        } else if (pos.getLedgerId() == mlSnapshot.getCurrentLedger()) {
+            return sizeAfterPosLedger + mlSnapshot.getCurrentLedgerSize()
+                    - consumedLedgerSize(mlSnapshot.getCurrentLedgerSize(),
+                    mlSnapshot.getCurrentLedgerEntries(), pos.getEntryId());
+        } else {
+            return sizeAfterPosLedger + ledgerInfo.getSize()
+                    - consumedLedgerSize(ledgerInfo.getSize(), ledgerInfo.getEntries(), pos.getEntryId());
+        }
     }
 
     long estimateBacklogFromPosition(PositionImpl pos) {
@@ -1282,7 +1334,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private long consumedLedgerSize(long ledgerSize, long ledgerEntries, long consumedEntries) {
+    private static long consumedLedgerSize(long ledgerSize, long ledgerEntries, long consumedEntries) {
         if (ledgerEntries <= 0) {
             return 0;
         }

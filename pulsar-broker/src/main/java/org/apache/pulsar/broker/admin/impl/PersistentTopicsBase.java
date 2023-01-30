@@ -3305,7 +3305,7 @@ public class PersistentTopicsBase extends AdminResource {
                                         if (messageId.getLedgerId() == -1) {
                                             asyncResponse.resume(managedLedger.getTotalSize());
                                         } else {
-                                            asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos));
+                                            asyncResponse.resume(managedLedger.getEstimatedBacklogSize(pos, null));
                                         }
                                     }).exceptionally(ex -> {
                                         // If the exception is not redirect exception we need to log it.

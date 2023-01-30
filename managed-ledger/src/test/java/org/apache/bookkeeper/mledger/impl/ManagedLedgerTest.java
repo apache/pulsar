@@ -125,6 +125,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.stats.MLSnapshotForBacklogSize;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -3850,9 +3851,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             positions.add(ledger.addEntry(new byte[1]));
         }
 
-        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1)), 10);
-        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1))), 8);
-        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext()), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), null), 10);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1)), null), 8);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), null), 0);
+        ledger.close();
+    }
+
+    @Test
+    public void testGetEstimatedBacklogSizeWithMLSnapshot() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testGetEstimatedBacklogSizeWithMLSnapshot", config);
+        List<Position> positions = new ArrayList<>(10);
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(new byte[1]));
+        }
+        PositionImpl largerThanLastLedgerId = PositionImpl.get(positions.get(9).getLedgerId() + 100, 1);
+
+        // case1: Slowest position is null.
+        MLSnapshotForBacklogSize mlSnapshot1 = ledger.snapshotForBacklogSize(false);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), mlSnapshot1), 10);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1)), mlSnapshot1), 8);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), mlSnapshot1), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(largerThanLastLedgerId, mlSnapshot1), 0);
+        mlSnapshot1.recycle();
+
+        // case2: Slowest position is not null.
+        ManagedCursor cursor1 = mock(ManagedCursor.class);
+        when(cursor1.getName()).thenReturn("cursor1");
+        ledger.getCursors().add(cursor1, (positions.get(2)));
+        MLSnapshotForBacklogSize mlSnapshot2 = ledger.snapshotForBacklogSize(false);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), mlSnapshot2), 8);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(5)), mlSnapshot2), 4);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), mlSnapshot2), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(largerThanLastLedgerId, mlSnapshot2), 0);
+        mlSnapshot2.recycle();
+
+        // case3: Slowest position is not null & @param containsConsumedLedgers is true.
+        MLSnapshotForBacklogSize mlSnapshot3 = ledger.snapshotForBacklogSize(true);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1), mlSnapshot3), 10);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(5)), mlSnapshot3), 4);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext(), mlSnapshot3), 0);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(largerThanLastLedgerId, mlSnapshot3), 0);
+        mlSnapshot3.recycle();
+
+        // cleanup.
+        ledger.getCursors().removeCursor(cursor1.getName());
         ledger.close();
     }
 }
