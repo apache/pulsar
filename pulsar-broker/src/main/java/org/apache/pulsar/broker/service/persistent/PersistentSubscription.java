@@ -894,7 +894,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
-            return this.pendingAckHandle.close().thenAccept(v -> {
+            return this.pendingAckHandle.closeAsync().thenAccept(v -> {
                 IS_FENCED_UPDATER.set(this, TRUE);
                 log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
             });
@@ -1159,6 +1159,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (subscriptionBacklogSize) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        } else {
+            subStats.backlogSize = -1;
         }
         if (getEarliestTimeInBacklog && subStats.msgBacklog > 0) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());

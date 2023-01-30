@@ -23,7 +23,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -885,8 +887,8 @@ public class AuthenticationProviderTokenTest {
         doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
         doReturn(0).when(servletRequest).getRemotePort();
 
-        AuthenticationState authState = provider.newHttpAuthState(servletRequest);
-        provider.authenticate(authState.getAuthDataSource());
+        boolean doFilter = provider.authenticateHttpRequest(servletRequest, null);
+        assertTrue(doFilter, "Authentication should have passed");
     }
 
     @Test
@@ -910,8 +912,42 @@ public class AuthenticationProviderTokenTest {
         doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
         doReturn(0).when(servletRequest).getRemotePort();
 
-        AuthenticationState authState = provider.newHttpAuthState(servletRequest);
-        provider.authenticate(authState.getAuthDataSource());
+        boolean doFilter = provider.authenticateHttpRequest(servletRequest, null);
+        assertTrue(doFilter, "Authentication should have passed");
+    }
+
+    @Test
+    public void testTokenStateUpdatesAuthenticationDataSource() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String firstToken = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+
+        AuthenticationState authState = provider.newAuthState(AuthData.of(firstToken.getBytes()),null, null);
+
+        AuthenticationDataSource firstAuthDataSource = authState.getAuthDataSource();
+        assertNotNull(firstAuthDataSource, "Should be initialized.");
+
+        String secondToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
+                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+
+        AuthData challenge = authState.authenticate(AuthData.of(secondToken.getBytes()));
+        AuthenticationDataSource secondAuthDataSource = authState.getAuthDataSource();
+
+        assertNull(challenge, "TokenAuth doesn't respond with challenges");
+        assertNotNull(secondAuthDataSource, "Created authDataSource");
+
+        assertNotEquals(firstAuthDataSource, secondAuthDataSource);
     }
 
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {

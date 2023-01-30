@@ -133,6 +133,7 @@ public class ClustersBase extends AdminResource {
     )
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Cluster has been created."),
+            @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster."),
             @ApiResponse(code = 409, message = "Cluster already exists."),
             @ApiResponse(code = 412, message = "Cluster name is not valid."),
@@ -161,6 +162,11 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     NamedEntity.checkName(cluster);
+                    try {
+                        clusterData.checkPropertiesIfPresent();
+                    } catch (IllegalArgumentException ex) {
+                        throw new RestException(Status.BAD_REQUEST, ex.getMessage());
+                    }
                     return clusterResources().getClusterAsync(cluster);
                 }).thenCompose(clusterOpt -> {
                     if (clusterOpt.isPresent()) {
@@ -190,6 +196,7 @@ public class ClustersBase extends AdminResource {
         notes = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Cluster has been updated."),
+            @ApiResponse(code = 400, message = "Bad request parameter."),
             @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
@@ -215,8 +222,14 @@ public class ClustersBase extends AdminResource {
         ) ClusterDataImpl clusterData) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> clusterData))
-                .thenAccept(__ -> {
+                .thenCompose(__ -> {
+                    try {
+                        clusterData.checkPropertiesIfPresent();
+                    } catch (IllegalArgumentException ex) {
+                        throw new RestException(Status.BAD_REQUEST, ex.getMessage());
+                    }
+                    return clusterResources().updateClusterAsync(cluster, old -> clusterData);
+                }).thenAccept(__ -> {
                     log.info("[{}] Updated cluster {}", clientAppId(), cluster);
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {

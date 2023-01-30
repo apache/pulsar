@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -40,7 +41,9 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -269,8 +272,35 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Awaitility.await().until(() -> !interceptor.getResponseList().isEmpty());
         CounterBrokerInterceptor.ResponseEvent responseEvent = interceptor.getResponseList().get(0);
         Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
+
         Assert.assertEquals(responseEvent.getResponseStatus(),
                 javax.ws.rs.core.Response.noContent().build().getStatus());
+    }
+
+    public void requestInterceptorFailedTest() {
+        Set<String> allowedClusters = new HashSet<>();
+        allowedClusters.add(configClusterName);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(new HashSet<>(), allowedClusters);
+        try {
+            admin.tenants().createTenant("test-interceptor-failed-tenant", tenantInfo);
+            Assert.fail("Create tenant because interceptor should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getHttpError(), "Create tenant failed");
+        }
+
+        try {
+            admin.namespaces().createNamespace("public/test-interceptor-failed-namespace");
+            Assert.fail("Create namespace because interceptor should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getHttpError(), "Create namespace failed");
+        }
+
+        try {
+            admin.topics().createNonPartitionedTopic("persistent://public/default/test-interceptor-failed-topic");
+            Assert.fail("Create topic because interceptor should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getHttpError(), "Create topic failed");
+        }
     }
 
 }

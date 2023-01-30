@@ -81,6 +81,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ExecutorProvider executorProvider;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
+    protected UnAckedMessageTracker unAckedMessageTracker;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -171,6 +172,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             incomingQueueLock = new NoOpLock();
         }
 
+        if (conf.getAckTimeoutMillis() != 0) {
+            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
+                this.unAckedMessageTracker = new UnAckedTopicMessageRedeliveryTracker(client, this, conf);
+            } else {
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf);
+            }
+        } else {
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
+        }
+
         initReceiverQueueSize();
     }
 
@@ -202,6 +213,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             int newSize = Math.min(maxReceiverQueueSize, oldSize * 2);
             setCurrentReceiverQueueSize(newSize);
         }
+    }
+
+    // if lister is not null, we will track unAcked msg in callMessageListener
+    protected void trackUnAckedMsgIfNoListener(MessageId messageId, int redeliveryCount) {
+        if (listener == null) {
+            unAckedMessageTracker.add(messageId, redeliveryCount);
+        }
+    }
+
+    protected MessageId normalizeMessageId(MessageId messageId) {
+        if (messageId instanceof BatchMessageIdImpl) {
+            // do not add each item in batch message into tracker
+            return ((BatchMessageIdImpl) messageId).toMessageIdImpl();
+        }
+        return messageId;
     }
 
     protected void reduceCurrentReceiverQueueSize() {
@@ -1088,6 +1114,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
+            MessageId id;
+            if (this instanceof ConsumerImpl) {
+                id = normalizeMessageId(msg.getMessageId());
+            } else {
+                id = msg.getMessageId();
+            }
+            unAckedMessageTracker.add(id, msg.getRedeliveryCount());
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,

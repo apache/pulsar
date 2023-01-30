@@ -96,7 +96,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
     private final MultiTopicConsumerStatsRecorderImpl stats;
-    private UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
     private volatile BatchMessageIdImpl startMessageId = null;
@@ -143,16 +142,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 : null;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         this.paused = conf.isStartPaused();
-
-        if (conf.getAckTimeoutMillis() != 0) {
-            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
-                this.unAckedMessageTracker = new UnAckedTopicMessageRedeliveryTracker(client, this, conf);
-            } else {
-                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf);
-            }
-        } else {
-            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
-        }
 
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0
@@ -384,7 +373,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
+                trackUnAckedMsgIfNoListener(message.getMessageId(), message.getRedeliveryCount());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;

@@ -67,6 +67,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -274,6 +275,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         registerTopicPolicyListener();
 
         this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
+
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
                     || cursor.getName().startsWith(replicatorPrefix)) {
@@ -838,7 +840,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 readCompacted, keySharedMeta, startMessageId, consumerEpoch);
 
                         return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
-                            checkBackloggedCursors();
+                            if (subscription instanceof PersistentSubscription persistentSubscription) {
+                                checkBackloggedCursor(persistentSubscription);
+                            }
                             if (!cnx.isActive()) {
                                 try {
                                     consumer.close();
@@ -860,13 +864,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                                 decrementUsageCount();
                                 return FutureUtil.failedFuture(
-                                                new BrokerServiceException(
-                                                        "Connection was closed while the opening the cursor "));
+                                        new BrokerServiceException("Connection was closed while the opening the cursor "));
                             } else {
                                 checkReplicatedSubscriptionControllerState();
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}][{}] Created new subscription for {}",
-                                            topic, subscriptionName, consumerId);
+                                    log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
                                 }
                                 return CompletableFuture.completedFuture(consumer);
                             }
@@ -1299,9 +1301,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                 topic, exception.getMessage());
                                                         deleteLedgerComplete(ctx);
                                                     } else {
-                                                        unfenceTopicToResume();
                                                         log.error("[{}] Error deleting topic",
                                                                 topic, exception);
+                                                        unfenceTopicToResume();
                                                         deleteFuture.completeExceptionally(
                                                                 new PersistenceException(exception));
                                                     }
@@ -1320,6 +1322,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
 
                 return deleteFuture;
+                }).whenComplete((value, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Error deleting topic", topic, ex);
+                        unfenceTopicToResume();
+                    }
                 });
         } finally {
             lock.writeLock().unlock();
@@ -2591,15 +2598,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkBackloggedCursors() {
-        // activate caught up cursors which include consumers
         subscriptions.forEach((subName, subscription) -> {
-            if (!subscription.getConsumers().isEmpty()
-                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
-                subscription.getCursor().setActive();
-            } else {
-                subscription.getCursor().setInactive();
-            }
+            checkBackloggedCursor(subscription);
         });
+    }
+
+    private void checkBackloggedCursor(PersistentSubscription subscription) {
+        // activate caught up cursor which include consumers
+        if (!subscription.getConsumers().isEmpty()
+                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+            subscription.getCursor().setActive();
+        } else {
+            subscription.getCursor().setInactive();
+        }
     }
 
     public void checkInactiveLedgers() {
@@ -2884,7 +2895,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
         } catch (Exception e) {
-            log.warn("[{}] Error while getting the oldest message", topic, e);
+            if (brokerService.pulsar().getConfiguration().isAutoSkipNonRecoverableData()
+                    && e instanceof NonRecoverableLedgerException) {
+                // NonRecoverableLedgerException means the ledger or entry can't be read anymore.
+                // if AutoSkipNonRecoverableData is set to true, just return true here.
+                return true;
+            } else {
+                log.warn("[{}] Error while getting the oldest message", topic, e);
+            }
         } finally {
             if (entry != null) {
                 entry.release();

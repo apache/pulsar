@@ -274,7 +274,7 @@ public class ConnectionPool implements AutoCloseable {
                 cnx.setTargetBroker(logicalAddress);
             }
 
-            cnx.setRemoteHostName(physicalAddress.getHostName());
+            cnx.setRemoteHostName(physicalAddress.getHostString());
 
             cnx.connectionFuture().thenRun(() -> {
                 if (log.isDebugEnabled()) {

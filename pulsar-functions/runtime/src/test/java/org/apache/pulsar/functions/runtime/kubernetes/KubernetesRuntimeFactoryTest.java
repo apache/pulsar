@@ -173,7 +173,7 @@ public class KubernetesRuntimeFactoryTest {
 
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
 
         workerConfig.setFunctionInstanceMinResources(minResources);
         workerConfig.setFunctionInstanceMaxResources(maxResources);
@@ -501,7 +501,7 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;

@@ -65,7 +65,7 @@ public class PulsarClientTool {
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
         @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")
@@ -155,7 +155,7 @@ public class PulsarClientTool {
             } catch (IllegalArgumentException e) {
                 System.out.println("Incorrect proxyProtocol name '" + proxyProtocolString + "'");
                 e.printStackTrace();
-                System.exit(-1);
+                System.exit(1);
             }
         }
     }
@@ -190,7 +190,7 @@ public class PulsarClientTool {
         if (isNotBlank(rootParams.proxyServiceURL)) {
             if (rootParams.proxyProtocol == null) {
                 System.out.println("proxy-protocol must be provided with proxy-url");
-                System.exit(-1);
+                System.exit(1);
             }
             clientBuilder.proxyServiceUrl(rootParams.proxyServiceURL, rootParams.proxyProtocol);
         }
@@ -256,7 +256,7 @@ public class PulsarClientTool {
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
             System.out.println("Usage: pulsar-client CONF_FILE_PATH [options] [command] [command options]");
-            System.exit(-1);
+            System.exit(1);
         }
         String configFile = args[0];
         Properties properties = new Properties();

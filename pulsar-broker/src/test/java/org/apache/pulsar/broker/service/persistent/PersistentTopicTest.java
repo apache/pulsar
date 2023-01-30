@@ -29,6 +29,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -47,8 +48,8 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -553,5 +554,54 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
 
         Assert.assertEquals(processed + processed1, 100);
+    }
+
+
+    @Test
+    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop/ns-abc/testCreateNonExistentPartitions";
+        admin.topics().createPartitionedTopic(topicName, 4);
+        TopicName partition = TopicName.get(topicName).getPartition(4);
+        try {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(partition.toString())
+                    .create();
+            fail("unexpected behaviour");
+        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+
+        }
+        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+    }
+
+    @Test
+    public void testCompatibilityWithPartitionKeyword() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop/ns-abc/testCompatibilityWithPartitionKeyword";
+        TopicName topicNameEntity = TopicName.get(topicName);
+        String partition2 = topicNameEntity.getPartition(2).toString();
+        // Create a non-partitioned topic with -partition- keyword
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(partition2)
+                .create();
+        List<String> topics = admin.topics().getList("prop/ns-abc");
+        // Close previous producer to simulate reconnect
+        producer.close();
+        // Disable auto topic creation
+        conf.setAllowAutoTopicCreation(false);
+        // Check the topic exist in the list.
+        Assert.assertTrue(topics.contains(partition2));
+        // Check this topic has no partition metadata.
+        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topics().getPartitionedTopicMetadata(topicName));
+        // Reconnect to the broker and expect successful because the topic has existed in the broker.
+        producer = pulsarClient.newProducer()
+                .topic(partition2)
+                .create();
+        producer.close();
+        // Check the topic exist in the list again.
+        Assert.assertTrue(topics.contains(partition2));
+        // Check this topic has no partition metadata again.
+        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topics().getPartitionedTopicMetadata(topicName));
     }
 }

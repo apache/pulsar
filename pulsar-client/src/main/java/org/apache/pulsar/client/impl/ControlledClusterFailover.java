@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.handler.codec.http.HttpRequest;
@@ -66,7 +65,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final ScheduledExecutorService executor;
     private final long interval;
-    private ObjectMapper objectMapper = null;
     private final AsyncHttpClient httpClient;
     private final BoundRequestBuilder requestBuilder;
 
@@ -166,7 +164,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             int statusCode = response.getStatusCode();
             if (statusCode == 200) {
                 String content = response.getResponseBody(StandardCharsets.UTF_8);
-                return getObjectMapper().readValue(content, ControlledConfiguration.class);
+                return ObjectMapperFactory.getMapper().reader().readValue(content, ControlledConfiguration.class);
             }
             log.warn("Failed to fetch controlled configuration, status code: {}", statusCode);
         } catch (InterruptedException | ExecutionException e) {
@@ -174,13 +172,6 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         }
 
         return null;
-    }
-
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
     }
 
     @Data
@@ -192,9 +183,8 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         private String authParamsString;
 
         public String toJson() {
-            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             try {
-                return objectMapper.writeValueAsString(this);
+                return ObjectMapperFactory.getMapper().writer().writeValueAsString(this);
             } catch (JsonProcessingException e) {
                 log.warn("Failed to write as json. ", e);
                 return null;

@@ -19,6 +19,8 @@
 package org.apache.pulsar.metadata.cache.impl;
 
 import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -26,19 +28,21 @@ import org.apache.pulsar.metadata.api.Stat;
 
 public class JSONMetadataSerdeSimpleType<T> implements MetadataSerde<T> {
 
-    private final JavaType typeRef;
+    private final ObjectReader objectReader;
+    private final ObjectWriter objectWriter;
 
     public JSONMetadataSerdeSimpleType(JavaType typeRef) {
-        this.typeRef = typeRef;
+        this.objectReader = ObjectMapperFactory.getMapper().reader().forType(typeRef);
+        this.objectWriter = ObjectMapperFactory.getMapper().writer().forType(typeRef);
     }
 
     @Override
     public byte[] serialize(String path, T value) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value);
+        return objectWriter.writeValueAsBytes(value);
     }
 
     @Override
     public T deserialize(String path, byte[] content, Stat stat) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(content, typeRef);
+        return objectReader.readValue(content);
     }
 }

@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -33,6 +36,7 @@ import org.apache.pulsar.broker.transaction.buffer.metadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -78,16 +82,21 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         return aborts.containsKey(txnID);
     }
 
+    private long getSystemClientOperationTimeoutMs() throws Exception {
+        PulsarClientImpl pulsarClient = (PulsarClientImpl) topic.getBrokerService().getPulsar().getClient();
+        return pulsarClient.getConfiguration().getOperationTimeoutMs();
+    }
 
     @Override
     public CompletableFuture<PositionImpl> recoverFromSnapshot() {
         return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService()
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
-                    PositionImpl startReadCursorPosition = null;
                     try {
+                    PositionImpl startReadCursorPosition = null;
                         while (reader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshot> message = reader.readNext();
+                            Message<TransactionBufferSnapshot> message = reader.readNextAsync()
+                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
                                 if (transactionBufferSnapshot != null) {
@@ -98,15 +107,21 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
                                 }
                             }
                         }
-                        closeReader(reader);
                         return CompletableFuture.completedFuture(startReadCursorPosition);
+                    } catch (TimeoutException ex) {
+                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                        String errorMessage = String.format("[%s] Transaction buffer recover fail by read "
+                                + "transactionBufferSnapshot timeout!", topic.getName());
+                        log.error(errorMessage, t);
+                        return FutureUtil.failedFuture(
+                                new BrokerServiceException.ServiceUnitNotReadyException(errorMessage, t));
                     } catch (Exception ex) {
                         log.error("[{}] Transaction buffer recover fail when read "
                                 + "transactionBufferSnapshot!", topic.getName(), ex);
-                        closeReader(reader);
                         return FutureUtil.failedFuture(ex);
+                    } finally {
+                        closeReader(reader);
                     }
-
                 },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                         .getExecutor(this));
     }

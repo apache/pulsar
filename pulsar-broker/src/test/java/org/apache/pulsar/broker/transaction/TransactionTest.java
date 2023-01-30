@@ -920,11 +920,11 @@ public class TransactionTest extends TransactionTestBase {
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
 
-        assertEquals(((CounterBrokerInterceptor)listener).getTxnCount(),2);
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getTxnCount(),2));
         abortTxn.abort().get();
-        assertEquals(((CounterBrokerInterceptor)listener).getAbortedTxnCount(),1);
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getAbortedTxnCount(),1));
         commitTxn.commit().get();
-        assertEquals(((CounterBrokerInterceptor)listener).getCommittedTxnCount(),1);
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getCommittedTxnCount(),1));
     }
 
     @Test
@@ -1435,7 +1435,7 @@ public class TransactionTest extends TransactionTestBase {
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 executorService.execute(()->{
                     PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) invocation.getArguments()[0];
-                    pendingAckHandle.close();
+                    pendingAckHandle.closeAsync();
                     MLPendingAckReplyCallBack mlPendingAckReplyCallBack
                             = new MLPendingAckReplyCallBack(pendingAckHandle);
                     mlPendingAckReplyCallBack.replayComplete();
@@ -1616,5 +1616,30 @@ public class TransactionTest extends TransactionTestBase {
         transaction.abort();
         Transaction abortingTxn = transaction;
         Awaitility.await().until(() -> abortingTxn.getState() == Transaction.State.ABORTING);
+    }
+
+
+    @Test
+    public void testEncryptionRequired() throws Exception {
+        final String namespace = "tnx/ns-prechecks";
+        final String topic = "persistent://" + namespace + "/test_transaction_topic";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setEncryptionRequiredStatus(namespace, true);
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<byte[]> producer = this.pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .addEncryptionKey("my-app-key")
+                .defaultCryptoKeyReader("file:./src/test/resources/certificate/public-key.client-rsa.pem")
+                .create();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS).build().get();
+        producer.newMessage(txn)
+                    .value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                    .send();
+        txn.commit();
     }
 }

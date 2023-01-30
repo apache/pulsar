@@ -89,7 +89,7 @@ public class BrokerInterceptors implements BrokerInterceptor {
         if (interceptors != null && !interceptors.isEmpty()) {
             return new BrokerInterceptors(interceptors);
         } else {
-            return DISABLED;
+            return null;
         }
     }
 

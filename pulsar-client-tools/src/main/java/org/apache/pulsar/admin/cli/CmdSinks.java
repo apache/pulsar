@@ -605,7 +605,7 @@ public class CmdSinks extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
             return mapper.readValue(str, typeRef);

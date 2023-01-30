@@ -139,7 +139,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                 }, connectRetryPolicy, rateLimiter, createClientStats);
             } catch (Exception e) {
                 log.error("Gave up reconnecting to ZooKeeper : ", e);
-                Runtime.getRuntime().exit(-1);
+                Runtime.getRuntime().exit(1);
             }
         }
 

@@ -199,13 +199,15 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> topicsPattern(Pattern topicsPattern) {
-        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
+        checkArgument(conf.getTopicsPattern() == null && !topicsPattern.pattern().isEmpty(),
+                "Pattern has already been set or is empty.");
         conf.setTopicsPattern(topicsPattern);
         return this;
     }
 
     @Override
     public ConsumerBuilder<T> topicsPattern(String topicsPattern) {
+        checkArgument(StringUtils.isNotEmpty(topicsPattern), "topicsPattern should not be null or empty");
         return topicsPattern(Pattern.compile(topicsPattern));
     }
 

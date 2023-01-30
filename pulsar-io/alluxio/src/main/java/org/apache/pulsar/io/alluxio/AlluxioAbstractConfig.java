@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.io.alluxio;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkNotNull;
+import java.io.Serializable;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -26,8 +27,6 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
-
-import java.io.Serializable;
 
 /**
  * Configuration object for all Alluxio Sink components.
@@ -69,8 +68,8 @@ public class AlluxioAbstractConfig implements Serializable {
     private String securityLoginUser;
 
     public void validate() {
-        Preconditions.checkNotNull(alluxioMasterHost, "alluxioMasterHost property not set.");
-        Preconditions.checkNotNull(alluxioMasterPort, "alluxioMasterPort property not set.");
-        Preconditions.checkNotNull(alluxioDir, "alluxioDir property not set.");
+        checkNotNull(alluxioMasterHost, "alluxioMasterHost property not set.");
+        checkNotNull(alluxioMasterPort, "alluxioMasterPort property not set.");
+        checkNotNull(alluxioDir, "alluxioDir property not set.");
     }
 }
