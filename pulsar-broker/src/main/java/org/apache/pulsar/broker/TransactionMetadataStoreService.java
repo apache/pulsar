@@ -67,6 +67,7 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
@@ -138,7 +139,7 @@ public class TransactionMetadataStoreService {
                                 new TransactionRecoverTrackerImpl(TransactionMetadataStoreService.this,
                                         timeoutTracker, tcId.getId());
                         openTransactionMetadataStore(tcId, timeoutTracker, recoverTracker).thenAccept(
-                                (store) -> internalPinnedExecutor.execute(() -> {
+                                store -> internalPinnedExecutor.execute(() -> {
                                     // TransactionMetadataStore initialization
                                     // need to use TransactionMetadataStore itself.
                                     // we need to put store into stores map before
@@ -146,7 +147,12 @@ public class TransactionMetadataStoreService {
                                     stores.put(tcId, store);
                                     LOG.info("Added new transaction meta store {}", tcId);
                                     recoverTracker.handleCommittingAndAbortingTransaction();
-                                    store.setRecoverEndTime(System.currentTimeMillis());
+                                    if (store instanceof MLTransactionMetadataStore) {
+                                        MLTransactionMetadataStore mlTransactionMetadataStore =
+                                                (MLTransactionMetadataStore) store;
+                                        mlTransactionMetadataStore.recoverTime.setRecoverEndTime(
+                                                System.currentTimeMillis());
+                                    }
 
                                     long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
                                     while (true) {

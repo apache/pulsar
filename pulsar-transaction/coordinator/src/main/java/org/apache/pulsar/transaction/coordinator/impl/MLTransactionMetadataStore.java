@@ -510,11 +510,6 @@ public class MLTransactionMetadataStore
         return txnMetas;
     }
 
-    @Override
-    public void setRecoverEndTime(long time) {
-        recoverTime.setRecoverEndTime(time);
-    }
-
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {
         List<Subscription> subscriptions = new ArrayList<>(tnxSubscriptions.size());
         for (TransactionSubscription transactionSubscription : tnxSubscriptions) {
