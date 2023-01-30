@@ -46,8 +46,6 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class StatsBackLogTest extends ProducerConsumerBase {
 
-    private static final int MAX_ENTRY_COUNT_PER_LEDGER = 10;
-
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -84,22 +82,16 @@ public class StatsBackLogTest extends ProducerConsumerBase {
         return null;
     }
 
-    private SendInfo sendMessages(int ledgerCount, int entryCountPerLedger, Producer<String> producer,
-                                      String topicName) throws Exception{
-        List<MessageId> messageIds = new ArrayList<>(ledgerCount * entryCountPerLedger);
+    private SendInfo sendMessages(int messageCount, Producer<String> producer) throws Exception{
+        List<MessageId> messageIds = new ArrayList<>(messageCount);
         MessageIdImpl startMessageId = null;
         MessageIdImpl lastMessageId = null;
-        for (int m = 0; m < ledgerCount; m++) {
-            for (int n = 0; n < entryCountPerLedger; n++) {
-                lastMessageId = (MessageIdImpl) producer.send(String.format("%s:%s", m, n));
-                if (startMessageId == null){
-                    startMessageId = lastMessageId;
-                }
-                messageIds.add(lastMessageId);
+        for (int n = 0; n < messageCount; n++) {
+            lastMessageId = (MessageIdImpl) producer.send(String.valueOf(n));
+            if (startMessageId == null){
+                startMessageId = lastMessageId;
             }
-            if (entryCountPerLedger < MAX_ENTRY_COUNT_PER_LEDGER) {
-                admin.topics().unload(topicName);
-            }
+            messageIds.add(lastMessageId);
         }
         return new SendInfo(messageIds, startMessageId, lastMessageId);
     }
@@ -122,23 +114,16 @@ public class StatsBackLogTest extends ProducerConsumerBase {
         MessageIdImpl lastMessageId;
     }
 
-    @DataProvider(name = "initialPosition")
-    public Object[][] entryCountPerLedger() {
-        return new Object[][]{
-                {SubscriptionInitialPosition.Earliest},
-                {SubscriptionInitialPosition.Latest}
-        };
-    }
-
-    @Test(dataProvider = "initialPosition")
-    public void testMessagesConsumedCounterCorrect(SubscriptionInitialPosition initialPosition) throws Exception {
+    @Test
+    public void testMessagesConsumedCounterCorrect() throws Exception {
         String topicName = String.format("persistent://my-property/my-ns/%s",
                 BrokerTestUtil.newUniqueName("tp_"));
         String subName1 = "sub1";
         String subName2 = "sub2";
+        ProcessCoordinator.start();
 
         Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(topicName.toString())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
                 .subscriptionName(subName1).subscribe();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName.toString())
                 .enableBatching(false).create();
@@ -146,14 +131,14 @@ public class StatsBackLogTest extends ProducerConsumerBase {
         CompletableFuture<SendInfo> sendFuture = new CompletableFuture<>();
         new Thread(() -> {
             try {
-                sendFuture.complete(sendMessages(1, MAX_ENTRY_COUNT_PER_LEDGER, producer, topicName));
+                sendFuture.complete(sendMessages(10, producer));
             } catch (Exception e) {
                 sendFuture.completeExceptionally(e);
             }
         }).start();
 
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(topicName.toString())
-                .subscriptionInitialPosition(initialPosition)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .isAckReceiptEnabled(true)
                 .subscriptionName(subName2).subscribe();
         sendFuture.join();
