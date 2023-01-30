@@ -43,36 +43,49 @@ public interface TopicMessageId extends MessageId {
         if (messageId instanceof TopicMessageId) {
             return (TopicMessageId) messageId;
         }
-        return new TopicMessageId() {
-            @Override
-            public String getOwnerTopic() {
-                return topic;
-            }
+        return new Impl(topic, messageId);
+    }
 
-            @Override
-            public byte[] toByteArray() {
-                return messageId.toByteArray();
-            }
+    /**
+     * The simplest implementation of a TopicMessageId interface.
+     */
+    class Impl implements TopicMessageId {
+        private final String topic;
+        private final MessageId messageId;
 
-            @Override
-            public int compareTo(MessageId o) {
-                return messageId.compareTo(o);
-            }
+        public Impl(String topic, MessageId messageId) {
+            this.topic = topic;
+            this.messageId = messageId;
+        }
 
-            @Override
-            public boolean equals(Object obj) {
-                return messageId.equals(obj);
-            }
+        @Override
+        public byte[] toByteArray() {
+            return messageId.toByteArray();
+        }
 
-            @Override
-            public int hashCode() {
-                return messageId.hashCode();
-            }
+        @Override
+        public String getOwnerTopic() {
+            return topic;
+        }
 
-            @Override
-            public String toString() {
-                return messageId.toString();
-            }
-        };
+        @Override
+        public int compareTo(MessageId o) {
+            return messageId.compareTo(o);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return messageId.equals(obj);
+        }
+
+        @Override
+        public int hashCode() {
+            return messageId.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return messageId.toString();
+        }
     }
 }
