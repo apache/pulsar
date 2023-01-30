@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import com.google.common.io.Resources;
 import java.io.IOException;
@@ -41,7 +43,8 @@ public class AuthenticationProviderBasicTest {
 
     private void testAuthenticate(AuthenticationProviderBasic provider) throws AuthenticationException {
         AuthData authData = AuthData.of("superUser2:superpassword".getBytes(StandardCharsets.UTF_8));
-        provider.newAuthState(authData, null, null);
+        AuthenticationState authenticationState = provider.newAuthState(authData, null, null);
+        assertThat(authenticationState.authenticateAsync(authData)).isCompletedWithValue(null);
     }
 
     @Test
@@ -100,5 +103,55 @@ public class AuthenticationProviderBasicTest {
         // file format
         assertEquals(AuthenticationProviderBasic.readData("file://" + basicAuthConf), data);
         assertEquals(AuthenticationProviderBasic.readData(basicAuthConf), data);
+    }
+
+
+    @Test
+    public void testGetAuthRoleAndAuthDataSource() throws Exception {
+        @Cleanup
+        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        System.setProperty("pulsar.auth.basic.conf", basicAuthConfBase64);
+        provider.initialize(serviceConfiguration);
+
+        AuthData authData = AuthData.of("superUser2:superpassword".getBytes(StandardCharsets.UTF_8));
+        AuthenticationState authenticationState = provider.newAuthState(authData, null, null);
+
+        assertThat(authenticationState.getAuthDataSource()).isNull();
+        assertThatThrownBy(authenticationState::getAuthRole);
+
+        assertThat(authenticationState.authenticateAsync(authData)).isCompletedWithValue(null);
+        assertThat(authenticationState.getAuthDataSource()).isNotNull();
+        assertThat(authenticationState.getAuthRole()).isEqualTo("superUser2");
+    }
+
+    @Test
+    public void testBasicAuthStateUpdatesAuthDataSourceAndAuthRole() throws Exception {
+        @Cleanup
+        AuthenticationProviderBasic provider = new AuthenticationProviderBasic();
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        System.setProperty("pulsar.auth.basic.conf", basicAuthConfBase64);
+        provider.initialize(serviceConfiguration);
+
+        AuthData authData = AuthData.of("superUser2:superpassword".getBytes(StandardCharsets.UTF_8));
+        AuthenticationState authenticationState = provider.newAuthState(authData, null, null);
+
+        // superUser2
+        assertThat(authenticationState.authenticateAsync(authData)).isCompletedWithValue(null);
+        AuthenticationDataSource superUserAuthDataSource = authenticationState.getAuthDataSource();
+        assertThat(superUserAuthDataSource).isNotNull();
+        String superUserAuthRole = authenticationState.getAuthRole();
+        assertThat(superUserAuthRole).isEqualTo("superUser2");
+
+        // client1
+        authData = AuthData.of("client1:123456".getBytes(StandardCharsets.UTF_8));
+        assertThat(authenticationState.authenticateAsync(authData)).isCompletedWithValue(null);
+        AuthenticationDataSource client1AuthDataSource = authenticationState.getAuthDataSource();
+        assertThat(client1AuthDataSource).isNotNull();
+        String client1AuthRole = authenticationState.getAuthRole();
+        assertThat(client1AuthRole).isEqualTo("client1");
+
+        assertThat(superUserAuthDataSource).isNotEqualTo(client1AuthDataSource);
+        assertThat(superUserAuthRole).isNotEqualTo(client1AuthRole);
     }
 }

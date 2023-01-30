@@ -22,7 +22,9 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.SocketAddress;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -30,7 +32,9 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
 import lombok.Cleanup;
 import org.apache.commons.codec.digest.Crypt;
 import org.apache.commons.codec.digest.Md5Crypt;
@@ -39,6 +43,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
+import org.apache.pulsar.common.api.AuthData;
 
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
@@ -99,7 +104,12 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
     }
 
     @Override
-    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+    public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
+        return new BasicAuthenticationState(remoteAddress, sslSession, this);
+    }
+
+    protected String authenticationBasic(AuthenticationDataSource authData) throws AuthenticationException {
         AuthParams authParams = new AuthParams(authData);
         String userId = authParams.getUserId();
         String password = authParams.getPassword();
@@ -132,9 +142,18 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         return userId;
     }
 
-    private class AuthParams {
-        private String userId;
-        private String password;
+    @Override
+    public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
+        try {
+            return CompletableFuture.completedFuture(authenticationBasic(authData));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private static class AuthParams {
+        private final String userId;
+        private final String password;
 
         public AuthParams(AuthenticationDataSource authData) throws AuthenticationException {
             String authParams;
@@ -175,6 +194,57 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
         public String getPassword() {
             return password;
+        }
+    }
+
+    private static class BasicAuthenticationState implements AuthenticationState {
+
+        private final AuthenticationProviderBasic authenticationProvider;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
+        private String role;
+        private AuthenticationDataSource authenticationDataSource;
+
+        public BasicAuthenticationState(SocketAddress remoteAddress, SSLSession sslSession,
+                                        AuthenticationProviderBasic authenticationProvider) {
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
+            this.authenticationProvider = authenticationProvider;
+        }
+
+        @Override
+        public String getAuthRole() throws AuthenticationException {
+            if (authenticationDataSource == null) {
+                throw new AuthenticationException("Must authenticate before calling getAuthRole");
+            }
+
+            return role;
+        }
+
+        @Override
+        public AuthData authenticate(AuthData authData) throws AuthenticationException {
+            AuthenticationDataSource dataSource =
+                    new AuthenticationDataCommand(new String(authData.getBytes(), StandardCharsets.UTF_8),
+                            remoteAddress, sslSession);
+            role = authenticationProvider.authenticationBasic(dataSource);
+            authenticationDataSource = dataSource;
+
+            return null;
+        }
+
+        @Override
+        public AuthenticationDataSource getAuthDataSource() {
+            return authenticationDataSource;
+        }
+
+        @Override
+        public boolean isComplete() {
+            return authenticationDataSource != null;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return false;
         }
     }
 }
