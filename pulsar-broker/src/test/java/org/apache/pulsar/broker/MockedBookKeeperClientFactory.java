@@ -41,7 +41,7 @@ public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
     public MockedBookKeeperClientFactory() {
         try {
             executor = OrderedExecutor.newBuilder()
-                    .numThreads(1)
+                    .numThreads(16)
                     .name("mock-bk-client-factory")
                     .build();
             mockedBk = new PulsarMockBookKeeper(executor);

@@ -993,6 +993,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
+                if (name.startsWith("my-property/my-ns/persistent/tp_") && !cursors.isEmpty()) {
+                    ProcessCoordinator.waitAndChangeStep(2);
+                }
                 synchronized (ManagedLedgerImpl.this) {
                     // Update the ack position (ignoring entries that were written while the cursor was being created)
                     cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
@@ -3638,7 +3641,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             // Ensure no entry was written while reading the two values
         } while (pos.compareTo(lastConfirmedEntry) != 0);
-
+        if (name.startsWith("my-property/my-ns/persistent/tp_") && !cursors.isEmpty()) {
+            ProcessCoordinator.waitAndChangeStep(3);
+        }
         return Pair.of(pos, count);
     }
 
