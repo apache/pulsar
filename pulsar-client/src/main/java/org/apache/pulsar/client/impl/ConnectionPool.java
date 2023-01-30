@@ -244,7 +244,7 @@ public class ConnectionPool implements AutoCloseable {
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
 
         // Trigger async connect to broker
-        createConnection(physicalAddress).thenAccept(channel -> {
+        createConnection(logicalAddress, physicalAddress).thenAccept(channel -> {
             log.info("[{}] Connected to server", channel);
 
             channel.closeFuture().addListener(v -> {
@@ -265,16 +265,6 @@ public class ConnectionPool implements AutoCloseable {
                 cnxFuture.completeExceptionally(new ChannelException("Connection already closed"));
                 return;
             }
-
-            if (!logicalAddress.equals(physicalAddress)) {
-                // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
-                // it can be specified when sending the CommandConnect.
-                // That phase will happen in the ClientCnx.connectionActive() which will be invoked immediately after
-                // this method.
-                cnx.setTargetBroker(logicalAddress);
-            }
-
-            cnx.setRemoteHostName(physicalAddress.getHostString());
 
             cnx.connectionFuture().thenRun(() -> {
                 if (log.isDebugEnabled()) {
@@ -303,7 +293,8 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server.
      */
-    private CompletableFuture<Channel> createConnection(InetSocketAddress unresolvedAddress) {
+    private CompletableFuture<Channel> createConnection(InetSocketAddress logicalAddress,
+                                                        InetSocketAddress unresolvedPhysicalAddress) {
         CompletableFuture<List<InetSocketAddress>> resolvedAddress;
         try {
             if (isSniProxy) {
@@ -311,11 +302,11 @@ public class ConnectionPool implements AutoCloseable {
                 resolvedAddress =
                         resolveName(InetSocketAddress.createUnresolved(proxyURI.getHost(), proxyURI.getPort()));
             } else {
-                resolvedAddress = resolveName(unresolvedAddress);
+                resolvedAddress = resolveName(unresolvedPhysicalAddress);
             }
             return resolvedAddress.thenCompose(
-                    inetAddresses -> connectToResolvedAddresses(inetAddresses.iterator(),
-                            isSniProxy ? unresolvedAddress : null));
+                    inetAddresses -> connectToResolvedAddresses(logicalAddress, inetAddresses.iterator(),
+                            isSniProxy ? unresolvedPhysicalAddress : null));
         } catch (URISyntaxException e) {
             log.error("Invalid Proxy url {}", clientConfig.getProxyServiceUrl(), e);
             return FutureUtil
@@ -327,17 +318,19 @@ public class ConnectionPool implements AutoCloseable {
      * Try to connect to a sequence of IP addresses until a successful connection can be made, or fail if no
      * address is working.
      */
-    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetSocketAddress> unresolvedAddresses,
+    private CompletableFuture<Channel> connectToResolvedAddresses(InetSocketAddress logicalAddress,
+                                                                  Iterator<InetSocketAddress> resolvedPhysicalAddress,
                                                                   InetSocketAddress sniHost) {
         CompletableFuture<Channel> future = new CompletableFuture<>();
 
         // Successfully connected to server
-        connectToAddress(unresolvedAddresses.next(), sniHost)
+        connectToAddress(logicalAddress, resolvedPhysicalAddress.next(), sniHost)
                 .thenAccept(future::complete)
                 .exceptionally(exception -> {
-                    if (unresolvedAddresses.hasNext()) {
+                    if (resolvedPhysicalAddress.hasNext()) {
                         // Try next IP address
-                        connectToResolvedAddresses(unresolvedAddresses, sniHost).thenAccept(future::complete)
+                        connectToResolvedAddresses(logicalAddress, resolvedPhysicalAddress, sniHost)
+                                .thenAccept(future::complete)
                                 .exceptionally(ex -> {
                                     // This is already unwinding the recursive call
                                     future.completeExceptionally(ex);
@@ -368,17 +361,22 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Attempt to establish a TCP connection to an already resolved single IP address.
      */
-    private CompletableFuture<Channel> connectToAddress(InetSocketAddress remoteAddress, InetSocketAddress sniHost) {
+    private CompletableFuture<Channel> connectToAddress(InetSocketAddress logicalAddress,
+                                                        InetSocketAddress physicalAddress, InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channel -> channelInitializerHandler
-                            .initTls(channel, sniHost != null ? sniHost : remoteAddress))
+                            .initTls(channel, sniHost != null ? sniHost : physicalAddress))
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(remoteAddress)));
+                    .thenCompose(ch ->
+                            channelInitializerHandler.initializeClientCnx(ch, logicalAddress, physicalAddress))
+                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
         } else {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(remoteAddress)));
+                    .thenCompose(ch ->
+                            channelInitializerHandler.initializeClientCnx(ch, logicalAddress, physicalAddress))
+                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
         }
     }
 
