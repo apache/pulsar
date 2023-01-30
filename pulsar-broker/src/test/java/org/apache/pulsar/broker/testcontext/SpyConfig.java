@@ -67,6 +67,8 @@ public class SpyConfig {
     private final SpyType pulsarResources;
     private final SpyType brokerService;
     private final SpyType bookKeeperClient;
+    private final SpyType compactor;
+    private final SpyType namespaceService;
 
     public static Builder builder() {
         return builder(SpyType.NONE);
@@ -78,6 +80,8 @@ public class SpyConfig {
         spyConfigBuilder.pulsarResources(defaultSpyType);
         spyConfigBuilder.brokerService(defaultSpyType);
         spyConfigBuilder.bookKeeperClient(defaultSpyType);
+        spyConfigBuilder.compactor(defaultSpyType);
+        spyConfigBuilder.namespaceService(defaultSpyType);
         return spyConfigBuilder;
     }
 }

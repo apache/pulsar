@@ -16,22 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.testcontext;
 
+import java.util.function.Function;
+import java.util.function.Supplier;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 class StartableTestPulsarService extends AbstractTestPulsarService {
-    public StartableTestPulsarService(ServiceConfiguration config,
+    private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
+
+    public StartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
                                       MetadataStoreExtended localMetadataStore,
                                       MetadataStoreExtended configurationMetadataStore,
                                       Compactor compactor,
                                       BrokerInterceptor brokerInterceptor,
-                                      BookKeeperClientFactory bookKeeperClientFactory) {
-        super(config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory);
+                                      BookKeeperClientFactory bookKeeperClientFactory,
+                                      boolean useSameThreadOrderedExecutor,
+                                      Function<BrokerService, BrokerService> brokerServiceCustomizer) {
+        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
+                bookKeeperClientFactory, useSameThreadOrderedExecutor);
+        this.brokerServiceCustomizer = brokerServiceCustomizer;
+    }
+
+    @Override
+    protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
+        return brokerServiceCustomizer.apply(super.newBrokerService(pulsar));
+    }
+
+    @Override
+    public Supplier<NamespaceService> getNamespaceServiceProvider() throws PulsarServerException {
+        return () -> spyConfig.getNamespaceService().spy(NamespaceService.class, this);
     }
 }
