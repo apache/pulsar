@@ -778,7 +778,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         readCompacted, initialPosition, keySharedMeta, startMessageId, consumerEpoch);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
-                    if (subscription instanceof PersistentSubscription persistentSubscription) {
+                    if (subscription instanceof PersistentSubscription) {
+                        PersistentSubscription persistentSubscription = (PersistentSubscription) subscription;
                         checkBackloggedCursor(persistentSubscription);
                     }
                     if (!cnx.isActive()) {
