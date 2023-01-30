@@ -101,12 +101,12 @@ public class ReaderImpl<T> implements Reader<T> {
                 @Override
                 public void received(Consumer<T> consumer, Message<T> msg) {
                     final MessageId messageId = msg.getMessageId();
+                    readerListener.received(ReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
                         log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
                                 getConsumer().getSubscription(), msg.getMessageId(), ex);
                         return null;
                     });
-                    readerListener.received(ReaderImpl.this, msg);
                 }
 
                 @Override
