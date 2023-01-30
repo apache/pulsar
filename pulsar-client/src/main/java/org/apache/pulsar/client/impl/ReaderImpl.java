@@ -104,7 +104,7 @@ public class ReaderImpl<T> implements Reader<T> {
                     readerListener.received(ReaderImpl.this, msg);
                     consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
                         log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
-                                getConsumer().getSubscription(), msg.getMessageId(), ex);
+                                getConsumer().getSubscription(), messageId, ex);
                         return null;
                     });
                 }
