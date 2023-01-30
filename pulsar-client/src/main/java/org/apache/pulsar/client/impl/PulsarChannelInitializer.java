@@ -34,6 +34,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
@@ -175,6 +176,30 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         });
 
         return initTlsFuture;
+    }
+
+    CompletableFuture<Channel> initializeClientCnx(Channel ch,
+                                                   InetSocketAddress logicalAddress,
+                                                   InetSocketAddress resolvedPhysicalAddress) {
+        return NettyFutureUtil.toCompletableFuture(ch.eventLoop().submit(() -> {
+            final ClientCnx cnx = (ClientCnx) ch.pipeline().get("handler");
+
+            if (cnx == null) {
+                throw new IllegalStateException("Missing ClientCnx. This should not happen.");
+            }
+
+            // Need to do our own equality because the physical address is resolved already
+            if (!(logicalAddress.getHostString().equalsIgnoreCase(resolvedPhysicalAddress.getHostString())
+                    && logicalAddress.getPort() == resolvedPhysicalAddress.getPort())) {
+                // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
+                // it can be specified when sending the CommandConnect.
+                cnx.setTargetBroker(logicalAddress);
+            }
+
+            cnx.setRemoteHostName(resolvedPhysicalAddress.getHostString());
+
+            return ch;
+        }));
     }
 }
 
