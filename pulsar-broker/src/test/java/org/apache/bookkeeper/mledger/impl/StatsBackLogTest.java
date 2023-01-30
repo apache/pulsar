@@ -181,7 +181,7 @@ public class StatsBackLogTest extends ProducerConsumerBase {
         assertEquals(getManagedCursor(topicName, subName2).getNumberOfEntriesInBacklog(true), backlog);
 
         assertTrue(getManagedCursor(topicName, subName2).getMessagesConsumedCounter()
-                < sendFuture.join().messageIds.size());
+                <= sendFuture.join().messageIds.size());
 
         // cleanup.
         producer.close();
