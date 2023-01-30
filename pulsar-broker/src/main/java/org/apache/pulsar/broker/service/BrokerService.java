@@ -934,7 +934,8 @@ public class BrokerService implements Closeable {
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
-            Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
+            Set<NamespaceBundle> serviceUnits =
+                    pulsar.getNamespaceService() != null ? pulsar.getNamespaceService().getOwnedServiceUnits() : null;
             if (serviceUnits != null) {
                 try (RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.builder()
                         .scheduledExecutorService(pulsar.getExecutor())
@@ -955,12 +956,13 @@ public class BrokerService implements Closeable {
                         }
                     });
                 }
-            }
 
-            double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
-                    / 1000.0;
-            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
-                    closeTopicsTimeSeconds);
+                double closeTopicsTimeSeconds =
+                        TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
+                                / 1000.0;
+                log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
+                        closeTopicsTimeSeconds);
+            }
         } catch (Exception e) {
             log.error("Failed to disable broker from loadbalancer list {}", e.getMessage(), e);
         }
@@ -1516,6 +1518,14 @@ public class BrokerService implements Closeable {
                 });
     }
 
+
+    @VisibleForTesting
+    public void createPersistentTopic0(final String topic, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture,
+                                       Map<String, String> properties) {
+        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
+    }
+
     private void createPersistentTopic(final String topic, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
@@ -1610,6 +1620,12 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
+                                            persistentTopic.getTransactionBuffer()
+                                                    .closeAsync()
+                                                    .exceptionally(t -> {
+                                                        log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                        return null;
+                                                    });
                                             persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
@@ -3360,7 +3376,8 @@ public class BrokerService implements Closeable {
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
+    @VisibleForTesting
+    public <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
             Class<T> topicClazz) throws PulsarServerException {
         if (topicFactory != null) {
             try {

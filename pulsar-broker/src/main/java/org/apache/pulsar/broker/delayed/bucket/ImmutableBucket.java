@@ -24,7 +24,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -90,7 +92,6 @@ class ImmutableBucket extends Bucket {
 
             return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
                 if (nextSegmentEntryId > lastSegmentEntryId) {
-                    // TODO Delete bucket snapshot
                     return CompletableFuture.completedFuture(null);
                 }
 
@@ -132,12 +133,36 @@ class ImmutableBucket extends Bucket {
         this.setNumberBucketDelayedMessages(numberMessages.getValue());
     }
 
+    CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
+        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), currentSegmentEntryId,
+                lastSegmentEntryId);
+    }
+
+    CompletableFuture<Void> asyncDeleteBucketSnapshot() {
+        String bucketKey = bucketKey();
+        long bucketId = getAndUpdateBucketId();
+        return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
+                bucketSnapshotStorage.deleteBucketSnapshot(bucketId)).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.warn("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                bucketId, bucketKey, ex);
+                    }
+        });
+    }
+
     void clear(boolean delete) {
         delayedIndexBitMap.clear();
         getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
             if (delete) {
                 snapshotGenerateFuture.cancel(true);
-                // TODO delete bucket snapshot
+                try {
+                    asyncDeleteBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    if (e instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
+                    throw new RuntimeException(e);
+                }
             } else {
                 try {
                     snapshotGenerateFuture.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);

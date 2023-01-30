@@ -732,6 +732,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        response = mock(AsyncResponse.class);
         persistentTopics.unloadTopic(response, testTenant, testNamespace, topicName, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
@@ -1637,7 +1638,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 true, 3);
         verify(response, timeout(5000).times(1)).resume(throwableCaptor.capture());
         Assert.assertEquals(throwableCaptor.getValue().getMessage(),
-                "Number of new partitions must be greater than existing number of partitions");
+                "Expect partitions 3 can't less than current partitions 4.");
 
         response = mock(AsyncResponse.class);
         metaCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);

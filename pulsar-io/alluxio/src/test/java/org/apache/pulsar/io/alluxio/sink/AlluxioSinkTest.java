@@ -40,6 +40,7 @@ import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -125,6 +126,13 @@ public class AlluxioSinkTest {
         when(mockRecord.getSchema()).thenAnswer((Answer<Schema<KeyValue<String, Foobar>>>) invocation -> kvSchema);
     }
 
+    @AfterMethod
+    public void tearDown() throws Exception {
+        if (cluster != null) {
+            cluster.stop();
+        }
+    }
+
     @Test
     public void openTest() throws Exception {
         map.put("filePrefix", "TopicA");
@@ -147,7 +155,6 @@ public class AlluxioSinkTest {
         Assert.assertTrue(client.exists(alluxioTmpURI));
 
         sink.close();
-        cluster.stop();
     }
 
     @Test
@@ -186,10 +193,35 @@ public class AlluxioSinkTest {
         Assert.assertTrue(client.exists(alluxioTmpURI));
 
         List<URIStatus> listAlluxioDirStatus = client.listStatus(alluxioURI);
-
         List<String> pathList = listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
-
         Assert.assertEquals(pathList.size(), 2);
+
+        for (String path : pathList) {
+            if (path.contains("tmp")) {
+                // Ensure that the temporary file is rotated and the directory is empty
+                Assert.assertEquals(path, "/pulsar/tmp");
+            } else {
+                // Ensure that all rotated files conform the naming convention
+                Assert.assertTrue(path.startsWith("/pulsar/TopicA-"));
+            }
+        }
+
+        // Ensure the subsequent writes are also successful
+        sink.write(() -> new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return new KeyValue<>((String) fooBar.getField("address"), fooBar);
+            }
+        });
+
+        listAlluxioDirStatus = client.listStatus(alluxioURI);
+        pathList = listAlluxioDirStatus.stream().map(URIStatus::getPath).collect(Collectors.toList());
+        Assert.assertEquals(pathList.size(), 3);
 
         for (String path : pathList) {
             if (path.contains("tmp")) {
@@ -200,7 +232,6 @@ public class AlluxioSinkTest {
         }
 
         sink.close();
-        cluster.stop();
     }
 
     private LocalAlluxioCluster setupSingleMasterCluster() throws Exception {

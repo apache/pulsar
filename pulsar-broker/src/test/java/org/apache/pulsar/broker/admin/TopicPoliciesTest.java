@@ -869,6 +869,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
+    @Test(dataProvider = "invalidPersistentPolicies")
+    public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
+
+        boolean failed = false;
+        try {
+            admin.topicPolicies().setPersistence(persistenceTopic, persistence1);
+        } catch (PulsarAdminException e) {
+            failed = true;
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+        assertTrue(failed);
+        admin.topics().delete(persistenceTopic);
+    }
+
     @Test
     public void testGetDispatchRateApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();

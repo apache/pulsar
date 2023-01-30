@@ -30,8 +30,8 @@ import org.slf4j.LoggerFactory;
  */
 public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SingletonCleanerListener.class);
-    private static final Method OBJECTMAPPERFACTORY_CLEANCACHES_METHOD;
-    private static final Method OBJECTMAPPERFACTORY_REFRESH_METHOD;
+    private static final Method OBJECTMAPPERFACTORY_CLEARCACHES_METHOD;
+    private static final Method JSONSCHEMA_CLEARCACHES_METHOD;
 
     static {
         Class<?> objectMapperFactoryClazz =
@@ -50,49 +50,57 @@ public class SingletonCleanerListener extends BetweenTestClassesListenerAdapter 
                                 .getMethod("clearCaches");
             }
         } catch (NoSuchMethodException e) {
-            LOG.warn("Cannot find method for cleaning singleton ObjectMapper caches", e);
+            LOG.warn("Cannot find method for clearing singleton ObjectMapper caches", e);
         }
-        OBJECTMAPPERFACTORY_CLEANCACHES_METHOD = clearCachesMethod;
+        OBJECTMAPPERFACTORY_CLEARCACHES_METHOD = clearCachesMethod;
 
-        Method refreshMethod = null;
+
+        Class<?> jsonSchemaClazz = null;
         try {
-            if (objectMapperFactoryClazz != null) {
-                refreshMethod =
-                        objectMapperFactoryClazz
-                                .getMethod("refresh");
+            jsonSchemaClazz = ClassUtils.getClass("org.apache.pulsar.client.impl.schema.JSONSchema");
+        } catch (ClassNotFoundException e) {
+            LOG.warn("Cannot find JSONSchema class", e);
+        }
+
+        Method jsonSchemaCleanCachesMethod = null;
+        try {
+            if (jsonSchemaClazz != null) {
+                jsonSchemaCleanCachesMethod =
+                        jsonSchemaClazz
+                                .getMethod("clearCaches");
             }
         } catch (NoSuchMethodException e) {
-            LOG.warn("Cannot find method for refreshing singleton ObjectMapper instances", e);
+            LOG.warn("Cannot find method for clearing singleton JSONSchema caches", e);
         }
-        OBJECTMAPPERFACTORY_REFRESH_METHOD = refreshMethod;
+        JSONSCHEMA_CLEARCACHES_METHOD = jsonSchemaCleanCachesMethod;
     }
 
     @Override
     protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
-        cleanObjectMapperFactoryCaches();
-        refreshObjectMapperFactory();
+        objectMapperFactoryClearCaches();
+        jsonSchemaClearCaches();
     }
 
     // Call ObjectMapperFactory.clearCaches() using reflection to clear up classes held in
     // the singleton Jackson ObjectMapper instances
-    private static void cleanObjectMapperFactoryCaches() {
-        if (OBJECTMAPPERFACTORY_CLEANCACHES_METHOD != null) {
+    private static void objectMapperFactoryClearCaches() {
+        if (OBJECTMAPPERFACTORY_CLEARCACHES_METHOD != null) {
             try {
-                OBJECTMAPPERFACTORY_CLEANCACHES_METHOD.invoke(null);
+                OBJECTMAPPERFACTORY_CLEARCACHES_METHOD.invoke(null);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 LOG.warn("Cannot clean singleton ObjectMapper caches", e);
             }
         }
     }
 
-    // Call ObjectMapperFactory.refresh() using reflection to release ObjectMapper instances
-    // that might be holding on classloaders and classes
-    private static void refreshObjectMapperFactory() {
-        if (OBJECTMAPPERFACTORY_REFRESH_METHOD != null) {
+    // Call JSONSchema.clearCaches() using reflection to clear up classes held in
+    // the singleton Jackson ObjectMapper instance of JSONSchema class
+    private static void jsonSchemaClearCaches() {
+        if (JSONSCHEMA_CLEARCACHES_METHOD != null) {
             try {
-                OBJECTMAPPERFACTORY_REFRESH_METHOD.invoke(null);
+                JSONSCHEMA_CLEARCACHES_METHOD.invoke(null);
             } catch (IllegalAccessException | InvocationTargetException e) {
-                LOG.warn("Cannot refresh ObjectMapper instances", e);
+                LOG.warn("Cannot clean singleton JSONSchema caches", e);
             }
         }
     }

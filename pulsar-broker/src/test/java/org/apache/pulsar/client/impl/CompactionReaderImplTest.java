@@ -77,9 +77,11 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
             producer.newMessage().key("key:" + i).value("value" + i).send();
         }
 
+        var consumerFuture = new CompletableFuture();
         @Cleanup
         CompactionReaderImpl<String> reader = CompactionReaderImpl
-                .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, new CompletableFuture(), null);
+                .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, consumerFuture, null);
+        consumerFuture.join();
 
         ConsumerBase consumerBase = spy(reader.getConsumer());
         FieldUtils.writeDeclaredField(

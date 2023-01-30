@@ -305,8 +305,22 @@ public class PulsarClientImpl implements PulsarClient {
         return new ReaderBuilderImpl<>(this, schema);
     }
 
+    /**
+     * @deprecated use {@link #newTableView(Schema)} instead.
+     */
     @Override
+    @Deprecated
     public <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema) {
+        return new TableViewBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public TableViewBuilder<byte[]> newTableView() {
+        return new TableViewBuilderImpl<>(this, Schema.BYTES);
+    }
+
+    @Override
+    public <T> TableViewBuilder<T> newTableView(Schema<T> schema) {
         return new TableViewBuilderImpl<>(this, schema);
     }
 
