@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.broker;
 
-import static org.mockito.Mockito.spy;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.util.concurrent.ScheduledFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -47,16 +45,12 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    protected PulsarService startBrokerWithoutAuthorization(ServiceConfiguration conf) throws Exception {
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
         conf.setBrokerShutdownTimeoutMs(1000 * 60 * 5);
         conf.setLoadBalancerSheddingIntervalMinutes(30);
-        PulsarService pulsar = spy(newPulsarService(conf));
-        setupBrokerMocks(pulsar);
-        beforePulsarStartMocks(pulsar);
-        pulsar.start();
-        log.info("Pulsar started. brokerServiceUrl: {} webServiceAddress: {}", pulsar.getBrokerServiceUrl(),
-                pulsar.getWebServiceAddress());
-        return pulsar;
+        return conf;
     }
 
     @Test(timeOut = 30_000)

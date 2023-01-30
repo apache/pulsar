@@ -66,6 +66,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -319,13 +320,15 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         conf.setWebServicePort(Optional.of(1026));
         conf.setWebServicePortTls(Optional.of(1027));
         @Cleanup
-        PulsarService pulsar2 = startBrokerWithoutAuthorization(conf);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         conf.setBrokerServicePort(Optional.of(2048));
         conf.setBrokerServicePortTls(Optional.of(2049));
         conf.setWebServicePort(Optional.of(2050));
         conf.setWebServicePortTls(Optional.of(2051));
         @Cleanup
-        PulsarService pulsar3 = startBrokerWithoutAuthorization(conf);
+        PulsarTestContext pulsarTestContext3 = createAdditionalPulsarTestContext(conf);
+        PulsarService pulsar3 = pulsarTestContext.getPulsarService();
         @Cleanup
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(pulsar2.getWebServiceAddress()).build();
         @Cleanup
