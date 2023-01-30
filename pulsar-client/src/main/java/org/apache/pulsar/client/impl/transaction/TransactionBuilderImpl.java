@@ -21,9 +21,11 @@ package org.apache.pulsar.client.impl.transaction;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The default implementation of transaction builder to build transactions.
@@ -50,6 +52,10 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     @Override
     public CompletableFuture<Transaction> build() {
+        if (!client.getConfiguration().isEnableTransaction()) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Transactions are not enabled"));
+        }
         // talk to TC to begin a transaction
         //       the builder is responsible for locating the transaction coorindator (TC)
         //       and start the transaction to get the transaction id.
