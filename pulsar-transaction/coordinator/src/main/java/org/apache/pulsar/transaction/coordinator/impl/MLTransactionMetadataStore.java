@@ -128,9 +128,7 @@ public class MLTransactionMetadataStore
 
                     } else {
                         completableFuture.complete(MLTransactionMetadataStore.this);
-                        recoverTracker.handleCommittingAndAbortingTransaction();
                         timeoutTracker.start();
-                        recoverTime.setRecoverEndTime(System.currentTimeMillis());
                     }
                 }
 
@@ -510,6 +508,11 @@ public class MLTransactionMetadataStore
             }
         });
         return txnMetas;
+    }
+
+    @Override
+    public void setRecoverEndTime(long time) {
+        recoverTime.setRecoverEndTime(time);
     }
 
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {
