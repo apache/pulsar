@@ -116,7 +116,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -147,7 +146,6 @@ import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -277,7 +275,7 @@ public class BrokerService implements Closeable {
     private boolean preciseTopicPublishRateLimitingEnable;
     private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
-    private Map<String, EntryFilterWithClassLoader> entryFilters;
+    private final EntryFilterProvider entryFilterProvider;
     private TopicFactory topicFactory;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
@@ -324,9 +322,7 @@ public class BrokerService implements Closeable {
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
-        if (!pulsar.getConfiguration().getEntryFilterNames().isEmpty()) {
-            this.entryFilters = EntryFilterProvider.createEntryFilters(pulsar.getConfiguration());
-        }
+        this.entryFilterProvider = new EntryFilterProvider(pulsar.getConfiguration());
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
@@ -782,14 +778,8 @@ public class BrokerService implements Closeable {
             });
 
             //close entry filters
-            if (entryFilters != null) {
-                entryFilters.forEach((name, filter) -> {
-                    try {
-                        filter.close();
-                    } catch (Exception e) {
-                        log.warn("Error shutting down entry filter {}", name, e);
-                    }
-                });
+            if (entryFilterProvider != null) {
+                entryFilterProvider.close();
             }
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
@@ -1189,27 +1179,13 @@ public class BrokerService implements Closeable {
         NonPersistentTopic nonPersistentTopic;
         try {
             nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("Failed to create topic {}", topic, e);
             return FutureUtil.failedFuture(e);
         }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
             nonPersistentTopic.initialize()
-                    .thenAccept(__ -> {
-                        EntryFilters entryFiltersPolicy = nonPersistentTopic.getEntryFiltersPolicy();
-                        if (!entryFiltersPolicy.getEntryFilterNames().isEmpty()) {
-                            try {
-                                nonPersistentTopic.entryFilters =
-                                        EntryFilterProvider.createEntryFilters(pulsar.getConfig(),
-                                                entryFiltersPolicy);
-                            } catch (IOException e) {
-                                log.warn("Failed to set entry filters on topic {}-{}", topic, e.getMessage());
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                                topicFuture.completeExceptionally(e);
-                            }
-                        }
-                    })
                     .thenCompose(__ -> nonPersistentTopic.checkReplication())
                     .thenRun(() -> {
                         log.info("Created topic {}", nonPersistentTopic);
@@ -1577,22 +1553,6 @@ public class BrokerService implements Closeable {
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic
                                         .initialize()
-                                        .thenAccept(__ -> {
-                                            EntryFilters entryFiltersPolicy = persistentTopic.getEntryFiltersPolicy();
-                                            if (!entryFiltersPolicy.getEntryFilterNames().isEmpty()) {
-                                                try {
-                                                    persistentTopic.entryFilters =
-                                                            EntryFilterProvider.createEntryFilters(pulsar.getConfig(),
-                                                                    entryFiltersPolicy);
-                                                } catch (IOException e) {
-                                                    log.warn("Failed to set entry filters on topic {}-{}", topic,
-                                                            e.getMessage());
-                                                    pulsar.getExecutor().execute(() ->
-                                                            topics.remove(topic, topicFuture));
-                                                    topicFuture.completeExceptionally(e);
-                                                }
-                                            }
-                                        })
                                         .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
                                         .thenCompose(__ -> persistentTopic.checkReplication())
                                         .thenCompose(v -> {
@@ -1633,7 +1593,7 @@ public class BrokerService implements Closeable {
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
-                                log.warn("Failed to create topic {}-{}", topic, e.getMessage());
+                                log.warn("Failed to create topic {}: {}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
