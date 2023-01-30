@@ -45,7 +45,7 @@ import java.util.Optional;
 import java.util.Properties;
 import javax.crypto.SecretKey;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TestPulsarService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -76,7 +76,7 @@ public class ServerCnxAuthorizationTest {
 
     private ServiceConfiguration svcConfig;
 
-    protected TestPulsarService.Factory testPulsarServiceFactory;
+    protected PulsarTestContext pulsarTestContext;
     private BrokerService brokerService;
 
     @BeforeMethod(alwaysRun = true)
@@ -95,21 +95,21 @@ public class ServerCnxAuthorizationTest {
         properties.setProperty("tokenSecretKey", "data:;base64,"
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         svcConfig.setProperties(properties);
-        testPulsarServiceFactory = TestPulsarService.Factory.builder()
+        pulsarTestContext = PulsarTestContext.builder()
                 .config(svcConfig)
-                .useSpies(true)
+                .spyByDefault()
                 .build();
-        brokerService = testPulsarServiceFactory.getBrokerService();
+        brokerService = pulsarTestContext.getBrokerService();
 
-        testPulsarServiceFactory.getPulsarResources().getTenantResources().createTenant("public",
+        pulsarTestContext.getPulsarResources().getTenantResources().createTenant("public",
                 TenantInfo.builder().build());
     }
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        if (testPulsarServiceFactory != null) {
-            testPulsarServiceFactory.close();
-            testPulsarServiceFactory = null;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
     }
 
@@ -118,7 +118,7 @@ public class ServerCnxAuthorizationTest {
         svcConfig.setAuthenticateOriginalAuthData(true);
 
 
-        ServerCnx serverCnx = testPulsarServiceFactory.createServerCnxSpy();
+        ServerCnx serverCnx = pulsarTestContext.createServerCnxSpy();
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
         ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
@@ -155,7 +155,7 @@ public class ServerCnxAuthorizationTest {
 
         AuthorizationService authorizationService =
                 spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        testPulsarServiceFactory.getPulsarResources());
+                        pulsarTestContext.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
 
         // lookup
@@ -225,7 +225,7 @@ public class ServerCnxAuthorizationTest {
     public void testVerifyOriginalPrincipalWithoutAuthDataForwardedFromProxy() throws Exception {
         svcConfig.setAuthenticateOriginalAuthData(false);
 
-        ServerCnx serverCnx = testPulsarServiceFactory.createServerCnxSpy();
+        ServerCnx serverCnx = pulsarTestContext.createServerCnxSpy();
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
         ChannelPipeline channelPipeline = mock(ChannelPipeline.class);
@@ -257,7 +257,7 @@ public class ServerCnxAuthorizationTest {
 
         AuthorizationService authorizationService =
                 spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        testPulsarServiceFactory.getPulsarResources());
+                        pulsarTestContext.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
 
         // lookup
@@ -318,7 +318,7 @@ public class ServerCnxAuthorizationTest {
 
     @Test
     public void testVerifyAuthRoleAndAuthDataFromDirectConnectionBroker() throws Exception {
-        ServerCnx serverCnx = testPulsarServiceFactory.createServerCnxSpy();
+        ServerCnx serverCnx = pulsarTestContext.createServerCnxSpy();
 
         ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
@@ -350,7 +350,7 @@ public class ServerCnxAuthorizationTest {
 
         AuthorizationService authorizationService =
                 spyWithClassAndConstructorArgsRecordingInvocations(AuthorizationService.class, svcConfig,
-                        testPulsarServiceFactory.getPulsarResources());
+                        pulsarTestContext.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
 
         // lookup

@@ -71,7 +71,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TestPulsarService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
@@ -143,7 +143,7 @@ public class ServerCnxTest {
     private ServiceConfiguration svcConfig;
     private ServerCnx serverCnx;
 
-    protected TestPulsarService.Factory testPulsarServiceFactory;
+    protected PulsarTestContext pulsarTestContext;
 
     protected PulsarService pulsar;
     protected BrokerService brokerService;
@@ -181,13 +181,13 @@ public class ServerCnxTest {
         svcConfig.setKeepAliveIntervalSeconds(inSec(1, TimeUnit.SECONDS));
         svcConfig.setBacklogQuotaCheckEnabled(false);
         svcConfig.setClusterName("use");
-        testPulsarServiceFactory = TestPulsarService.Factory.builder()
+        pulsarTestContext = PulsarTestContext.builder()
                 .config(svcConfig)
-                .useSpies(true)
+                .spyByDefault()
                 .build();
-        pulsar = testPulsarServiceFactory.getPulsarService();
+        pulsar = pulsarTestContext.getPulsarService();
 
-        brokerService = testPulsarServiceFactory.getBrokerService();
+        brokerService = pulsarTestContext.getBrokerService();
 
         namespaceService = pulsar.getNamespaceService();
         doReturn(CompletableFuture.completedFuture(null)).when(namespaceService).getBundleAsync(any());
@@ -217,9 +217,9 @@ public class ServerCnxTest {
         if (channel != null) {
             channel.close();
         }
-        if (testPulsarServiceFactory != null) {
-            testPulsarServiceFactory.close();
-            testPulsarServiceFactory = null;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
     }
 
@@ -895,7 +895,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -950,7 +950,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1017,7 +1017,7 @@ public class ServerCnxTest {
 
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1096,7 +1096,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1168,7 +1168,7 @@ public class ServerCnxTest {
                             null));
 
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1243,7 +1243,7 @@ public class ServerCnxTest {
                     () -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock,
                             null));
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1252,7 +1252,7 @@ public class ServerCnxTest {
             openTopicFail.complete(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null));
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1494,7 +1494,7 @@ public class ServerCnxTest {
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
         policies.replicatorDispatchRate = new HashMap<>();
-        testPulsarServiceFactory.getPulsarResources().getNamespaceResources()
+        pulsarTestContext.getPulsarResources().getNamespaceResources()
                 .createPolicies(TopicName.get(encryptionRequiredTopicName).getNamespaceObject(),
                         policies);
 
@@ -1532,7 +1532,7 @@ public class ServerCnxTest {
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
         policies.replicatorDispatchRate = new HashMap<>();
-        testPulsarServiceFactory.getPulsarResources().getNamespaceResources()
+        pulsarTestContext.getPulsarResources().getNamespaceResources()
                 .createPolicies(TopicName.get(encryptionRequiredTopicName).getNamespaceObject(),
                         policies);
 
@@ -1574,7 +1574,7 @@ public class ServerCnxTest {
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
         policies.replicatorDispatchRate = new HashMap<>();
-        testPulsarServiceFactory.getPulsarResources().getNamespaceResources()
+        pulsarTestContext.getPulsarResources().getNamespaceResources()
                 .createPolicies(TopicName.get(encryptionRequiredTopicName).getNamespaceObject(),
                         policies);
 
@@ -1614,7 +1614,7 @@ public class ServerCnxTest {
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
         policies.replicatorDispatchRate = new HashMap<>();
-        testPulsarServiceFactory.getPulsarResources().getNamespaceResources()
+        pulsarTestContext.getPulsarResources().getNamespaceResources()
                 .createPolicies(TopicName.get(encryptionRequiredTopicName).getNamespaceObject(),
                         policies);
 
@@ -1660,7 +1660,7 @@ public class ServerCnxTest {
         // add `clusterDispatchRate` otherwise there will be a NPE
         // `org.apache.pulsar.broker.service.AbstractTopic.updateNamespaceReplicatorDispatchRate`
         policies.replicatorDispatchRate = new HashMap<>();
-        testPulsarServiceFactory.getPulsarResources().getNamespaceResources()
+        pulsarTestContext.getPulsarResources().getNamespaceResources()
                 .createPolicies(TopicName.get(encryptionRequiredTopicName).getNamespaceObject(),
                         policies);
 
@@ -1740,7 +1740,7 @@ public class ServerCnxTest {
             Thread.sleep(300);
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
@@ -1751,7 +1751,7 @@ public class ServerCnxTest {
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
             return null;
-        }).when(testPulsarServiceFactory.getManagedLedgerFactory())
+        }).when(pulsarTestContext.getManagedLedgerFactory())
                 .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
                         any(OpenLedgerCallback.class), any(Supplier.class), any());
 
