@@ -380,5 +380,5 @@ public interface PulsarClient extends Closeable {
      *             if transactions are not enabled
      * @since 2.7.0
      */
-    TransactionBuilder newTransaction() throws PulsarClientException;
+    TransactionBuilder newTransaction();
 }

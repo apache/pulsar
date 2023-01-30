@@ -188,16 +188,6 @@ public class PulsarClientImplTest {
         client.timer().stop();
     }
 
-    @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
-    public void testNewTransactionWhenDisable() throws Exception {
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl("pulsar://localhost:6650");
-        conf.setEnableTransaction(false);
-        try (PulsarClientImpl client = new PulsarClientImpl(conf)) {
-            client.newTransaction();
-        }
-    }
-
     @Test
     public void testResourceCleanup() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
