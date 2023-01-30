@@ -129,6 +129,7 @@ public class MLTransactionMetadataStore
                     } else {
                         completableFuture.complete(MLTransactionMetadataStore.this);
                         timeoutTracker.start();
+                        recoverTime.setRecoverEndTime(System.currentTimeMillis());
                     }
                 }
 

@@ -147,12 +147,6 @@ public class TransactionMetadataStoreService {
                                     stores.put(tcId, store);
                                     LOG.info("Added new transaction meta store {}", tcId);
                                     recoverTracker.handleCommittingAndAbortingTransaction();
-                                    if (store instanceof MLTransactionMetadataStore) {
-                                        MLTransactionMetadataStore mlTransactionMetadataStore =
-                                                (MLTransactionMetadataStore) store;
-                                        mlTransactionMetadataStore.recoverTime.setRecoverEndTime(
-                                                System.currentTimeMillis());
-                                    }
 
                                     long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
                                     while (true) {
