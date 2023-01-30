@@ -62,13 +62,18 @@ abstract class AbstractTestPulsarService extends PulsarService {
     @Override
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException {
-
+        if (synchronizer != null) {
+            synchronizer.registerSyncListener(configurationMetadataStore::handleMetadataEvent);
+        }
         return configurationMetadataStore;
     }
 
     @Override
     public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException, PulsarServerException {
+        if (synchronizer != null) {
+            synchronizer.registerSyncListener(localMetadataStore::handleMetadataEvent);
+        }
         return localMetadataStore;
     }
 
