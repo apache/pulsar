@@ -1026,8 +1026,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     .getPolicies(name.getNamespaceObject())
                     .orElseThrow(MetadataStoreException.NotFoundException::new);
             final int defaultExpirationTime = brokerService.pulsar().getConfiguration()
-                    .getSubscriptionExpirationTimeMinutes();
-            final Integer nsExpirationTime = policies.subscription_expiration_time_minutes;
+                    .getNonPersistentSubscriptionExpirationTimeMinutes();
+            final Integer nsExpirationTime = policies.non_persistent_subscription_expiration_time_minutes;
             final long expirationTimeMillis = TimeUnit.MINUTES
                     .toMillis(nsExpirationTime == null ? defaultExpirationTime : nsExpirationTime);
             if (expirationTimeMillis > 0) {

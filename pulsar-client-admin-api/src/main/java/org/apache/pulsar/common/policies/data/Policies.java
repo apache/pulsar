@@ -62,6 +62,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public Integer subscription_expiration_time_minutes = null;
     @SuppressWarnings("checkstyle:MemberName")
+    public Integer non_persistent_subscription_expiration_time_minutes = null;
+    @SuppressWarnings("checkstyle:MemberName")
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
     public static final String FIRST_BOUNDARY = "0x00000000";
@@ -141,7 +143,8 @@ public class Policies {
                 clusterSubscribeRate, deduplicationEnabled, autoTopicCreationOverride,
                 autoSubscriptionCreationOverride, persistence,
                 bundles, latency_stats_sample_rate,
-                message_ttl_in_seconds, subscription_expiration_time_minutes, retention_policies,
+                message_ttl_in_seconds, subscription_expiration_time_minutes,
+                non_persistent_subscription_expiration_time_minutes, retention_policies,
                 encryption_required, delayed_delivery_policies, inactive_topic_policies,
                 subscription_auth_mode,
                 max_producers_per_topic,
@@ -180,6 +183,8 @@ public class Policies {
                     && Objects.equals(message_ttl_in_seconds,
                             other.message_ttl_in_seconds)
                     && Objects.equals(subscription_expiration_time_minutes, other.subscription_expiration_time_minutes)
+                    && Objects.equals(non_persistent_subscription_expiration_time_minutes,
+                            other.non_persistent_subscription_expiration_time_minutes)
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(delayed_delivery_policies, other.delayed_delivery_policies)

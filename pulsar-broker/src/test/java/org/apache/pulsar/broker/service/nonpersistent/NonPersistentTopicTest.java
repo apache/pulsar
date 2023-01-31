@@ -19,7 +19,9 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import lombok.Cleanup;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -29,10 +31,15 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
@@ -45,6 +52,8 @@ public class NonPersistentTopicTest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setNonPersistentSubscriptionExpirationTimeMinutes(1);
+        conf.setSubscriptionExpiryCheckIntervalInMinutes(1);
         super.baseSetup();
     }
 
@@ -118,5 +127,33 @@ public class NonPersistentTopicTest extends BrokerTestBase {
 
         }
         Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+    }
+
+
+    @Test
+    public void testInactiveSubscriptionsAutoClean() throws Exception {
+        String topic = "non-persistent://prop/ns-abc/testInactiveSubscriptionsAutoClean";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        String subName = "test_sub";
+
+        try (Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe()) {
+            // ignore
+        }
+
+        PulsarService pulsar = getPulsar();
+        CompletableFuture<Optional<Topic>> f = pulsar.getBrokerService().getTopic(topic, false);
+        Optional<Topic> optional = f.get();
+
+        if (optional.isEmpty()) {
+            Assert.fail();
+        }
+
+        NonPersistentTopic topic1 = (NonPersistentTopic) optional.get();
+        Awaitility.waitAtMost(2, TimeUnit.MINUTES).until(() -> topic1.getSubscription(subName) == null);
     }
 }

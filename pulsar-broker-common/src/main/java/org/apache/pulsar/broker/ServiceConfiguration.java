@@ -707,6 +707,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int subscriptionExpirationTimeMinutes = 0;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            doc = "How long to delete inactive subscriptions from last consuming for non-persistent topic."
+                    + " When it is 0, inactive subscriptions are not deleted automatically",
+            minValue = 0
+    )
+    private int nonPersistentSubscriptionExpirationTimeMinutes = 0;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Enable subscription message redelivery tracker to send redelivery "
                     + "count to consumer (default is enabled)"
