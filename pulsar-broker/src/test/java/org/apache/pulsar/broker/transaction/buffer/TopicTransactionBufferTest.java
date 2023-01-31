@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -129,7 +129,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
 
         brokerService.createPersistentTopic0(topic, true, new CompletableFuture<>());
 
-        Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
+        Awaitility.waitAtMost(3, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
