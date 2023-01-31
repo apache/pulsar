@@ -1581,7 +1581,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
             }
         } catch (Exception e) {
-            log.debug("[{}] Error getting policies", topic);
+            log.warn("[{}] Error getting policies and skipping compaction check", topic, e);
         }
     }
 
