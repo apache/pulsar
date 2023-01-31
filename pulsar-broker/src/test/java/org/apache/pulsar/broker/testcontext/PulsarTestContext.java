@@ -163,14 +163,32 @@ public class PulsarTestContext implements AutoCloseable {
         return PulsarMockBookKeeper.class.cast(bookKeeperClient);
     }
 
+    /**
+     * Create a builder for a PulsarTestContext that creates a PulsarService that
+     * is started.
+     *
+     * @return a builder for a PulsarTestContext
+     */
     public static Builder builder() {
         return new StartableCustomBuilder();
     }
 
+    /**
+     * Create a builder for a PulsarTestContext that creates a PulsarService that
+     * cannot be started. Some tests need to create a PulsarService that cannot be started.
+     * This was added when this type of tests were migrated to use PulsarTestContext.
+     *
+     * @return a builder for a PulsarTestContext that cannot be started.
+     */
     public static Builder builderForNonStartableContext() {
         return new NonStartableCustomBuilder();
     }
 
+    /**
+     * Close the PulsarTestContext and all the resources that it created.
+     *
+     * @throws Exception if there is an error closing the resources
+     */
     public void close() throws Exception {
         for (int i = closeables.size() - 1; i >= 0; i--) {
             try {
@@ -181,11 +199,22 @@ public class PulsarTestContext implements AutoCloseable {
         }
     }
 
+    /**
+     * Create a ServerCnx instance that has a Mockito spy that is recording invocations.
+     * This is useful for tests for ServerCnx.
+     *
+     * @return a ServerCnx instance
+     */
     public ServerCnx createServerCnxSpy() {
         return BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations(ServerCnx.class,
                 getPulsarService());
     }
 
+    /**
+     * A builder for a PulsarTestContext.
+     *
+     * The builder is created with Lombok. That is the reason why the builder source code doesn't show all behaviors
+     */
     public static class Builder {
         protected boolean useTestPulsarResources = false;
         protected MetadataStore pulsarResourcesMetadataStore;
@@ -196,6 +225,9 @@ public class PulsarTestContext implements AutoCloseable {
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
         protected boolean useSameThreadOrderedExecutor = false;
 
+        /**
+         * Initialize the ServiceConfiguration with default values.
+         */
         protected ServiceConfiguration initializeConfig() {
             ServiceConfiguration svcConfig = new ServiceConfiguration();
             svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
@@ -204,13 +236,21 @@ public class PulsarTestContext implements AutoCloseable {
             return svcConfig;
         }
 
+        /**
+         * Use {@link org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor} in PulsarService as the
+         * OrderedExecutor. This is not usuaully needed. This was added for comparing behavior of
+         * the previous behavior to see if it makes a difference compared to using the OrderedExecutor configured
+         * by PulsarService based on the {@link ServiceConfiguration#getNumOrderedExecutorThreads()} value.
+         */
         public Builder useSameThreadOrderedExecutor(boolean useSameThreadOrderedExecutor) {
             this.useSameThreadOrderedExecutor = useSameThreadOrderedExecutor;
             return this;
         }
 
-        // these are default values that are overridden in all provided configurations
-        // set `.configCustomizer(null)` to disable this behavior
+        /**
+         * These are default values that are overridden in all provided configurations
+         * use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
+         */
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
             svcConfig.setBrokerShutdownTimeoutMs(0L);
             svcConfig.setNumIOThreads(4);
@@ -220,6 +260,11 @@ public class PulsarTestContext implements AutoCloseable {
             svcConfig.setNumHttpServerThreads(8);
         }
 
+        /**
+         * Configure the PulsarService instance and the PulsarService collaborator objects to use Mockito spies by default.
+         * @see SpyConfig
+         * @return the builder
+         */
         public Builder spyByDefault() {
             spyConfigBuilder = SpyConfig.builder(SpyConfig.SpyType.SPY);
             return this;
@@ -230,22 +275,47 @@ public class PulsarTestContext implements AutoCloseable {
             return this;
         }
 
+        /**
+         * Customize the ServiceConfiguration object that is used to configure the PulsarService instance.
+         * @param configCustomerizer the function to customize the ServiceConfiguration instance
+         * @return the builder
+         */
         public Builder configCustomizer(Consumer<ServiceConfiguration> configCustomerizer) {
             configCustomerizer.accept(svcConfig);
             return this;
         }
 
+        /**
+         * Override configuration values in the ServiceConfiguration instance as a last step.
+         * There are default overrides provided by
+         * {@link PulsarTestContext.Builder#defaultOverrideServiceConfiguration(ServiceConfiguration)}
+         * that can be disabled by using <pre>{@code .configOverride(null)}</pre>
+         *
+         * @param configOverrideCustomizer the function that contains overrides to ServiceConfiguration,
+         *                                 set to null to disable default overrides
+         * @return the builder
+         */
         public Builder configOverride(Consumer<ServiceConfiguration> configOverrideCustomizer) {
             this.configOverrideCustomizer = configOverrideCustomizer;
             return this;
         }
 
+        /**
+         * Customize the PulsarService instance.
+         * @param pulsarServiceCustomizer the function to customize the PulsarService instance
+         * @return the builder
+         */
         public Builder pulsarServiceCustomizer(
                 Consumer<PulsarService> pulsarServiceCustomizer) {
             this.pulsarServiceCustomizer = pulsarServiceCustomizer;
             return this;
         }
 
+        /**
+         * Reuses the BookKeeper client and metadata stores from another PulsarTestContext.
+         * @param otherContext the other PulsarTestContext
+         * @return the builder
+         */
         public Builder reuseMockBookkeeperAndMetadataStores(PulsarTestContext otherContext) {
             bookKeeperClient(otherContext.getBookKeeperClient());
             if (otherContext.getMockZooKeeper() != null) {
@@ -264,20 +334,41 @@ public class PulsarTestContext implements AutoCloseable {
             return this;
         }
 
+        /**
+         * Reuses the {@link SpyConfig} from another PulsarTestContext.
+         * @param otherContext the other PulsarTestContext
+         * @return the builder
+         */
         public Builder reuseSpyConfig(PulsarTestContext otherContext) {
             spyConfigBuilder = otherContext.getSpyConfig().toBuilder();
             return this;
         }
 
+        /**
+         * Chains closing of the other PulsarTestContext to this one.
+         * The other PulsarTestContext will be closed when this one is closed.
+         */
         public Builder chainClosing(PulsarTestContext otherContext) {
             registerCloseable(otherContext);
             return this;
         }
 
+        /**
+         * Configure this PulsarTestContext to use a mock ZooKeeper instance which is
+         * shared for both the local and configuration metadata stores.
+         *
+         * @return the builder
+         */
         public Builder withMockZookeeper() {
             return withMockZookeeper(false);
         }
 
+        /**
+         * Configure this PulsarTestContext to use a mock ZooKeeper instance.
+         *
+         * @param useSeparateGlobalZk if true, the global (configuration) zookeeper will be a separate instance
+         * @return the builder
+         */
         public Builder withMockZookeeper(boolean useSeparateGlobalZk) {
             try {
                 mockZooKeeper(createMockZooKeeper());
@@ -304,6 +395,12 @@ public class PulsarTestContext implements AutoCloseable {
             return zk;
         }
 
+        /**
+         * Applicable only when PulsarTestContext is not startable. This will configure mocks
+         * for PulsarTestResources and related classes.
+         *
+         * @return the builder
+         */
         public Builder useTestPulsarResources() {
             if (startable) {
                 throw new IllegalStateException("Cannot useTestPulsarResources when startable.");
@@ -312,6 +409,14 @@ public class PulsarTestContext implements AutoCloseable {
             return this;
         }
 
+        /**
+         * Applicable only when PulsarTestContext is not startable. This will configure mocks
+         * for PulsarTestResources and related collaborator instances.
+         * The {@link NamespaceResources} and {@link TopicResources} instances will use the provided
+         * {@link MetadataStore} instance.
+         * @param metadataStore the metadata store to use
+         * @return the builder
+         */
         public Builder useTestPulsarResources(MetadataStore metadataStore) {
             if (startable) {
                 throw new IllegalStateException("Cannot useTestPulsarResources when startable.");
@@ -321,18 +426,37 @@ public class PulsarTestContext implements AutoCloseable {
             return this;
         }
 
+        /**
+         * Applicable only when PulsarTestContext is not startable. This will configure the {@link BookKeeper}
+         * and {@link ManagedLedgerFactory} instances to use for creating a {@link ManagedLedgerStorage} instance
+         * for PulsarService.
+         *
+         * @param bookKeeperClient the bookkeeper client to use (mock bookkeeper)
+         * @param managedLedgerFactory the managed ledger factory to use (could be a mock)
+         * @return the builder
+         */
         public Builder managedLedgerClients(BookKeeper bookKeeperClient,
                                             ManagedLedgerFactory managedLedgerFactory) {
             return managedLedgerClientFactory(
                     PulsarTestContext.createManagedLedgerClientFactory(bookKeeperClient, managedLedgerFactory));
         }
 
+        /**
+         * Configures a function to use for customizing the {@link BrokerService} instance when it gets created.
+         * @return the builder
+         */
         public Builder brokerServiceCustomizer(Function<BrokerService, BrokerService> brokerServiceCustomizer) {
             this.brokerServiceCustomizer = brokerServiceCustomizer;
             return this;
         }
     }
 
+    /**
+     * Internal class that contains customizations for the Lombok generated Builder.
+     *
+     * With Lombok, it is necessary to extend the generated Builder class for adding customizations related to
+     * instantiation and completing the builder.
+     */
     static abstract class AbstractCustomBuilder extends Builder {
         AbstractCustomBuilder(boolean startable) {
             super.startable = startable;
@@ -341,8 +465,6 @@ public class PulsarTestContext implements AutoCloseable {
         public Builder startable(boolean startable) {
             throw new UnsupportedOperationException("Cannot change startability after builder creation.");
         }
-
-
 
         @Override
         public final PulsarTestContext build() {
@@ -467,7 +589,9 @@ public class PulsarTestContext implements AutoCloseable {
         }
     }
 
-
+    /**
+     * Customizations for a builder for creating a PulsarTestContext that is "startable".
+     */
     static class StartableCustomBuilder extends AbstractCustomBuilder {
         StartableCustomBuilder() {
             super(true);
@@ -506,6 +630,9 @@ public class PulsarTestContext implements AutoCloseable {
         }
     }
 
+    /**
+     * Customizations for a builder for creating a PulsarTestContext that is "non-startable".
+     */
     static class NonStartableCustomBuilder extends AbstractCustomBuilder {
 
         NonStartableCustomBuilder() {
