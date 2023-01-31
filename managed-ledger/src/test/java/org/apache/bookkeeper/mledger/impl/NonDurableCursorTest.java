@@ -823,5 +823,20 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         assertEquals(Iterables.size(ledger.getCursors()), 0);
     }
 
+    @Test
+    public void testMessagesConsumedCounterInitializedCorrect() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testMessagesConsumedCounterInitializedCorrect",
+                        new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(1));
+        Position position = ledger.addEntry("1".getBytes(Encoding));
+        NonDurableCursorImpl cursor = (NonDurableCursorImpl) ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        cursor.delete(position);
+        assertEquals(cursor.getMessagesConsumedCounter(), 1);
+        assertTrue(cursor.getMessagesConsumedCounter() <= ledger.getEntriesAddedCounter());
+        // cleanup.
+        cursor.close();
+        ledger.close();
+    }
+
+
     private static final Logger log = LoggerFactory.getLogger(NonDurableCursorTest.class);
 }
