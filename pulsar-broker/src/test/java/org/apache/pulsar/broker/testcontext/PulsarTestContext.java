@@ -487,7 +487,7 @@ public class PulsarTestContext implements AutoCloseable {
         protected void initializePulsarServices(SpyConfig spyConfig, Builder builder) {
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
-            PulsarService pulsarService = spyConfig.getPulsarBroker()
+            PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.useSameThreadOrderedExecutor,
@@ -541,7 +541,7 @@ public class PulsarTestContext implements AutoCloseable {
             }
             BookKeeperClientFactory bookKeeperClientFactory =
                     new MockBookKeeperClientFactory(builder.bookKeeperClient);
-            PulsarService pulsarService = spyConfig.getPulsarBroker()
+            PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.useSameThreadOrderedExecutor, builder.pulsarResources,
