@@ -65,7 +65,7 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                         return;
                     }
                     if (log.isDebugEnabled()) {
-                        log.debug("Success to new txn. txnID: {}", txnID);
+                        log.debug("'newTransaction' command completed successfully for transaction: {}", txnID);
                     }
                     TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
                             txnID.getLeastSigBits(), txnID.getMostSigBits());
