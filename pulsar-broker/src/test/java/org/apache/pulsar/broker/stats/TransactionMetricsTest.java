@@ -73,6 +73,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
         super.baseSetup(serviceConfiguration);
     }
 
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
+    }
+
     protected void afterSetup() throws Exception {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 TenantInfo.builder()
