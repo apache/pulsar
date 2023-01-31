@@ -1571,8 +1571,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 if (backlogEstimate > compactionThreshold) {
-                    log.info("topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering compaction",
-                            topic, backlogEstimate, compactionThreshold);
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
+                                        + "compaction", topic, backlogEstimate, compactionThreshold);
+                    }
                     try {
                         triggerCompaction();
                     } catch (AlreadyRunningException are) {
