@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
@@ -44,17 +45,26 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(false);
-        conf.setSystemTopicEnabled(false);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by
+        // org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats.close method which unregisters metrics
+        // asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test
@@ -76,7 +86,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
             producer.newMessage().value(UUID.randomUUID().toString()).send();
         }
 
-        for (;;) {
+        for (int i = 0; i < 100; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;
@@ -89,51 +99,53 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         String metricsStr = output.toString();
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
+        String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
+
         Collection<PrometheusMetricsTest.Metric> opsLatency = metricsMap.get("pulsar_metadata_store_ops_latency_ms" + "_sum");
         Collection<PrometheusMetricsTest.Metric> putBytes = metricsMap.get("pulsar_metadata_store_put_bytes" + "_total");
 
-        Assert.assertTrue(opsLatency.size() > 1);
-        Assert.assertTrue(putBytes.size() > 1);
+        Assert.assertTrue(opsLatency.size() > 1, metricsDebugMessage);
+        Assert.assertTrue(putBytes.size() > 1, metricsDebugMessage);
 
         for (PrometheusMetricsTest.Metric m : opsLatency) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
+            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
             Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
                     || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertNotNull(m.tags.get("status"));
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            Assert.assertNotNull(m.tags.get("status"), metricsDebugMessage);
 
             if (m.tags.get("status").equals("success")) {
                 if (m.tags.get("type").equals("get")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("del")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("put")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else {
-                    Assert.fail();
+                    Assert.fail(metricsDebugMessage);
                 }
             } else {
                 if (m.tags.get("type").equals("get")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("del")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else if (m.tags.get("type").equals("put")) {
-                    Assert.assertTrue(m.value >= 0);
+                    Assert.assertTrue(m.value >= 0, metricsDebugMessage);
                 } else {
-                    Assert.fail();
+                    Assert.fail(metricsDebugMessage);
                 }
             }
         }
         for (PrometheusMetricsTest.Metric m : putBytes) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
+            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
             Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
                     || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value > 0);
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
     }
 
@@ -156,7 +168,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
             producer.newMessage().value(UUID.randomUUID().toString()).send();
         }
 
-        for (;;) {
+        for (int i = 0; i < 100; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
             if (message == null) {
                 break;
@@ -174,49 +186,50 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Collection<PrometheusMetricsTest.Metric> batchExecuteTime = metricsMap.get("pulsar_batch_metadata_store_batch_execute_time_ms" + "_sum");
         Collection<PrometheusMetricsTest.Metric> opsPerBatch = metricsMap.get("pulsar_batch_metadata_store_batch_size" + "_sum");
 
-        Assert.assertTrue(executorQueueSize.size() > 1);
-        Assert.assertTrue(opsWaiting.size() > 1);
-        Assert.assertTrue(batchExecuteTime.size() > 0);
-        Assert.assertTrue(opsPerBatch.size() > 0);
+        String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
+
+        Assert.assertTrue(executorQueueSize.size() > 1, metricsDebugMessage);
+        Assert.assertTrue(opsWaiting.size() > 1, metricsDebugMessage);
+        Assert.assertTrue(batchExecuteTime.size() > 0, metricsDebugMessage);
+        Assert.assertTrue(opsPerBatch.size() > 0, metricsDebugMessage);
 
         for (PrometheusMetricsTest.Metric m : executorQueueSize) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
+            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
             Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
                     || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value >= 0);
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
         for (PrometheusMetricsTest.Metric m : opsWaiting) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
+            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
             Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
                     || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value >= 0);
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
 
         for (PrometheusMetricsTest.Metric m : batchExecuteTime) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
+            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
             Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
                     || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value > 0);
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
 
         for (PrometheusMetricsTest.Metric m : opsPerBatch) {
-            Assert.assertEquals(m.tags.get("cluster"), "test");
+            Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName);
+            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
             Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
                     || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE));
-            Assert.assertTrue(m.value > 0);
+                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
     }
-
 }

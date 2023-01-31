@@ -19,8 +19,20 @@
 
 -->
 <FindBugsFilter>
-    <Match>
-        <Class name="~org.apache.zookeeper.*"/>
-        <Bug pattern="DM_EXIT,DM_DEFAULT_ENCODING"/>
-    </Match>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader"/>
+    <Method name="getOffloadPolicies"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

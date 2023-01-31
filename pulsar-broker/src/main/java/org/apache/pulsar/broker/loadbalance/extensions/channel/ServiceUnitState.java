@@ -66,7 +66,9 @@ public enum ServiceUnitState {
     Splitting; // the service unit(e.g. bundle) is in the process of splitting.
 
     private static Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
-            Free, Set.of(Owned, Assigned),
+            // (Free -> Released | Splitting) transitions are required
+            // when the topic is compacted in the middle of transfer or split.
+            Free, Set.of(Owned, Assigned, Released, Splitting),
             Owned, Set.of(Assigned, Splitting, Free),
             Assigned, Set.of(Owned, Released, Free),
             Released, Set.of(Owned, Free),

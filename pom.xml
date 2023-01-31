@@ -282,8 +282,8 @@ flexible messaging model and an intuitive client API.</description>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
-    <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
-    <spotbugs.version>4.2.2</spotbugs.version>
+    <spotbugs-maven-plugin.version>4.7.3.0</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.7.3</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>

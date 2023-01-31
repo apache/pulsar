@@ -197,6 +197,7 @@ class OpReadEntry implements ReadEntriesCallback {
     };
 
     public void recycle() {
+        count = 0;
         cursor = null;
         readPosition = null;
         callback = null;

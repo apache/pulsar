@@ -65,7 +65,7 @@ public class PulsarClientTool {
             names = { "--auth-params" },
             description = "Authentication parameters, whose format is determined by the implementation "
                     + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
         @Parameter(names = { "-v", "--version" }, description = "Get version of pulsar client")

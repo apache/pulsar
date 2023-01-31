@@ -34,6 +34,9 @@ function mvn_test() {
         shift
     fi
     local coverage_arg="-Pcoverage"
+    if [[ "${COLLECT_COVERAGE}" == "false" ]]; then
+      coverage_arg=""
+    fi
     local target="verify"
     if [[ "$1" == "--install" ]]; then
       target="install"

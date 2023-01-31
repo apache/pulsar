@@ -969,10 +969,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
+            state = State.Failed;
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
-            String msg = "Unable to authenticate";
-            writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
-            close();
+            ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError, "Unable to authenticate");
+            NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
         }
     }
 
@@ -994,15 +994,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     authResponse.hasClientVersion() ? authResponse.getClientVersion() : EMPTY);
         } catch (AuthenticationException e) {
             service.getPulsarStats().recordConnectionCreateFail();
+            state = State.Failed;
             log.warn("[{}] Authentication failed: {} ", remoteAddress, e.getMessage());
-            writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
-            close();
+            ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError, "Unable to authenticate");
+            NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
+            state = State.Failed;
             String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);
-            writeAndFlush(Commands.newError(-1, ServerError.UnknownError, msg));
-            close();
+            ByteBuf command = Commands.newError(-1, ServerError.UnknownError, msg);
+            NettyChannelUtil.writeAndFlushWithClosePromise(ctx, command);
         }
     }
 
@@ -2775,7 +2777,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      * consumers from connection-map.
      */
     protected void close() {
-        ctx.close();
+        if (ctx != null) {
+            ctx.close();
+        }
     }
 
     @Override
