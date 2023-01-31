@@ -152,10 +152,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return createNewPulsarClient(clientBuilder);
     }
 
+    /**
+     * Customize the {@link ClientBuilder} before creating a new {@link PulsarClient} instance.
+     * @param clientBuilder
+     */
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
 
     }
 
+    /**
+     * Customize the {@link BrokerService} just after it has been created.
+     * @param brokerService the {@link BrokerService} instance
+     */
     protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
         return brokerService;
     }
@@ -232,14 +240,31 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected abstract void cleanup() throws Exception;
 
+    /**
+     * Customize the PulsarService instance before it is started.
+     * This can be used to add custom mock or spy configuration to PulsarService.
+     *
+     * @param pulsar the PulsarService instance
+     * @throws Exception if an error occurs
+     */
     protected void beforePulsarStart(PulsarService pulsar) throws Exception {
         // No-op
     }
 
-    protected void afterPulsarStart(PulsarService pulsar) throws Exception {
+    /**
+     * Customize the PulsarService instance after it is started.
+     * @param pulsar the PulsarService instance
+     * @throws Exception if an error occurs
+     */
+     protected void afterPulsarStart(PulsarService pulsar) throws Exception {
         // No-op
     }
 
+    /**
+     * Restarts the test broker.
+     *
+     * @throws Exception if an error occurs
+     */
     protected void restartBroker() throws Exception {
         stopBroker();
         startBroker();
@@ -280,10 +305,23 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         admin = spyWithoutRecordingInvocations(pulsarAdminBuilder.build());
     }
 
+    /**
+     * Customize the PulsarAdminBuilder instance before it is used to create a PulsarAdmin instance.
+     *
+     * @param pulsarAdminBuilder the PulsarAdminBuilder instance
+     */
     protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder pulsarAdminBuilder) {
 
     }
 
+    /**
+     * Creates the PulsarTestContext instance for the main PulsarService instance.
+     *
+     * @see PulsarTestContext
+     * @param conf the ServiceConfiguration instance to use
+     * @return the PulsarTestContext instance
+     * @throws Exception if an error occurs
+     */
     protected PulsarTestContext createMainPulsarTestContext(ServiceConfiguration conf) throws Exception {
         PulsarTestContext.Builder pulsarTestContextBuilder = createPulsarTestContextBuilder(conf);
         if (pulsarTestContext != null) {
@@ -296,10 +334,25 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 .build();
     }
 
+    /**
+     * Customize the PulsarTestContext.Builder instance used for creating the PulsarTestContext
+     * for the main PulsarService instance.
+     *
+     * @param pulsarTestContextBuilder the PulsarTestContext.Builder instance to customize
+     */
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
 
     }
 
+    /**
+     * Creates a PulsarTestContext.Builder instance that is used for the builder of the main PulsarTestContext and also
+     * for the possible additional PulsarTestContext instances.
+     *
+     * When overriding this method, it is recommended to call the super method and then customize the returned builder.
+     *
+     * @param conf the ServiceConfiguration instance to use
+     * @return a PulsarTestContext.Builder instance
+     */
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
         PulsarTestContext.Builder builder = PulsarTestContext.builder()
                 .spyByDefault()
@@ -316,6 +369,14 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         return builder;
     }
 
+    /**
+     * This method can be used in test classes for creating additional PulsarTestContext instances
+     * that share the same mock ZooKeeper and BookKeeper instances as the main PulsarTestContext instance.
+     *
+     * @param conf the ServiceConfiguration instance to use
+     * @return the PulsarTestContext instance
+     * @throws Exception if an error occurs
+     */
     protected PulsarTestContext createAdditionalPulsarTestContext(ServiceConfiguration conf) throws Exception {
         return createPulsarTestContextBuilder(conf)
                 .reuseMockBookkeeperAndMetadataStores(pulsarTestContext)
