@@ -46,12 +46,10 @@ public class ResponseHandlerFilter implements Filter {
 
     private final String brokerAddress;
     private final BrokerInterceptor interceptor;
-    private final boolean interceptorEnabled;
 
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
         this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
     }
 
     @Override
@@ -104,8 +102,7 @@ public class ResponseHandlerFilter implements Filter {
     }
 
     private void handleInterceptor(ServletRequest request, ServletResponse response) {
-        if (interceptorEnabled
-                && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
+        if (!StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
             try {
                 interceptor.onWebserviceResponse(request, response);

@@ -27,24 +27,20 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.ws.rs.core.MediaType;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 
 public class ProcessHandlerFilter implements Filter {
 
     private final BrokerInterceptor interceptor;
-    private final boolean interceptorEnabled;
 
-    public ProcessHandlerFilter(PulsarService pulsar) {
-        this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
+    public ProcessHandlerFilter(BrokerInterceptor brokerInterceptor) {
+        this.interceptor = brokerInterceptor;
     }
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (interceptorEnabled
-                && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
+        if (!StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
             interceptor.onFilter(request, response, chain);
         } else {
