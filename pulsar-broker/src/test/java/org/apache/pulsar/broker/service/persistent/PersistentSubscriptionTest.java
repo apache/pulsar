@@ -90,7 +90,7 @@ public class PersistentSubscriptionTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        pulsarTestContext = PulsarTestContext.builder()
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .spyByDefault()
                 .configCustomizer(config -> config.setTransactionCoordinatorEnabled(true))
                 .useTestPulsarResources()

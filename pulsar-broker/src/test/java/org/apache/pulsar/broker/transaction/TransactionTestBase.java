@@ -149,7 +149,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =
-                    PulsarTestContext.startableBuilder()
+                    PulsarTestContext.builder()
                             .brokerInterceptor(new CounterBrokerInterceptor())
                             .spyByDefault()
                             .config(conf);

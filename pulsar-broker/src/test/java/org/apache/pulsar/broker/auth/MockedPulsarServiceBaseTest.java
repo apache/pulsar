@@ -301,7 +301,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     }
 
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
-        PulsarTestContext.Builder builder = PulsarTestContext.startableBuilder()
+        PulsarTestContext.Builder builder = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(conf)
                 .withMockZookeeper(true)

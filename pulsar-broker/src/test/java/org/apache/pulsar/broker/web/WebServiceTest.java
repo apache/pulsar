@@ -417,7 +417,7 @@ public class WebServiceTest {
             config.setHttpRequestsMaxPerSecond(rateLimit);
         }
 
-        pulsarTestContext = PulsarTestContext.startableBuilder()
+        pulsarTestContext = PulsarTestContext.builder()
                 .spyByDefault()
                 .config(config)
                 .build();

@@ -114,11 +114,11 @@ public class PulsarTestContext implements AutoCloseable {
         return PulsarMockBookKeeper.class.cast(bookKeeperClient);
     }
 
-    public static Builder startableBuilder() {
+    public static Builder builder() {
         return new StartableCustomBuilder();
     }
 
-    public static Builder builder() {
+    public static Builder builderForNonStartableContext() {
         return new NonStartableCustomBuilder();
     }
 
@@ -160,6 +160,8 @@ public class PulsarTestContext implements AutoCloseable {
             return this;
         }
 
+        // these are default values that are overridden in all provided configurations
+        // set `.configCustomizer(null)` to disable this behavior
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
             svcConfig.setBrokerShutdownTimeoutMs(0L);
             svcConfig.setNumIOThreads(4);

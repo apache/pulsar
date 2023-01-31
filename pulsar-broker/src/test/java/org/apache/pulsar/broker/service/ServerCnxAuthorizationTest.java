@@ -95,7 +95,7 @@ public class ServerCnxAuthorizationTest {
         properties.setProperty("tokenSecretKey", "data:;base64,"
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         svcConfig.setProperties(properties);
-        pulsarTestContext = PulsarTestContext.builder()
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .config(svcConfig)
                 .spyByDefault()
                 .build();
