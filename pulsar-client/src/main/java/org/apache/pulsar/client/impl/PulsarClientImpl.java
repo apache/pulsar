@@ -1202,10 +1202,7 @@ public class PulsarClientImpl implements PulsarClient {
     // This method should be exposed in the PulsarClient interface. Only expose it when all the transaction features
     // are completed.
     // @Override
-    public TransactionBuilder newTransaction() throws PulsarClientException {
-        if (!conf.isEnableTransaction()) {
-            throw new PulsarClientException.InvalidConfigurationException("Transactions are not enabled");
-        }
+    public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this, tcClient);
     }
 }

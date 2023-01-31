@@ -218,6 +218,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     private static final String COMPACTION_CURSOR_NAME = "__compaction";
     private volatile boolean cacheReadEntry = false;
 
+    // active state cache in ManagedCursor. It should be in sync with the state in activeCursors in ManagedLedger.
+    private volatile boolean isActive = false;
+
     class MarkDeleteEntry {
         final PositionImpl newPosition;
         final MarkDeleteCallback callback;
@@ -1208,19 +1211,23 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setActive() {
-        if (!alwaysInactive) {
+        if (!isActive && !alwaysInactive) {
             ledger.activateCursor(this);
+            isActive = true;
         }
     }
 
     @Override
     public boolean isActive() {
-        return ledger.isCursorActive(this);
+        return isActive;
     }
 
     @Override
     public void setInactive() {
-        ledger.deactivateCursor(this);
+        if (isActive) {
+            ledger.deactivateCursor(this);
+            isActive = false;
+        }
     }
 
     @Override

@@ -34,7 +34,6 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -355,9 +354,6 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         writeAndFlush(outBuf);
-        if (this.interceptor != null) {
-            this.interceptor.txnEnded(txnID.toString(), TxnAction.ABORT_VALUE);
-        }
     }
 
     @Override

@@ -33,7 +33,7 @@ public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
-        ServiceConfiguration config = testPulsarServiceFactory.getConfig();
+        ServiceConfiguration config = pulsarTestContext.getConfig();
         config.setTopicLevelPoliciesEnabled(false);
         config.setSystemTopicEnabled(false);
         config.setStreamingDispatch(true);
