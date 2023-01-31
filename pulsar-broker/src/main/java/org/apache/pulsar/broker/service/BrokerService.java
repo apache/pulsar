@@ -1660,7 +1660,7 @@ public class BrokerService implements Closeable {
 
                     if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
                             && !NamespaceService.isSystemServiceNamespace(namespace.toString())) {
-                        TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
+                        final TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
                                 .getTopicPoliciesIfExists(topicName);
                         if (topicPolicies != null) {
                             persistencePolicies = topicPolicies.getPersistence();
