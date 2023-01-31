@@ -726,12 +726,19 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(uri).when(uriInfo).getRequestUri();
 
         namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
-                this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
+                this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false, null);
         captor = ArgumentCaptor.forClass(WebApplicationException.class);
         verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
         assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
         assertEquals(captor.getValue().getResponse().getLocation().toString(),
                 UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
+
+        // check the bundle should not unload to an inactive destination broker
+        namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
+                this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false, "inactive_destination:8080");
+        captor = ArgumentCaptor.forClass(WebApplicationException.class);
+        verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.CONFLICT.getStatusCode());
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testGlobalNamespaces.get(0).toString() + "/configversion");
@@ -1053,7 +1060,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
-                false);
+                false, null);
         verify(response, timeout(5000).times(1)).resume(any(RestException.class));
 
         // cleanup
@@ -1153,6 +1160,17 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(captor.capture());
         PersistencePolicies persistence2 =  captor.getValue();
         assertEquals(persistence2, persistence1);
+    }
+
+    @Test(dataProvider = "invalidPersistentPolicies")
+    public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
+        NamespaceName testNs = this.testLocalNamespaces.get(0);
+        PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.setPersistence(response, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName(), persistence1);
+        ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        assertEquals(responseCaptor.getValue().getResponse().getStatus(), Status.BAD_REQUEST.getStatusCode());
     }
 
     @Test

@@ -34,6 +34,7 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -88,8 +89,9 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
     }
 
     @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+
         // enable transaction.
         conf.setSystemTopicEnabled(true);
         conf.setTransactionCoordinatorEnabled(true);
@@ -98,7 +100,13 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         conf.setTransactionPendingAckBatchedWriteMaxRecords(10);
         conf.setTransactionLogBatchedWriteEnabled(true);
         conf.setTransactionLogBatchedWriteMaxRecords(10);
+
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
+
 
     @Override
     protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
@@ -123,6 +131,7 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         sendAndAckSomeMessages();
 
         // call metrics
+        @Cleanup
         Client client = ClientBuilder.newClient();
         WebTarget target = client.target(brokerUrl + "/metrics/get");
         Response response = target.request(MediaType.APPLICATION_JSON_TYPE).buildGet().invoke();
@@ -167,7 +176,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
 
         // cleanup.
         response.close();
-        client.close();
         admin.topics().delete(topicName, true);
     }
 

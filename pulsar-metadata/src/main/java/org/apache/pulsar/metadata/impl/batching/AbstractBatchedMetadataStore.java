@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
@@ -84,7 +85,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     public void close() throws Exception {
         if (enabled) {
             // Fail all the pending items
-            Exception ex = new IllegalStateException("Metadata store is getting closed");
+            MetadataStoreException ex =
+                    new MetadataStoreException.AlreadyClosedException("Metadata store is getting closed");
             readOps.drain(op -> op.getFuture().completeExceptionally(ex));
             writeOps.drain(op -> op.getFuture().completeExceptionally(ex));
 

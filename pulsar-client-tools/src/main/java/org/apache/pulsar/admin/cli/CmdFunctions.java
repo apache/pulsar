@@ -26,7 +26,6 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -1070,8 +1069,8 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            TypeReference<FunctionState> typeRef = new TypeReference<FunctionState>() {};
-            FunctionState stateRepr = ObjectMapperFactory.getThreadLocal().readValue(state, typeRef);
+            FunctionState stateRepr =
+                    ObjectMapperFactory.getMapper().reader().readValue(state, FunctionState.class);
             getAdmin().functions()
                     .putFunctionState(tenant, namespace, functionName, stateRepr);
         }

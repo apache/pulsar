@@ -67,6 +67,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -77,6 +78,8 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -152,6 +155,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -202,6 +206,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     private final CompactedTopic compactedTopic;
+
+    // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
+    private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(
+            ServiceUnitStateChannelImpl.TOPIC,
+            new ServiceUnitStateCompactionStrategy());
 
     private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
             (MessageIdImpl) MessageId.earliest);
@@ -814,7 +823,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
-                    checkBackloggedCursors();
+                    if (subscription instanceof PersistentSubscription persistentSubscription) {
+                        checkBackloggedCursor(persistentSubscription);
+                    }
                     if (!cnx.isActive()) {
                         try {
                             consumer.close();
@@ -1271,9 +1282,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                 topic, exception.getMessage());
                                                         deleteLedgerComplete(ctx);
                                                     } else {
-                                                        unfenceTopicToResume();
                                                         log.error("[{}] Error deleting topic",
                                                                 topic, exception);
+                                                        unfenceTopicToResume();
                                                         deleteFuture.completeExceptionally(
                                                                 new PersistenceException(exception));
                                                     }
@@ -1292,6 +1303,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 });
 
                 return deleteFuture;
+                }).whenComplete((value, ex) -> {
+                    if (ex != null) {
+                        log.error("[{}] Error deleting topic", topic, ex);
+                        unfenceTopicToResume();
+                    }
                 });
         } finally {
             lock.writeLock().unlock();
@@ -1566,6 +1582,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 if (backlogEstimate > compactionThreshold) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
+                                        + "compaction", topic, backlogEstimate, compactionThreshold);
+                    }
                     try {
                         triggerCompaction();
                     } catch (AlreadyRunningException are) {
@@ -1576,7 +1597,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
             }
         } catch (Exception e) {
-            log.debug("[{}] Error getting policies", topic);
+            log.warn("[{}] Error getting policies and skipping compaction check", topic, e);
         }
     }
 
@@ -2563,15 +2584,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void checkBackloggedCursors() {
-        // activate caught up cursors which include consumers
         subscriptions.forEach((subName, subscription) -> {
-            if (!subscription.getConsumers().isEmpty()
-                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
-                subscription.getCursor().setActive();
-            } else {
-                subscription.getCursor().setInactive();
-            }
+            checkBackloggedCursor(subscription);
         });
+    }
+
+    private void checkBackloggedCursor(PersistentSubscription subscription) {
+        // activate caught up cursor which include consumers
+        if (!subscription.getConsumers().isEmpty()
+                && subscription.getCursor().getNumberOfEntries() < backloggedCursorThresholdEntries) {
+            subscription.getCursor().setActive();
+        } else {
+            subscription.getCursor().setInactive();
+        }
     }
 
     public void checkInactiveLedgers() {
@@ -2856,7 +2881,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         (int) (messageTTLInSeconds * MESSAGE_EXPIRY_THRESHOLD), entryTimestamp);
             }
         } catch (Exception e) {
-            log.warn("[{}] Error while getting the oldest message", topic, e);
+            if (brokerService.pulsar().getConfiguration().isAutoSkipNonRecoverableData()
+                    && e instanceof NonRecoverableLedgerException) {
+                // NonRecoverableLedgerException means the ledger or entry can't be read anymore.
+                // if AutoSkipNonRecoverableData is set to true, just return true here.
+                return true;
+            } else {
+                log.warn("[{}] Error while getting the oldest message", topic, e);
+            }
         } finally {
             if (entry != null) {
                 entry.release();
@@ -2984,7 +3016,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
-            currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+
+            if (strategicCompactionMap.containsKey(topic)) {
+                currentCompaction = brokerService.pulsar().getStrategicCompactor()
+                        .compact(topic, strategicCompactionMap.get(topic));
+            } else {
+                currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+            }
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
         }

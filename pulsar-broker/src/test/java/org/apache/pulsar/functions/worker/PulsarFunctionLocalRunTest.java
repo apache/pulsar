@@ -272,7 +272,7 @@ public class PulsarFunctionLocalRunTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // create cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrlTls(urlTls.toString()).build();
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -308,14 +308,30 @@ public class PulsarFunctionLocalRunTest {
     void shutdown() throws Exception {
         try {
             log.info("--- Shutting down ---");
-            fileServer.stop();
-            pulsarClient.close();
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (fileServer != null) {
+                fileServer.stop();
+                fileServer = null;
+            }
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
+                tempDirectory = null;
             }
         }
     }
@@ -333,7 +349,8 @@ public class PulsarFunctionLocalRunTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName(CLUSTER), Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName(CLUSTER), Map.class));
         // worker talks to local broker
         workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
         workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());
@@ -1099,7 +1116,7 @@ public class PulsarFunctionLocalRunTest {
     public void testPulsarSinkWithFunction() throws Throwable {
         testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName(), "builtin://exclamation", "org.apache.pulsar.functions.api.examples.RecordFunction");
     }
-    
+
     public static class TestErrorSink implements Sink<byte[]> {
         private Map config;
         @Override

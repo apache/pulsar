@@ -442,7 +442,7 @@ public class PulsarAdminToolTest {
         namespaces = new CmdNamespaces(() -> admin);
 
         namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff"));
-        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff");
+        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", null);
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
         verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
@@ -1493,7 +1493,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false, false);
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, true, false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
@@ -1541,7 +1541,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1",
-                true, false, false, false);
+                true, false, true, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
@@ -1583,7 +1583,10 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("analyze-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).analyzeSubscriptionBacklog("persistent://myprop/clust/ns1/ds1", "sub1", Optional.empty());
-        
+
+        cmdTopics.run(split("trim-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).trimTopic("persistent://myprop/clust/ns1/ds1");
+
         // jcommander is stateful, you cannot parse the same command twice
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b -p x=y,z"));
@@ -2104,7 +2107,7 @@ public class PulsarAdminToolTest {
         CmdTopics topics = new CmdTopics(() -> admin);
 
         topics.run(split("stats non-persistent://myprop/ns1/ds1"));
-        verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, false, false);
+        verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, true, false);
 
         topics.run(split("stats-internal non-persistent://myprop/ns1/ds1"));
         verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
@@ -2197,7 +2200,7 @@ public class PulsarAdminToolTest {
         final String keyFilePath = "/my-file:role=name.key";
         paramMap.put("tlsCertFile", certFilePath);
         paramMap.put("tlsKeyFile", keyFilePath);
-        final String paramStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(paramMap);
+        final String paramStr = ObjectMapperFactory.getMapper().writer().writeValueAsString(paramMap);
         properties.put("authParams", paramStr);
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);

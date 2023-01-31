@@ -33,7 +33,7 @@ TESTNG_VERSION="7.3.0"
 # returns a CSV value
 mvn_list_modules() {
   (
-    mvn -B -ntp "$@" initialize \
+    mvn -B -ntp -Dscan=false "$@" initialize \
       | grep -- "-< .* >-" \
       | sed -E 's/.*-< (.*) >-.*/\1/' \
       | tr '\n' ',' | sed 's/,$/\n/'
@@ -46,15 +46,14 @@ mvn_list_modules() {
 # 2. runs "mvn -pl [active_modules] -am install [given_params]" to build and install required dependencies
 # 3. finally runs tests with "mvn -pl [active_modules] test [given_params]"
 mvn_run_integration_test() {
-  (
   set +x
   # skip test run if next parameter is "--build-only"
-  build_only=0
+  local build_only=0
   if [[ "$1" == "--build-only" ]]; then
       build_only=1
       shift
   fi
-  skip_build_deps=0
+  local skip_build_deps=0
   while [[ "$1" == "--skip-build-deps" ]]; do
     skip_build_deps=1
     shift
@@ -64,8 +63,32 @@ mvn_run_integration_test() {
       clean_arg="clean"
       shift
   fi
+  local use_fail_fast=1
+  if [[ "$GITHUB_ACTIONS" == "true" && "$GITHUB_EVENT_NAME" != "pull_request" ]]; then
+    use_fail_fast=0
+  fi
+  if [[ "$1" == "--no-fail-fast" ]]; then
+    use_fail_fast=0
+    shift;
+  fi
+  local failfast_args
+  if [ $use_fail_fast -eq 1 ]; then
+    failfast_args="-DtestFailFast=true -DtestFailFastFile=/tmp/test_fail_fast_killswitch.$$.$RANDOM.$(date +%s) --fail-fast"
+  else
+    failfast_args="-DtestFailFast=false --fail-at-end"
+  fi
+  local coverage_args=""
+  if [[ "$1" == "--coverage" ]]; then
+      if [ ! -d /tmp/jacocoDir ]; then
+          mkdir /tmp/jacocoDir
+          sudo chmod 0777 /tmp/jacocoDir || chmod 0777 /tmp/jacocoDir
+      fi
+      coverage_args="-Pcoverage -Dintegrationtest.coverage.enabled=true -Dintegrationtest.coverage.dir=/tmp/jacocoDir"
+      shift
+  fi
+  (
   cd "$SCRIPT_DIR"/../tests
-  modules=$(mvn_list_modules -DskipDocker "$@")
+  local modules=$(mvn_list_modules -DskipDocker "$@")
   cd ..
   set -x
   if [ $skip_build_deps -ne 1 ]; then
@@ -76,10 +99,10 @@ mvn_run_integration_test() {
   if [[ $build_only -ne 1 ]]; then
     echo "::group::Run tests for " "$@"
     # use "verify" instead of "test"
-    mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false $clean_arg verify "$@"
+    mvn -B -ntp -pl "$modules" $failfast_args $coverage_args -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false $clean_arg verify "$@"
     echo "::endgroup::"
     set +x
-    "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
+    "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports || true
   fi
   )
 }

@@ -132,6 +132,31 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         } catch (IllegalArgumentException e) {
             // expected
         }
+
+        // test failing builder with empty pattern should fail
+        try {
+            pattern = Pattern.compile("");
+            pulsarClient.newConsumer()
+                    .topicsPattern(pattern)
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .subscribe();
+            fail("subscribe4 with empty pattern should fail.");
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "Pattern has already been set or is empty.");
+        }
+        try {
+            pulsarClient.newConsumer()
+                    .topicsPattern("")
+                    .subscriptionName(subscriptionName)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .subscribe();
+            fail("subscribe5 with empty pattern should fail.");
+        } catch (IllegalArgumentException e) {
+            assertEquals(e.getMessage(), "topicsPattern should not be null or empty");
+        }
     }
 
     // verify consumer create success, and works well.

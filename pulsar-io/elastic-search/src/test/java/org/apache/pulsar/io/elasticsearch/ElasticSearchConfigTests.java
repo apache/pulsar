@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import org.apache.pulsar.io.core.SinkContext;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,6 +34,8 @@ import static org.testng.Assert.expectThrows;
 
 
 public class ElasticSearchConfigTests {
+
+    private final SinkContext mockContext = Mockito.mock(SinkContext.class);
 
     @Test
     public final void loadFromYamlFileTest() throws IOException {
@@ -57,7 +60,7 @@ public class ElasticSearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("primaryFields", "x");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         assertNotNull(config);
         assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
         assertEquals(config.getIndexName(), "myIndex");
@@ -69,8 +72,8 @@ public class ElasticSearchConfigTests {
 
     @Test
     public final void defaultValueTest() throws IOException {
-        ElasticSearchConfig config = ElasticSearchConfig.load(Collections.emptyMap());
-        assertNull(config.getElasticSearchUrl());
+        Map<String, Object> requiredConfig = Map.of("elasticSearchUrl", "http://localhost:90902");
+        ElasticSearchConfig config = ElasticSearchConfig.load(requiredConfig, mockContext);
         assertNull(config.getIndexName());
         assertEquals(config.getTypeName(), "_doc");
         assertNull(config.getUsername());
@@ -121,7 +124,7 @@ public class ElasticSearchConfigTests {
         map.put("username", "racerX");
         map.put("password", "go-speedie-go");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         assertNotNull(config);
         config.validate();
     }
@@ -135,17 +138,17 @@ public class ElasticSearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("indexNumberOfReplicas", "0");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "elasticSearchUrl not set.")
+            expectedExceptionsMessageRegExp = "elasticSearchUrl cannot be null")
     public final void missingRequiredPropertiesTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("indexName", "toto");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -159,7 +162,7 @@ public class ElasticSearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("indexNumberOfShards", "0");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -173,7 +176,7 @@ public class ElasticSearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("indexNumberOfReplicas", "-1");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -185,7 +188,7 @@ public class ElasticSearchConfigTests {
         map.put("indexName", "myindex");
         map.put("username", "racerX");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -197,7 +200,7 @@ public class ElasticSearchConfigTests {
         map.put("indexName", "myindex");
         map.put("password", "go-speedie-go");
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -210,35 +213,35 @@ public class ElasticSearchConfigTests {
         map.put("password", "go-speedie-go");
         map.put("token", "tok");
         {
-            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
             expectThrows(IllegalArgumentException.class, () -> config.validate());
         }
         map.put("apiKey", "apiKey");
         {
-            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
             expectThrows(IllegalArgumentException.class, () -> config.validate());
         }
         map.remove("token");
         {
-            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
             expectThrows(IllegalArgumentException.class, () -> config.validate());
         }
         map.remove("username");
         map.remove("password");
         {
-            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
             config.validate();
         }
         map.put("token", "tok");
         map.remove("apiKey");
         {
-            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
             config.validate();
         }
         map.remove("token");
 
         {
-            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
             config.validate();
         }
     }
@@ -249,7 +252,7 @@ public class ElasticSearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("connectTimeoutInMs", -1);
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -259,7 +262,7 @@ public class ElasticSearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("connectionRequestTimeoutInMs", -1);
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -269,7 +272,7 @@ public class ElasticSearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("socketTimeoutInMs", -1);
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -279,7 +282,7 @@ public class ElasticSearchConfigTests {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://localhost:90902");
         map.put("bulkConcurrentRequests", -1);
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
     }
 
@@ -305,7 +308,7 @@ public class ElasticSearchConfigTests {
         sslMap.put("provider", "Sun");
         map.put("ssl", sslMap);
 
-        ElasticSearchConfig config = ElasticSearchConfig.load(map);
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, mockContext);
         config.validate();
         assertEquals(config.getSsl().isEnabled(), true);
         assertEquals(config.getSsl().getTruststorePath(), "/ssl/truststore.jks");
@@ -315,5 +318,27 @@ public class ElasticSearchConfigTests {
         assertEquals(config.getSsl().isHostnameVerification(), false);
         assertEquals(config.getSsl().getProtocols(), "TLSv1.2,TLSv1.3");
         assertEquals(config.getSsl().getProvider(), "Sun");
+    }
+
+    @Test
+    public final void loadConfigFromSecretsTest() throws IOException {
+        SinkContext contextWithSecrets = Mockito.mock(SinkContext.class);
+        Mockito.when(contextWithSecrets.getSecret("username")).thenReturn("secretUser");
+        Mockito.when(contextWithSecrets.getSecret("password")).thenReturn("$ecret123");
+
+        Map<String, Object> map = new HashMap<String, Object> ();
+        map.put("elasticSearchUrl", "http://localhost:90902");
+        map.put("indexName", "myIndex");
+        map.put("typeName", "doc");
+        map.put("primaryFields", "x");
+
+        ElasticSearchConfig config = ElasticSearchConfig.load(map, contextWithSecrets);
+        assertNotNull(config);
+        assertEquals(config.getElasticSearchUrl(), "http://localhost:90902");
+        assertEquals(config.getIndexName(), "myIndex");
+        assertEquals(config.getTypeName(), "doc");
+        assertEquals(config.getPrimaryFields(), "x");
+        assertEquals(config.getUsername(), "secretUser");
+        assertEquals(config.getPassword(), "$ecret123");
     }
 }

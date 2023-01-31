@@ -148,6 +148,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
         backingServer1.stop();
         backingServer2.stop();
+        client.close();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

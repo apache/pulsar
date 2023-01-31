@@ -128,7 +128,7 @@ public class PulsarFunctionTlsTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                     new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
             workerConfig.setFailureCheckFreqMs(100);
             workerConfig.setNumFunctionPackageReplicas(1);
@@ -139,6 +139,9 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
+            workerConfig.setTlsEnableHostnameVerification(true);
+            workerConfig.setTlsAllowInsecureConnection(false);
+            workerConfig.setBrokerClientTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;

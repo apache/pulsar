@@ -1980,6 +1980,19 @@ public interface Topics {
     CompletableFuture<Void> triggerCompactionAsync(String topic);
 
     /**
+     * Trigger topic trimming.
+     * @param topic The topic to trim
+     * @throws PulsarAdminException
+     */
+    void trimTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Trigger topic trimming asynchronously.
+     * @param topic The topic to trim
+     */
+    CompletableFuture<Void> trimTopicAsync(String topic);
+
+    /**
      * Check the status of an ongoing compaction for a topic.
      *
      * @param topic The topic whose compaction status we wish to check

@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -70,6 +71,7 @@ public class Producer {
     private final boolean userProvidedProducerName;
     private final long producerId;
     private final String appId;
+    private final BrokerInterceptor brokerInterceptor;
     private Rate msgIn;
     private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
@@ -156,6 +158,7 @@ public class Producer {
         this.topicEpoch = topicEpoch;
 
         this.clientAddress = cnx.clientSourceAddress();
+        this.brokerInterceptor = cnx.getBrokerService().getInterceptor();
     }
 
     /**
@@ -271,8 +274,10 @@ public class Producer {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(),
                         batchSize, isChunked, System.nanoTime(), isMarker, position);
-        this.cnx.getBrokerService().getInterceptor()
-                .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        if (brokerInterceptor != null) {
+            brokerInterceptor
+                    .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        }
         topic.publishMessage(headersAndPayload, messagePublishContext);
     }
 
@@ -281,8 +286,10 @@ public class Producer {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
                 highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
                 isChunked, System.nanoTime(), isMarker, position);
-        this.cnx.getBrokerService().getInterceptor()
-                .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        if (brokerInterceptor != null) {
+            brokerInterceptor
+                    .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        }
         topic.publishMessage(headersAndPayload, messagePublishContext);
     }
 
@@ -538,8 +545,10 @@ public class Producer {
                 producer.chunkedMessageRate.recordEvent();
             }
             producer.publishOperationCompleted();
-            producer.cnx.getBrokerService().getInterceptor().messageProduced(
-                    (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
+            if (producer.brokerInterceptor != null) {
+                producer.brokerInterceptor.messageProduced(
+                        (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
+            }
             recycle();
         }
 
@@ -806,8 +815,10 @@ public class Producer {
         MessagePublishContext messagePublishContext =
                 MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null);
-        this.cnx.getBrokerService().getInterceptor()
-                .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        if (brokerInterceptor != null) {
+            brokerInterceptor
+                    .onMessagePublish(this, headersAndPayload, messagePublishContext);
+        }
         topic.publishTxnMessage(txnID, headersAndPayload, messagePublishContext);
     }
 

@@ -377,7 +377,7 @@ public class BrokerService implements Closeable {
         }
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
-                .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
+                .loadDelayedDeliveryTrackerFactory(pulsar);
 
         this.defaultServerBootstrap = defaultServerBootstrap();
 
@@ -833,7 +833,7 @@ public class BrokerService implements Closeable {
                                 pulsarStats.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
-                                } catch (IOException e) {
+                                } catch (Exception e) {
                                     log.warn("Error in closing delayedDeliveryTrackerFactory", e);
                                 }
 
@@ -934,7 +934,8 @@ public class BrokerService implements Closeable {
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
-            Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
+            Set<NamespaceBundle> serviceUnits =
+                    pulsar.getNamespaceService() != null ? pulsar.getNamespaceService().getOwnedServiceUnits() : null;
             if (serviceUnits != null) {
                 try (RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.builder()
                         .scheduledExecutorService(pulsar.getExecutor())
@@ -955,12 +956,13 @@ public class BrokerService implements Closeable {
                         }
                     });
                 }
-            }
 
-            double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
-                    / 1000.0;
-            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
-                    closeTopicsTimeSeconds);
+                double closeTopicsTimeSeconds =
+                        TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
+                                / 1000.0;
+                log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
+                        closeTopicsTimeSeconds);
+            }
         } catch (Exception e) {
             log.error("Failed to disable broker from loadbalancer list {}", e.getMessage(), e);
         }
@@ -1017,11 +1019,22 @@ public class BrokerService implements Closeable {
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
-                return topics.computeIfAbsent(topicName.toString(), (k) -> {
-                    return this.loadOrCreatePersistentTopic(k, createIfMissing, properties);
+                return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
+                    if (topicName.isPartitioned()) {
+                        return fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                                .thenCompose((metadata) -> {
+                                    // Allow crate non-partitioned persistent topic that name includes `partition`
+                                    if (metadata.partitions == 0
+                                            || topicName.getPartitionIndex() < metadata.partitions) {
+                                        return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
+                                    }
+                                    return CompletableFuture.completedFuture(Optional.empty());
+                                });
+                    }
+                    return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
                 });
             } else {
-                return topics.computeIfAbsent(topicName.toString(), (name) -> {
+            return topics.computeIfAbsent(topicName.toString(), (name) -> {
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
@@ -1035,7 +1048,7 @@ public class BrokerService implements Closeable {
                     } else {
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
-                });
+                    });
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
@@ -1505,6 +1518,14 @@ public class BrokerService implements Closeable {
                 });
     }
 
+
+    @VisibleForTesting
+    public void createPersistentTopic0(final String topic, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture,
+                                       Map<String, String> properties) {
+        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
+    }
+
     private void createPersistentTopic(final String topic, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
@@ -1599,6 +1620,12 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
+                                            persistentTopic.getTransactionBuffer()
+                                                    .closeAsync()
+                                                    .exceptionally(t -> {
+                                                        log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                        return null;
+                                                    });
                                             persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
@@ -3349,7 +3376,8 @@ public class BrokerService implements Closeable {
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
+    @VisibleForTesting
+    public <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
             Class<T> topicClazz) throws PulsarServerException {
         if (topicFactory != null) {
             try {

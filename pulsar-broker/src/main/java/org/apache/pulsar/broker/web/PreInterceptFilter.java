@@ -66,7 +66,9 @@ public class PreInterceptFilter implements Filter {
         }
         try {
             RequestWrapper requestWrapper = new RequestWrapper((HttpServletRequest) servletRequest);
-            interceptor.onWebserviceRequest(requestWrapper);
+            if (interceptor != null) {
+                interceptor.onWebserviceRequest(requestWrapper);
+            }
             filterChain.doFilter(requestWrapper, servletResponse);
         } catch (InterceptException e) {
             exceptionHandler.handle(servletResponse, e);

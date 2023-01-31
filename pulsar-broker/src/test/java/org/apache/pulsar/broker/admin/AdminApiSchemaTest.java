@@ -185,6 +185,17 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test
+    public void testCreateBytesSchema() {
+        // forbid admin api creating BYTES schema to be consistent with client side
+        try {
+            testSchemaInfoApi(Schema.BYTES, "schematest/test/test-BYTES");
+            fail("should fail");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("Do not upload a BYTES schema"));
+        }
+    }
+
     @Test(dataProvider = "version")
     public void testPostSchemaCompatibilityStrategy(ApiVersion version) throws PulsarAdminException {
         String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),

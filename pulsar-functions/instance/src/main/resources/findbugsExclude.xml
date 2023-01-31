@@ -19,61 +19,527 @@
 
 -->
 <FindBugsFilter>
-    <!-- these public fields may be used in other modules -->
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.ContextImpl$MessageBuilderImpl"/>
-        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
-        <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
-        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.sink.PulsarSink$PulsarSinkEffectivelyOnceProcessor"/>
-        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
-        <Bug pattern="MS_MUTABLE_ARRAY"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
-        <Bug pattern="EI_EXPOSE_REP2"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
-        <Bug pattern="MS_PKGPROTECT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.sink.PulsarSink$Crypto$CryptoBuilder"/>
-        <Bug pattern="EI_EXPOSE_REP2"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
-        <Bug pattern="UC_USELESS_OBJECT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.source.PulsarSource"/>
-        <Bug pattern="SE_BAD_FIELD"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
-        <Bug pattern="SE_BAD_FIELD"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
-        <Bug pattern="SE_BAD_FIELD"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
-        <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
-    </Match>
-    <Match>
-        <Class name="org.apache.pulsar.functions.source.SerDeSchema"/>
-        <Bug pattern="CN_IDIOM_NO_SUPER_CALL"/>
-    </Match>
+  <!-- these public fields may be used in other modules -->
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.ContextImpl$MessageBuilderImpl"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink$PulsarSinkEffectivelyOnceProcessor"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
+    <Bug pattern="MS_MUTABLE_ARRAY"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.ComponentStatsManager"/>
+    <Bug pattern="MS_PKGPROTECT"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink$Crypto$CryptoBuilder"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
+    <Bug pattern="UC_USELESS_OBJECT"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.PulsarSource"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
+    <Bug pattern="RV_RETURN_VALUE_IGNORED_NO_SIDE_EFFECT"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SerDeSchema"/>
+    <Bug pattern="CN_IDIOM_NO_SUPER_CALL"/>
+  </Match>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.InstanceConfig"/>
+    <Method name="getAdditionalJavaRuntimeArguments"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.InstanceConfig"/>
+    <Method name="getFunctionAuthenticationSpec"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.InstanceConfig"/>
+    <Method name="getFunctionDetails"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.InstanceConfig"/>
+    <Method name="setAdditionalJavaRuntimeArguments"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.InstanceConfig"/>
+    <Method name="setFunctionAuthenticationSpec"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.InstanceConfig"/>
+    <Method name="setFunctionDetails"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaExecutionResult"/>
+    <Method name="getSystemException"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaExecutionResult"/>
+    <Method name="getUserException"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaExecutionResult"/>
+    <Method name="setSystemException"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaExecutionResult"/>
+    <Method name="setUserException"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance"/>
+    <Method name="getPendingAsyncRequests"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance$AsyncFuncRequest"/>
+    <Method name="getProcessResult"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstance$AsyncFuncRequest"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Method name="getDeathException"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.JavaInstanceRunnable"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.OutputRecordSinkRecord"/>
+    <Method name="getSchema"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getLatestSinkExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getLatestSourceExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getLatestSystemExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getLatestUserExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getSinkExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getSourceExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatProcessLatency"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatProcessLatency1min"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalProcessedSuccessfully"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalProcessedSuccessfully1min"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalRecordsReceived"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalRecordsReceived1min"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalSysExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalSysExceptions1min"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalUserExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatTotalUserExceptions1min"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatlastInvocation"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getStatlastInvocationChild"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getSysExceptionRateLimiter"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getSysExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getUserExceptionRateLimiter"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="getUserExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="setLatestSystemExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.FunctionStatsManager"/>
+    <Method name="setLatestUserExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.SinkStatsManager"/>
+    <Method name="getLatestSinkExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.SinkStatsManager"/>
+    <Method name="getLatestSourceExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.SinkStatsManager"/>
+    <Method name="getLatestSystemExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.SinkStatsManager"/>
+    <Method name="getLatestUserExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.SourceStatsManager"/>
+    <Method name="getLatestSourceExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.stats.SourceStatsManager"/>
+    <Method name="getLatestSystemExceptions"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSink"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSinkConfig"/>
+    <Method name="getProducerConfig"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSinkConfig"/>
+    <Method name="getSchemaProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSinkConfig"/>
+    <Method name="setProducerConfig"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.sink.PulsarSinkConfig"/>
+    <Method name="setSchemaProperties"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.batch.BatchSourceExecutor"/>
+    <Method name="open"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
+    <Method name="getInputConsumers"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSource"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSourceConfig"/>
+    <Method name="getTopicSchema"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.MultiConsumerPulsarSourceConfig"/>
+    <Method name="setTopicSchema"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.PulsarFunctionRecord"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.PulsarRecord"/>
+    <Method name="getSchema"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.PulsarRecord$PulsarRecordBuilder"/>
+    <Method name="schema"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.PulsarSourceConsumerConfig$PulsarSourceConsumerConfigBuilder"/>
+    <Method name="consumerProperties"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.PulsarSourceConsumerConfig$PulsarSourceConsumerConfigBuilder"/>
+    <Method name="schema"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+    <Method name="getInputConsumers"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSource"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig"/>
+    <Method name="getConsumerConfig"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig"/>
+    <Method name="setConsumerConfig"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.triggers.CountTriggerPolicy"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.triggers.TimeTriggerPolicy"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.triggers.WatermarkCountTriggerPolicy"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.triggers.WatermarkCountTriggerPolicy"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.triggers.WatermarkTimeTriggerPolicy"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.triggers.WatermarkTimeTriggerPolicy"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WaterMarkEventGenerator"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WaterMarkEventGenerator"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowImpl"/>
+    <Method name="get"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowImpl"/>
+    <Method name="getExpired"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowImpl"/>
+    <Method name="getNew"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowImpl"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowImpl"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowImpl"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowManager"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.windowing.WindowManager"/>
+    <Method name="setEvictionPolicy"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

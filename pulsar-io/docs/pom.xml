@@ -54,6 +54,11 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-io-alluxio</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-canal</artifactId>
       <version>${project.version}</version>
     </dependency>

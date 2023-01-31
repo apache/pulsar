@@ -61,7 +61,7 @@ class ProtocolHandlerUtils {
     private static ProtocolHandlerDefinition getProtocolHandlerDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(
             configStr, ProtocolHandlerDefinition.class
         );
     }
