@@ -864,11 +864,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                                 decrementUsageCount();
                                 return FutureUtil.failedFuture(
-                                        new BrokerServiceException("Connection was closed while the opening the cursor "));
+                                        new BrokerServiceException(
+                                                "Connection was closed while the opening the cursor "));
                             } else {
                                 checkReplicatedSubscriptionControllerState();
                                 if (log.isDebugEnabled()) {
-                                    log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                                    log.debug("[{}][{}] Created new subscription for {}",
+                                            topic, subscriptionName, consumerId);
                                 }
                                 return CompletableFuture.completedFuture(consumer);
                             }
