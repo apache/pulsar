@@ -113,8 +113,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                     String topic1 = inv.getArgument(0);
                     ManagedLedger ledger = inv.getArgument(1);
                     BrokerService service = inv.getArgument(2);
-                    Class<?> topicKlass = inv.getArgument(3);
-                    if (topicKlass.equals(PersistentTopic.class)) {
+                    if (TopicName.get(topic1).isPersistent()) {
                         PersistentTopic pt = Mockito.spy(new PersistentTopic(topic1, ledger, service));
                         CompletableFuture<Void> f = new CompletableFuture<>();
                         f.completeExceptionally(new ManagedLedgerException("This is an exception"));
@@ -130,7 +129,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
 
         brokerService.createPersistentTopic0(topic, true, new CompletableFuture<>(), Collections.emptyMap());
 
-        Awaitility.waitAtMost(3, TimeUnit.MINUTES).until(() -> reference.get() != null);
+        Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
