@@ -2047,7 +2047,7 @@ public abstract class NamespacesBase extends AdminResource {
 
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE)
                 .thenApply(v -> validatePoliciesReadOnlyAccessAsync())
-                .thenApply(v -> updatePoliciesAsync(namespaceName,
+                .thenCompose(v -> updatePoliciesAsync(namespaceName,
                         policies -> {
                             if (policies.offload_policies == null) {
                                 policies.offload_policies = new OffloadPoliciesImpl();
