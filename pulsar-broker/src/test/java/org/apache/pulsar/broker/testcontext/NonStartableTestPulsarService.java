@@ -49,11 +49,9 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * Subclass of PulsarService that is used for some tests.
- * This was written as a replacement for the previous Mockito Spy over PulsarService solution which caused
- * a flaky test issue https://github.com/apache/pulsar/issues/13620.
+ * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService} implementation
+ * for a "non-startable" PulsarService. Please see {@link PulsarTestContext} for more details.
  */
-
 class NonStartableTestPulsarService extends AbstractTestPulsarService {
     private final PulsarResources pulsarResources;
     private final ManagedLedgerStorage managedLedgerClientFactory;

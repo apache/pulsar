@@ -31,6 +31,10 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+/**
+ * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService} implementation
+ * for a "startable" PulsarService. Please see {@link PulsarTestContext} for more details.
+ */
 class StartableTestPulsarService extends AbstractTestPulsarService {
     private final Function<BrokerService, BrokerService> brokerServiceCustomizer;
 
