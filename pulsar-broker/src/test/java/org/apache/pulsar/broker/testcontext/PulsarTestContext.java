@@ -69,6 +69,55 @@ import org.jetbrains.annotations.NotNull;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 
+/**
+ * A test context that can be used to set up a Pulsar broker and associated resources.
+ *
+ * There are 2 types of Pulsar unit tests that use a PulsarService:
+ * <ul>
+ * <li>Some Pulsar unit tests use a PulsarService that isn't started</li>
+ * <li>Some Pulsar unit tests start the PulsarService and use less mocking</li>
+ * </ul>
+ *
+ * This class can be used to set up a PulsarService that can be used in both types of tests.
+ *
+ * There are few motivations for PulsarTestContext:
+ * <ul>
+ * <li>It reduces the reliance on Mockito for hooking into the PulsarService for injecting mocks or customizing the behavior of some
+ * collaborators. Mockito is not thread-safe and some mocking operations get corrupted. Some examples of the issuess: https://github.com/apache/pulsar/issues/13620, https://github.com/apache/pulsar/issues/16444 and https://github.com/apache/pulsar/issues/16427.</li>
+ * <li>Since the Mockito issue causes test flakiness, this change will improve reliability.</li>
+ * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
+ * deep test base cases hierarchies.</li>
+ * <li>It reduces code duplication across test classes.</li>
+ * <li>Previous tests were using SameThreadOrderedExecutor for PulsarService's orderedExecutor. The reason is unknown. Executing in the same thread could hide real concurrency issues.</li>
+ * </ul>
+ *
+ * <h2>Example usage of a PulsarService that is started</h2>
+ * <pre>{@code
+ * PulsarTestContext testContext = PulsarTestContext.startableBuilder()
+ *     .spyByDefault()
+ *     .withMockZooKeeper()
+ *     .build();
+ * PulsarService pulsarService = testContext.getPulsarService();
+ * try {
+ *     // Do some testing
+ * } finally {
+ *     testContext.close();
+ * }
+ * }</pre>
+ *
+ * <h2>Example usage of a PulsarService that is not started at all</h2>
+ * <pre>{@code
+ * PulsarTestContext testContext = PulsarTestContext.builder()
+ *     .spyByDefault()
+ *     .build();
+ * PulsarService pulsarService = testContext.getPulsarService();
+ * try {
+ *     // Do some testing
+ * } finally {
+ *     testContext.close();
+ * }
+ * }</pre>
+ */
 @Slf4j
 @ToString
 @Getter
