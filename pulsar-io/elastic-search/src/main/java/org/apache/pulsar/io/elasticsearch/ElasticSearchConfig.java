@@ -214,10 +214,10 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "5",
-            help = "Idle connection timeout to prevent a read timeout."
+            defaultValue = "30000",
+            help = "Idle connection timeout to prevent a connection timeout due to inactivity."
     )
-    private int connectionIdleTimeoutInMs = 5;
+    private int connectionIdleTimeoutInMs = 30000;
 
     @FieldDoc(
             required = false,
