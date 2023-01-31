@@ -447,12 +447,12 @@ public class ProxyConnection extends PulsarHandler {
             LOG.debug("[{}] Authentication in progress client by method {}.",
                     remoteAddress, authMethod);
         }
-        state = State.Connecting;
     }
 
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Init);
+        state = State.Connecting;
         this.setRemoteEndpointProtocolVersion(connect.getProtocolVersion());
         this.hasProxyToBrokerUrl = connect.hasProxyToBrokerUrl();
         this.protocolVersionToAdvertise = getProtocolVersionToAdvertise(connect);
