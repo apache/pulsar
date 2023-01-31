@@ -146,6 +146,7 @@ public class TransactionMetadataStoreService {
                                     stores.put(tcId, store);
                                     LOG.info("Added new transaction meta store {}", tcId);
                                     recoverTracker.handleCommittingAndAbortingTransaction();
+                                    timeoutTracker.start();
 
                                     long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
                                     while (true) {
