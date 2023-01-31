@@ -32,6 +32,11 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+/**
+ * This is an internal class used by {@link PulsarTestContext} as the abstract base class for
+ * {@link PulsarService} implementations for a PulsarService instance used in tests.
+ * Please see {@link PulsarTestContext} for more details.
+ */
 abstract class AbstractTestPulsarService extends PulsarService {
     protected final SpyConfig spyConfig;
     protected final MetadataStoreExtended localMetadataStore;
