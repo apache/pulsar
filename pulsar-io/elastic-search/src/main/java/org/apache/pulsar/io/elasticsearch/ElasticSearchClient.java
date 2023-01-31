@@ -188,7 +188,6 @@ public class ElasticSearchClient implements AutoCloseable {
         this.executorService.scheduleAtFixedRate(new Runnable() {
                                                      @Override
                                                      public void run() {
-                                                         configCallback.connectionManager.closeExpiredConnections();
                                                          configCallback.connectionManager.closeIdleConnections(
                                                                  config.getConnectionIdleTimeoutInMs(), TimeUnit.MILLISECONDS);
                                                      }
