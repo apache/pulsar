@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.ComparisonChain;
 import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
 
@@ -72,11 +73,21 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
-            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).batchIndex : NO_BATCH;
-            return messageIdCompare(
-                this.ledgerId, this.entryId, this.partitionIndex, this.batchIndex,
-                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
-            );
+            int compareWithoutBatchIndex = messageIdCompare(
+                    this.ledgerId, this.entryId, this.partitionIndex,
+                    other.ledgerId, other.entryId, other.partitionIndex);
+            if (compareWithoutBatchIndex != 0) {
+                return compareWithoutBatchIndex;
+            } else {
+                if (!(o instanceof BatchMessageIdImpl)) {
+                    throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
+                            + o.getClass().getName()
+                            + " when they have the same `LedgerId`, `EntryId` and `PartitionIndex`.");
+                } else {
+                    return ComparisonChain.start().compare(this.batchIndex,
+                            ((BatchMessageIdImpl) o).batchIndex).result();
+                }
+            }
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
@@ -138,6 +149,18 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     public BatchMessageAcker getAcker() {
         return acker;
+    }
+
+    static int messageIdCompare(
+            long ledgerId1, long entryId1, int partitionIndex1, int batchIndex1,
+            long ledgerId2, long entryId2, int partitionIndex2, int batchIndex2
+    ) {
+        return ComparisonChain.start()
+                .compare(ledgerId1, ledgerId2)
+                .compare(entryId1, entryId2)
+                .compare(partitionIndex1, partitionIndex2)
+                .compare(batchIndex1, batchIndex2)
+                .result();
     }
 
 }

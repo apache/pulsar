@@ -34,159 +34,527 @@ import org.testng.annotations.Test;
  */
 public class MessageIdCompareToTest  {
 
+    private final static String BATCH_MESSAGE_ID_COMPARE_WITH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE = "org.apache.pulsar"
+            + ".client.impl.BatchMessageIdImpl can't compare with "
+            + "org.apache.pulsar.client.impl.MessageIdImpl when they "
+            + "have the same `LedgerId`, `EntryId` and `PartitionIndex`.";
+
+    private final static String MESSAGE_ID_COMPARE_WITH_BATCH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE = "org.apache.pulsar"
+            + ".client.impl.MessageIdImpl can't compare with "
+            + "org.apache.pulsar.client.impl.BatchMessageIdImpl "
+            + "when they have the same `LedgerId`, `EntryId` and `PartitionIndex`.";
+
+    // MessageIdImpl
+    private final MessageIdImpl normalMessageIdImpl = new MessageIdImpl(123L, 345L, 567);
+
+    // BatchMessageIdImpl
+    private final BatchMessageIdImpl normalBatchMessageId =
+            new BatchMessageIdImpl(123L, 345L, 567, 567);
+    private final TopicMessageIdImpl normalTopicMessageIdImplByMessageIdImpl = new TopicMessageIdImpl(
+            "test-topic-partition-0", "test-topic",
+            new MessageIdImpl(123L, 345L, 567));
+
+    private final TopicMessageIdImpl normalTopicMessageIdImplByBatchMessageIdImpl = new TopicMessageIdImpl(
+            "test-topic-partition-0", "test-topic",
+            new BatchMessageIdImpl(123L, 345L, 567, 567));
+
+
     @Test
     public void testEqual() {
         MessageIdImpl messageIdImpl1 = new MessageIdImpl(123L, 345L, 567);
-        MessageIdImpl messageIdImpl2 = new MessageIdImpl(123L, 345L, 567);
 
-        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(234L, 345L, 456, 567);
-        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(234L, 345L, 456, 567);
+        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(123L, 345L, 567, 567);
 
-        assertEquals(messageIdImpl1.compareTo(messageIdImpl2), 0, "Expected to be equal");
-        assertEquals(batchMessageId1.compareTo(batchMessageId2), 0, "Expected to be equal");
+        TopicMessageIdImpl topicMessageIdWithMessageId = new TopicMessageIdImpl(
+                "test-topic-partition-0", "test-topic",
+                new MessageIdImpl(123L, 345L, 567));
+
+        TopicMessageIdImpl topicMessageIdWithBatchMessageId = new TopicMessageIdImpl(
+                "test-topic-partition-0", "test-topic",
+                new BatchMessageIdImpl(123L, 345L, 567, 567));
+
+
+        assertEquals(messageIdImpl1.compareTo(normalMessageIdImpl), 0, "Expected to be equal");
+        assertEquals(messageIdImpl1.compareTo(normalTopicMessageIdImplByMessageIdImpl), 0, "Expected to be equal");
+
+        assertEquals(batchMessageId1.compareTo(normalBatchMessageId), 0, "Expected to be equal");
+        assertEquals(batchMessageId1.compareTo(normalTopicMessageIdImplByBatchMessageIdImpl),
+                0, "Expected to be equal");
+
+        assertEquals(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(normalBatchMessageId), 0, "Expected to be equal");
+        assertEquals(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithBatchMessageId), 0, "Expected to be equal");
+
+        assertEquals(normalTopicMessageIdImplByMessageIdImpl.compareTo(normalMessageIdImpl),
+                0, "Expected to be equal");
+        assertEquals(normalTopicMessageIdImplByMessageIdImpl.compareTo(topicMessageIdWithMessageId),
+                0, "Expected to be equal");
     }
+
+//    @Test
+//    public void testMessageIdAndBatchIdSpecialEquals() {
+//        BatchMessageIdImpl minBatchMessageId = new BatchMessageIdImpl(-1, -1, -1, -1);
+//        BatchMessageIdImpl maxBatchMessageId = new BatchMessageIdImpl(Long.MAX_VALUE, Long.MAX_VALUE, -1, -1);
+//
+//        assertEquals(minBatchMessageId.compareTo(MessageId.earliest), 0, "Expected to be equal");
+//        assertEquals(maxBatchMessageId.compareTo(MessageId.latest), 0, "Expected to be equal");
+//
+//        assertEquals(MessageId.earliest.compareTo(minBatchMessageId), 0, "Expected to be equal");
+//        assertEquals(MessageId.latest.compareTo(maxBatchMessageId), 0, "Expected to be equal");
+//
+//        BatchMessageIdImpl batchMessageIdWithMinEntryId = new BatchMessageIdImpl(123, -1, -1, -1);
+//        MessageIdImpl messageIdWithMinEntryId = new MessageIdImpl(123, -1, -1);
+//
+//        assertEquals(batchMessageIdWithMinEntryId.compareTo(messageIdWithMinEntryId), 0,
+//                "Expected to be equal");
+//        assertEquals(messageIdWithMinEntryId.compareTo(batchMessageIdWithMinEntryId), 0,
+//                "Expected to be equal");
+//    }
 
     @Test
     public void testGreaterThan() {
-        MessageIdImpl messageIdImpl1 = new MessageIdImpl(124L, 345L, 567);
-        MessageIdImpl messageIdImpl2 = new MessageIdImpl(123L, 345L, 567);
-        MessageIdImpl messageIdImpl3 = new MessageIdImpl(123L, 344L, 567);
-        MessageIdImpl messageIdImpl4 = new MessageIdImpl(123L, 344L, 566);
 
-        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(235L, 345L, 456, 567);
-        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(234L, 346L, 456, 567);
-        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(234L, 345L, 456, 568);
-        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(234L, 345L, 457, 567);
-        BatchMessageIdImpl batchMessageId5 = new BatchMessageIdImpl(234L, 345L, 456, 567);
+        // MessageIdImpl
+        MessageIdImpl messageIdWithSmallerLedgerId = new MessageIdImpl(122L, 345L, 567);
+        MessageIdImpl messageIdWithSmallerEntryId = new MessageIdImpl(123L, 344L, 567);
+        MessageIdImpl messageIdWithSmallerPartitionIndex = new MessageIdImpl(123L, 345L, 566);
 
-        assertTrue(messageIdImpl1.compareTo(messageIdImpl2) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl1.compareTo(messageIdImpl3) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl1.compareTo(messageIdImpl4) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl2.compareTo(messageIdImpl3) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl2.compareTo(messageIdImpl4) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl3.compareTo(messageIdImpl4) > 0, "Expected to be greater than");
+        // BatchMessageIdImpl
+        BatchMessageIdImpl batchMessageIdWithSmallerLedgerId =
+                new BatchMessageIdImpl(122L, 345L, 567, 567);
+        BatchMessageIdImpl batchMessageIdWithSmallerEntryId =
+                new BatchMessageIdImpl(123L, 344L, 567, 567);
+        BatchMessageIdImpl batchMessageIdWithSmallerPartitionIndex  =
+                new BatchMessageIdImpl(123L, 345L, 566, 567);
+        BatchMessageIdImpl batchMessageIdWithSmallerBatchIndex =
+                new BatchMessageIdImpl(123L, 345L, 567, 566);
 
-        assertTrue(batchMessageId1.compareTo(batchMessageId2) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId1.compareTo(batchMessageId3) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId1.compareTo(batchMessageId4) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId1.compareTo(batchMessageId5) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId2.compareTo(batchMessageId3) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId2.compareTo(batchMessageId4) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId2.compareTo(batchMessageId5) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId3) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId5) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId5) > 0, "Expected to be greater than");
+        // TopicMessageIdImpl with BatchMessageIdImpl
+        TopicMessageIdImpl topicMessageIdWithSmallerLedgerIdByBatchMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(122L, 345L, 567, 567));
+        TopicMessageIdImpl topicMessageIdWithSmallerEntryIdByBatchMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(123L, 344L, 567, 567));
+        TopicMessageIdImpl topicMessageIdWithSmallerPartitionIndexByBatchMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(123L, 345L, 566, 567));
+        TopicMessageIdImpl topicMessageIdWithSmallerBatchIndexByBatchMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(123L, 345L, 567, 566));
+
+        // TopicMessageIdImpl with MessageIdImpl
+        TopicMessageIdImpl topicMessageIdWithSmallerLedgerIdByMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new MessageIdImpl(122L, 345L, 567));
+        TopicMessageIdImpl topicMessageIdWithSmallerEntryIdByMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new MessageIdImpl(123L, 344L, 567));
+        TopicMessageIdImpl topicMessageIdWithSmallerPartitionIndexByMessageId =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new MessageIdImpl(123L, 345L, 566));
+
+
+        // MessageIdImpl compare with MessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(messageIdWithSmallerLedgerId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(messageIdWithSmallerEntryId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(messageIdWithSmallerPartitionIndex) > 0,
+                "Expected to be greater than");
+
+        // MessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(batchMessageIdWithSmallerLedgerId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(batchMessageIdWithSmallerEntryId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(batchMessageIdWithSmallerPartitionIndex) > 0,
+                "Expected to be greater than");
+
+        // MessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithSmallerLedgerIdByMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithSmallerEntryIdByMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithSmallerPartitionIndexByMessageId) > 0,
+                "Expected to be greater than");
+
+        // MessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithSmallerLedgerIdByBatchMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithSmallerEntryIdByBatchMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithSmallerPartitionIndexByBatchMessageId) > 0,
+                "Expected to be greater than");
+
+        // BatchMessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithSmallerLedgerId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithSmallerEntryId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithSmallerPartitionIndex) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithSmallerBatchIndex) > 0,
+                "Expected to be greater than");
+
+        // BatchMessageIdImpl compare with MessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(messageIdWithSmallerLedgerId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(messageIdWithSmallerEntryId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(messageIdWithSmallerPartitionIndex) > 0,
+                "Expected to be greater than");
+
+        // BatchMessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerLedgerIdByBatchMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerEntryIdByBatchMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerPartitionIndexByBatchMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerBatchIndexByBatchMessageId) > 0,
+                "Expected to be greater than");
+
+        // BatchMessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerLedgerIdByMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerEntryIdByMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithSmallerPartitionIndexByMessageId) > 0,
+                "Expected to be greater than");
+
+
+        // TopicMessageIdImpl by MessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerLedgerIdByMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl.
+                compareTo(topicMessageIdWithSmallerEntryIdByMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerPartitionIndexByMessageId) > 0, "Expected to be greater than");
+
+        // TopicMessageIdImpl by MessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerLedgerIdByBatchMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerEntryIdByBatchMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                        .compareTo(topicMessageIdWithSmallerPartitionIndexByBatchMessageId) > 0,
+                "Expected to be greater than");
+
+        // TopicMessageIdImpl by MessageIdImpl compare with MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(messageIdWithSmallerLedgerId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl.
+                compareTo(messageIdWithSmallerEntryId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(messageIdWithSmallerPartitionIndex) > 0, "Expected to be greater than");
+
+        // TopicMessageIdImpl by MessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(batchMessageIdWithSmallerLedgerId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(batchMessageIdWithSmallerEntryId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(batchMessageIdWithSmallerPartitionIndex) > 0, "Expected to be greater than");
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerLedgerIdByBatchMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(topicMessageIdWithSmallerEntryIdByBatchMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerPartitionIndexByBatchMessageId) > 0,
+                "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(topicMessageIdWithSmallerBatchIndexByBatchMessageId) > 0,
+                "Expected to be greater than");
+
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerLedgerIdByMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(topicMessageIdWithSmallerEntryIdByMessageId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithSmallerPartitionIndexByMessageId) > 0, "Expected to be greater than");
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(batchMessageIdWithSmallerLedgerId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(batchMessageIdWithSmallerEntryId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(batchMessageIdWithSmallerPartitionIndex) > 0,
+                "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(batchMessageIdWithSmallerBatchIndex) > 0,
+                "Expected to be greater than");
+
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(messageIdWithSmallerLedgerId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(messageIdWithSmallerEntryId) > 0, "Expected to be greater than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(messageIdWithSmallerPartitionIndex) > 0, "Expected to be greater than");
     }
 
     @Test
     public void testLessThan() {
-        MessageIdImpl messageIdImpl1 = new MessageIdImpl(124L, 345L, 567);
-        MessageIdImpl messageIdImpl2 = new MessageIdImpl(123L, 345L, 567);
-        MessageIdImpl messageIdImpl3 = new MessageIdImpl(123L, 344L, 567);
-        MessageIdImpl messageIdImpl4 = new MessageIdImpl(123L, 344L, 566);
+        // MessageIdImpl
+        MessageIdImpl messageIdImplWithLargerLedgerId = new MessageIdImpl(124L, 345L, 567);
+        MessageIdImpl messageIdImplWithLargerEntryId = new MessageIdImpl(123L, 346L, 567);
+        MessageIdImpl messageIdImplWithLargerPartitionIndex = new MessageIdImpl(124L, 345L, 567);
 
-        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(235L, 345L, 456, 567);
-        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(234L, 346L, 456, 567);
-        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(234L, 345L, 456, 568);
-        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(234L, 345L, 457, 567);
-        BatchMessageIdImpl batchMessageId5 = new BatchMessageIdImpl(234L, 345L, 456, 567);
+        // BatchMessageIdImpl
+        BatchMessageIdImpl batchMessageIdWithLargerLedgerId  =
+                new BatchMessageIdImpl(124L, 345L, 567, 567);
+        BatchMessageIdImpl batchMessageIdWithLargerEntryId =
+                new BatchMessageIdImpl(123L, 346L, 567, 567);
+        BatchMessageIdImpl batchMessageIdWithLargerPartitionIndex  =
+                new BatchMessageIdImpl(123L, 345L, 568, 567);
+        BatchMessageIdImpl batchMessageIdWithLargerBatchIndex  =
+                new BatchMessageIdImpl(123L, 345L, 567, 568);
 
-        assertTrue(messageIdImpl2.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertTrue(messageIdImpl3.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertTrue(messageIdImpl4.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertTrue(messageIdImpl3.compareTo(messageIdImpl2) < 0, "Expected to be less than");
-        assertTrue(messageIdImpl4.compareTo(messageIdImpl2) < 0, "Expected to be less than");
-        assertTrue(messageIdImpl4.compareTo(messageIdImpl3) < 0, "Expected to be less than");
+        // TopicMessageIdImpl with BatchMessageIdImpl
+        TopicMessageIdImpl topicMessageIdWithLargerLedgerIdByBatchMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(124L, 345L, 567, 567));
+        TopicMessageIdImpl topicMessageIdWithLargerEntryIdByBatchMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(123L, 346L, 567, 567));
+        TopicMessageIdImpl topicMessageIdWithLargerPartitionIndexByBatchMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(123L, 345L, 568, 567));
+        TopicMessageIdImpl topicMessageIdWithLargerBatchIndexByBatchMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new BatchMessageIdImpl(123L, 345L, 567, 568));
 
-        assertTrue(batchMessageId2.compareTo(batchMessageId1) < 0, "Expected to be less than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId1) < 0, "Expected to be less than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId1) < 0, "Expected to be less than");
-        assertTrue(batchMessageId5.compareTo(batchMessageId1) < 0, "Expected to be less than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(batchMessageId4.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(batchMessageId5.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(batchMessageId3.compareTo(batchMessageId4) < 0, "Expected to be less than");
-        assertTrue(batchMessageId5.compareTo(batchMessageId3) < 0, "Expected to be less than");
-        assertTrue(batchMessageId5.compareTo(batchMessageId4) < 0, "Expected to be less than");
+        // TopicMessageIdImpl with MessageIdImpl
+        TopicMessageIdImpl topicMessageIdWithLargerLedgerIdByMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new MessageIdImpl(124L, 345L, 567));
+        TopicMessageIdImpl topicMessageIdWithLargerEntryIdByMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new MessageIdImpl(123L, 346L, 567));
+        TopicMessageIdImpl topicMessageIdWithLargerPartitionIndexMessageIdImpl =
+                new TopicMessageIdImpl("test-topic-partition-0",
+                        "test-topic", new MessageIdImpl(123L, 345L, 568));
+
+        // MessageIdImpl compare with MessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(messageIdImplWithLargerLedgerId) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(messageIdImplWithLargerEntryId) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(messageIdImplWithLargerPartitionIndex) < 0,
+                "Expected to be less than");
+
+        // MessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(batchMessageIdWithLargerLedgerId) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(batchMessageIdWithLargerEntryId) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(batchMessageIdWithLargerPartitionIndex) < 0,
+                "Expected to be less than");
+
+        // MessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithLargerLedgerIdByMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithLargerEntryIdByMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithLargerPartitionIndexMessageIdImpl) < 0,
+                "Expected to be less than");
+
+        // MessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithLargerLedgerIdByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithLargerEntryIdByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalMessageIdImpl.compareTo(topicMessageIdWithLargerPartitionIndexByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+
+        // BatchMessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithLargerLedgerId) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithLargerEntryId) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithLargerPartitionIndex) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(batchMessageIdWithLargerBatchIndex) < 0,
+                "Expected to be less than");
+
+        // BatchMessageIdImpl compare with MessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(messageIdImplWithLargerLedgerId) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(messageIdImplWithLargerEntryId) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(messageIdImplWithLargerPartitionIndex) < 0,
+                "Expected to be less than");
+
+        // BatchMessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithLargerLedgerIdByMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithLargerEntryIdByMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithLargerPartitionIndexMessageIdImpl) < 0,
+                "Expected to be less than");
+
+        // BatchMessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithLargerLedgerIdByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithLargerEntryIdByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId
+                .compareTo(topicMessageIdWithLargerPartitionIndexByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalBatchMessageId.compareTo(topicMessageIdWithLargerBatchIndexByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+
+
+        // TopicMessageIdImpl by MessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithLargerLedgerIdByMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl.
+                compareTo(topicMessageIdWithLargerEntryIdByMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithLargerPartitionIndexMessageIdImpl) < 0, "Expected to be less than");
+
+        // TopicMessageIdImpl by MessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithLargerLedgerIdByBatchMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(topicMessageIdWithLargerEntryIdByBatchMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                        .compareTo(topicMessageIdWithLargerPartitionIndexByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+
+        // TopicMessageIdImpl by MessageIdImpl compare with MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(messageIdImplWithLargerLedgerId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl.
+                compareTo(messageIdImplWithLargerEntryId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(messageIdImplWithLargerPartitionIndex) < 0, "Expected to be less than");
+
+        // TopicMessageIdImpl by MessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(batchMessageIdWithLargerLedgerId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                .compareTo(batchMessageIdWithLargerEntryId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByMessageIdImpl
+                        .compareTo(batchMessageIdWithLargerPartitionIndex) < 0,
+                "Expected to be less than");
+
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with TopicMessageIdImpl by BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithLargerLedgerIdByBatchMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(topicMessageIdWithLargerEntryIdByBatchMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(topicMessageIdWithLargerPartitionIndexByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(topicMessageIdWithLargerBatchIndexByBatchMessageIdImpl) < 0,
+                "Expected to be less than");
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with TopicMessageIdImpl by MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithLargerLedgerIdByMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(topicMessageIdWithLargerEntryIdByMessageIdImpl) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(topicMessageIdWithLargerPartitionIndexMessageIdImpl) < 0, "Expected to be less than");
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with BatchMessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(batchMessageIdWithLargerLedgerId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(batchMessageIdWithLargerEntryId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(batchMessageIdWithLargerPartitionIndex) < 0,
+                "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                        .compareTo(batchMessageIdWithLargerBatchIndex) < 0,
+                "Expected to be less than");
+
+        // TopicMessageIdImpl by BatchMessageIdImpl compare with MessageIdImpl
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(messageIdImplWithLargerLedgerId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl.
+                compareTo(messageIdImplWithLargerEntryId) < 0, "Expected to be less than");
+        assertTrue(normalTopicMessageIdImplByBatchMessageIdImpl
+                .compareTo(messageIdImplWithLargerPartitionIndex) < 0, "Expected to be less than");
     }
 
     @Test
-    public void testCompareDifferentType() {
-        MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
-        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(123L, 345L, 566, 789);
-        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(123L, 345L, 567, 789);
-        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(messageIdImpl);
-        assertTrue(messageIdImpl.compareTo(batchMessageId1) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertEquals(messageIdImpl.compareTo(batchMessageId3), 0, "Expected to be equal");
-        assertTrue(batchMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
-        assertTrue(batchMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
-        assertEquals(batchMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
-    }
+    public void testMessageIdImplAndBatchMessageIdImplWithSameLedgerIdAndEntryIdAndPartitionIndex() {
+        try {
+            normalMessageIdImpl.compareTo(normalBatchMessageId);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), MESSAGE_ID_COMPARE_WITH_BATCH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
 
-    @Test
-    public void compareToSymmetricTest() {
-        MessageIdImpl simpleMessageId = new MessageIdImpl(123L, 345L, 567);
-        // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
-        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(123L, 345L, 567, -1);
-        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(123L, 345L, 567, 1);
-        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(123L, 345L, 566, 1);
-        BatchMessageIdImpl batchMessageId4 = new BatchMessageIdImpl(123L, 345L, 566, -1);
+        try {
+            normalMessageIdImpl.compareTo(normalTopicMessageIdImplByBatchMessageIdImpl);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), MESSAGE_ID_COMPARE_WITH_BATCH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
 
-        assertEquals(simpleMessageId.compareTo(batchMessageId1), 0, "Expected to be equal");
-        assertEquals(batchMessageId1.compareTo(simpleMessageId), 0, "Expected to be equal");
-        assertTrue(batchMessageId2.compareTo(simpleMessageId) > 0, "Expected to be greater than");
-        assertTrue(simpleMessageId.compareTo(batchMessageId2) < 0, "Expected to be less than");
-        assertTrue(simpleMessageId.compareTo(batchMessageId3) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId3.compareTo(simpleMessageId) < 0, "Expected to be less than");
-        assertTrue(simpleMessageId.compareTo(batchMessageId4) > 0, "Expected to be greater than");
-        assertTrue(batchMessageId4.compareTo(simpleMessageId) < 0, "Expected to be less than");
-    }
+        try {
+            normalBatchMessageId.compareTo(normalMessageIdImpl);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), BATCH_MESSAGE_ID_COMPARE_WITH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
 
-    @Test
-    public void testMessageIdImplCompareToTopicMessageId() {
-        MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
-        TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            "test-topic",
-            new BatchMessageIdImpl(123L, 345L, 566, 789));
-        TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            "test-topic",
-            new BatchMessageIdImpl(123L, 345L, 567, 789));
-        TopicMessageIdImpl topicMessageId3 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            "test-topic",
-            new BatchMessageIdImpl(messageIdImpl));
-        assertTrue(messageIdImpl.compareTo(topicMessageId1) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl.compareTo(topicMessageId2) < 0, "Expected to be less than");
-        assertEquals(messageIdImpl.compareTo(topicMessageId3), 0, "Expected to be equal");
-        assertTrue(topicMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
-        assertEquals(topicMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
-    }
+        try {
+            normalBatchMessageId.compareTo(normalTopicMessageIdImplByMessageIdImpl);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), BATCH_MESSAGE_ID_COMPARE_WITH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
 
-    @Test
-    public void testBatchMessageIdImplCompareToTopicMessageId() {
-        BatchMessageIdImpl messageIdImpl1 = new BatchMessageIdImpl(123L, 345L, 567, 789);
-        BatchMessageIdImpl messageIdImpl2 = new BatchMessageIdImpl(123L, 345L, 567, 0);
-        BatchMessageIdImpl messageIdImpl3 = new BatchMessageIdImpl(123L, 345L, 567, -1);
-        TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            "test-topic",
-            new MessageIdImpl(123L, 345L, 566));
-        TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
-            "test-topic-partition-0",
-            "test-topic",
-            new MessageIdImpl(123L, 345L, 567));
-        assertTrue(messageIdImpl1.compareTo(topicMessageId1) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl1.compareTo(topicMessageId2) > 0, "Expected to be greater than");
-        assertTrue(messageIdImpl2.compareTo(topicMessageId2) > 0, "Expected to be greater than");
-        assertEquals(messageIdImpl3.compareTo(topicMessageId2), 0, "Expected to be equal");
-        assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl1) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
+        try {
+            normalTopicMessageIdImplByMessageIdImpl.compareTo(normalTopicMessageIdImplByBatchMessageIdImpl);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), MESSAGE_ID_COMPARE_WITH_BATCH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
+
+        try {
+            normalTopicMessageIdImplByMessageIdImpl.compareTo(normalBatchMessageId);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), MESSAGE_ID_COMPARE_WITH_BATCH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
+
+        try {
+            normalTopicMessageIdImplByBatchMessageIdImpl.compareTo(normalTopicMessageIdImplByMessageIdImpl);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), BATCH_MESSAGE_ID_COMPARE_WITH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
+
+        try {
+            normalTopicMessageIdImplByBatchMessageIdImpl.compareTo(normalMessageIdImpl);
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof UnsupportedOperationException);
+            assertEquals(e.getMessage(), BATCH_MESSAGE_ID_COMPARE_WITH_MESSAGE_ID_THROW_EXCEPTION_MESSAGE);
+        }
+
     }
 
     @Test

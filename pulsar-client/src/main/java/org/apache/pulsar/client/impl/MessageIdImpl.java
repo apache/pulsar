@@ -205,11 +205,17 @@ public class MessageIdImpl implements MessageId {
     public int compareTo(@Nonnull MessageId o) {
         if (o instanceof MessageIdImpl) {
             MessageIdImpl other = (MessageIdImpl) o;
-            int batchIndex = (o instanceof BatchMessageIdImpl) ? ((BatchMessageIdImpl) o).getBatchIndex() : NO_BATCH;
-            return messageIdCompare(
-                this.ledgerId, this.entryId, this.partitionIndex, NO_BATCH,
-                other.ledgerId, other.entryId, other.partitionIndex, batchIndex
+            int compareWithoutBatchIndex = messageIdCompare(
+                    this.ledgerId, this.entryId, this.partitionIndex,
+                    other.ledgerId, other.entryId, other.partitionIndex
             );
+            if (compareWithoutBatchIndex != 0 || !(o instanceof BatchMessageIdImpl)) {
+                return compareWithoutBatchIndex;
+            } else {
+                throw new UnsupportedOperationException(this.getClass().getName() + " can't compare with "
+                        + o.getClass().getName()
+                        + " when they have the same `LedgerId`, `EntryId` and `PartitionIndex`.");
+            }
         } else if (o instanceof TopicMessageIdImpl) {
             return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
         } else {
@@ -222,14 +228,13 @@ public class MessageIdImpl implements MessageId {
     }
 
     static int messageIdCompare(
-        long ledgerId1, long entryId1, int partitionIndex1, int batchIndex1,
-        long ledgerId2, long entryId2, int partitionIndex2, int batchIndex2
+            long ledgerId1, long entryId1, int partitionIndex1,
+            long ledgerId2, long entryId2, int partitionIndex2
     ) {
         return ComparisonChain.start()
-            .compare(ledgerId1, ledgerId2)
-            .compare(entryId1, entryId2)
-            .compare(partitionIndex1, partitionIndex2)
-            .compare(batchIndex1, batchIndex2)
-            .result();
+                .compare(ledgerId1, ledgerId2)
+                .compare(entryId1, entryId2)
+                .compare(partitionIndex1, partitionIndex2)
+                .result();
     }
 }
