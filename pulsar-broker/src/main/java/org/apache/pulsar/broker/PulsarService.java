@@ -146,6 +146,7 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -198,6 +199,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
     private Compactor compactor;
+    private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
 
@@ -1471,6 +1473,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     // to avoid unnecessary lock competition.
     public Compactor getNullableCompactor() {
         return this.compactor;
+    }
+
+    public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
+        return new StrategicTwoPhaseCompactor(this.getConfiguration(),
+                getClient(), getBookKeeperClient(),
+                getCompactorExecutor());
+    }
+
+    public synchronized StrategicTwoPhaseCompactor getStrategicCompactor() throws PulsarServerException {
+        if (this.strategicCompactor == null) {
+            this.strategicCompactor = newStrategicCompactor();
+        }
+        return this.strategicCompactor;
     }
 
     protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
