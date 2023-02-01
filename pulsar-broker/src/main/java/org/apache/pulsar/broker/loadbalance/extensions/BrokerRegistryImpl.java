@@ -32,7 +32,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -70,9 +69,14 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     private volatile ResourceLock<BrokerLookupData> brokerLookupDataLock;
 
-    private volatile boolean registered = false;
+    protected enum State {
+        Init,
+        Started,
+        Registered,
+        Closed
+    }
 
-    private final AtomicBoolean started = new AtomicBoolean(false);
+    private State state;
 
     public BrokerRegistryImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -82,7 +86,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         this.listeners = new ArrayList<>();
         this.brokerId = pulsar.getLookupServiceAddress();
         this.brokerLookupData = new BrokerLookupData(
-                pulsar.getWebServiceAddress(),
+                pulsar.getSafeWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(),
                 pulsar.getBrokerServiceUrlTls(),
@@ -91,17 +95,18 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 pulsar.getConfiguration().isEnablePersistentTopics(),
                 pulsar.getConfiguration().isEnableNonPersistentTopics(),
                 pulsar.getBrokerVersion());
+        this.state = State.Init;
     }
 
     @Override
-    public void start() throws PulsarServerException {
-        if (started.get()) {
+    public synchronized void start() throws PulsarServerException {
+        if (this.state != State.Init) {
             return;
         }
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
         try {
+            this.state = State.Started;
             this.register();
-            this.started.set(true);
         } catch (MetadataStoreException e) {
             throw new PulsarServerException(e);
         }
@@ -109,16 +114,16 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public boolean isStarted() {
-        return this.started.get();
+        return this.state == State.Started || this.state == State.Registered;
     }
 
     @Override
     public synchronized void register() throws MetadataStoreException {
-        if (!registered) {
+        if (this.state == State.Started) {
             try {
                 this.brokerLookupDataLock = brokerLookupDataLockManager.acquireLock(keyPath(brokerId), brokerLookupData)
                         .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-                registered = true;
+                this.state = State.Registered;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw MetadataStoreException.unwrap(e);
             }
@@ -127,10 +132,11 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public synchronized void unregister() throws MetadataStoreException {
-        if (registered) {
+        if (this.state == State.Registered) {
             try {
-                brokerLookupDataLock.release().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-                registered = false;
+                this.brokerLookupDataLock.release()
+                        .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                this.state = State.Started;
             } catch (CompletionException | InterruptedException | ExecutionException | TimeoutException e) {
                 throw MetadataStoreException.unwrap(e);
             }
@@ -144,52 +150,61 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public CompletableFuture<List<String>> getAvailableBrokersAsync() {
+        this.checkState();
         return brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH).thenApply(Lists::newArrayList);
     }
 
     @Override
     public CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker) {
+        this.checkState();
         return brokerLookupDataLockManager.readLock(keyPath(broker));
     }
 
     public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
+        this.checkState();
         return this.getAvailableBrokersAsync().thenCompose(availableBrokers -> {
             Map<String, BrokerLookupData> map = new ConcurrentHashMap<>();
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (String brokerId : availableBrokers) {
-                futures.add(this.lookupAsync(brokerId).thenAccept(lookupDataOpt ->
-                        lookupDataOpt.ifPresent(lookupData -> map.put(brokerId, lookupData))));
+                futures.add(this.lookupAsync(brokerId).thenAccept(lookupDataOpt -> {
+                    if (lookupDataOpt.isPresent()) {
+                        map.put(brokerId, lookupDataOpt.get());
+                    } else {
+                        log.warn("Got an empty lookup data, brokerId: {}", brokerId);
+                    }
+                }));
             }
-            return FutureUtil.waitForAll(futures).thenCompose(__ -> CompletableFuture.completedFuture(map));
+            return FutureUtil.waitForAll(futures).thenApply(__ -> map);
         });
     }
 
-    public void listen(BiConsumer<String, NotificationType> listener) {
+    public synchronized void addListener(BiConsumer<String, NotificationType> listener) {
+        this.checkState();
         this.listeners.add(listener);
     }
 
     @Override
-    public void close() throws PulsarServerException {
-        if (!started.get()) {
+    public synchronized void close() throws PulsarServerException {
+        if (this.state == State.Closed) {
             return;
         }
         try {
-            this.unregister();
-            brokerLookupDataLockManager.close();
-            scheduler.shutdown();
             this.listeners.clear();
-            started.set(false);
+            this.unregister();
+            this.brokerLookupDataLockManager.close();
         } catch (Exception ex) {
             if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
                 throw new PulsarServerException.NotFoundException(MetadataStoreException.unwrap(ex));
             } else {
                 throw new PulsarServerException(MetadataStoreException.unwrap(ex));
             }
+        } finally {
+            this.state = State.Closed;
         }
     }
 
     private void handleMetadataStoreNotification(Notification t) {
-        if (!isVerifiedNotification(t)) {
+        if (!this.isStarted() || !isVerifiedNotification(t)) {
             return;
         }
         try {
@@ -218,5 +233,11 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     @VisibleForTesting
     protected static String keyPath(String brokerId) {
         return String.format("%s/%s", LOOKUP_DATA_PATH, brokerId);
+    }
+
+    private void checkState() throws IllegalStateException {
+        if (this.state == State.Closed) {
+            throw new IllegalStateException("The registry already closed.");
+        }
     }
 }

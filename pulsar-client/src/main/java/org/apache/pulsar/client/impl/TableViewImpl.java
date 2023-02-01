@@ -188,9 +188,9 @@ public class TableViewImpl<T> implements TableView<T> {
                             cur);
                 }
 
-                T prev = data.get(key);
                 boolean update = true;
                 if (compactionStrategy != null) {
+                    T prev = data.get(key);
                     update = !compactionStrategy.shouldKeepLeft(prev, cur);
                 }
 

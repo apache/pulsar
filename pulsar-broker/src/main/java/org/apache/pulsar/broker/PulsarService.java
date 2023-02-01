@@ -147,6 +147,7 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
 import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.apache.pulsar.functions.worker.ErrorNotifier;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -199,6 +200,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private TopicPoliciesService topicPoliciesService = TopicPoliciesService.DISABLED;
     private BookKeeperClientFactory bkClientFactory;
     private Compactor compactor;
+    private StrategicTwoPhaseCompactor strategicCompactor;
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
 
@@ -357,7 +359,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
-                        .allowReadOnlyOperations(config.isZooKeeperAllowReadOnlyOperations())
+                        .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
                         .configFilePath(config.getMetadataStoreConfigPath())
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
@@ -628,7 +630,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 Duration.ofMillis(Math.max(1L, getConfiguration().getBrokerShutdownTimeoutMs())),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Timeout in close", getClass(), "close"));
         future.handle((v, t) -> {
-            if (t != null) {
+            if (t != null && getConfiguration().getBrokerShutdownTimeoutMs() > 0) {
                 LOG.info("Shutdown timed out after {} ms", getConfiguration().getBrokerShutdownTimeoutMs());
                 LOG.info(ThreadDumpUtil.buildThreadDiagnosticString());
             }
@@ -741,10 +743,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 configurationMetadataStore = localMetadataStore;
                 shouldShutdownConfigurationMetadataStore = false;
             }
-            pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
-                    config.getMetadataStoreOperationTimeoutSeconds());
-
-            pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+            pulsarResources = newPulsarResources();
 
             orderedExecutor = OrderedExecutor.newBuilder()
                     .numThreads(config.getNumOrderedExecutorThreads())
@@ -758,10 +757,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
 
-            managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore,
-                    bkClientFactory, ioEventLoopGroup
-            );
+            managedLedgerClientFactory = newManagedLedgerClientFactory();
 
             this.brokerService = newBrokerService(this);
 
@@ -929,6 +925,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    @VisibleForTesting
+    protected ManagedLedgerStorage newManagedLedgerClientFactory() throws Exception {
+        return ManagedLedgerStorage.create(
+                config, localMetadataStore,
+                bkClientFactory, ioEventLoopGroup
+        );
+    }
+
+    @VisibleForTesting
+    protected PulsarResources newPulsarResources() {
+        PulsarResources pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
+                config.getMetadataStoreOperationTimeoutSeconds());
+
+        pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+        return pulsarResources;
+    }
+
     private synchronized void createMetricsServlet() {
         this.metricsServlet = new PulsarPrometheusMetricsServlet(
                 this, config.isExposeTopicLevelMetricsInPrometheus(),
@@ -1067,7 +1080,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
-                        .allowReadOnlyOperations(config.isZooKeeperAllowReadOnlyOperations())
+                        .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
                         .configFilePath(config.getMetadataStoreConfigPath())
                         .batchingEnabled(config.isMetadataStoreBatchingEnabled())
                         .batchingMaxDelayMillis(config.getMetadataStoreBatchingMaxDelayMillis())
@@ -1324,11 +1337,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     public BookKeeper getBookKeeperClient() {
-        return managedLedgerClientFactory.getBookKeeperClient();
+        return getManagedLedgerClientFactory().getBookKeeperClient();
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
-        return managedLedgerClientFactory.getManagedLedgerFactory();
+        return getManagedLedgerClientFactory().getManagedLedgerFactory();
     }
 
     public ManagedLedgerStorage getManagedLedgerClientFactory() {
@@ -1468,6 +1481,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     // to avoid unnecessary lock competition.
     public Compactor getNullableCompactor() {
         return this.compactor;
+    }
+
+    public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
+        return new StrategicTwoPhaseCompactor(this.getConfiguration(),
+                getClient(), getBookKeeperClient(),
+                getCompactorExecutor());
+    }
+
+    public synchronized StrategicTwoPhaseCompactor getStrategicCompactor() throws PulsarServerException {
+        if (this.strategicCompactor == null) {
+            this.strategicCompactor = newStrategicCompactor();
+        }
+        return this.strategicCompactor;
     }
 
     protected synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {

@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -46,11 +47,13 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
+import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -228,7 +231,7 @@ public class BrokerRegistryTest {
         BrokerRegistryImpl brokerRegistry3 = createBrokerRegistryImpl(pulsar3);
 
         Set<String> brokerIds = new HashSet<>();
-        brokerRegistry1.listen((brokerId, type) -> {
+        brokerRegistry1.addListener((brokerId, type) -> {
             brokerIds.add(brokerId);
         });
 
@@ -297,6 +300,76 @@ public class BrokerRegistryTest {
     }
 
     @Test
+    public void testCloseRegister() throws Exception {
+        PulsarService pulsar1 = createPulsarService();
+        pulsar1.start();
+        BrokerRegistryImpl brokerRegistry = createBrokerRegistryImpl(pulsar1);
+        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Init);
+
+        // Check state after stated.
+        brokerRegistry.start();
+        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
+
+        // Add a listener
+        brokerRegistry.addListener((brokerId, type) -> {
+            // Ignore.
+        });
+        assertTrue(brokerRegistry.isStarted());
+        List<BiConsumer<String, NotificationType>> listeners =
+                WhiteboxImpl.getInternalState(brokerRegistry, "listeners");
+        assertFalse(listeners.isEmpty());
+
+        // Check state after unregister.
+        brokerRegistry.unregister();
+        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Started);
+
+        // Check state after re-register.
+        brokerRegistry.register();
+        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
+
+        // Check state after close.
+        brokerRegistry.close();
+        assertFalse(brokerRegistry.isStarted());
+        assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Closed);
+        listeners = WhiteboxImpl.getInternalState(brokerRegistry, "listeners");
+        assertTrue(listeners.isEmpty());
+
+        try {
+            brokerRegistry.getAvailableBrokersAsync().get();
+            fail();
+        } catch (Exception ex) {
+            log.info("Failed to getAvailableBrokersAsync.", ex);
+            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
+        }
+
+        try {
+            brokerRegistry.getAvailableBrokerLookupDataAsync().get();
+            fail();
+        } catch (Exception ex) {
+            log.info("Failed to getAvailableBrokerLookupDataAsync.", ex);
+            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
+        }
+
+        try {
+            brokerRegistry.lookupAsync("test").get();
+            fail();
+        } catch (Exception ex) {
+            log.info("Failed to lookupAsync.", ex);
+            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
+        }
+
+        try {
+            brokerRegistry.addListener((brokerId, type) -> {
+                // Ignore.
+            });
+            fail();
+        } catch (Exception ex) {
+            log.info("Failed to lookupAsync.", ex);
+            assertTrue(FutureUtil.unwrapCompletionException(ex) instanceof IllegalStateException);
+        }
+    }
+
+    @Test
     public void testIsVerifiedNotification() {
         assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created, "/")));
         assertFalse(BrokerRegistryImpl.isVerifiedNotification(new Notification(NotificationType.Created,
@@ -313,6 +386,10 @@ public class BrokerRegistryTest {
     public void testKeyPath() {
         String keyPath = BrokerRegistryImpl.keyPath("brokerId");
         assertEquals(keyPath, BrokerRegistryImpl.LOOKUP_DATA_PATH + "/brokerId");
+    }
+
+    public BrokerRegistryImpl.State getState(BrokerRegistryImpl brokerRegistry) {
+        return WhiteboxImpl.getInternalState(brokerRegistry, BrokerRegistryImpl.State.class);
     }
 }
 

@@ -19,10 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -39,15 +37,12 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
  */
 @Slf4j
 public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
-    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Set<String> noLoadDataBrokers;
-    private final Map<String, Double> brokerAvgResourceUsageWithWeight;
 
     public LeastResourceUsageWithWeight() {
         this.bestBrokers = new ArrayList<>();
-        this.brokerAvgResourceUsageWithWeight = new HashMap<>();
         this.noLoadDataBrokers = new HashSet<>();
     }
 
@@ -55,65 +50,24 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
     private double getMaxResourceUsageWithWeight(final String broker, final BrokerLoadData brokerLoadData,
                                                  final ServiceConfiguration conf, boolean debugMode) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-        final double maxUsageWithWeight =
-                updateAndGetMaxResourceUsageWithWeight(broker, brokerLoadData, conf, debugMode);
+        final var maxUsageWithWeight = brokerLoadData.getWeightedMaxEMA();
+
 
         if (maxUsageWithWeight > overloadThreshold) {
             log.warn(
-                    "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
-                            + "CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
-                            + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
-                            + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
-                    broker, maxUsageWithWeight * 100,
-                    brokerLoadData.getCpu().percentUsage(), brokerLoadData.getMemory().percentUsage(),
-                    brokerLoadData.getDirectMemory().percentUsage(), brokerLoadData.getBandwidthIn().percentUsage(),
-                    brokerLoadData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    "Broker {} is overloaded, brokerLoad({}%) > overloadThreshold({}%). load data:{{}}",
+                    broker,
+                    maxUsageWithWeight * 100,
+                    overloadThreshold * 100,
+                    brokerLoadData.toString(conf));
+        } else if (debugMode) {
+            log.info("Broker {} load data:{{}}", broker, brokerLoadData.toString(conf));
         }
 
-        if (debugMode) {
-            log.info("Broker {} has max resource usage with weight percentage: {}%",
-                    broker, maxUsageWithWeight * 100);
-        }
+
         return maxUsageWithWeight;
     }
 
-    /**
-     * Update and get the max resource usage with weight of broker according to the service configuration.
-     *
-     * @param broker     The broker name.
-     * @param brokerData The broker load data.
-     * @param conf       The service configuration.
-     * @param debugMode  The debug mode to print computed load states and decision information.
-     * @return the max resource usage with weight of broker
-     */
-    private double updateAndGetMaxResourceUsageWithWeight(String broker, BrokerLoadData brokerData,
-                                                          ServiceConfiguration conf, boolean debugMode) {
-        final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
-        Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
-        double resourceUsage = brokerData.getMaxResourceUsageWithWeight(
-                conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(),
-                conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
-        historyUsage = historyUsage == null
-                ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
-        if (debugMode) {
-            log.info(
-                    "Broker {} get max resource usage with weight: {}, history resource percentage: {}%, CPU weight: "
-                            + "{}, MEMORY weight: {}, DIRECT MEMORY weight: {}, BANDWIDTH IN weight: {}, BANDWIDTH "
-                            + "OUT weight: {} ",
-                    broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
-        }
-        brokerAvgResourceUsageWithWeight.put(broker, historyUsage);
-        return historyUsage;
-    }
 
     /**
      * Find a suitable broker to assign the given bundle to.
@@ -143,7 +97,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         for (String broker : candidates) {
             var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
             if (brokerLoadDataOptional.isEmpty()) {
-                log.warn("There is no broker load data for broker:{}. Skipping this broker.", broker);
+                log.warn("There is no broker load data for broker:{}. Skipping this broker. Phase one", broker);
                 noLoadDataBrokers.add(broker);
                 continue;
             }
@@ -162,12 +116,17 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             if (debugMode) {
                 log.info("Computed avgUsage:{}, diffThreshold:{}", avgUsage, diffThreshold);
             }
-            candidates.forEach(broker -> {
-                Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, MAX_RESOURCE_USAGE);
+            for (String broker : candidates) {
+                var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
+                if (brokerLoadDataOptional.isEmpty()) {
+                    log.warn("There is no broker load data for broker:{}. Skipping this broker. Phase two", broker);
+                    continue;
+                }
+                double avgResUsage = brokerLoadDataOptional.get().getWeightedMaxEMA();
                 if ((avgResUsage + diffThreshold <= avgUsage && !noLoadDataBrokers.contains(broker))) {
                     bestBrokers.add(broker);
                 }
-            });
+            }
         }
 
         if (bestBrokers.isEmpty()) {

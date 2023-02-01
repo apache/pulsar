@@ -85,12 +85,12 @@ public interface BrokerRegistry extends AutoCloseable {
     CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync();
 
     /**
-     * Listen the broker register change.
+     * Add listener to listen the broker register change.
      *
-     * @param listener Key is lookup service address{@link BrokerRegistry#getBrokerId()}
+     * @param listener Key is broker Id{@link BrokerRegistry#getBrokerId()}
      *                 Value is notification type.
      */
-    void listen(BiConsumer<String, NotificationType> listener);
+    void addListener(BiConsumer<String, NotificationType> listener);
 
     /**
      * Close the broker registry.
