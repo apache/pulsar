@@ -24,6 +24,7 @@ import io.netty.channel.EventLoopGroup;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -48,11 +49,9 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
- * Subclass of PulsarService that is used for some tests.
- * This was written as a replacement for the previous Mockito Spy over PulsarService solution which caused
- * a flaky test issue https://github.com/apache/pulsar/issues/13620.
+ * This is an internal class used by {@link PulsarTestContext} as the {@link PulsarService} implementation
+ * for a "non-startable" PulsarService. Please see {@link PulsarTestContext} for more details.
  */
-
 class NonStartableTestPulsarService extends AbstractTestPulsarService {
     private final PulsarResources pulsarResources;
     private final ManagedLedgerStorage managedLedgerClientFactory;
@@ -65,18 +64,20 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
     private final NamespaceService namespaceService;
 
     public NonStartableTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
-                                            MetadataStoreExtended localMetadataStore,
-                                            MetadataStoreExtended configurationMetadataStore,
-                                            Compactor compactor, BrokerInterceptor brokerInterceptor,
-                                            BookKeeperClientFactory bookKeeperClientFactory,
-                                            PulsarResources pulsarResources,
-                                            ManagedLedgerStorage managedLedgerClientFactory) {
-        super(config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
+                                         MetadataStoreExtended localMetadataStore,
+                                         MetadataStoreExtended configurationMetadataStore,
+                                         Compactor compactor, BrokerInterceptor brokerInterceptor,
+                                         BookKeeperClientFactory bookKeeperClientFactory,
+                                         PulsarResources pulsarResources,
+                                         ManagedLedgerStorage managedLedgerClientFactory,
+                                         Function<BrokerService, BrokerService> brokerServiceCustomizer) {
+        super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
                 bookKeeperClientFactory);
         this.pulsarResources = pulsarResources;
         this.managedLedgerClientFactory = managedLedgerClientFactory;
         try {
-            this.brokerService = spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup());
+            this.brokerService = brokerServiceCustomizer.apply(
+                    spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup()));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

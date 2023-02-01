@@ -70,7 +70,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -79,7 +78,6 @@ import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.AbstractTopic;
-import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -1451,6 +1449,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testOperationNamespaceMessageTTL() throws Exception {
+        resetBroker();
         String namespace = "ttlnamespace";
 
         asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, this.testLocalCluster,
@@ -2038,12 +2037,11 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 "testFinallyDeleteSystemTopicWhenDeleteNamespace").toString();
 
         // 0. enable topic level polices and system topic
-        pulsar.getConfig().setTopicLevelPoliciesEnabled(true);
-        pulsar.getConfig().setSystemTopicEnabled(true);
-        pulsar.getConfig().setForceDeleteNamespaceAllowed(true);
-        Field policesService = pulsar.getClass().getDeclaredField("topicPoliciesService");
-        policesService.setAccessible(true);
-        policesService.set(pulsar, new SystemTopicBasedTopicPoliciesService(pulsar));
+        stopBroker();
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        conf.setForceDeleteNamespaceAllowed(true);
+        startBroker();
 
         // 1. create a test namespace.
         admin.namespaces().createNamespace(namespace);
@@ -2061,11 +2059,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 topics.set(0, systemTopic);
             }
         }
-        NamespaceService mockNamespaceService = spy(pulsar.getNamespaceService());
-        Field namespaceServiceField = pulsar.getClass().getDeclaredField("nsService");
-        namespaceServiceField.setAccessible(true);
-        namespaceServiceField.set(pulsar, mockNamespaceService);
-        doReturn(CompletableFuture.completedFuture(topics)).when(mockNamespaceService).getFullListOfTopics(any());
+        doReturn(CompletableFuture.completedFuture(topics)).when(nsSvc)
+                .getFullListOfTopics(any());
         // 5. delete the namespace
         admin.namespaces().deleteNamespace(namespace, true);
         // cleanup
@@ -2079,11 +2074,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 "testNotClearTopicPolicesWhenDeleteSystemTopic").toString();
 
         // 0. enable topic level polices and system topic
-        pulsar.getConfig().setTopicLevelPoliciesEnabled(true);
-        pulsar.getConfig().setSystemTopicEnabled(true);
-        Field policesService = pulsar.getClass().getDeclaredField("topicPoliciesService");
-        policesService.setAccessible(true);
-        policesService.set(pulsar, new SystemTopicBasedTopicPoliciesService(pulsar));
+        stopBroker();
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        startBroker();
         // 1. create a test namespace.
         admin.namespaces().createNamespace(namespace);
         // 2. create a test topic.
@@ -2095,11 +2089,10 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
     @Test
     public void testDeleteTopicPolicyWhenDeleteSystemTopic() throws Exception {
+        stopBroker();
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);
-        Field field = PulsarService.class.getDeclaredField("topicPoliciesService");
-        field.setAccessible(true);
-        field.set(pulsar, new SystemTopicBasedTopicPoliciesService(pulsar));
+        startBroker();
 
         String systemTopic = SYSTEM_NAMESPACE.toString() + "/" + "testDeleteTopicPolicyWhenDeleteSystemTopic";
         admin.tenants().createTenant(SYSTEM_NAMESPACE.getTenant(),

@@ -20,9 +20,9 @@ package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -81,7 +81,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         abortedTxnCount.set(0);
     }
 
-    private final List<ResponseEvent> responseList = new ArrayList<>();
+    private final List<ResponseEvent> responseList = new CopyOnWriteArrayList<>();
 
     @Data
     @AllArgsConstructor

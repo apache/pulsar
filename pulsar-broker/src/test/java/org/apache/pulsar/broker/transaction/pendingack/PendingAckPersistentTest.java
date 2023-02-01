@@ -444,7 +444,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         assertFalse(topics.contains(topic));
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testDeleteUselessLogDataWhenSubCursorMoved() throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(5);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);

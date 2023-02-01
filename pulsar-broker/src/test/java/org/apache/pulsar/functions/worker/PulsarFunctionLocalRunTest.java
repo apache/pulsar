@@ -200,7 +200,7 @@ public class PulsarFunctionLocalRunTest {
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
 
-        config = spy(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         config.setSystemTopicEnabled(false);
         config.setTopicLevelPoliciesEnabled(false);
         config.setClusterName(CLUSTER);

@@ -66,7 +66,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
-    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
         mockAdditionalServlet(pulsar);
     }
 
