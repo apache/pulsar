@@ -361,7 +361,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             AsyncCallbacks.AddEntryCallback callback =
                     (AsyncCallbacks.AddEntryCallback) invocation.getArguments()[1];
             ManagedLedgerException managedLedgerException =
-                    new ManagedLedgerException(new Exception("Fail by mock."));
+                    ManagedLedgerException.getManagedLedgerException(new Exception("Fail by mock."));
             callback.addFailed(managedLedgerException, invocation.getArguments()[2]);
             return null;
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());

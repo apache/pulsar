@@ -457,7 +457,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (e instanceof MetadataNotFoundException) {
                     callback.initializeFailed(new ManagedLedgerNotFoundException(e));
                 } else {
-                    callback.initializeFailed(new ManagedLedgerException(e));
+                    callback.initializeFailed(ManagedLedgerException.getManagedLedgerException(e));
                 }
             }
         });
@@ -507,7 +507,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 handleBadVersion(e);
-                callback.initializeFailed(new ManagedLedgerException(e));
+                callback.initializeFailed(ManagedLedgerException.getManagedLedgerException(e));
             }
         };
 
@@ -642,7 +642,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 log.warn("[{}] Failed to get the cursors list", name, e);
-                callback.initializeFailed(new ManagedLedgerException(e));
+                callback.initializeFailed(ManagedLedgerException.getManagedLedgerException(e));
             }
         });
     }
@@ -1360,7 +1360,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     public void operationFailed(MetaStoreException e) {
                         log.error("[{}] Failed to terminate managed ledger: {}", name, e.getMessage());
                         handleBadVersion(e);
-                        callback.terminateFailed(new ManagedLedgerException(e), ctx);
+                        callback.terminateFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
                     }
                 });
             }
@@ -2865,9 +2865,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         truncateFuture.whenComplete((ignore, exc) -> {
             if (exc != null) {
                 log.error("[{}] Error truncating ledger for deletion", name, exc);
-                callback.deleteLedgerFailed(exc instanceof ManagedLedgerException
-                        ? (ManagedLedgerException) exc : new ManagedLedgerException(exc),
-                        ctx);
+                callback.deleteLedgerFailed(ManagedLedgerException.getManagedLedgerException(exc), ctx);
             } else {
                 asyncDeleteInternal(callback, ctx);
             }

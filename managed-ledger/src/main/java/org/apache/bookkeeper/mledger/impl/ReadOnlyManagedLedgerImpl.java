@@ -82,7 +82,8 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                         ledgers.put(lastLedgerId, info);
                                         future.complete(null);
                                     } else {
-                                        future.completeExceptionally(new ManagedLedgerException(ex));
+                                        future.completeExceptionally(
+                                                ManagedLedgerException.getManagedLedgerException(ex));
                                     }
                                     return null;
                                 });
@@ -95,7 +96,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                                     ledgers.put(lastLedgerId, info);
                                     future.complete(null);
                                 } else {
-                                    future.completeExceptionally(new ManagedLedgerException(ex));
+                                    future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(ex));
                                 }
                                 return null;
                             });
@@ -110,7 +111,7 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                 if (e instanceof MetadataNotFoundException) {
                     future.completeExceptionally(new ManagedLedgerNotFoundException(e));
                 } else {
-                    future.completeExceptionally(new ManagedLedgerException(e));
+                    future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(e));
                 }
             }
         });

@@ -578,7 +578,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 try {
                     positionInfo = PositionInfo.parseFrom(entry.getEntry());
                 } catch (InvalidProtocolBufferException e) {
-                    callback.operationFailed(new ManagedLedgerException(e));
+                    callback.operationFailed(ManagedLedgerException.getManagedLedgerException(e));
                     return;
                 }
 
@@ -1010,7 +1010,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
             }
         } catch (Throwable t) {
-            callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
         }
     }
 
@@ -2364,7 +2364,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.debug("[{}] Consumer {} cursor asyncDelete error, counters: consumed {} mdPos {} rdPos {}",
                         ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
             }
-            callback.deleteFailed(new ManagedLedgerException(e), ctx);
+            callback.deleteFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
         }
     }
 
@@ -2605,7 +2605,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     private void persistPositionMetaStore(long cursorsLedgerId, PositionImpl position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
         if (state == State.Closed) {
-            ledger.getExecutor().execute(safeRun(() -> callback.operationFailed(new MetaStoreException(
+            ledger.getExecutor().execute(safeRun(() -> callback.operationFailed(MetaStoreException.getException(
                     new CursorAlreadyClosedException(name + " cursor already closed")))));
             return;
         }

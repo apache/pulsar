@@ -121,7 +121,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                             info = updateMLInfoTimestamp(info);
                             callback.operationComplete(info, optResult.get().getStat());
                         } catch (InvalidProtocolBufferException e) {
-                            callback.operationFailed(getException(e));
+                            callback.operationFailed(MetaStoreException.getException(e));
                         }
                     } else {
                         // Z-node doesn't exist
@@ -142,7 +142,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                                         }
                                         callback.operationComplete(ledgerBuilder.build(), stat);
                                     }).exceptionally(ex -> {
-                                        callback.operationFailed(getException(ex));
+                                        callback.operationFailed(MetaStoreException.getException(ex));
                                         return null;
                                     });
                         } else {
@@ -155,10 +155,10 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 .exceptionally(ex -> {
                     try {
                         executor.executeOrdered(ledgerName,
-                                SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex))));
+                                SafeRunnable.safeRun(() -> callback.operationFailed(MetaStoreException.getException(ex))));
                     } catch (RejectedExecutionException e) {
                         //executor maybe shutdown, use common pool to run callback.
-                        CompletableFuture.runAsync(() -> callback.operationFailed(getException(ex)));
+                        CompletableFuture.runAsync(() -> callback.operationFailed(MetaStoreException.getException(ex)));
                     }
                     return null;
                 });
@@ -204,7 +204,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                            .operationFailed(MetaStoreException.getException(ex))));
                     return null;
                 });
     }
@@ -221,7 +221,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         .chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                            .operationFailed(MetaStoreException.getException(ex))));
                     return null;
                 });
     }
@@ -240,8 +240,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         try {
                             ManagedCursorInfo info = parseManagedCursorInfo(optRes.get().getValue());
                             callback.operationComplete(info, optRes.get().getStat());
-                        } catch (InvalidProtocolBufferException e) {
-                            callback.operationFailed(getException(e));
+                        } catch (InvalidProtocolBufferException ex) {
+                            callback.operationFailed(MetaStoreException.getException(ex));
                         }
                     } else {
                         callback.operationFailed(new MetadataNotFoundException("Cursor metadata not found"));
@@ -249,7 +249,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                            .operationFailed(MetaStoreException.getException(ex))));
                     return null;
                 });
     }
@@ -284,7 +284,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         .chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                            .operationFailed(MetaStoreException.getException(ex))));
                     return null;
                 });
     }
@@ -303,7 +303,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                            .operationFailed(MetaStoreException.getException(ex))));
                     return null;
                 });
     }
@@ -322,7 +322,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
                     executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                            .operationFailed(MetaStoreException.getException(ex))));
                     return null;
                 });
     }
@@ -331,8 +331,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     public Iterable<String> getManagedLedgers() throws MetaStoreException {
         try {
             return store.getChildren(BASE_NODE).join();
-        } catch (CompletionException e) {
-            throw getException(e);
+        } catch (CompletionException ex) {
+            throw MetaStoreException.getException(ex);
         }
     }
 
@@ -404,14 +404,6 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         }
         mlInfo.addAllProperties(info.getPropertiesList());
         return mlInfo.build();
-    }
-
-    private static MetaStoreException getException(Throwable t) {
-        if (t.getCause() instanceof MetadataStoreException.BadVersionException) {
-            return new ManagedLedgerException.BadVersionException(t.getMessage());
-        } else {
-            return new MetaStoreException(t);
-        }
     }
 
     public byte[] compressLedgerInfo(ManagedLedgerInfo managedLedgerInfo) {

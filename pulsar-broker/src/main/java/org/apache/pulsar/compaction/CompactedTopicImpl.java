@@ -144,7 +144,8 @@ public class CompactedTopicImpl implements CompactedTopic {
                             cursor.seek(compactionHorizon.getNext());
                             callback.readEntriesComplete(Collections.emptyList(), readEntriesCtx);
                         } else {
-                            callback.readEntriesFailed(new ManagedLedgerException(exception), readEntriesCtx);
+                            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(exception),
+                                    readEntriesCtx);
                         }
                         return null;
                     });

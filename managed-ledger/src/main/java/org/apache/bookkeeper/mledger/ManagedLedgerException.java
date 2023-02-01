@@ -20,6 +20,9 @@ package org.apache.bookkeeper.mledger;
 
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import javax.annotation.Nonnull;
 
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
@@ -29,7 +32,7 @@ public class ManagedLedgerException extends Exception {
         super(msg);
     }
 
-    public ManagedLedgerException(Throwable e) {
+    protected ManagedLedgerException(Throwable e) {
         super(e);
     }
 
@@ -37,27 +40,46 @@ public class ManagedLedgerException extends Exception {
         super(msg, e);
     }
 
-    public static ManagedLedgerException getManagedLedgerException(Throwable e) {
-        if (e instanceof ManagedLedgerException) {
-            return (ManagedLedgerException) e;
+    /**
+     * Returns the encoding of the given (non-null) exception as a wrapped ManagedLedgerException
+     * unless it is one already. Since we use a lot of CompletableFuture, it will unwrap the completion
+     * exception to help get to the original exception.
+     */
+    public static ManagedLedgerException getManagedLedgerException(@Nonnull Throwable ex) {
+        final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+        if (rc instanceof ManagedLedgerException) {
+            return (ManagedLedgerException) rc;
         }
-        return new ManagedLedgerException(e);
+        return new ManagedLedgerException(rc);
     }
 
     public static class MetaStoreException extends ManagedLedgerException {
-        public MetaStoreException(Throwable t) {
+        protected MetaStoreException(Throwable t) {
             super(t);
         }
 
         public MetaStoreException(String msg) {
             super(msg);
         }
+
+        /**
+         * Returns the encoding of the given (non-null) exception as a wrapped MetaStoreException
+         * unless it is one already. Since we use a lot of CompletableFuture, it will unwrap the completion
+         * exception to help get to the original exception.
+         */
+        public static MetaStoreException getException(Throwable ex) {
+            final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+            if (rc instanceof MetadataStoreException.BadVersionException
+                    || rc.getCause() instanceof MetadataStoreException.BadVersionException) {
+                return new ManagedLedgerException.BadVersionException(ex.getMessage());
+            } else if (rc instanceof MetaStoreException) {
+                return (MetaStoreException) rc;
+            }
+            return new MetaStoreException(rc);
+        }
     }
 
     public static class BadVersionException extends MetaStoreException {
-        public BadVersionException(Exception e) {
-            super(e);
-        }
 
         public BadVersionException(String msg) {
             super(msg);
@@ -65,10 +87,6 @@ public class ManagedLedgerException extends Exception {
     }
 
     public static class MetadataNotFoundException extends MetaStoreException {
-        public MetadataNotFoundException(Exception e) {
-            super(e);
-        }
-
         public MetadataNotFoundException(String msg) {
             super(msg);
         }
@@ -187,9 +205,6 @@ public class ManagedLedgerException extends Exception {
             super("ManagedLedgerFactory is already closed.");
         }
 
-        public ManagedLedgerFactoryClosedException(Throwable e) {
-            super(e);
-        }
     }
 
     public static class ConcurrentWaitCallbackException extends ManagedLedgerException {

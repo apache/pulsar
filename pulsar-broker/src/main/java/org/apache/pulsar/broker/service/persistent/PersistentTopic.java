@@ -3232,10 +3232,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                               publishContext.completed((NotAllowedException) throwable, -1, -1);
                               decrementPendingWriteOpsAndCheck();
                               return null;
-                            } else if (!(throwable instanceof ManagedLedgerException)) {
-                                throwable = new ManagedLedgerException(throwable);
                             }
-                            addFailed((ManagedLedgerException) throwable, publishContext);
+                            addFailed(ManagedLedgerException.getManagedLedgerException(throwable), publishContext);
                             return null;
                         });
                 break;

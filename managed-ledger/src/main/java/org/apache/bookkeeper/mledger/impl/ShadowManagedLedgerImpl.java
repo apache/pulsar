@@ -155,7 +155,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 if (e instanceof ManagedLedgerException.MetadataNotFoundException) {
                     callback.initializeFailed(new ManagedLedgerException.ManagedLedgerNotFoundException(e));
                 } else {
-                    callback.initializeFailed(new ManagedLedgerException(e));
+                    callback.initializeFailed(ManagedLedgerException.getManagedLedgerException(e));
                 }
             }
         });
@@ -197,7 +197,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             @Override
             public void operationFailed(ManagedLedgerException.MetaStoreException e) {
                 handleBadVersion(e);
-                callback.initializeFailed(new ManagedLedgerException(e));
+                callback.initializeFailed(ManagedLedgerException.getManagedLedgerException(e));
             }
         });
     }

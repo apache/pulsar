@@ -650,7 +650,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     bookkeeper.close();
                 }
             } catch (BKException e) {
-                throw new ManagedLedgerException(e);
+                throw ManagedLedgerException.getManagedLedgerException(e);
             }
         }
 
@@ -893,7 +893,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 Futures.waitForAll(futures).thenRun(() -> {
                     deleteManagedLedgerData(bkc, managedLedgerName, info, mlConfigFuture, callback, ctx);
                 }).exceptionally(ex -> {
-                    callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
+                    callback.deleteLedgerFailed(ManagedLedgerException.getManagedLedgerException(ex), ctx);
                     return null;
                 });
             }
@@ -991,11 +991,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
                         @Override
                         public void operationFailed(MetaStoreException e) {
-                            callback.deleteLedgerFailed(new ManagedLedgerException(e), ctx);
+                            callback.deleteLedgerFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
                         }
                     });
                 }).exceptionally(ex -> {
-                    callback.deleteLedgerFailed(new ManagedLedgerException(ex), ctx);
+                    callback.deleteLedgerFailed(ManagedLedgerException.getManagedLedgerException(ex), ctx);
                     return null;
                 });
     }
