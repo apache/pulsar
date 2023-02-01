@@ -80,7 +80,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store = (MetadataStore) storeProperty;
         } else {
             String url;
-            String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
+            String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataStoreUrl"));
             if (StringUtils.isNotBlank(metadataServiceUri)) {
                 try {
                     url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
@@ -89,7 +89,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
                 }
             } else {
-                String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zkServers"));
+                String zkServers = ConfigurationStringUtil.castToString(conf.getProperty("zookeeperServers"));
                 if (StringUtils.isBlank(zkServers)) {
                     String errorMsg = String.format("Neither %s configuration set in the BK client configuration nor "
                             + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
@@ -98,11 +98,11 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 url = zkServers;
             }
             try {
-                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
+                int sessionTimeoutMillis = conf.getInt("metadataStoreSessionTimeoutMillis", 30000);
                 store = MetadataStoreExtended.create(url,
                         MetadataStoreConfig.builder()
                                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
-                                .sessionTimeoutMillis(zkTimeout)
+                                .sessionTimeoutMillis(sessionTimeoutMillis)
                                 .build());
             } catch (MetadataStoreException e) {
                 throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
