@@ -128,8 +128,6 @@ public class MLTransactionMetadataStore
 
                     } else {
                         completableFuture.complete(MLTransactionMetadataStore.this);
-                        recoverTracker.handleCommittingAndAbortingTransaction();
-                        timeoutTracker.start();
                         recoverTime.setRecoverEndTime(System.currentTimeMillis());
                     }
                 }
