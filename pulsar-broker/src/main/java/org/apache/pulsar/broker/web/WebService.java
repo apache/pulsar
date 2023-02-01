@@ -209,13 +209,14 @@ public class WebService implements AutoCloseable {
                         new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
             }
 
-            if (!config.getBrokerInterceptors().isEmpty()
-                    || !config.isDisableBrokerInterceptors()) {
+            boolean brokerInterceptorEnabled =
+                    pulsarService.getBrokerInterceptor() != null && !config.isDisableBrokerInterceptors();
+            if (brokerInterceptorEnabled) {
                 ExceptionHandler handler = new ExceptionHandler();
                 // Enable PreInterceptFilter only when interceptors are enabled
                 filterHolders.add(
                         new FilterHolder(new PreInterceptFilter(pulsarService.getBrokerInterceptor(), handler)));
-                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService)));
+                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService.getBrokerInterceptor())));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -236,7 +237,9 @@ public class WebService implements AutoCloseable {
                                 config.getHttpMaxRequestSize())));
             }
 
-            filterHolders.add(new FilterHolder(new ResponseHandlerFilter(pulsarService)));
+            if (brokerInterceptorEnabled) {
+                filterHolders.add(new FilterHolder(new ResponseHandlerFilter(pulsarService)));
+            }
         }
 
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {

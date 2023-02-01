@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.mockito.Mockito.spy;
@@ -30,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -58,13 +58,8 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
     }
 
     @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return changeDefaultMetadataCacheConfig(super.createLocalMetadataStore());
-    }
-
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return changeDefaultMetadataCacheConfig(super.createConfigurationMetadataStore());
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName) {
+        return changeDefaultMetadataCacheConfig(super.createMetadataStore(metadataStoreName));
     }
 
     MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {

@@ -87,7 +87,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =
-                    PulsarTestContext.startableBuilder()
+                    PulsarTestContext.builder()
                             .config(conf);
             if (i > 0) {
                 testContextBuilder.reuseMockBookkeeperAndMetadataStores(pulsarTestContexts.get(0));

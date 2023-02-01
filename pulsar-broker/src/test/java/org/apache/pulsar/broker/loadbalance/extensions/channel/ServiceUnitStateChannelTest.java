@@ -41,6 +41,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertNotNull;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -62,6 +63,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -88,6 +90,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private String bundle1;
     private String bundle2;
+    private PulsarTestContext additionalPulsarTestContext;
 
     @BeforeClass
     @Override
@@ -102,7 +105,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("public/default");
 
         pulsar1 = pulsar;
-        pulsar2 = startBrokerWithoutAuthorization(getDefaultConf());
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
+        pulsar2 = additionalPulsarTestContext.getPulsarService();
         channel1 = new ServiceUnitStateChannelImpl(pulsar1);
         channel1.start();
         channel2 = new ServiceUnitStateChannelImpl(pulsar2);
@@ -129,8 +133,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         channel1.close();
         channel2.close();
+        if (additionalPulsarTestContext != null) {
+            additionalPulsarTestContext.close();
+            additionalPulsarTestContext = null;
+        }
         pulsar1 = null;
-        pulsar2.close();
+        pulsar2 = null;
         super.internalCleanup();
     }
 
@@ -720,8 +728,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(bundle).get());
 
         var compactor = spy (pulsar1.getStrategicCompactor());
-        FieldUtils.writeDeclaredField(pulsar1, "strategicCompactor", compactor, true);
-        FieldUtils.writeDeclaredField(pulsar2, "strategicCompactor", compactor, true);
+        Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
+        FieldUtils.writeField(strategicCompactorField, pulsar1, compactor, true);
+        FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(140, TimeUnit.SECONDS)

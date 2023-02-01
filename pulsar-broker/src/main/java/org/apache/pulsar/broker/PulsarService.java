@@ -744,10 +744,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             pulsarResources = newPulsarResources();
 
-            orderedExecutor = OrderedExecutor.newBuilder()
-                    .numThreads(config.getNumOrderedExecutorThreads())
-                    .name("pulsar-ordered")
-                    .build();
+            orderedExecutor = newOrderedExecutor();
 
             // Initialize the message protocol handlers
             protocolHandlers = ProtocolHandlers.load(config);
@@ -919,6 +916,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         } finally {
             mutex.unlock();
         }
+    }
+
+    @VisibleForTesting
+    protected OrderedExecutor newOrderedExecutor() {
+        return OrderedExecutor.newBuilder()
+                .numThreads(config.getNumOrderedExecutorThreads())
+                .name("pulsar-ordered")
+                .build();
     }
 
     @VisibleForTesting
