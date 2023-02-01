@@ -781,7 +781,9 @@ public class Commands {
     }
 
     public static SchemaType getSchemaType(Schema.Type type) {
-        if (type.getValue() < 0) {
+        if (type == Schema.Type.AutoConsume) {
+            return SchemaType.AUTO_CONSUME;
+        } else if (type.getValue() < 0) {
             // this is unexpected
             return SchemaType.NONE;
         } else {

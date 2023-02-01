@@ -1241,8 +1241,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
             .user(Strings.nullToEmpty(originalPrincipal))
-            .type(protocolSchema.getType() == Schema.Type.AutoConsume
-                    ? SchemaType.AUTO_CONSUME : Commands.getSchemaType(protocolSchema.getType()))
+            .type(Commands.getSchemaType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(
                     KeyValue::getKey,
