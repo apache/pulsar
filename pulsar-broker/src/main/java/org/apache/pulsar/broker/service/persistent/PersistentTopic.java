@@ -1217,9 +1217,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     shadowReplicators.forEach((__, replicator) -> futures.add(replicator.disconnect()));
                     producers.values().forEach(producer -> futures.add(producer.disconnect()));
                 }
-                FutureUtil.waitForAll(futures).thenRun(() -> {
+                FutureUtil.waitForAll(futures).thenRunAsync(() -> {
                     closeClientFuture.complete(null);
-                }).exceptionally(ex -> {
+                }, brokerService.getTopicOrderedExecutor().chooseThread(topic)).exceptionally(ex -> {
                     log.error("[{}] Error closing clients", topic, ex);
                     unfenceTopicToResume();
                     closeClientFuture.completeExceptionally(ex);
