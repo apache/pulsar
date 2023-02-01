@@ -519,7 +519,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         try {
             ledger.offloadPrefix(ledger.getLastConfirmedEntry());
         } catch (ManagedLedgerException e) {
-            assertEquals(e.getCause().getClass(), CompletionException.class);
+            assertEquals(e.getCause().getClass(), Exception.class);
         }
 
         assertEquals(ledger.getLedgersInfoAsList().size(), 4);
