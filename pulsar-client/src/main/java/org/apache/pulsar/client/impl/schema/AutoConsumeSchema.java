@@ -57,15 +57,11 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private SchemaInfoProvider schemaInfoProvider;
 
-    private static final SchemaInfo SCHEMA_INFO;
-
-    static {
-        SCHEMA_INFO = SchemaInfoImpl.builder()
-                .name("AutoConsume")
-                .type(SchemaType.AUTO_CONSUME)
-                .schema(new byte[0])
-                .build();
-    }
+    public static final SchemaInfo SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("AutoConsume")
+            .type(SchemaType.AUTO_CONSUME)
+            .schema(new byte[0])
+            .build();
 
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
         ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
@@ -161,10 +157,6 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
             return schemaMap.get(sv).getSchemaInfo();
         }
         return null;
-    }
-
-    public SchemaInfo getAutoConsumeSchemaInfo() {
-        return SCHEMA_INFO;
     }
 
     @Override

@@ -806,17 +806,8 @@ public class Commands {
     }
 
     private static void convertAutoConsumeSchema(SchemaInfo schemaInfo, Schema schema) {
-        schema.setName(schemaInfo.getName())
-                .setSchemaData(schemaInfo.getSchema())
-                .setType(Schema.Type.AutoConsume);
-
-        schemaInfo.getProperties().entrySet().stream().forEach(entry -> {
-            if (entry.getKey() != null && entry.getValue() != null) {
-                schema.addProperty()
-                        .setKey(entry.getKey())
-                        .setValue(entry.getValue());
-            }
-        });
+        convertSchema(schemaInfo, schema);
+        schema.setType(Schema.Type.AutoConsume);
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,

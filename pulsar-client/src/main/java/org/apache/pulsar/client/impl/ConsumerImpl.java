@@ -815,7 +815,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             if (schema instanceof AutoConsumeSchema
                     && Commands.peerSupportsCarryAutoConsumeSchemaToBroker(cnx.getRemoteEndpointProtocolVersion())) {
-                si = ((AutoConsumeSchema) schema).getAutoConsumeSchemaInfo();
+                si = AutoConsumeSchema.SCHEMA_INFO;
             }
         }
         // startMessageRollbackDurationInSec should be consider only once when consumer connects to first time
