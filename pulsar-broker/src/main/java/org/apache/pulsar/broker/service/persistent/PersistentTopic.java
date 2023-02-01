@@ -667,7 +667,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
         return brokerService.pulsar().getPulsarResources().getNamespaceResources()
                 .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
-                .thenAccept(optPolicies -> {
+                .thenAcceptAsync(optPolicies -> {
                     if (optPolicies.isPresent()) {
                         if (optPolicies.get().replication_clusters != null) {
                             Set<String> configuredClusters = Sets.newTreeSet(optPolicies.get().replication_clusters);
@@ -680,7 +680,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     } else {
                         replicators.forEach((region, replicator) -> replicator.startProducer());
                     }
-                }).exceptionally(ex -> {
+                }, brokerService.getTopicOrderedExecutor().chooseThread(topic)).exceptionally(ex -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
             }
