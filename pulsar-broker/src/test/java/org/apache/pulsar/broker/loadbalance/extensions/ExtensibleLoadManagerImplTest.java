@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -74,9 +75,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     private PulsarService pulsar1;
     private PulsarService pulsar2;
 
-    private MetadataStoreExtended localStore;
+    private PulsarTestContext additionalPulsarTestContext;
 
-    private MetadataStoreExtended configStore;
+    private PulsarResources resources;
 
     private ExtensibleLoadManagerImpl primaryLoadManager;
 
@@ -93,7 +94,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         pulsar1 = pulsar;
         ServiceConfiguration defaultConf = getDefaultConf();
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
-        pulsar2 = startBrokerWithoutAuthorization(defaultConf);
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
+        pulsar2 = additionalPulsarTestContext.getPulsarService();
 
         ExtensibleLoadManagerWrapper primaryLoadManagerWrapper =
                 (ExtensibleLoadManagerWrapper) pulsar1.getLoadManager().get();
@@ -114,10 +116,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
-        this.localStore = this.localStore == null ? createLocalMetadataStore() : this.localStore;
-        this.configStore = this.configStore == null ? createConfigurationMetadataStore() : this.configStore;
-        PulsarResources resources = new PulsarResources(this.localStore, this.configStore);
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        if (resources == null) {
+            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null);
+            MetadataStoreExtended configStore = (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null);
+            resources = new PulsarResources(localStore, configStore);
+        }
         this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 NamespaceName.SYSTEM_NAMESPACE);
     }
@@ -145,11 +149,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Override
     protected void cleanup() throws Exception {
-        this.localStore.close();
-        this.configStore.close();
         pulsar1 = null;
         pulsar2.close();
         super.internalCleanup();
+        this.additionalPulsarTestContext.close();
     }
 
     @BeforeMethod
