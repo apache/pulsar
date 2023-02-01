@@ -2355,7 +2355,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(pulsar
                         .getBrokerService()
-                        .getTopic(topic, false)
+                        .getTopic(fullTopicName, false)
                         .get()
                         .get()
                         .getEntryFiltersPolicy()
@@ -2373,7 +2373,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(pulsar
                         .getBrokerService()
-                        .getTopic(topic, false)
+                        .getTopic(fullTopicName, false)
                         .get()
                         .get()
                         .getEntryFiltersPolicy()
