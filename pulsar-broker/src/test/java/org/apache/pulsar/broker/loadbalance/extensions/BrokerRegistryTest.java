@@ -144,6 +144,11 @@ public class BrokerRegistryTest {
         }
 
         @Override
+        public String setNamespaceBundleAffinity(String bundle, String broker) {
+            return null;
+        }
+
+        @Override
         public void stop() throws PulsarServerException {
             // No-op
         }
