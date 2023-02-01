@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -80,7 +79,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
      */
     @Override
     public Optional<String> select(
-            Collection<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
+            Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
         var conf = context.brokerConfiguration();
         if (candidates.isEmpty()) {
             log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
