@@ -2029,24 +2029,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             int partitionIndex, PositionImpl markDeletePosition) {
         persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
             if (entry != null) {
-                // in this case, all the data has been compacted, so return the last position
-                // in the compacted ledger to the client
-                ByteBuf payload = entry.getDataBuffer();
-                MessageMetadata metadata = Commands.parseMessageMetadata(payload);
-                int largestBatchIndex;
                 try {
-                    largestBatchIndex = calculateTheLastBatchIndexInBatch(metadata, payload);
-                } catch (IOException ioEx){
-                    writeAndFlush(Commands.newError(requestId, ServerError.MetadataError,
-                            "Failed to deserialize batched message from the last entry of the compacted Ledger: "
-                                    + ioEx.getMessage()));
-                    return;
+                    // in this case, all the data has been compacted, so return the last position
+                    // in the compacted ledger to the client
+                    ByteBuf payload = entry.getDataBuffer();
+                    MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+                    int largestBatchIndex;
+                    try {
+                        largestBatchIndex = calculateTheLastBatchIndexInBatch(metadata, payload);
+                    } catch (IOException ioEx) {
+                        writeAndFlush(Commands.newError(requestId, ServerError.MetadataError,
+                                "Failed to deserialize batched message from the last entry of the compacted Ledger: "
+                                        + ioEx.getMessage()));
+                        return;
+                    }
+                    writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                            entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
+                            markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
+                            markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
+                } finally {
+                    entry.release();
                 }
-                writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                        entry.getLedgerId(), entry.getEntryId(), partitionIndex, largestBatchIndex,
-                        markDeletePosition != null ? markDeletePosition.getLedgerId() : -1,
-                        markDeletePosition != null ? markDeletePosition.getEntryId() : -1));
-                entry.release();
             } else {
                 // in this case, the ledgers been removed except the current ledger
                 // and current ledger without any data
