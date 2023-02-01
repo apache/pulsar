@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.CoolDown;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBrokers;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.OutDatedData;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MinMaxPriorityQueue;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.Getter;
@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
@@ -71,11 +72,11 @@ import org.slf4j.LoggerFactory;
 public class TransferShedder implements NamespaceUnloadStrategy {
     private static final Logger log = LoggerFactory.getLogger(TransferShedder.class);
     private static final double KB = 1024;
-    private final List<Unload> selectedBundlesCache = new ArrayList<>();
-    private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
-    private final LoadStats stats = new LoadStats(brokerAvgResourceUsage);
+    private final LoadStats stats = new LoadStats();
     private final PulsarService pulsar;
     private final SimpleResourceAllocationPolicies allocationPolicies;
+
+    private final UnloadDecision decision = new UnloadDecision();
 
     @VisibleForTesting
     public TransferShedder(){
@@ -88,9 +89,6 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
     }
 
-    private static int toPercentage(double usage) {
-        return (int) (usage * 100);
-    }
 
     @Getter
     @Accessors(fluent = true)
@@ -102,16 +100,15 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         private double std;
         private MinMaxPriorityQueue<String> minBrokers;
         private MinMaxPriorityQueue<String> maxBrokers;
-        private Map<String, Double> brokerAvgResourceUsage;
+        private LoadDataStore<BrokerLoadData> loadDataStore;
 
-        LoadStats(Map<String, Double> brokerAvgResourceUsage) {
-            this.brokerAvgResourceUsage = brokerAvgResourceUsage;
+        LoadStats() {
             this.minBrokers = MinMaxPriorityQueue.orderedBy((a, b) -> Double.compare(
-                    brokerAvgResourceUsage.get(b),
-                    brokerAvgResourceUsage.get(a))).create();
+                    loadDataStore.get((String) b).get().getWeightedMaxEMA(),
+                    loadDataStore.get((String) a).get().getWeightedMaxEMA())).create();
             this.maxBrokers = MinMaxPriorityQueue.orderedBy((a, b) -> Double.compare(
-                    brokerAvgResourceUsage.get(a),
-                    brokerAvgResourceUsage.get(b))).create();
+                    loadDataStore.get((String) a).get().getWeightedMaxEMA(),
+                    loadDataStore.get((String) b).get().getWeightedMaxEMA())).create();
         }
 
         private void update(double sum, double sqSum, int totalBrokers) {
@@ -148,43 +145,47 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             maxBrokers.clear();
         }
 
-        void update(final LoadDataStore<BrokerLoadData> loadData, final double historyPercentage,
-                                 Map<String, Long> recentlyUnloadedBrokers,
-                                 final ServiceConfiguration conf, boolean debugMode) {
+        Optional<UnloadDecision.Reason> update(final LoadDataStore<BrokerLoadData> loadStore,
+                                               Map<String, Long> recentlyUnloadedBrokers,
+                                               final ServiceConfiguration conf) {
 
+
+            UnloadDecision.Reason decisionReason = null;
             double sum = 0.0;
             double sqSum = 0.0;
             int totalBrokers = 0;
             int maxTransfers = conf.getLoadBalancerMaxNumberOfBrokerTransfersPerCycle();
             long now = System.currentTimeMillis();
-            for (Map.Entry<String, BrokerLoadData> entry : loadData.entrySet()) {
+            for (Map.Entry<String, BrokerLoadData> entry : loadStore.entrySet()) {
                 BrokerLoadData localBrokerData = entry.getValue();
                 String broker = entry.getKey();
 
                 // We don't want to use the outdated load data.
-                if (now - localBrokerData.getLastUpdatedAt()
+                if (now - localBrokerData.getUpdatedAt()
                         > conf.getLoadBalancerBrokerLoadDataTTLInSeconds() * 1000) {
                     log.warn(
                             "Ignoring broker:{} load update because the load data timestamp:{} is too old.",
-                            broker, localBrokerData.getLastUpdatedAt());
-                    brokerAvgResourceUsage.remove(broker);
+                            broker, localBrokerData.getUpdatedAt());
+                    decisionReason = OutDatedData;
                     continue;
                 }
 
                 // Also, we should give enough time for each broker to recompute its load after transfers.
-                if (recentlyUnloadedBrokers.containsKey(broker)
-                        && localBrokerData.getLastUpdatedAt() - recentlyUnloadedBrokers.get(broker)
-                        < conf.getLoadBalanceUnloadDelayInSeconds() * 1000) {
-                    log.warn(
-                            "Broker:{} load data timestamp:{} is too early since "
-                                    + "the last transfer timestamp:{}. Stop unloading.",
-                            broker, localBrokerData.getLastUpdatedAt(), recentlyUnloadedBrokers.get(broker));
-                    update(0.0, 0.0, 0);
-                    return;
+                if (recentlyUnloadedBrokers.containsKey(broker)) {
+                    if (localBrokerData.getUpdatedAt() - recentlyUnloadedBrokers.get(broker)
+                            < conf.getLoadBalanceUnloadDelayInSeconds() * 1000) {
+                        log.warn(
+                                "Broker:{} load data timestamp:{} is too early since "
+                                        + "the last transfer timestamp:{}. Stop unloading.",
+                                broker, localBrokerData.getUpdatedAt(), recentlyUnloadedBrokers.get(broker));
+                        update(0.0, 0.0, 0);
+                        return Optional.of(CoolDown);
+                    } else {
+                        recentlyUnloadedBrokers.remove(broker);
+                    }
                 }
 
-                double load = updateAvgResourceUsage(broker, localBrokerData, recentlyUnloadedBrokers,
-                        historyPercentage, conf, debugMode);
+                double load = localBrokerData.getWeightedMaxEMA();
 
                 minBrokers.offer(broker);
                 if (minBrokers.size() > maxTransfers) {
@@ -201,187 +202,217 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
 
             if (totalBrokers == 0) {
+                if (decisionReason == null) {
+                    decisionReason = NoBrokers;
+                }
                 update(0.0, 0.0, 0);
-                return;
+                return Optional.of(decisionReason);
             }
 
             update(sum, sqSum, totalBrokers);
+            return Optional.empty();
         }
 
-        private double updateAvgResourceUsage(String broker, BrokerLoadData brokerLoadData,
-                                              Map<String, Long> recentlyUnloadedBrokers,
-                                              final double historyPercentage, final ServiceConfiguration conf,
-                                              boolean debugMode) {
-            Double historyUsage =
-                    brokerAvgResourceUsage.get(broker);
-            double resourceUsage = brokerLoadData.getMaxResourceUsageWithWeight(
-                    conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
-
-            historyUsage = historyUsage == null
-                    ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
-
-            if (recentlyUnloadedBrokers.remove(broker) != null) {
-                // recompute the historical usage after the transfer.
-                historyUsage = resourceUsage;
-            }
-
-            if (debugMode) {
-                log.info("{} broker load: historyUsage={}%, resourceUsage={}%",
-                        broker,
-                        historyUsage == null ? 0 : toPercentage(historyUsage),
-                        toPercentage(resourceUsage));
-            }
-
-            brokerAvgResourceUsage.put(broker, historyUsage);
-            return historyUsage;
-        }
-
-        boolean hasTransferableBrokers(){
+        boolean hasTransferableBrokers() {
             return !(maxBrokers.isEmpty() || minBrokers.isEmpty()
                     || maxBrokers.peekLast().equals(minBrokers().peekLast()));
         }
 
-
-
+        void setLoadDataStore(LoadDataStore<BrokerLoadData> loadDataStore) {
+            this.loadDataStore = loadDataStore;
+        }
 
         @Override
         public String toString() {
             return String.format(
-                    "sum:%.2f, sqSum:%.2f, avg:%.2f, std:%.2f, totalBrokers:%d, minBrokers:%s, maxBrokers:%s",
+                    "sum:%.2f, sqSum:%.2f, avg:%.2f, std:%.2f, totalBrokers:%d, "
+                            + "minBrokers:%s, maxBrokers:%s",
                     sum, sqSum, avg, std, totalBrokers, minBrokers, maxBrokers);
         }
     }
 
+
     @Override
-    public List<Unload> findBundlesForUnloading(LoadManagerContext context,
-                                                Map<String, Long> recentlyUnloadedBundles,
-                                                Map<String, Long> recentlyUnloadedBrokers) {
+    public UnloadDecision findBundlesForUnloading(LoadManagerContext context,
+                                                  Map<String, Long> recentlyUnloadedBundles,
+                                                  Map<String, Long> recentlyUnloadedBrokers) {
         final var conf = context.brokerConfiguration();
-        selectedBundlesCache.clear();
+        decision.clear();
         stats.clear();
-        boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
+        var selectedBundlesCache = decision.getUnloads();
 
-        brokerAvgResourceUsage.entrySet()
-                .removeIf(e -> context.brokerLoadDataStore().get(e.getKey()).isEmpty());
+        try {
+            final var loadStore = context.brokerLoadDataStore();
+            stats.setLoadDataStore(loadStore);
+            boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
 
-        stats.update(
-                context.brokerLoadDataStore(), conf.getLoadBalancerHistoryResourcePercentage(), recentlyUnloadedBrokers,
-                conf, debugMode);
-
-        if (debugMode) {
-            log.info("brokers' load stats:{}", stats);
-        }
-
-        final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
-        boolean transfer = conf.isLoadBalancerTransferEnabled();
-        while (true) {
-            if (!stats.hasTransferableBrokers()) {
-                if (debugMode) {
-                    log.info("Exhausted target transfer brokers. Stop unloading");
-                }
-                break;
+            var skipReason = stats.update(context.brokerLoadDataStore(), recentlyUnloadedBrokers, conf);
+            if (!skipReason.isEmpty()) {
+                decision.skip(skipReason.get());
+                log.warn("Failed to update load stat. Reason:{}. Stop unloading.", decision.getReason());
+                return decision;
             }
-            if (stats.std() <= targetStd && hasMsgThroughput(context, stats.minBrokers.peekLast())) {
-                if (debugMode) {
-                    log.info("std:{} <= targetStd:{} and minBroker:{} has msg throughput. Stop unloading.",
-                            stats.std, targetStd, stats.minBrokers.peekLast());
-                }
-                break;
-            }
-
-            String maxBroker = stats.maxBrokers().pollLast();
-            String minBroker = stats.minBrokers().pollLast();
-            double max = brokerAvgResourceUsage.get(maxBroker);
-            double min = brokerAvgResourceUsage.get(minBroker);
-            Optional<BrokerLoadData> maxBrokerLoadData = context.brokerLoadDataStore().get(maxBroker);
-            if (maxBrokerLoadData.isEmpty()) {
-                log.error("maxBroker:{} maxBrokerLoadData is empty. Skip unloading from this broker.", maxBroker);
-                continue;
-            }
-            double offload = (max - min) / 2;
-            BrokerLoadData brokerLoadData = maxBrokerLoadData.get();
-            double brokerThroughput = brokerLoadData.getMsgThroughputIn() + brokerLoadData.getMsgThroughputOut();
-            double offloadThroughput = brokerThroughput * offload;
+            decision.setLoadAvg(stats.avg);
+            decision.setLoadStd(stats.std);
 
             if (debugMode) {
-                log.info(
-                        "Attempting to shed load from broker:{}{}, which has the max resource "
-                                + "usage {}%, targetStd:{},"
-                                + " -- Offloading {}%, at least {} KByte/s of traffic, left throughput {} KByte/s",
-                        maxBroker, transfer ? " to broker:" + minBroker : "",
-                        100 * max, targetStd,
-                        offload * 100, offloadThroughput / KB, (brokerThroughput - offloadThroughput) / KB);
+                log.info("brokers' load stats:{}", stats);
             }
 
-            MutableDouble trafficMarkedToOffload = new MutableDouble(0);
-            MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
+            // success metrics
+            int numOfOverloadedBrokers = 0;
+            int numOfUnderloadedBrokers = 0;
 
-            Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
-            if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
-                log.error("maxBroker:{} topBundlesLoadData is empty. Skip unloading from this broker.", maxBroker);
-                continue;
-            }
+            // skip metrics
+            int numOfBrokersWithEmptyLoadData = 0;
+            int numOfBrokersWithFewBundles = 0;
 
-            var topBundlesLoadData = bundlesLoadData.get().getTopBundlesLoadData();
-            if (topBundlesLoadData.size() > 1) {
-                MutableInt remainingTopBundles = new MutableInt();
-                topBundlesLoadData.stream()
-                        .filter(e ->
-                                !recentlyUnloadedBundles.containsKey(e.bundleName()) && isTransferable(e.bundleName())
-                        ).map((e) -> {
-                            String bundle = e.bundleName();
-                            var bundleData = e.stats();
-                            double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
-                            remainingTopBundles.increment();
-                            return Pair.of(bundle, throughput);
-                        }).sorted((e1, e2) ->
-                                Double.compare(e2.getRight(), e1.getRight())
-                        ).forEach(e -> {
-                            if (remainingTopBundles.getValue() > 1
-                                    && (trafficMarkedToOffload.doubleValue() < offloadThroughput
-                                    || atLeastOneBundleSelected.isFalse())) {
-                                if (transfer) {
-                                    selectedBundlesCache.add(
-                                            new Unload(maxBroker, e.getLeft(),
-                                                    Optional.of(minBroker)));
-                                } else {
-                                    selectedBundlesCache.add(
-                                            new Unload(maxBroker, e.getLeft()));
-                                }
+            final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
+            boolean transfer = conf.isLoadBalancerTransferEnabled();
+            while (true) {
+                if (!stats.hasTransferableBrokers()) {
+                    if (debugMode) {
+                        log.info("Exhausted target transfer brokers. Stop unloading");
+                    }
+                    break;
+                }
+                if (stats.std() <= targetStd) {
+                    if (hasMsgThroughput(context, stats.minBrokers.peekLast())) {
+                        if (debugMode) {
+                            log.info("std:{} <= targetStd:{} and minBroker:{} has msg throughput. Stop unloading.",
+                                    stats.std, targetStd, stats.minBrokers.peekLast());
+                        }
+                        break;
+                    } else {
+                        numOfUnderloadedBrokers++;
+                    }
+                } else {
+                    numOfOverloadedBrokers++;
+                }
 
-                                trafficMarkedToOffload.add(e.getRight());
-                                atLeastOneBundleSelected.setTrue();
-                                remainingTopBundles.decrement();
-                            }
-                        });
-            } else if (topBundlesLoadData.size() == 1) {
-                log.warn(
-                        "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                + "No Load Shedding will be done on this broker",
-                        topBundlesLoadData.iterator().next(), maxBroker);
-            } else {
-                log.warn("Broker {} is overloaded despite having no bundles", maxBroker);
-            }
+                String maxBroker = stats.maxBrokers().pollLast();
+                String minBroker = stats.minBrokers().pollLast();
+                Optional<BrokerLoadData> maxBrokerLoadData = context.brokerLoadDataStore().get(maxBroker);
+                Optional<BrokerLoadData> minBrokerLoadData = context.brokerLoadDataStore().get(minBroker);
+                if (maxBrokerLoadData.isEmpty()) {
+                    log.error("maxBroker:{} maxBrokerLoadData is empty. Skip unloading from this max broker.",
+                            maxBroker);
+                    numOfBrokersWithEmptyLoadData++;
+                    continue;
+                }
+                if (minBrokerLoadData.isEmpty()) {
+                    log.error("minBroker:{} minBrokerLoadData is empty. Skip unloading to this min broker.", minBroker);
+                    numOfBrokersWithEmptyLoadData++;
+                    continue;
+                }
 
-            if (trafficMarkedToOffload.getValue() > 0) {
-                stats.offload(max, min, offload);
+                double max = maxBrokerLoadData.get().getWeightedMaxEMA();
+                double min = minBrokerLoadData.get().getWeightedMaxEMA();
+                double offload = (max - min) / 2;
+                BrokerLoadData brokerLoadData = maxBrokerLoadData.get();
+                double brokerThroughput = brokerLoadData.getMsgThroughputIn() + brokerLoadData.getMsgThroughputOut();
+                double offloadThroughput = brokerThroughput * offload;
+
                 if (debugMode) {
-                    log.info(String.format("brokers' load stats:%s, after offload{max:%.2f, min:%.2f, offload:%.2f}",
-                            stats, max, min, offload));
+                    log.info(
+                            "Attempting to shed load from broker:{}{}, which has the max resource "
+                                    + "usage {}%, targetStd:{},"
+                                    + " -- Offloading {}%, at least {} KByte/s of traffic, left throughput {} KByte/s",
+                            maxBroker, transfer ? " to broker:" + minBroker : "",
+                            100 * max, targetStd,
+                            offload * 100, offloadThroughput / KB, (brokerThroughput - offloadThroughput) / KB);
+                }
+
+                MutableDouble trafficMarkedToOffload = new MutableDouble(0);
+                MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
+
+                Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
+                if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
+                    log.error("maxBroker:{} topBundlesLoadData is empty. Skip unloading from this broker.", maxBroker);
+                    numOfBrokersWithEmptyLoadData++;
+                    continue;
+                }
+
+                var topBundlesLoadData = bundlesLoadData.get().getTopBundlesLoadData();
+                if (topBundlesLoadData.size() > 1) {
+                    MutableInt remainingTopBundles = new MutableInt();
+                    topBundlesLoadData.stream()
+                            .filter(e ->
+                                    !recentlyUnloadedBundles.containsKey(e.bundleName()) && isTransferable(
+                                            e.bundleName())
+                            ).map((e) -> {
+                                String bundle = e.bundleName();
+                                var bundleData = e.stats();
+                                double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
+                                remainingTopBundles.increment();
+                                return Pair.of(bundle, throughput);
+                            }).sorted((e1, e2) ->
+                                    Double.compare(e2.getRight(), e1.getRight())
+                            ).forEach(e -> {
+                                if (remainingTopBundles.getValue() > 1
+                                        && (trafficMarkedToOffload.doubleValue() < offloadThroughput
+                                        || atLeastOneBundleSelected.isFalse())) {
+                                    if (transfer) {
+                                        selectedBundlesCache.put(maxBroker,
+                                                new Unload(maxBroker, e.getLeft(),
+                                                        Optional.of(minBroker)));
+                                    } else {
+                                        selectedBundlesCache.put(maxBroker,
+                                                new Unload(maxBroker, e.getLeft()));
+                                    }
+                                    trafficMarkedToOffload.add(e.getRight());
+                                    atLeastOneBundleSelected.setTrue();
+                                    remainingTopBundles.decrement();
+                                }
+                            });
+                    if (atLeastOneBundleSelected.isFalse()) {
+                        numOfBrokersWithFewBundles++;
+                    }
+                } else if (topBundlesLoadData.size() == 1) {
+                    numOfBrokersWithFewBundles++;
+                    log.warn(
+                            "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
+                                    + "No Load Shedding will be done on this broker",
+                            topBundlesLoadData.iterator().next(), maxBroker);
+                } else {
+                    numOfBrokersWithFewBundles++;
+                    log.warn("Broker {} is overloaded despite having no bundles", maxBroker);
+                }
+
+
+
+                if (trafficMarkedToOffload.getValue() > 0) {
+                    stats.offload(max, min, offload);
+                    if (debugMode) {
+                        log.info(
+                                String.format("brokers' load stats:%s, after offload{max:%.2f, min:%.2f, offload:%.2f}",
+                                        stats, max, min, offload));
+                    }
                 }
             }
+
+            if (debugMode) {
+                log.info("selectedBundlesCache:{}", selectedBundlesCache);
+            }
+
+            if (decision.getUnloads().isEmpty()) {
+                decision.skip(
+                        numOfOverloadedBrokers,
+                        numOfUnderloadedBrokers,
+                        numOfBrokersWithEmptyLoadData,
+                        numOfBrokersWithFewBundles);
+            } else {
+                decision.succeed(
+                        numOfOverloadedBrokers,
+                        numOfUnderloadedBrokers);
+            }
+        } catch (Throwable e) {
+            log.error("Failed to process unloading. ", e);
+            decision.fail();
         }
 
-        if (debugMode) {
-            log.info("selectedBundlesCache:{}", selectedBundlesCache);
-        }
-
-        return selectedBundlesCache;
+        return decision;
     }
-
 
 
     private boolean hasMsgThroughput(LoadManagerContext context, String broker) {
