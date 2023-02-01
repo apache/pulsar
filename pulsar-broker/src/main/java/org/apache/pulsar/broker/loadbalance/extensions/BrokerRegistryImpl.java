@@ -150,24 +150,18 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @Override
     public CompletableFuture<List<String>> getAvailableBrokersAsync() {
-        if (!this.isStarted()) {
-            return FutureUtil.failedFuture(new IllegalStateException("The registry already closed."));
-        }
+        this.checkState();
         return brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH).thenApply(Lists::newArrayList);
     }
 
     @Override
     public CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker) {
-        if (!this.isStarted()) {
-            return FutureUtil.failedFuture(new IllegalStateException("The registry already closed."));
-        }
+        this.checkState();
         return brokerLookupDataLockManager.readLock(keyPath(broker));
     }
 
     public CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync() {
-        if (!this.isStarted()) {
-            return FutureUtil.failedFuture(new IllegalStateException("The registry already closed."));
-        }
+        this.checkState();
         return this.getAvailableBrokersAsync().thenCompose(availableBrokers -> {
             Map<String, BrokerLookupData> map = new ConcurrentHashMap<>();
             List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -184,10 +178,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
         });
     }
 
-    public synchronized void listen(BiConsumer<String, NotificationType> listener) {
-        if (this.state == State.Closed) {
-            throw new IllegalStateException("The registry already closed.");
-        }
+    public synchronized void addListener(BiConsumer<String, NotificationType> listener) {
+        this.checkState();
         this.listeners.add(listener);
     }
 
@@ -241,5 +233,11 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     @VisibleForTesting
     protected static String keyPath(String brokerId) {
         return String.format("%s/%s", LOOKUP_DATA_PATH, brokerId);
+    }
+
+    private void checkState() throws IllegalStateException {
+        if (this.state == State.Closed) {
+            throw new IllegalStateException("The registry already closed.");
+        }
     }
 }

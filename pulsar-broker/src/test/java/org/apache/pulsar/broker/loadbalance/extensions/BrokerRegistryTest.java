@@ -231,7 +231,7 @@ public class BrokerRegistryTest {
         BrokerRegistryImpl brokerRegistry3 = createBrokerRegistryImpl(pulsar3);
 
         Set<String> brokerIds = new HashSet<>();
-        brokerRegistry1.listen((brokerId, type) -> {
+        brokerRegistry1.addListener((brokerId, type) -> {
             brokerIds.add(brokerId);
         });
 
@@ -311,7 +311,7 @@ public class BrokerRegistryTest {
         assertEquals(getState(brokerRegistry), BrokerRegistryImpl.State.Registered);
 
         // Add a listener
-        brokerRegistry.listen((brokerId, type) -> {
+        brokerRegistry.addListener((brokerId, type) -> {
             // Ignore.
         });
         assertTrue(brokerRegistry.isStarted());
@@ -359,7 +359,7 @@ public class BrokerRegistryTest {
         }
 
         try {
-            brokerRegistry.listen((brokerId, type) -> {
+            brokerRegistry.addListener((brokerId, type) -> {
                 // Ignore.
             });
             fail();
