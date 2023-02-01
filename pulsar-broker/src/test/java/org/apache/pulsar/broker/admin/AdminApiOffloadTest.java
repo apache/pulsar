@@ -295,17 +295,22 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetNamespaceOffloadPoliciesFailByReadOnly() throws Exception {
-        pulsar.getConfigurationMetadataStore().put(NamespaceResources.POLICIES_READONLY_FLAG_PATH, "0".getBytes(),
-                Optional.empty()).join();
+        boolean setNsPolicyReadOnlySuccess = false;
         try {
+            pulsar.getConfigurationMetadataStore().put(NamespaceResources.POLICIES_READONLY_FLAG_PATH, "0".getBytes(),
+                    Optional.empty()).join();
+            setNsPolicyReadOnlySuccess = true;
             admin.namespaces().setOffloadThresholdInSeconds(myNamespace, 300);
             fail("set offload threshold should fail when ns policies is readonly");
         } catch (Exception ex){
             // ignore.
+        } finally {
+            // cleanup.
+            if (setNsPolicyReadOnlySuccess) {
+                pulsar.getConfigurationMetadataStore().delete(NamespaceResources.POLICIES_READONLY_FLAG_PATH,
+                        Optional.empty()).join();
+            }
         }
-        // cleanup.
-        pulsar.getConfigurationMetadataStore().delete(NamespaceResources.POLICIES_READONLY_FLAG_PATH,
-                Optional.empty()).join();
     }
 
     @Test
