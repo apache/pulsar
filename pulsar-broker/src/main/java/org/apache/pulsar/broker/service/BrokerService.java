@@ -1676,15 +1676,12 @@ public class BrokerService implements Closeable {
 
                     if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
                             && !NamespaceService.isSystemServiceNamespace(namespace.toString())) {
-                        try {
-                            TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
-                            if (topicPolicies != null) {
-                                persistencePolicies = topicPolicies.getPersistence();
-                                retentionPolicies = topicPolicies.getRetentionPolicies();
-                                topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
-                            }
-                        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                            log.debug("Topic {} policies have not been initialized yet.", topicName);
+                        final TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
+                                .getTopicPoliciesIfExists(topicName);
+                        if (topicPolicies != null) {
+                            persistencePolicies = topicPolicies.getPersistence();
+                            retentionPolicies = topicPolicies.getRetentionPolicies();
+                            topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                         }
                     }
 
@@ -3299,12 +3296,8 @@ public class BrokerService implements Closeable {
         if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
             return Optional.empty();
         }
-        try {
-            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName));
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
-            return Optional.empty();
-        }
+        return Optional.ofNullable(pulsar.getTopicPoliciesService()
+                .getTopicPoliciesIfExists(topicName));
     }
 
     public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
