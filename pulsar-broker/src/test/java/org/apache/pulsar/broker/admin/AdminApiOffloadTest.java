@@ -293,7 +293,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.namespaces().getOffloadPolicies(myNamespace), policies);
     }
 
-
     @Test
     public void testSetNamespaceOffloadPoliciesFailByReadOnly() throws Exception {
         pulsar.getConfigurationMetadataStore().put(NamespaceResources.POLICIES_READONLY_FLAG_PATH, "0".getBytes(),
