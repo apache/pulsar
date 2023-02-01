@@ -228,8 +228,6 @@ public class PulsarTestContext implements AutoCloseable {
          */
         protected ServiceConfiguration initializeConfig() {
             ServiceConfiguration svcConfig = new ServiceConfiguration();
-            svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-            svcConfig.setClusterName("pulsar-cluster");
             defaultOverrideServiceConfiguration(svcConfig);
             return svcConfig;
         }
