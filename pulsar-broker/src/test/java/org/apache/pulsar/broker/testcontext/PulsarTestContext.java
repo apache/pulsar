@@ -88,7 +88,6 @@ import org.mockito.internal.util.MockUtil;
  * <li>It makes it possible to use composition over inheritance in test classes. This can help reduce the dependency on
  * deep test base cases hierarchies.</li>
  * <li>It reduces code duplication across test classes.</li>
- * <li>Previous tests were using SameThreadOrderedExecutor for PulsarService's orderedExecutor. The reason is unknown. Executing in the same thread could hide real concurrency issues.</li>
  * </ul>
  *
  * <h2>Example usage of a PulsarService that is started</h2>
@@ -223,7 +222,6 @@ public class PulsarTestContext implements AutoCloseable {
         protected ServiceConfiguration svcConfig = initializeConfig();
         protected Consumer<ServiceConfiguration> configOverrideCustomizer = this::defaultOverrideServiceConfiguration;
         protected Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
-        protected boolean useSameThreadOrderedExecutor = false;
 
         /**
          * Initialize the ServiceConfiguration with default values.
@@ -234,17 +232,6 @@ public class PulsarTestContext implements AutoCloseable {
             svcConfig.setClusterName("pulsar-cluster");
             defaultOverrideServiceConfiguration(svcConfig);
             return svcConfig;
-        }
-
-        /**
-         * Use {@link org.apache.pulsar.broker.auth.SameThreadOrderedSafeExecutor} in PulsarService as the
-         * OrderedExecutor. This is not usuaully needed. This was added for comparing behavior of
-         * the previous behavior to see if it makes a difference compared to using the OrderedExecutor configured
-         * by PulsarService based on the {@link ServiceConfiguration#getNumOrderedExecutorThreads()} value.
-         */
-        public Builder useSameThreadOrderedExecutor(boolean useSameThreadOrderedExecutor) {
-            this.useSameThreadOrderedExecutor = useSameThreadOrderedExecutor;
-            return this;
         }
 
         /**
@@ -614,8 +601,7 @@ public class PulsarTestContext implements AutoCloseable {
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(StartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.useSameThreadOrderedExecutor,
-                            builder.brokerServiceCustomizer);
+                            bookKeeperClientFactory, builder.brokerServiceCustomizer);
             registerCloseable(() -> {
                 pulsarService.close();
                 resetSpyOrMock(pulsarService);
@@ -671,7 +657,7 @@ public class PulsarTestContext implements AutoCloseable {
             PulsarService pulsarService = spyConfig.getPulsarService()
                     .spy(NonStartableTestPulsarService.class, spyConfig, builder.config, builder.localMetadataStore,
                             builder.configurationMetadataStore, builder.compactor, builder.brokerInterceptor,
-                            bookKeeperClientFactory, builder.useSameThreadOrderedExecutor, builder.pulsarResources,
+                            bookKeeperClientFactory, builder.pulsarResources,
                             builder.managedLedgerClientFactory, builder.brokerServiceCustomizer);
             registerCloseable(() -> {
                 pulsarService.close();

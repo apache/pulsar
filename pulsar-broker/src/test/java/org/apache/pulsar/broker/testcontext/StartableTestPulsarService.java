@@ -44,10 +44,9 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
                                       Compactor compactor,
                                       BrokerInterceptor brokerInterceptor,
                                       BookKeeperClientFactory bookKeeperClientFactory,
-                                      boolean useSameThreadOrderedExecutor,
                                       Function<BrokerService, BrokerService> brokerServiceCustomizer) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory, useSameThreadOrderedExecutor);
+                bookKeeperClientFactory);
         this.brokerServiceCustomizer = brokerServiceCustomizer;
     }
 

@@ -68,11 +68,11 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
                                          MetadataStoreExtended configurationMetadataStore,
                                          Compactor compactor, BrokerInterceptor brokerInterceptor,
                                          BookKeeperClientFactory bookKeeperClientFactory,
-                                         boolean useSameThreadOrderedExecutor, PulsarResources pulsarResources,
+                                         PulsarResources pulsarResources,
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactor, brokerInterceptor,
-                bookKeeperClientFactory, useSameThreadOrderedExecutor);
+                bookKeeperClientFactory);
         this.pulsarResources = pulsarResources;
         this.managedLedgerClientFactory = managedLedgerClientFactory;
         try {
