@@ -68,11 +68,6 @@ public class TopicMessageImpl<T> implements Message<T> {
         return messageId;
     }
 
-    @Deprecated
-    public MessageId getInnerMessageId() {
-        return MessageIdImpl.convertToMessageIdImpl(messageId);
-    }
-
     @Override
     public Map<String, String> getProperties() {
         return msg.getProperties();
