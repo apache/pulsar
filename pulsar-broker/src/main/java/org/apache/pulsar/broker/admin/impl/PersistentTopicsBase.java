@@ -3346,7 +3346,7 @@ public class PersistentTopicsBase extends AdminResource {
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
         return validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE)
-                .thenAccept(__ -> validatePoliciesReadOnlyAccess())
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
