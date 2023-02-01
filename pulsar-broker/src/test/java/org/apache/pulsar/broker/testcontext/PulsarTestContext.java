@@ -92,7 +92,7 @@ import org.mockito.internal.util.MockUtil;
  *
  * <h2>Example usage of a PulsarService that is started</h2>
  * <pre>{@code
- * PulsarTestContext testContext = PulsarTestContext.startableBuilder()
+ * PulsarTestContext testContext = PulsarTestContext.builder()
  *     .spyByDefault()
  *     .withMockZooKeeper()
  *     .build();
@@ -106,7 +106,7 @@ import org.mockito.internal.util.MockUtil;
  *
  * <h2>Example usage of a PulsarService that is not started at all</h2>
  * <pre>{@code
- * PulsarTestContext testContext = PulsarTestContext.builder()
+ * PulsarTestContext testContext = PulsarTestContext.builderForNonStartableContext()
  *     .spyByDefault()
  *     .build();
  * PulsarService pulsarService = testContext.getPulsarService();
