@@ -70,7 +70,12 @@ public class AuthenticationService implements Closeable {
                 }
 
                 for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
-                    AuthenticationProviderList provider = new AuthenticationProviderList(entry.getValue());
+                    AuthenticationProvider provider;
+                    if (entry.getValue().size() == 1) {
+                        provider = entry.getValue().get(0);
+                    } else {
+                        provider = new AuthenticationProviderList(entry.getValue());
+                    }
                     provider.initialize(conf);
                     providers.put(provider.getAuthMethodName(), provider);
                     LOG.info("[{}] has been loaded.",
