@@ -647,11 +647,7 @@ public class Commands {
                 throw new IllegalStateException();
             }
 
-            if (schemaInfo.getType() == SchemaType.AUTO_CONSUME) {
-                convertAutoConsumeSchema(schemaInfo, subscribe.setSchema());
-            } else {
-                convertSchema(schemaInfo, subscribe.setSchema());
-            }
+            convertSchema(schemaInfo, subscribe.setSchema());
         }
 
         return serializeWithSize(cmd);
@@ -775,7 +771,9 @@ public class Commands {
     }
 
     private static Schema.Type getSchemaType(SchemaType type) {
-        if (type.getValue() < 0) {
+        if (type == SchemaType.AUTO_CONSUME) {
+            return Schema.Type.AutoConsume;
+        } else if (type.getValue() < 0) {
             return Schema.Type.None;
         } else {
             return Schema.Type.valueOf(type.getValue());
@@ -803,11 +801,6 @@ public class Commands {
                         .setValue(entry.getValue());
             }
         });
-    }
-
-    private static void convertAutoConsumeSchema(SchemaInfo schemaInfo, Schema schema) {
-        convertSchema(schemaInfo, schema);
-        schema.setType(Schema.Type.AutoConsume);
     }
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
