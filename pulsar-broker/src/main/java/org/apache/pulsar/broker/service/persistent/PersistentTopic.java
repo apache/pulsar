@@ -346,7 +346,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     Policies policies = optPolicies.get();
 
-                    this.updateTopicPolicyByNamespacePolicy(policies);
+                    updateTopicPolicyByNamespacePolicy(policies);
 
                     initializeDispatchRateLimiterIfNeeded();
 

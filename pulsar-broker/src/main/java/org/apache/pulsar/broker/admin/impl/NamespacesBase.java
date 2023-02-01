@@ -44,6 +44,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -69,6 +70,8 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.BackoffBuilder;
+import org.apache.pulsar.client.util.RetryUtil;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -106,6 +109,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
@@ -204,23 +208,48 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
-    @SuppressWarnings("unchecked")
-    protected CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
+    /**
+     * Delete the namespace and retry to resolve some topics that were not created successfully(in metadata)
+     * during the deletion.
+     */
+    protected @Nonnull CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        RetryUtil.retryAsynchronously(() -> internalDeleteNamespaceAsync0(force),
+                new BackoffBuilder()
+                        .setInitialTime(200, TimeUnit.MILLISECONDS)
+                        .setMandatoryStop(15, TimeUnit.SECONDS)
+                        .setMax(15, TimeUnit.SECONDS)
+                        .create(),
+                pulsar().getExecutor(), future);
+        return future;
+    }
+    private @Nonnull CompletableFuture<Void> internalDeleteNamespaceAsync0(boolean force) {
         CompletableFuture<Policies> preconditionCheck = precheckWhenDeleteNamespace(namespaceName, force);
         return preconditionCheck
                 .thenCompose(policies -> {
-                    if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
-                        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+                    final CompletableFuture<Void> markDeleteFuture;
+                    if (policies != null && policies.deleted) {
+                        markDeleteFuture = CompletableFuture.completedFuture(null);
+                    } else {
+                        markDeleteFuture = namespaceResources().setPoliciesAsync(namespaceName, old -> {
+                            old.deleted = true;
+                            return old;
+                        });
                     }
-                    return pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
+                    if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
+                        return markDeleteFuture.thenCompose(__ ->
+                                pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName));
+                    }
+                    return markDeleteFuture.thenCompose(__ ->
+                            pulsar().getNamespaceService().getFullListOfTopics(namespaceName));
                 })
                 .thenCompose(allTopics -> pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
-                         .thenCompose(allPartitionedTopics -> {
-                             List<List<String>> topicsSum = new ArrayList<>(2);
-                             topicsSum.add(allTopics);
-                             topicsSum.add(allPartitionedTopics);
-                             return CompletableFuture.completedFuture(topicsSum);
-                         }))
+                        .thenCompose(allPartitionedTopics -> {
+                            List<List<String>> topicsSum = new ArrayList<>(2);
+                            topicsSum.add(allTopics);
+                            topicsSum.add(allPartitionedTopics);
+                            return CompletableFuture.completedFuture(topicsSum);
+                        }))
                 .thenCompose(topics -> {
                     List<String> allTopics = topics.get(0);
                     ArrayList<String> allUserCreatedTopics = new ArrayList<>();
@@ -260,22 +289,12 @@ public abstract class NamespacesBase extends AdminResource {
                             throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
                         }
                     }
-                    return namespaceResources().setPoliciesAsync(namespaceName, old -> {
-                        old.deleted = true;
-                        return  old;
-                    }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(allUserCreatedTopics);
-                    }).thenCompose(ignore -> {
-                        return internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics);
-                    }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(allSystemTopics);
-                    }).thenCompose(ignore__ -> {
-                        return internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics);
-                    }).thenCompose(ignore -> {
-                        return internalDeleteTopicsAsync(topicPolicy);
-                    }).thenCompose(ignore__ -> {
-                        return internalDeletePartitionedTopicsAsync(partitionedTopicPolicy);
-                    });
+                    return internalDeleteTopicsAsync(allUserCreatedTopics)
+                            .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
+                            .thenCompose(ignore -> internalDeleteTopicsAsync(allSystemTopics))
+                            .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
+                            .thenCompose(ignore -> internalDeleteTopicsAsync(topicPolicy))
+                            .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
                 })
                 .thenCompose(ignore -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
