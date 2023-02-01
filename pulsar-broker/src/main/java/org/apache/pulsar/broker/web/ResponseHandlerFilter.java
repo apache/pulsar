@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.Objects;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.Filter;
@@ -49,7 +50,7 @@ public class ResponseHandlerFilter implements Filter {
 
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
-        this.interceptor = pulsar.getBrokerInterceptor();
+        this.interceptor = Objects.requireNonNull(pulsar.getBrokerInterceptor());
     }
 
     @Override

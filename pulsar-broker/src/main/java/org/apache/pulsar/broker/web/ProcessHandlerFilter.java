@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.Objects;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -34,7 +35,7 @@ public class ProcessHandlerFilter implements Filter {
     private final BrokerInterceptor interceptor;
 
     public ProcessHandlerFilter(BrokerInterceptor brokerInterceptor) {
-        this.interceptor = brokerInterceptor;
+        this.interceptor = Objects.requireNonNull(brokerInterceptor);
     }
 
     @Override
