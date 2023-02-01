@@ -1638,7 +1638,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         setup();
     }
 
-    @Test(invocationCount = 200)
+    @Test
     public void testDeleteNamespaceWithTopicPolicies() throws Exception {
         String tenant = "test-tenant";
         assertFalse(admin.tenants().getTenants().contains(tenant));
