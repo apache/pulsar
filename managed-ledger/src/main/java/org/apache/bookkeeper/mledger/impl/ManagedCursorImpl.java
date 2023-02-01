@@ -1048,6 +1048,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         // is
         // at the last entry in the previous ledger
         PositionImpl writerPosition = ledger.getLastPosition();
+        System.out.println("xxxx writer position is " + writerPosition);
         if (writerPosition.getEntryId() != -1) {
             return readPosition.compareTo(writerPosition) <= 0;
         } else {

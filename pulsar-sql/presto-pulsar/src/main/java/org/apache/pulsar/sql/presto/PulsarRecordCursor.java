@@ -38,7 +38,9 @@ import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.RecordCursor;
 import io.trino.spi.type.Type;
 import java.io.IOException;
+import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -48,6 +50,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+
+import lombok.Getter;
+import org.apache.bookkeeper.client.AsyncCallback;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -59,14 +69,23 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.api.raw.RawMessageIdImpl;
 import org.apache.pulsar.common.api.raw.RawMessageImpl;
+import org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -76,6 +95,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.sql.presto.util.CacheSizeAllocator;
 import org.apache.pulsar.sql.presto.util.NoStrictCacheSizeAllocator;
 import org.apache.pulsar.sql.presto.util.NullCacheSizeAllocator;
+import org.apache.pulsar.sql.presto.util.ReadCompactedType;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -85,6 +105,7 @@ import org.jctools.queues.SpscArrayQueue;
  */
 public class PulsarRecordCursor implements RecordCursor {
 
+    @Getter
     private List<PulsarColumnHandle> columnHandles;
     private PulsarSplit pulsarSplit;
     private PulsarConnectorConfig pulsarConnectorConfig;
@@ -123,6 +144,19 @@ public class PulsarRecordCursor implements RecordCursor {
     protected ConcurrentOpenHashMap<String, ChunkedMessageCtx> chunkedMessagesMap =
             ConcurrentOpenHashMap.<String, ChunkedMessageCtx>newBuilder().build();
 
+    private PulsarConnectorCache pulsarConnectorCache;
+    private OffloadPoliciesImpl offloadPolicies;
+    private volatile Throwable compactedHandleError;
+    private final ReadCompactedType readCompactedType;
+    private long compactedLedgerId = -1;
+//    private Position compactedHorizon;
+    protected ConcurrentOpenHashMap<String, BatchMessageIdImpl> compactedMessage =
+            ConcurrentOpenHashMap.<String, BatchMessageIdImpl>newBuilder().build();
+    private LedgerHandle compactedLedgerHandle;
+    private BookKeeper bookKeeper;
+    private ManagedLedgerFactory managedLedgerFactory;
+    private ManagedLedgerConfig managedLedgerConfig;
+
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
     public PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit,
@@ -131,7 +165,6 @@ public class PulsarRecordCursor implements RecordCursor {
         this.splitSize = pulsarSplit.getSplitSize();
         // Set start time for split
         this.startTime = System.nanoTime();
-        PulsarConnectorCache pulsarConnectorCache;
         try {
             pulsarConnectorCache = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
         } catch (Exception e) {
@@ -140,12 +173,13 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
 
-        OffloadPoliciesImpl offloadPolicies = pulsarSplit.getOffloadPolicies();
+        offloadPolicies = pulsarSplit.getOffloadPolicies();
         if (offloadPolicies != null) {
             offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
             offloadPolicies.setManagedLedgerOffloadMaxThreads(
                     pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
         }
+        this.readCompactedType = pulsarSplit.getReadCompactedType();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
                 pulsarConnectorCache.getManagedLedgerFactory(),
                 pulsarConnectorCache.getManagedLedgerConfig(
@@ -154,7 +188,6 @@ public class PulsarRecordCursor implements RecordCursor {
                         pulsarConnectorConfig),
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
         this.decoderFactory = decoderFactory;
-        initEntryCacheSizeAllocator(pulsarConnectorConfig);
     }
 
     // Exposed for testing purposes
@@ -163,8 +196,23 @@ public class PulsarRecordCursor implements RecordCursor {
                        PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker,
                        PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.splitSize = pulsarSplit.getSplitSize();
+        this.readCompactedType = pulsarSplit.getReadCompactedType();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, managedLedgerConfig,
             pulsarConnectorMetricsTracker);
+        this.decoderFactory = decoderFactory;
+    }
+
+    PulsarRecordCursor(List<PulsarColumnHandle> columnHandles, PulsarSplit pulsarSplit, PulsarConnectorConfig
+            pulsarConnectorConfig, ManagedLedgerFactory managedLedgerFactory, ManagedLedgerConfig managedLedgerConfig,
+                       PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker,
+                       PulsarDispatchingRowDecoderFactory decoderFactory, BookKeeper bookKeeper) {
+        this.splitSize = pulsarSplit.getSplitSize();
+        this.readCompactedType = pulsarSplit.getReadCompactedType();
+        this.bookKeeper = bookKeeper;
+        this.managedLedgerFactory = managedLedgerFactory;
+        this.managedLedgerConfig = managedLedgerConfig;
+        initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, managedLedgerConfig,
+                pulsarConnectorMetricsTracker);
         this.decoderFactory = decoderFactory;
     }
 
@@ -198,9 +246,13 @@ public class PulsarRecordCursor implements RecordCursor {
         log.info("Initializing split with parameters: %s", pulsarSplit);
 
         try {
-            this.cursor = getCursor(TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
-                pulsarSplit.getTableName()), pulsarSplit.getStartPosition(), managedLedgerFactory, managedLedgerConfig);
-        } catch (ManagedLedgerException | InterruptedException e) {
+            if (readCompactedType != null) {
+                initCompactedRead();
+            } else {
+                this.cursor = getCursor(topicName,
+                        pulsarSplit.getStartPosition(), managedLedgerFactory, managedLedgerConfig);
+            }
+        } catch (Exception e) {
             log.error(e, "Failed to get read only cursor");
             close();
             throw new RuntimeException(e);
@@ -273,6 +325,8 @@ public class PulsarRecordCursor implements RecordCursor {
                         @Override
                         public void accept(Entry entry) {
 
+                            System.out.println("xxxx deserialize entry "
+                                    + entry.getLedgerId() + ":" + entry.getEntryId() + ", size: " + entry.getLength());
                             try {
                                 entryQueueCacheSizeAllocator.release(entry.getLength());
 
@@ -306,15 +360,30 @@ public class PulsarRecordCursor implements RecordCursor {
                                                         message = null;
                                                     }
                                                     if (message != null) {
-                                                        while (true) {
-                                                            if (!haveAvailableCacheSize(
-                                                                    messageQueueCacheSizeAllocator, messageQueue)
-                                                                    || !messageQueue.offer(message)) {
-                                                                Thread.sleep(1);
-                                                            } else {
-                                                                messageQueueCacheSizeAllocator.allocate(
-                                                                        message.getData().readableBytes());
-                                                                break;
+                                                        if (readCompactedType != null && message.getKey().isPresent()) {
+                                                            RawMessageIdImpl messageId =
+                                                                    (RawMessageIdImpl) message.getMessageId();
+                                                            System.out.println("xxxx parse message with id " + messageId);
+                                                            if (message.getKey().equals("stock-7")) {
+                                                                System.out.println("");
+                                                            }
+                                                            compactMessage(message.getKey().get(),
+                                                                    new BatchMessageIdImpl(
+                                                                            messageId.getLedgerId(),
+                                                                            messageId.getEntryId(),
+                                                                            partition,
+                                                                            (int) messageId.getBatchIndex()));
+                                                        } else {
+                                                            while (true) {
+                                                                if (!haveAvailableCacheSize(
+                                                                        messageQueueCacheSizeAllocator, messageQueue)
+                                                                        || !messageQueue.offer(message)) {
+                                                                    Thread.sleep(1);
+                                                                } else {
+                                                                    messageQueueCacheSizeAllocator.allocate(
+                                                                            message.getData().readableBytes());
+                                                                    break;
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -481,15 +550,23 @@ public class PulsarRecordCursor implements RecordCursor {
     public boolean advanceNextPosition() {
 
         if (readEntries == null) {
-            // start deserialize thread
-            deserializeEntries = new DeserializeEntries();
-            deserializeEntries.setUncaughtExceptionHandler((t, ex) -> {
-                deserializingError = ex;
-            });
-            deserializeEntries.start();
+            if (readCompactedType != null) {
+                Thread compactedHandleThread = new Thread(new CompactedLedgerReader());
+                compactedHandleThread.setUncaughtExceptionHandler((t, ex) -> {
+                    compactedHandleError = ex;
+                });
+                compactedHandleThread.start();
+            } else {
+                // start deserialize thread
+                deserializeEntries = new DeserializeEntries();
+                deserializeEntries.setUncaughtExceptionHandler((t, ex) -> {
+                    deserializingError = ex;
+                });
+                deserializeEntries.start();
 
-            readEntries = new ReadEntries();
-            readEntries.run();
+                readEntries = new ReadEntries();
+                readEntries.run();
+            }
         }
 
         if (currentMessage != null) {
@@ -498,12 +575,14 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         while (true) {
-            if (readEntries.hasFinished()) {
+            if (readEntries != null && readEntries.hasFinished() && compactedMessage.isEmpty()) {
                 return false;
             }
 
             if ((messageQueue.capacity() - messageQueue.size()) > 0) {
-                readEntries.run();
+                if (readEntries != null) {
+                    readEntries.run();
+                }
             }
 
             currentMessage = messageQueue.poll();
@@ -512,11 +591,17 @@ public class PulsarRecordCursor implements RecordCursor {
                 break;
             } else if (deserializingError != null) {
                 throw new RuntimeException(deserializingError);
+            } else if (compactedHandleError != null) {
+                throw new RuntimeException(compactedHandleError);
             } else {
                 try {
-                    Thread.sleep(1);
+                    long waitMills = 1;
+                    if (readCompactedType != null) {
+                        waitMills = 10;
+                    }
+                    Thread.sleep(waitMills);
                     // stats for time spent wait to read from message queue because its empty
-                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(1);
+                    metricsTracker.register_MESSAGE_QUEUE_DEQUEUE_WAIT_TIME(waitMills);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -589,6 +674,9 @@ public class PulsarRecordCursor implements RecordCursor {
                             .filter(col -> PulsarColumnHandle.HandleKeyValueType.NONE
                                     .equals(col.getHandleKeyValueType()))
                             .collect(toImmutableSet()));
+            if (this.currentMessage.getData().readableBytes() == 0) {
+                System.out.println("");
+            }
             Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
                     messageDecoder.decodeRow(this.currentMessage.getData());
             decodedValue.ifPresent(currentRowValuesMap::putAll);
@@ -748,6 +836,14 @@ public class PulsarRecordCursor implements RecordCursor {
             }
         }
 
+        if (this.compactedLedgerHandle != null) {
+            try {
+                this.compactedLedgerHandle.close();
+            } catch (Exception e) {
+                log.error(e, "Failed to close compacted leger handle.");
+            }
+        }
+
         // set stat for total execution time of split
         if (this.metricsTracker != null) {
             this.metricsTracker.register_TOTAL_EXECUTION_TIME(System.nanoTime() - startTime);
@@ -866,5 +962,246 @@ public class PulsarRecordCursor implements RecordCursor {
             recyclerHandle.recycle(this);
         }
     }
+
+    private void initCompactedRead() throws Exception {
+        String topic = topicName.getPartition(partition).toString();
+        PersistentTopicInternalStats internalStats =
+                schemaInfoProvider.getPulsarAdmin().topics().getInternalStats(topic);
+        if (internalStats.compactedLedger == null
+                || internalStats.compactedLedger.ledgerId == -1
+                || internalStats.compactedLedger.entries == 0) {
+            return;
+        }
+        this.compactedLedgerId = internalStats.compactedLedger.ledgerId;
+//        if (internalStats.cursors.containsKey("Compaction")) {
+//            String compactedHorizonStr = internalStats.cursors.get("Compaction").markDeletePosition;
+//            String[] arr = compactedHorizonStr.split(":");
+//            compactedHorizon = PositionImpl.get(Long.parseLong(arr[0]), Long.parseLong(arr[1]));
+//        }
+        this.compactedLedgerHandle = bookKeeper.openLedger(compactedLedgerId,
+                BookKeeper.DigestType.fromApiDigestType(DigestType.CRC32), "".getBytes());
+    }
+
+    private void compactMessage(String key, BatchMessageIdImpl messageId) {
+        if (key == null) {
+            return;
+        }
+        switch (readCompactedType) {
+            case COMPACTED_LATEST -> compactedMessage.put(key, messageId);
+            case COMPACTED_EARLIEST -> compactedMessage.computeIfAbsent(key, __ -> messageId);
+        }
+    }
+
+    class CompactedLedgerReader implements AsyncCallback.ReadCallback, Runnable {
+
+        private final int readSize = 1000;
+        private long startEntry = 0;
+        private long readEntry = 0;
+        private SpscArrayQueue<LedgerEntry> queue;
+        private MessageIdData lastMessageId;
+        private AtomicBoolean havePendingRead = new AtomicBoolean(false);
+
+        CompactedLedgerReader() {
+            queue = new SpscArrayQueue<>((int) (readSize * 1.5));
+            lastMessageId = new MessageIdData();
+            lastMessageId.setLedgerId(-1);
+            lastMessageId.setEntryId(-1);
+        }
+
+        private void readMoreEntriesIfNeed() {
+            if (havePendingRead.get()) {
+                return;
+            }
+            havePendingRead.set(true);
+            if (queue.size() < readSize / 2) {
+                long endEntry = Math.min(compactedLedgerHandle.getLastAddConfirmed(), startEntry + readSize);
+                compactedLedgerHandle.asyncReadEntries(startEntry, endEntry, this, null);
+            }
+        }
+
+        @Override
+        public void readComplete(int i, LedgerHandle ledgerHandle, Enumeration<LedgerEntry> enumeration, Object o) {
+            while (enumeration.hasMoreElements()) {
+                LedgerEntry ledgerEntry = enumeration.nextElement();
+                queue.offer(ledgerEntry);
+                startEntry = ledgerEntry.getEntryId() + 1;
+                System.out.println("increase read entry " + startEntry);
+            }
+            havePendingRead.set(false);
+        }
+
+        @Override
+        public void run() {
+            readCompactedData();
+            readNewerData();
+            readOriginalData();
+        }
+
+        private void readCompactedData() {
+            if (compactedLedgerId == -1 || compactedLedgerHandle == null) {
+                return;
+            }
+            while (readEntry < compactedLedgerHandle.getLastAddConfirmed()) {
+                readMoreEntriesIfNeed();
+                LedgerEntry ledgerEntry = queue.poll();
+                if (ledgerEntry == null) {
+                    try {
+                        Thread.sleep(1);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    System.out.println("ledger entry is null, startEntry: " + startEntry);
+                    continue;
+                }
+
+                ByteBuf buffer = ledgerEntry.getEntryBuffer();
+                int idSize = buffer.readInt();
+
+                lastMessageId = new MessageIdData();
+                lastMessageId.parseFrom(buffer, idSize);
+                int payloadAndMetadataSize = buffer.readInt();
+                ByteBuf metadataAndPayload = buffer.slice(buffer.readerIndex(), payloadAndMetadataSize);
+                MessageMetadata messageMetadata = Commands.parseMessageMetadata(metadataAndPayload);
+
+                if (messageMetadata.hasNumMessagesInBatch()) {
+                    try {
+                        compactBatchMessage(
+                                ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(), ledgerEntry.getEntryBuffer());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                } else {
+                    compactMessage(messageMetadata.getPartitionKey(), new BatchMessageIdImpl(
+                            ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(), partition, 0));
+                }
+                readEntry = ledgerEntry.getEntryId();
+                System.out.println("read entry is " + readEntry);
+            }
+        }
+
+        private void compactBatchMessage(long ledgerId, long entryId, ByteBuf payload) throws IOException {
+            MessageMetadata metadata = Commands.parseMessageMetadata(payload);
+            int batchSize = metadata.getNumMessagesInBatch();
+
+            CompressionType compressionType = metadata.getCompression();
+            CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
+            int uncompressedSize = metadata.getUncompressedSize();
+            ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
+
+            SingleMessageMetadata smm = new SingleMessageMetadata();
+            for (int i = 0; i < batchSize; i++) {
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
+                        smm,
+                        0, batchSize);
+                BatchMessageIdImpl id = new BatchMessageIdImpl(ledgerId, entryId, partition, i);
+                if (!smm.isCompactedOut()) {
+                    compactMessage(smm.getPartitionKey(), id);
+                }
+                singleMessagePayload.release();
+            }
+            uncompressedPayload.release();
+        }
+
+        private void readNewerData() {
+            try {
+                PositionImpl startPosition;
+                if (lastMessageId.getLedgerId() == -1 && lastMessageId.getEntryId() == -1) {
+                    startPosition = PositionImpl.EARLIEST;
+                } else {
+                    startPosition = PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId()).getNext();
+                }
+                cursor = getCursor(topicName, startPosition, managedLedgerFactory, managedLedgerConfig);
+
+                readEntries = new ReadEntries();
+                readEntries.run();
+
+                deserializeEntries = new DeserializeEntries();
+                deserializeEntries.setUncaughtExceptionHandler((t, ex) -> {
+                    deserializingError = ex;
+                });
+                deserializeEntries.start();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            while (!readEntries.hasFinished()) {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+        private void readOriginalData() {
+            Iterator<BatchMessageIdImpl> messageIdIterator = compactedMessage.values().stream().sorted().iterator();
+            LedgerHandle readLedgerHandle = null;
+            long readLedgerId = -1;
+            boolean isCompactedLedger = false;
+            while (messageIdIterator.hasNext()) {
+                BatchMessageIdImpl messageId = messageIdIterator.next();
+                if (messageId.getLedgerId() == compactedLedgerId) {
+                    readLedgerHandle = compactedLedgerHandle;
+                    isCompactedLedger = true;
+                } else {
+                    try {
+                        if (readLedgerHandle == null || readLedgerId != messageId.getLedgerId()) {
+                            if (readLedgerHandle != null) {
+                                readLedgerHandle.close();
+                            }
+                            readLedgerId = messageId.getLedgerId();
+                            isCompactedLedger = false;
+                            readLedgerHandle = bookKeeper.openLedger(readLedgerId,
+                                    BookKeeper.DigestType.CRC32C, "".getBytes());
+                        }
+                    } catch (Exception e) {
+                        log.error("Failed to read entry ");
+                        throw new RuntimeException(e);
+                    }
+                }
+                readEntries(readLedgerHandle, messageId.getLedgerId(), messageId.getEntryId(),
+                        messageId.getBatchIndex(), isCompactedLedger);
+            }
+        }
+
+        private void readEntries(LedgerHandle ledgerHandle, long ledgerId, long entryId, int batchIndex, boolean isCompactedLedger) {
+            try {
+                LedgerEntries ledgerEntries =
+                        ledgerHandle.read(entryId, entryId);
+                Iterator<org.apache.bookkeeper.client.api.LedgerEntry> iterator = ledgerEntries.iterator();
+                if (iterator.hasNext()) {
+                    org.apache.bookkeeper.client.api.LedgerEntry ledgerEntry = iterator.next();
+                    ByteBuf buffer = ledgerEntry.getEntryBuffer();
+
+                    if (isCompactedLedger) {
+                        int idSize = buffer.readInt();
+                        MessageIdData lastMessageId = new MessageIdData();
+                        lastMessageId.parseFrom(buffer, idSize);
+                        int payloadAndMetadataSize = buffer.readInt();
+                        buffer = buffer.slice(buffer.readerIndex(), payloadAndMetadataSize);
+                    }
+
+                    parseAndAddMessageToQueue(ledgerId, entryId, batchIndex, buffer);
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        private void parseAndAddMessageToQueue(
+                long ledgerId, long entryId, int batchIndex, ByteBuf entryBuffer) throws IOException {
+            MessageParser.parseMessage(topicName, ledgerId,
+                    entryId, entryBuffer, message -> {
+                        if (((RawMessageIdImpl) message.getMessageId()).getBatchIndex() == batchIndex) {
+                            messageQueue.offer(message);
+                            if (message.getKey().isPresent()) {
+                                compactedMessage.remove(message.getKey().get());
+                            }
+                        }
+                    }, pulsarConnectorConfig.getMaxMessageSize());
+        }
+
+    }
+
 
 }

@@ -115,6 +115,8 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
                 schemaInfo,
                 topic,
                 TupleDomain.all(),
+                null,
+                null,
                 null);
 
         List<PulsarColumnHandle> columnHandleList = TestPulsarConnector.getColumnColumnHandles(

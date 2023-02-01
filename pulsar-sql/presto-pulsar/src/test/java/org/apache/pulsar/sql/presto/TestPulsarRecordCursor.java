@@ -420,7 +420,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
                 0, entriesNum,
                 0, 0, TupleDomain.all(),
                 objectMapper.writeValueAsString(
-                        schema.getSchemaInfo().getProperties()), null);
+                        schema.getSchemaInfo().getProperties()), null, null);
 
         PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
                 ColumnHandles, split,

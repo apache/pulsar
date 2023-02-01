@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.sql.presto.util.ReadCompactedType;
 
 /**
  * This class represents information for a split.
@@ -63,6 +64,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final String schemaInfoProperties;
 
     private final OffloadPoliciesImpl offloadPolicies;
+    private final ReadCompactedType readCompactedType;
 
     @JsonCreator
     public PulsarSplit(
@@ -80,7 +82,8 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies) throws IOException {
+            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies,
+            @JsonProperty("readCompactedType") ReadCompactedType readCompactedType) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -107,6 +110,8 @@ public class PulsarSplit implements ConnectorSplit {
                 .schema(schema.getBytes("ISO8859-1"))
                 .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
                 .build();
+
+        this.readCompactedType = readCompactedType;
     }
 
     @JsonProperty
@@ -192,6 +197,11 @@ public class PulsarSplit implements ConnectorSplit {
         return offloadPolicies;
     }
 
+    @JsonProperty
+    public ReadCompactedType getReadCompactedType() {
+        return readCompactedType;
+    }
+
     @Override
     public boolean isRemotelyAccessible() {
         return true;
@@ -223,6 +233,7 @@ public class PulsarSplit implements ConnectorSplit {
             + ", startPositionLedgerId=" + startPositionLedgerId
             + ", endPositionLedgerId=" + endPositionLedgerId
             + ", schemaInfoProperties=" + schemaInfoProperties
+            + ", readCompactedType=" + readCompactedType
             + (offloadPolicies == null ? "" : offloadPolicies.toString())
             + '}';
     }
