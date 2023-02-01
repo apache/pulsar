@@ -23,8 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -33,14 +33,33 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 @Slf4j
 public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
+
+    public static final String BROKER_LOAD_DATA_STORE_TOPIC = TopicName.get(
+            TopicDomain.non_persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE,
+            "loadbalancer-broker-load-data").toString();
+
+    public static final String TOP_BUNDLES_LOAD_DATA_STORE_TOPIC = TopicName.get(
+            TopicDomain.non_persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE,
+            "loadbalancer-top-bundles-load-data").toString();
 
     private PulsarService pulsar;
 
@@ -50,6 +69,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private BrokerRegistry brokerRegistry;
 
     private ServiceUnitStateChannel serviceUnitStateChannel;
+
+    private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
+    private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
 
     @Getter
     private LoadManagerContext context;
@@ -73,12 +95,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
         // TODO: Make brokerSelectionStrategy configurable.
-        this.brokerSelectionStrategy = (brokers, bundle, context) -> {
-            if (brokers.isEmpty()) {
-                return Optional.empty();
-            }
-            return Optional.of(brokers.get(ThreadLocalRandom.current().nextInt(brokers.size())));
-        };
+        this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
     }
 
     public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
@@ -95,13 +112,20 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerRegistry.start();
         this.serviceUnitStateChannel.start();
 
-        // TODO: Start the load data store.
+        try {
+            this.brokerLoadDataStore = LoadDataStoreFactory
+                    .create(pulsar.getClient(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
+            this.topBundlesLoadDataStore = LoadDataStoreFactory
+                    .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
+        } catch (LoadDataStoreException e) {
+            throw new PulsarServerException(e);
+        }
 
         this.context = LoadManagerContextImpl.builder()
                 .configuration(conf)
                 .brokerRegistry(brokerRegistry)
-                .brokerLoadDataStore(null)
-                .topBundleLoadDataStore(null).build();
+                .brokerLoadDataStore(brokerLoadDataStore)
+                .topBundleLoadDataStore(topBundlesLoadDataStore).build();
         // TODO: Start load data reporter.
 
         // TODO: Start unload scheduler and bundle split scheduler
@@ -190,7 +214,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     if (availableBrokerCandidates.isEmpty()) {
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
-                    ArrayList<String> candidateBrokers = new ArrayList<>(availableBrokerCandidates.keySet());
+                    Set<String> candidateBrokers = availableBrokerCandidates.keySet();
 
                     return CompletableFuture.completedFuture(
                             getBrokerSelectionStrategy().select(candidateBrokers, bundle, context));
@@ -227,6 +251,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     private boolean isInternalTopic(String topic) {
-        return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC);
+        return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC)
+                || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
+                || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
 }

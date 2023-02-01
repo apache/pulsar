@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -79,7 +79,8 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> select(List<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
+    public Optional<String> select(
+            Collection<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
         var conf = context.brokerConfiguration();
         if (candidates.isEmpty()) {
             log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);

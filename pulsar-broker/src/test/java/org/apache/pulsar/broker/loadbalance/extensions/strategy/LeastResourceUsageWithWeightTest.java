@@ -189,7 +189,7 @@ public class LeastResourceUsageWithWeightTest {
                 1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
-    public LoadManagerContext getContext() {
+    public static LoadManagerContext getContext() {
         var ctx = mock(LoadManagerContext.class);
         var conf = new ServiceConfiguration();
         conf.setLoadBalancerCPUResourceWeight(1.0);
