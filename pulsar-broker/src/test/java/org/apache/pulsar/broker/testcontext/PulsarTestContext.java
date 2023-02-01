@@ -235,16 +235,48 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         /**
-         * These are default values that are overridden in all provided configurations
-         * use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
+         * Some settings like the broker shutdown timeout and thread pool sizes are
+         * overridden if the provided values are the default values.
+         * This is used to run tests with smaller thread pools and shorter timeouts by default.
+         * You can use <pre>{@code .configCustomizer(null)}</pre> to disable this behavior
          */
         protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
-            svcConfig.setBrokerShutdownTimeoutMs(0L);
-            svcConfig.setNumIOThreads(4);
-            svcConfig.setNumOrderedExecutorThreads(1);
-            svcConfig.setNumExecutorThreadPoolSize(5);
-            svcConfig.setNumCacheExecutorThreadPoolSize(2);
-            svcConfig.setNumHttpServerThreads(8);
+            ServiceConfiguration unconfiguredDefaults = new ServiceConfiguration();
+
+            // adjust brokerShutdownTimeoutMs if it is the default value or if it is 0
+            if (svcConfig.getBrokerShutdownTimeoutMs() == unconfiguredDefaults.getBrokerShutdownTimeoutMs()
+                    || svcConfig.getBrokerShutdownTimeoutMs() == 0L) {
+                svcConfig.setBrokerShutdownTimeoutMs(resolveBrokerShutdownTimeoutMs());
+            }
+
+            // adjust thread pool sizes if they are the default values
+
+            if (svcConfig.getNumIOThreads() == unconfiguredDefaults.getNumIOThreads()) {
+                svcConfig.setNumIOThreads(4);
+            }
+            if (svcConfig.getNumOrderedExecutorThreads() == unconfiguredDefaults.getNumOrderedExecutorThreads()) {
+                // use a single threaded ordered executor by default
+                svcConfig.setNumOrderedExecutorThreads(1);
+            }
+            if (svcConfig.getNumExecutorThreadPoolSize() == unconfiguredDefaults.getNumExecutorThreadPoolSize()) {
+                svcConfig.setNumExecutorThreadPoolSize(5);
+            }
+            if (svcConfig.getNumCacheExecutorThreadPoolSize()
+                    == unconfiguredDefaults.getNumCacheExecutorThreadPoolSize()) {
+                svcConfig.setNumCacheExecutorThreadPoolSize(2);
+            }
+            if (svcConfig.getNumHttpServerThreads() == unconfiguredDefaults.getNumHttpServerThreads()) {
+                svcConfig.setNumHttpServerThreads(8);
+            }
+        }
+
+        /**
+         * Internal method used in the {@link StartableCustomBuilder} to override the default value for the broker
+         * shutdown timeout.
+         * @return the broker shutdown timeout in milliseconds
+         */
+        protected long resolveBrokerShutdownTimeoutMs() {
+            return 0L;
         }
 
         /**
@@ -610,9 +642,11 @@ public class PulsarTestContext implements AutoCloseable {
         }
 
         @Override
-        protected void defaultOverrideServiceConfiguration(ServiceConfiguration svcConfig) {
-            super.defaultOverrideServiceConfiguration(svcConfig);
-            svcConfig.setBrokerShutdownTimeoutMs(5000L);
+        protected long resolveBrokerShutdownTimeoutMs() {
+            // wait 5 seconds for the startable pulsar service to shutdown gracefully
+            // this reduces the chances that some threads of the PulsarTestsContexts of subsequent test executions
+            // are running in parallel. It doesn't prevent it completely.
+            return 5000L;
         }
     }
 
