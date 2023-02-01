@@ -217,6 +217,12 @@ public class LeastResourceUsageWithWeightTest {
             }
 
             @Override
+            public CompletableFuture<Void> removeAsync(String key) {
+                map.remove(key);
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
             public Optional<BrokerLoadData> get(String key) {
                 var val = map.get(key);
                 if (val == null) {
@@ -233,6 +239,11 @@ public class LeastResourceUsageWithWeightTest {
             @Override
             public Set<Map.Entry<String, BrokerLoadData>> entrySet() {
                 return map.entrySet();
+            }
+
+            @Override
+            public int size() {
+                return map.size();
             }
         };
 
