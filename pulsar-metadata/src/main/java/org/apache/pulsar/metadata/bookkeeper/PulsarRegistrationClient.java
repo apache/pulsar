@@ -25,11 +25,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.extern.slf4j.Slf4j;
@@ -59,8 +59,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     private final ConcurrentHashMap<BookieId, Versioned<BookieServiceInfo>> bookieServiceInfoCache =
                                                                                     new ConcurrentHashMap();
-    private final Map<RegistrationListener, Boolean> writableBookiesWatchers = new ConcurrentHashMap<>();
-    private final Map<RegistrationListener, Boolean> readOnlyBookiesWatchers = new ConcurrentHashMap<>();
+    private final Set<RegistrationListener> writableBookiesWatchers = new CopyOnWriteArraySet<>();
+    private final Set<RegistrationListener> readOnlyBookiesWatchers = new CopyOnWriteArraySet<>();
     private final MetadataCache<BookieServiceInfo> bookieServiceInfoMetadataCache;
     private final ScheduledExecutorService executor;
 
@@ -131,7 +131,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     @Override
     public CompletableFuture<Void> watchWritableBookies(RegistrationListener registrationListener) {
-        writableBookiesWatchers.put(registrationListener, Boolean.TRUE);
+        writableBookiesWatchers.add(registrationListener);
         return getWritableBookies()
                 .thenAcceptAsync(registrationListener::onBookiesChanged, executor);
     }
@@ -143,7 +143,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     @Override
     public CompletableFuture<Void> watchReadOnlyBookies(RegistrationListener registrationListener) {
-        readOnlyBookiesWatchers.put(registrationListener, Boolean.TRUE);
+        readOnlyBookiesWatchers.add(registrationListener);
         return getReadOnlyBookies()
                 .thenAcceptAsync(registrationListener::onBookiesChanged, executor);
     }
@@ -175,14 +175,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if (n.getType() == NotificationType.Created || n.getType() == NotificationType.Deleted) {
             if (n.getPath().startsWith(bookieReadonlyRegistrationPath)) {
                 getReadOnlyBookies().thenAccept(bookies -> {
-                    readOnlyBookiesWatchers.keySet()
-                            .forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies)));
+                    readOnlyBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies)));
                 });
                 handleDeletedBookieNode(n);
             } else if (n.getPath().startsWith(bookieRegistrationPath)) {
-                getWritableBookies().thenAccept(bookies ->
-                        writableBookiesWatchers.keySet()
-                                .forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
+                  getWritableBookies().thenAccept(bookies ->
+                        writableBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
                 handleDeletedBookieNode(n);
             }
         } else if (n.getType() == NotificationType.Modified) {
