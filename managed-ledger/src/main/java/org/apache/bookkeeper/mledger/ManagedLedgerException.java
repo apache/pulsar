@@ -18,11 +18,11 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import javax.annotation.Nonnull;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import javax.annotation.Nonnull;
 
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
