@@ -268,6 +268,30 @@ public class PulsarTestContext implements AutoCloseable {
             if (svcConfig.getNumHttpServerThreads() == unconfiguredDefaults.getNumHttpServerThreads()) {
                 svcConfig.setNumHttpServerThreads(8);
             }
+
+            // change the default value for ports so that a random port is used
+            if (unconfiguredDefaults.getBrokerServicePort().equals(svcConfig.getBrokerServicePort())) {
+                svcConfig.setBrokerServicePort(Optional.of(0));
+            }
+            if (unconfiguredDefaults.getWebServicePort().equals(svcConfig.getWebServicePort())) {
+                svcConfig.setWebServicePort(Optional.of(0));
+            }
+
+            // change the default value for nic speed
+            if (unconfiguredDefaults.getLoadBalancerOverrideBrokerNicSpeedGbps()
+                    .equals(svcConfig.getLoadBalancerOverrideBrokerNicSpeedGbps())) {
+                svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+            }
+
+            // set the cluster name if it's unset
+            if (svcConfig.getClusterName() == null) {
+                svcConfig.setClusterName("test");
+            }
+
+            // adjust managed ledger cache size
+            if (svcConfig.getManagedLedgerCacheSizeMB() == unconfiguredDefaults.getManagedLedgerCacheSizeMB()) {
+                svcConfig.setManagedLedgerCacheSizeMB(8);
+            }
         }
 
         /**
