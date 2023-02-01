@@ -54,15 +54,15 @@ public abstract class MultiBrokerTestZKBaseTest extends MultiBrokerBaseTest {
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
         return super.createPulsarTestContextBuilder(conf)
-                .localMetadataStore(createMetadataStore())
-                .configurationMetadataStore(createMetadataStore());
+                .localMetadataStore(createMetadataStore(MetadataStoreConfig.METADATA_STORE))
+                .configurationMetadataStore(createMetadataStore(MetadataStoreConfig.CONFIGURATION_METADATA_STORE));
     }
 
     @NotNull
-    protected MetadataStoreExtended createMetadataStore()  {
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName)  {
         try {
             return MetadataStoreExtended.create(testZKServer.getConnectionString(),
-                    MetadataStoreConfig.builder().build());
+                    MetadataStoreConfig.builder().metadataStoreName(metadataStoreName).build());
         } catch (MetadataStoreException e) {
             throw new RuntimeException(e);
         }

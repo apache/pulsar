@@ -58,8 +58,8 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
     }
 
     @Override
-    protected MetadataStoreExtended createMetadataStore() {
-        return changeDefaultMetadataCacheConfig(super.createMetadataStore());
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName) {
+        return changeDefaultMetadataCacheConfig(super.createMetadataStore(metadataStoreName));
     }
 
     MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
