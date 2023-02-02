@@ -5222,7 +5222,7 @@ public class PersistentTopicsBase extends AdminResource {
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
                             List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
-                            Map<String, Boolean> status = new HashMap<>();
+                            Map<String, Boolean> status = new ConcurrentHashMap<>(partitionMetadata.partitions);
 
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 TopicName partition = topicName.getPartition(i);
