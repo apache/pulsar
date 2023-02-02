@@ -152,6 +152,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         BrokerService brokerService0 = pulsar.getBrokerService();
         BrokerService brokerService = Mockito.spy(brokerService0);
         AtomicReference<PersistentTopic> reference = new AtomicReference<>();
+        pulsar.getConfiguration().setTopicLoadTimeoutSeconds(10);
         long topicLoadTimeout = TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getTopicLoadTimeoutSeconds() + 1);
 
         Mockito
@@ -167,8 +168,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
 
         CompletableFuture<Optional<Topic>> f = brokerService.getTopic(topic, true);
 
-        Awaitility.waitAtMost(90, TimeUnit.SECONDS)
-                .pollInterval(Duration.ofSeconds(5)).until(() -> reference.get() != null);
+        Awaitility.waitAtMost(20, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofSeconds(2)).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
         TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
