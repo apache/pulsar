@@ -30,7 +30,6 @@ import com.google.common.collect.TreeRangeMap;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.time.Clock;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -165,12 +164,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
         }
 
-        List<CompletableFuture<Void>> deletionFutures = new ArrayList<>();
         for (Map.Entry<Range<Long>, ImmutableBucket> mapEntry : toBeDeletedBucketMap.entrySet()) {
             Range<Long> key = mapEntry.getKey();
             ImmutableBucket immutableBucket = mapEntry.getValue();
             immutableBucketMap.remove(key);
-            deletionFutures.add(immutableBucket.asyncDeleteBucketSnapshot());
+            // delete asynchronously without waiting for completion
+            immutableBucket.asyncDeleteBucketSnapshot();
         }
 
         MutableLong numberDelayedMessages = new MutableLong(0);
