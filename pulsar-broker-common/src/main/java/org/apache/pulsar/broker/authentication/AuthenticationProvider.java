@@ -24,6 +24,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
@@ -155,10 +156,20 @@ public interface AuthenticationProvider extends Closeable {
      */
     @Deprecated
     default boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        AuthenticationState authenticationState = newHttpAuthState(request);
-        String role = authenticateAsync(authenticationState.getAuthDataSource()).get();
-        request.setAttribute(AuthenticatedRoleAttributeName, role);
-        request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
-        return true;
+        try {
+            AuthenticationState authenticationState = newHttpAuthState(request);
+            String role = authenticateAsync(authenticationState.getAuthDataSource()).get();
+            request.setAttribute(AuthenticatedRoleAttributeName, role);
+            request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
+            return true;
+        } catch (AuthenticationException e) {
+            throw e;
+        } catch (Exception e) {
+            if (e instanceof ExecutionException && e.getCause() instanceof AuthenticationException) {
+                throw (AuthenticationException) e.getCause();
+            } else {
+                throw new AuthenticationException("Failed to authentication http request");
+            }
+        }
     }
 }

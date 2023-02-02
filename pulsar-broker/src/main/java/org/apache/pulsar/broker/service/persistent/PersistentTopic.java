@@ -78,6 +78,8 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.AbstractReplicator;
@@ -152,6 +154,7 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -202,6 +205,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
     private CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     private final CompactedTopic compactedTopic;
+
+    // TODO: Create compaction strategy from topic policy when exposing strategic compaction to users.
+    private static Map<String, TopicCompactionStrategy> strategicCompactionMap = Map.of(
+            ServiceUnitStateChannelImpl.TOPIC,
+            new ServiceUnitStateCompactionStrategy());
 
     private CompletableFuture<MessageIdImpl> currentOffload = CompletableFuture.completedFuture(
             (MessageIdImpl) MessageId.earliest);
@@ -1381,11 +1389,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         //close entry filters
         if (entryFilters != null) {
-            entryFilters.forEach((name, filter) -> {
+            entryFilters.getRight().forEach((filter) -> {
                 try {
                     filter.close();
-                } catch (Exception e) {
-                    log.warn("Error shutting down entry filter {}", name, e);
+                } catch (Throwable e) {
+                    log.warn("Error shutting down entry filter {}", filter, e);
                 }
             });
         }
@@ -1603,6 +1611,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 if (backlogEstimate > compactionThreshold) {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "topic:{} backlogEstimate:{} is bigger than compactionThreshold:{}. Triggering "
+                                        + "compaction", topic, backlogEstimate, compactionThreshold);
+                    }
                     try {
                         triggerCompaction();
                     } catch (AlreadyRunningException are) {
@@ -1613,7 +1626,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
             }
         } catch (Exception e) {
-            log.debug("[{}] Error getting policies", topic);
+            log.warn("[{}] Error getting policies and skipping compaction check", topic, e);
         }
     }
 
@@ -3032,7 +3045,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public synchronized void triggerCompaction()
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
-            currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+
+            if (strategicCompactionMap.containsKey(topic)) {
+                currentCompaction = brokerService.pulsar().getStrategicCompactor()
+                        .compact(topic, strategicCompactionMap.get(topic));
+            } else {
+                currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+            }
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
         }

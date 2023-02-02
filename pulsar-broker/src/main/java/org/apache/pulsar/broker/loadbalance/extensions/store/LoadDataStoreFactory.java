@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.plugin;
+package org.apache.pulsar.broker.loadbalance.extensions.store;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
+import org.apache.pulsar.client.api.PulsarClient;
 
-@Data
-public class EntryFilterDefinitions {
-    private final Map<String, EntryFilterMetaData> filters = new TreeMap<>();
+/**
+ * The load data store factory, use to create the load data store.
+ */
+public class LoadDataStoreFactory {
+
+    public static <T> LoadDataStore<T> create(PulsarClient client, String name, Class<T> clazz)
+            throws LoadDataStoreException {
+        return new TableViewLoadDataStoreImpl<>(client, name, clazz);
+    }
 }
