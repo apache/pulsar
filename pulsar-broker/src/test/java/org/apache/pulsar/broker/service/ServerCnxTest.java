@@ -77,7 +77,6 @@ import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -357,22 +356,11 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testConnectCommandWithAuthenticationPositive() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
-        AuthenticationProvider authenticationProvider = mock(AuthenticationProvider.class);
-        AuthenticationState authenticationState = mock(AuthenticationState.class);
-        AuthData authData = AuthData.of(null);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
 
-        doReturn(authenticationService).when(brokerService).getAuthenticationService();
-        doReturn(authenticationProvider).when(authenticationService).getAuthenticationProvider(Mockito.anyString());
-        doReturn(authenticationState).when(authenticationProvider)
-                .newAuthState(Mockito.any(), Mockito.any(), Mockito.any());
-        doReturn(authData).when(authenticationState)
-                .authenticate(authData);
-        doReturn(true).when(authenticationState)
-                .isComplete();
-
-        doReturn("appid1").when(authenticationState)
-                .getAuthRole();
-
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
         svcConfig.setAuthenticationEnabled(true);
 
         resetChannel();
@@ -380,11 +368,77 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         // test server response to CONNECT
-        ByteBuf clientCommand = Commands.newConnect("none", "", null);
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", null);
         channel.writeInbound(clientCommand);
 
-        assertEquals(serverCnx.getState(), State.Connected);
         assertTrue(getResponse() instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getPrincipal(), "pass.client");
+        assertTrue(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectCommandWithPassingOriginalAuthData() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
+                null, "client", "pass.client", authMethodName);
+        channel.writeInbound(clientCommand);
+
+        Object response1 = getResponse();
+        assertTrue(response1 instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        // Note that this value will change to the client's data if the broker sends an AuthChallenge to the
+        // proxy/client. Details described here https://github.com/apache/pulsar/issues/19332.
+        assertEquals(serverCnx.getAuthRole(), "pass.proxy");
+        // These are all taken without verifying the auth data
+        assertEquals(serverCnx.getPrincipal(), "pass.client");
+        assertEquals(serverCnx.getOriginalPrincipal(), "pass.client");
+        assertTrue(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectCommandWithPassingOriginalPrincipal() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(false);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
+                null, "client", "pass.client", authMethodName);
+        channel.writeInbound(clientCommand);
+
+        Object response1 = getResponse();
+        assertTrue(response1 instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getAuthRole(), "pass.proxy");
+        // These are all taken without verifying the auth data
+        assertEquals(serverCnx.getPrincipal(), "client");
+        assertEquals(serverCnx.getOriginalPrincipal(), "client");
+        assertTrue(serverCnx.isActive());
         channel.finish();
     }
 
@@ -418,7 +472,7 @@ public class ServerCnxTest {
         when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthenticateOriginalAuthData(true);
-        svcConfig.setProxyRoles(Collections.singleton("proxy"));
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
 
         resetChannel();
         assertTrue(channel.isActive());
@@ -428,14 +482,9 @@ public class ServerCnxTest {
                 null, "client", "fail", authMethodName);
         channel.writeInbound(clientCommand);
 
-        // We currently expect two responses because the originalAuthData is verified after sending
-        // a successful response to the proxy. Because this is a synchronous operation, there is currently
-        // no risk. It would be better to fix this. See https://github.com/apache/pulsar/issues/19311.
         Object response1 = getResponse();
-        assertTrue(response1 instanceof CommandConnected);
-        Object response2 = getResponse();
-        assertTrue(response2 instanceof CommandError);
-        assertEquals(((CommandError) response2).getMessage(), "Unable to authenticate");
+        assertTrue(response1 instanceof CommandError);
+        assertEquals(((CommandError) response1).getMessage(), "Failed to authenticate");
         assertEquals(serverCnx.getState(), State.Failed);
         assertFalse(serverCnx.isActive());
         channel.finish();
@@ -461,6 +510,7 @@ public class ServerCnxTest {
 
         Object challenge1 = getResponse();
         assertTrue(challenge1 instanceof CommandAuthChallenge);
+        assertEquals(serverCnx.getState(), State.Connecting);
 
         // Trigger another AuthChallenge to verify that code path continues to challenge
         ByteBuf authResponse1 =
@@ -469,6 +519,7 @@ public class ServerCnxTest {
 
         Object challenge2 = getResponse();
         assertTrue(challenge2 instanceof CommandAuthChallenge);
+        assertEquals(serverCnx.getState(), State.Connecting);
 
         // Trigger failure
         ByteBuf authResponse2 = Commands.newAuthResponse(authMethodName, AuthData.of("fail.client".getBytes()), 1, "1");
@@ -476,7 +527,40 @@ public class ServerCnxTest {
 
         Object response3 = getResponse();
         assertTrue(response3 instanceof CommandError);
-        assertEquals(((CommandError) response3).getMessage(), "Unable to authenticate");
+        assertEquals(((CommandError) response3).getMessage(), "Failed to authenticate");
+        assertEquals(serverCnx.getState(), State.Failed);
+        assertFalse(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testOriginalAuthDataTriggersAuthChallengeFailure() throws Exception {
+        // Test verifies the current behavior in the absence of a solution for
+        // https://github.com/apache/pulsar/issues/19291. When that issue is completed, we can update this test
+        // to correctly verify that behavior.
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockMultiStageAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // Trigger connect command to result in AuthChallenge
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, "1",
+                "localhost", "client", "challenge.client", authMethodName);
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+
+        assertEquals(((CommandError) response).getMessage(), "Failed to authenticate");
         assertEquals(serverCnx.getState(), State.Failed);
         assertFalse(serverCnx.isActive());
         channel.finish();
