@@ -129,7 +129,8 @@ public class TopicEventsDispatcher {
         try {
             listener.handleEvent(topic, event, stage, t);
         } catch (Throwable ex) {
-            log.error("TopicEventsListener exception while handling {}_{} for topic {}", event, stage, topic, ex);
+            log.error("TopicEventsListener {} exception while handling {}_{} for topic {}",
+                    listener, event, stage, topic, ex);
         }
     }
 

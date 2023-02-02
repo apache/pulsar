@@ -1046,8 +1046,8 @@ public class BrokerService implements Closeable {
                     return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
                 });
             } else {
-            return topics.computeIfAbsent(topicName.toString(), (name) -> {
-                topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
+                return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                    topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
@@ -1057,29 +1057,30 @@ public class BrokerService implements Closeable {
 
                                 CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                                topicEventsDispatcher.notifyOnCompletion(
-                                        topicEventsDispatcher.notifyOnCompletion(res,
-                                                topicName.toString(), TopicEvent.CREATE),
-                                        topicName.toString(), TopicEvent.LOAD);
+                                CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                        .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                                topicEventsDispatcher
+                                        .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
                                 return res;
                             }
                             topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
                     } else if (createIfMissing) {
-                        topicEventsDispatcher.notify(name, TopicEvent.CREATE, EventStage.BEFORE);
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
 
                         CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                        topicEventsDispatcher.notifyOnCompletion(
-                                topicEventsDispatcher.notifyOnCompletion(res, name, TopicEvent.CREATE),
-                                name, TopicEvent.LOAD);
+                        CompletableFuture eventFuture = topicEventsDispatcher
+                                .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                        topicEventsDispatcher
+                                .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
                         return res;
                     } else {
                         topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
-                    });
+                });
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);

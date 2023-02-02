@@ -19,32 +19,66 @@
 package org.apache.pulsar.broker;
 
 import com.google.common.collect.Sets;
+
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class TopicEventsListenerTest extends BrokerTestBase {
 
     final static Queue<String> events = new ConcurrentLinkedQueue<>();
-    String topicNameToWatch;
+    volatile String topicNameToWatch;
     String namespace;
 
-    @BeforeMethod
+    @DataProvider(name = "topicType")
+    public static Object[][] topicType() {
+        return new Object[][] {
+                {"persistent", "partitioned", Boolean.TRUE},
+                {"persistent", "non-partitioned", Boolean.TRUE},
+                {"non-persistent", "partitioned", Boolean.TRUE},
+                {"non-persistent", "non-partitioned", Boolean.TRUE},
+                {"persistent", "partitioned", Boolean.FALSE},
+                {"persistent", "non-partitioned", Boolean.FALSE},
+                {"non-persistent", "partitioned", Boolean.FALSE},
+                {"non-persistent", "non-partitioned", Boolean.FALSE}
+        };
+    }
+
+    @DataProvider(name = "topicTypeNoDelete")
+    public static Object[][] topicTypeNoDelete() {
+        return new Object[][] {
+                {"persistent", "partitioned"},
+                {"persistent", "non-partitioned"},
+                {"non-persistent", "partitioned"},
+                {"non-persistent", "non-partitioned"}
+        };
+    }
+
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
@@ -60,606 +94,223 @@ public class TopicEventsListenerTest extends BrokerTestBase {
                 events.add(event.toString() + "__" + stage.toString());
             }
         });
+    }
 
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @BeforeMethod
+    protected void setupTest() throws Exception {
         namespace = "prop/" + UUID.randomUUID();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
         admin.namespaces().setRetention(namespace, new RetentionPolicies(3, 10));
+        try (PulsarAdmin admin2 = createPulsarAdmin()) {
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin2.namespaces().getRetention(namespace), new RetentionPolicies(3, 10)));
+        }
 
         events.clear();
     }
 
     @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
+    protected void cleanupTest() throws Exception {
         deleteNamespaceWithRetry(namespace, true);
-
-        super.internalCleanup();
     }
 
-    @Test
-    public void testEventsNonPersistentNonPartitionedTopic() throws Exception {
-        topicNameToWatch = "non-persistent://" + namespace + "/NP-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
+    @Test(dataProvider = "topicType")
+    public void testEvents(Object[] topicType) throws Exception {
+        String topicTypePersistence = (String) topicType[0];
+        String topicTypePartitioned = (String) topicType[1];
+        boolean forceDelete = (Boolean) topicType[2];
+
+        String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
+
+        createTopicAndVerifyEvents(topicTypePartitioned, topicName);
+
+        events.clear();
+        if (topicTypePartitioned.equals("partitioned")) {
+            admin.topics().deletePartitionedTopic(topicName, forceDelete);
+        } else {
+            admin.topics().delete(topicName, forceDelete);
+        }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-            Assert.assertEquals(events.toArray(), new String[]{
+                Assert.assertEquals(events.toArray(), new String[]{
+                        "DELETE__BEFORE",
+                        "UNLOAD__BEFORE",
+                        "UNLOAD__SUCCESS",
+                        "DELETE__SUCCESS"
+                })
+        );
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testEventsWithUnload(Object[] topicType) throws Exception {
+        String topicTypePersistence = (String) topicType[0];
+        String topicTypePartitioned = (String) topicType[1];
+        boolean forceDelete = (Boolean) topicType[2];
+
+        String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
+
+        createTopicAndVerifyEvents(topicTypePartitioned, topicName);
+
+        events.clear();
+        admin.topics().unload(topicName);
+
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertEquals(events.toArray(), new String[]{
+                        "UNLOAD__BEFORE",
+                        "UNLOAD__SUCCESS"
+                })
+        );
+
+        events.clear();
+        if (topicTypePartitioned.equals("partitioned")) {
+            admin.topics().deletePartitionedTopic(topicName, forceDelete);
+        } else {
+            admin.topics().delete(topicName, forceDelete);
+        }
+
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertEquals(events.toArray(), new String[]{
+                        "DELETE__BEFORE",
+                        "DELETE__SUCCESS"
+                })
+        );
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testEventsActiveSub(Object[] topicType) throws Exception {
+        String topicTypePersistence = (String) topicType[0];
+        String topicTypePartitioned = (String) topicType[1];
+        boolean forceDelete = (Boolean) topicType[2];
+
+        String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
+
+        createTopicAndVerifyEvents(topicTypePartitioned, topicName);
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("sub").subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < 10; i++) {
+            producer.send("hello".getBytes());
+        }
+        consumer.receive();
+
+        events.clear();
+        try {
+            if (topicTypePartitioned.equals("partitioned")) {
+                admin.topics().deletePartitionedTopic(topicName, forceDelete);
+            } else {
+                admin.topics().delete(topicName, forceDelete);
+            }
+        } catch (PulsarAdminException e) {
+            if (forceDelete) {
+                throw e;
+            }
+            assertTrue(e.getMessage().contains("Topic has active producers/subscriptions")
+                    || e.getMessage().contains("connected producers/consumers"));
+        }
+
+        final String[] expectedEvents;
+
+        if (forceDelete) {
+            expectedEvents = new String[]{
+                    "DELETE__BEFORE",
+                    "UNLOAD__BEFORE",
+                    "UNLOAD__SUCCESS",
+                    "DELETE__SUCCESS",
+            };
+        } else {
+            expectedEvents = new String[]{
+                    "DELETE__BEFORE",
+                    "DELETE__FAILURE"
+            };
+        }
+
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            // only care about first 4 events max, the rest will be from client recreating deleted topic
+            String[] eventsToArray = (events.size() <= 4)
+                    ? events.toArray(new String[0])
+                    : ArrayUtils.subarray(events.toArray(new String[0]), 0, 4);
+            Assert.assertEquals(eventsToArray, expectedEvents);
+        });
+
+        consumer.close();
+        producer.close();
+    }
+
+    @Test(dataProvider = "topicTypeNoDelete")
+    public void testTopicAutoGC(Object[] topicType) throws Exception {
+        String topicTypePersistence = (String) topicType[0];
+        String topicTypePartitioned = (String) topicType[1];
+
+        String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
+
+        createTopicAndVerifyEvents(topicTypePartitioned, topicName);
+
+        admin.namespaces().setInactiveTopicPolicies(namespace,
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
+
+        // Remove retention
+        admin.namespaces().setRetention(namespace, new RetentionPolicies());
+        try (PulsarAdmin admin2 = createPulsarAdmin()) {
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(admin2.namespaces().getRetention(namespace), new RetentionPolicies()));
+        }
+
+        events.clear();
+
+        runGC();
+
+        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertEquals(events.toArray(), new String[]{
+                        "UNLOAD__BEFORE",
+                        "UNLOAD__SUCCESS",
+                })
+        );
+    }
+
+    private void createTopicAndVerifyEvents(String topicTypePartitioned, String topicName) throws Exception {
+        final String[] expectedEvents;
+        if (topicTypePartitioned.equals("partitioned")) {
+            topicNameToWatch = topicName + "-partition-1";
+            admin.topics().createPartitionedTopic(topicName, 2);
+            triggerPartitionsCreation(topicName);
+
+            expectedEvents = new String[]{
+                    "LOAD__BEFORE",
+                    "CREATE__BEFORE",
+                    "CREATE__SUCCESS",
+                    "LOAD__SUCCESS"
+            };
+
+        } else {
+            topicNameToWatch = topicName;
+            admin.topics().createNonPartitionedTopic(topicName);
+
+            expectedEvents = new String[]{
                     "LOAD__BEFORE",
                     "LOAD__FAILURE",
                     "LOAD__BEFORE",
                     "CREATE__BEFORE",
                     "CREATE__SUCCESS",
                     "LOAD__SUCCESS"
-            })
-        );
+            };
 
-        events.clear();
-        admin.topics().delete(topicNameToWatch);
+        }
 
         Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
+                Assert.assertEquals(events.toArray(), expectedEvents));
     }
 
-    @Test
-    public void testEventsNonPersistentNonPartitionedTopicWithUnload() throws Exception {
-        topicNameToWatch = "non-persistent://" + namespace + "/NP-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsNonPersistentNonPartitionedTopicForce() throws Exception {
-        topicNameToWatch = "non-persistent://" + namespace + "/NP-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-
-    }
-
-    @Test
-    public void testEventsNonPersistentNonPartitionedTopicWithUnloadForce() throws Exception {
-        topicNameToWatch = "non-persistent://" + namespace + "/NP-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentNonPartitionedTopic() throws Exception {
-        topicNameToWatch = "persistent://" + namespace + "/P-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentNonPartitionedTopicWithUnload() throws Exception {
-        topicNameToWatch = "persistent://" + namespace + "/P-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentNonPartitionedTopicForce() throws Exception {
-        topicNameToWatch = "persistent://" + namespace + "/P-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentNonPartitionedTopicWithUnloadForce() throws Exception {
-        topicNameToWatch = "persistent://" + namespace + "/P-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "LOAD__FAILURE",
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicNameToWatch);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().delete(topicNameToWatch, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-
-//---------
-
-    @Test
-    public void testEventsNonPersistentPartitionedTopic() throws Exception {
-        String topicName = "non-persistent://" + namespace + "/P-P";
-        topicNameToWatch = topicName + "-partition-1";
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS",
-                })
-        );
-
-        events.clear();
-
-        admin.topics().deletePartitionedTopic(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsNonPersistentPartitionedTopicWithUnload() throws Exception {
-        String topicName = "non-persistent://" + namespace + "/P-P";
-        topicNameToWatch = topicName + "-partition-1";
-
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().deletePartitionedTopic(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsNonPersistentPartitionedTopicForce() throws Exception {
-        String topicName = "non-persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-1";
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().deletePartitionedTopic(topicName, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsNonPersistentPartitionedTopicWithUnloadForce() throws Exception {
-        String topicName = "non-persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-1";
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().deletePartitionedTopic(topicName, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentPartitionedTopic() throws Exception {
-        String topicName = "persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-1";
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-
-        admin.topics().deletePartitionedTopic(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentPartitionedTopicWithUnload() throws Exception {
-        String topicName = "persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-0";
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().deletePartitionedTopic(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentPartitionedTopicForce() throws Exception {
-        String topicName = "persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-1";
-
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().deletePartitionedTopic(topicName, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testEventsPersistentPartitionedTopicWithUnloadForce() throws Exception {
-        String topicName = "persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-0";
-
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "LOAD__BEFORE",
-                        "CREATE__BEFORE",
-                        "CREATE__SUCCESS",
-                        "LOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().unload(topicName);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS"
-                })
-        );
-
-        events.clear();
-        admin.topics().deletePartitionedTopic(topicName, true);
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "DELETE__BEFORE",
-                        "DELETE__SUCCESS"
-                })
-        );
-    }
-
-    @Test
-    public void testNonPartitionedTopicAutoGC() throws Exception {
-        topicNameToWatch = "persistent://" + namespace + "/P-NP";
-        admin.topics().createNonPartitionedTopic(topicNameToWatch);
-        admin.namespaces().setInactiveTopicPolicies(namespace,
-                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
-
-        // Remove retention
-        admin.namespaces().setRetention(namespace, new RetentionPolicies());
-        events.clear();
-
-        Thread.sleep(1500);
-        runGC();
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                })
-        );
-
-    }
-
-    @Test
-    public void testPartitionedTopicAutoGC() throws Exception {
-        String topicName = "persistent://" + namespace + "/P-NP";
-        topicNameToWatch = topicName + "-partition-1";
-        admin.topics().createPartitionedTopic(topicName, 2);
-        triggerPartitionsCreation(topicName);
-        admin.namespaces().setInactiveTopicPolicies(namespace,
-                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true));
-
-        // Remove retention
-        admin.namespaces().setRetention(namespace, new RetentionPolicies());
-        events.clear();
-
-        Thread.sleep(1500);
-        runGC();
-
-        Awaitility.waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertEquals(events.toArray(), new String[]{
-                        "UNLOAD__BEFORE",
-                        "UNLOAD__SUCCESS",
-                })
-        );
-
+    private PulsarAdmin createPulsarAdmin() throws PulsarClientException {
+        return PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
+                .build();
     }
 
     private void triggerPartitionsCreation(String topicName) throws Exception {
