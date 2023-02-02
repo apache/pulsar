@@ -173,16 +173,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             deletionFutures.add(immutableBucket.asyncDeleteBucketSnapshot());
         }
 
-        // Wait for all deletion futures to complete before proceeding
-        try {
-            FutureUtil.waitForAll(deletionFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            log.warn("asyncDeleteBucketSnapshot calls failed", e);
-            if (e instanceof InterruptedException) {
-                Thread.currentThread().interrupt();
-            }
-        }
-
         MutableLong numberDelayedMessages = new MutableLong(0);
         immutableBucketMap.values().forEach(bucket -> {
             numberDelayedMessages.add(bucket.numberBucketDelayedMessages);
