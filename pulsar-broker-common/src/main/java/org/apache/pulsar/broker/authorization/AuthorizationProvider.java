@@ -105,9 +105,15 @@ public interface AuthorizationProvider extends Closeable {
      *            the fully qualified topic name associated with the topic.
      * @param role
      *            the app id used to send messages to the topic.
+     *
+     * @deprecated
+     * Use {@link #allowTopicOperationAsync(TopicName, String, TopicOperation, AuthenticationDataSource)} instead.
      */
-    CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData);
+    @Deprecated
+    default CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
+                                                       AuthenticationDataSource authenticationData) {
+        return CompletableFuture.completedFuture(false);
+    }
 
     /**
      * Check if the specified role has permission to receive messages from the specified fully qualified topic name.
@@ -118,9 +124,16 @@ public interface AuthorizationProvider extends Closeable {
      *            the app id used to receive messages from the topic.
      * @param subscription
      *            the subscription name defined by the client
+     *
+     * @deprecated
+     * Use {@link #allowTopicOperationAsync(TopicName, String, TopicOperation, AuthenticationDataSource)} instead.
      */
-    CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData, String subscription);
+    @Deprecated
+    default CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
+                                                       AuthenticationDataSource authenticationData,
+                                                       String subscription) {
+        return CompletableFuture.completedFuture(false);
+    }
 
     /**
      * Check whether the specified role can perform a lookup for the specified topic.
@@ -129,11 +142,15 @@ public interface AuthorizationProvider extends Closeable {
      *
      * @param topicName
      * @param role
-     * @return
-     * @throws Exception
+     *
+     * @deprecated
+     * Use {@link #allowTopicOperationAsync(TopicName, String, TopicOperation, AuthenticationDataSource)} instead.
      */
-    CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData);
+    @Deprecated
+    default CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
+            AuthenticationDataSource authenticationData) {
+        return CompletableFuture.completedFuture(false);
+    }
 
     /**
      * Allow all function operations with in this namespace.
@@ -345,9 +362,41 @@ public interface AuthorizationProvider extends Closeable {
                                                                 String role,
                                                                 TopicOperation operation,
                                                                 AuthenticationDataSource authData) {
-        return FutureUtil.failedFuture(
-            new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported by the Authorization"
-                    + "provider you are using."));
+        switch (operation) {
+            case LOOKUP:
+            case GET_STATS:
+            case GET_METADATA:
+                return canLookupAsync(topic, role, authData);
+            case PRODUCE:
+                return canProduceAsync(topic, role, authData);
+            case GET_SUBSCRIPTIONS:
+            case CONSUME:
+            case SUBSCRIBE:
+            case UNSUBSCRIBE:
+            case SKIP:
+            case EXPIRE_MESSAGES:
+            case PEEK_MESSAGES:
+            case RESET_CURSOR:
+            case GET_BACKLOG_SIZE:
+            case SET_REPLICATED_SUBSCRIPTION_STATUS:
+            case GET_REPLICATED_SUBSCRIPTION_STATUS:
+                return canConsumeAsync(topic, role, authData, authData.getSubscription());
+            case TERMINATE:
+            case COMPACT:
+            case OFFLOAD:
+            case UNLOAD:
+            case DELETE_METADATA:
+            case UPDATE_METADATA:
+            case ADD_BUNDLE_RANGE:
+            case GET_BUNDLE_RANGE:
+            case DELETE_BUNDLE_RANGE:
+                return CompletableFuture.completedFuture(false);
+            default:
+                return FutureUtil.failedFuture(
+                        new IllegalStateException(
+                                "TopicOperation [" + operation.name() + "] is not supported by the Authorization"
+                                        + "provider you are using."));
+        }
     }
 
     /**

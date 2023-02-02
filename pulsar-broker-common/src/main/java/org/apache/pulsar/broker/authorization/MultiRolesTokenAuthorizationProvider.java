@@ -200,50 +200,6 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
     }
 
-    /**
-     * Check if the specified role has permission to send messages to the specified fully qualified topic name.
-     *
-     * @param topicName the fully qualified topic name associated with the topic.
-     * @param role      the app id used to send messages to the topic.
-     */
-    @Override
-    public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-                                                      AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.canProduceAsync(topicName, r, authenticationData));
-    }
-
-    /**
-     * Check if the specified role has permission to receive messages from the specified fully qualified topic
-     * name.
-     *
-     * @param topicName    the fully qualified topic name associated with the topic.
-     * @param role         the app id used to receive messages from the topic.
-     * @param subscription the subscription name defined by the client
-     */
-    @Override
-    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-                                                      AuthenticationDataSource authenticationData,
-                                                      String subscription) {
-        return authorize(authenticationData, r -> super.canConsumeAsync(topicName, r, authenticationData,
-                subscription));
-    }
-
-    /**
-     * Check whether the specified role can perform a lookup for the specified topic.
-     * <p>
-     * For that the caller needs to have producer or consumer permission.
-     *
-     * @param topicName
-     * @param role
-     * @return
-     * @throws Exception
-     */
-    @Override
-    public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
-                                                     AuthenticationDataSource authenticationData) {
-        return authorize(authenticationData, r -> super.canLookupAsync(topicName, r, authenticationData));
-    }
-
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                             AuthenticationDataSource authenticationData) {

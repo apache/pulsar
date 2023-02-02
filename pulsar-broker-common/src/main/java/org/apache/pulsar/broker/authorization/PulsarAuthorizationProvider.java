@@ -81,9 +81,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
      * @param role
      *            the app id used to send messages to the topic.
      */
-    @Override
-    public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) {
+    private CompletableFuture<Boolean> checkProduceAsync(TopicName topicName, String role) {
         return checkAuthorization(topicName, role, AuthAction.produce);
     }
 
@@ -95,12 +93,18 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
      *            the fully qualified topic name associated with the topic.
      * @param role
      *            the app id used to receive messages from the topic.
-     * @param subscription
-     *            the subscription name defined by the client
+     * @param authData
+     *            is used for get the subscription name defined by the client
      */
-    @Override
-    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
-            AuthenticationDataSource authenticationData, String subscription) {
+    private CompletableFuture<Boolean> checkConsumeAsync(TopicName topicName, String role,
+                                                         AuthenticationDataSource authData) {
+        String subscription;
+        if (authData != null) {
+            subscription = authData.getSubscription();
+        } else {
+            subscription = null;
+        }
+
         return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(policies -> {
                     if (!policies.isPresent()) {
@@ -150,15 +154,14 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
      * @return
      * @throws Exception
      */
-    @Override
-    public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
+    private CompletableFuture<Boolean> checkLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-        return canProduceAsync(topicName, role, authenticationData)
+        return checkProduceAsync(topicName, role)
                 .thenCompose(canProduce -> {
                     if (canProduce) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    return canConsumeAsync(topicName, role, authenticationData, null);
+                    return checkConsumeAsync(topicName, role, authenticationData);
                 });
     }
 
@@ -520,9 +523,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case LOOKUP:
                             case GET_STATS:
                             case GET_METADATA:
-                                return canLookupAsync(topicName, role, authData);
+                                return checkLookupAsync(topicName, role, authData);
                             case PRODUCE:
-                                return canProduceAsync(topicName, role, authData);
+                                return checkProduceAsync(topicName, role);
                             case GET_SUBSCRIPTIONS:
                             case CONSUME:
                             case SUBSCRIBE:
@@ -534,7 +537,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case GET_BACKLOG_SIZE:
                             case SET_REPLICATED_SUBSCRIPTION_STATUS:
                             case GET_REPLICATED_SUBSCRIPTION_STATUS:
-                                return canConsumeAsync(topicName, role, authData, authData.getSubscription());
+                                return checkConsumeAsync(topicName, role, authData);
                             case TERMINATE:
                             case COMPACT:
                             case OFFLOAD:

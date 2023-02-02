@@ -936,20 +936,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public CompletableFuture<Boolean> allowTopicOperationAsync(
-            TopicName topic, String role, TopicOperation operation, AuthenticationDataSource authData) {
-            CompletableFuture<Boolean> isAuthorizedFuture;
-
-            if (role.equals("plugbleRole")) {
-                isAuthorizedFuture = CompletableFuture.completedFuture(true);
-            } else {
-                isAuthorizedFuture = CompletableFuture.completedFuture(false);
-            }
-
-            return isAuthorizedFuture;
-        }
-
-        @Override
         public Boolean allowTopicOperation(
             TopicName topicName, String role, TopicOperation operation, AuthenticationDataSource authData) {
             try {
