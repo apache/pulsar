@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -191,7 +192,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return future;
     }
 
-    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
+    private CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
@@ -240,12 +241,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             return;
         }
         try {
-            this.brokerRegistry.close();
+            this.brokerLoadDataStore.close();
+            this.topBundlesLoadDataStore.close();
+        } catch (IOException ex) {
+            throw new PulsarServerException(ex);
         } finally {
             try {
-                this.serviceUnitStateChannel.close();
+                this.brokerRegistry.close();
             } finally {
-                this.started = false;
+                try {
+                    this.serviceUnitStateChannel.close();
+                } finally {
+                    this.started = false;
+                }
             }
         }
     }
