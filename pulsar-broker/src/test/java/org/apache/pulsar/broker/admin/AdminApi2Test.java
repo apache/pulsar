@@ -2861,7 +2861,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testNonPartitionedTopic(boolean isV1) throws Exception {
         String tenant = "prop-xyz";
         String cluster = "test";
-        String namespace = tenant + "/" + (isV1 ? "global/" : "") + "n1" + isV1;
+        String namespace = tenant + "/" + (isV1 ? cluster + "/" : "") + "n1" + isV1;
         String topic = "persistent://" + namespace + "/t1" + isV1;
         admin.namespaces().createNamespace(namespace, Set.of(cluster));
         admin.topics().createNonPartitionedTopic(topic);
