@@ -125,7 +125,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
-
+            long originalDataLen = data.readableBytes();
             ByteBuf duplicateBuffer = data.retainedDuplicate();
 
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
@@ -138,6 +138,8 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                 }
             }
+            this.dataLength = duplicateBuffer.readableBytes();
+            this.ml.currentLedgerSize += (dataLength - originalDataLen);
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
             log.warn("[{}] initiate with unexpected state {}, expect OPEN state.", ml.getName(), state);
