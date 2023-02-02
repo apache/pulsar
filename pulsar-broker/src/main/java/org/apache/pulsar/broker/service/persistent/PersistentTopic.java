@@ -238,6 +238,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Record the last time a data message (ie: not an internal Pulsar marker) is published on the topic
     private volatile long lastDataMessagePublishedTimestamp = 0;
+    @Getter
     private final ExecutorService orderedExecutor;
 
     private static class TopicStatsHelper {
@@ -267,7 +268,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
         super(topic, brokerService);
-        this.orderedExecutor = brokerService.getTopicOrderedExecutor().chooseThread(topic);
+        // null check for backwards compatibility with tests which mock the broker service
+        this.orderedExecutor = brokerService.getTopicOrderedExecutor() != null
+                ? brokerService.getTopicOrderedExecutor().chooseThread(topic)
+                : null;
         this.ledger = ledger;
         this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
                         .expectedItems(16)
@@ -362,7 +366,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     this.isEncryptionRequired = policies.encryption_required;
 
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                }, orderedExecutor)
+                }, getOrderedExecutor())
                 .thenCompose(ignore -> initTopicPolicy())
                 .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
@@ -377,7 +381,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     PersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger,
                     MessageDeduplication messageDeduplication) {
         super(topic, brokerService);
-        this.orderedExecutor = brokerService.getTopicOrderedExecutor().chooseThread(topic);
+        // null check for backwards compatibility with tests which mock the broker service
+        this.orderedExecutor = brokerService.getTopicOrderedExecutor() != null
+                ? brokerService.getTopicOrderedExecutor().chooseThread(topic)
+                : null;
         this.ledger = ledger;
         this.messageDeduplication = messageDeduplication;
         this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
@@ -684,7 +691,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     } else {
                         replicators.forEach((region, replicator) -> replicator.startProducer());
                     }
-                }, orderedExecutor).exceptionally(ex -> {
+                }, getOrderedExecutor()).exceptionally(ex -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies while starting repl-producers {}", topic, ex.getMessage());
             }
@@ -1223,7 +1230,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
                 FutureUtil.waitForAll(futures).thenRunAsync(() -> {
                     closeClientFuture.complete(null);
-                }, orderedExecutor).exceptionally(ex -> {
+                }, getOrderedExecutor()).exceptionally(ex -> {
                     log.error("[{}] Error closing clients", topic, ex);
                     unfenceTopicToResume();
                     closeClientFuture.completeExceptionally(ex);
