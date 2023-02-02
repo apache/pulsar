@@ -103,7 +103,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     @Override
-    public synchronized void start() throws PulsarServerException {
+    public void start() throws PulsarServerException {
         if (this.started) {
             return;
         }
@@ -133,7 +133,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     @Override
-    public synchronized void initialize(PulsarService pulsar) {
+    public void initialize(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
     }
@@ -235,7 +235,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     @Override
-    public synchronized void close() throws PulsarServerException {
+    public void close() throws PulsarServerException {
         if (!this.started) {
             return;
         }
