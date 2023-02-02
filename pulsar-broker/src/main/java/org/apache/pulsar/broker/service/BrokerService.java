@@ -1071,7 +1071,7 @@ public class BrokerService implements Closeable {
 
                         CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
 
-                        CompletableFuture eventFuture = topicEventsDispatcher
+                        CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
                                 .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
                         topicEventsDispatcher
                                 .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);

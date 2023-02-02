@@ -57,14 +57,14 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     @DataProvider(name = "topicType")
     public static Object[][] topicType() {
         return new Object[][] {
-                {"persistent", "partitioned", Boolean.TRUE},
-                {"persistent", "non-partitioned", Boolean.TRUE},
-                {"non-persistent", "partitioned", Boolean.TRUE},
-                {"non-persistent", "non-partitioned", Boolean.TRUE},
-                {"persistent", "partitioned", Boolean.FALSE},
-                {"persistent", "non-partitioned", Boolean.FALSE},
-                {"non-persistent", "partitioned", Boolean.FALSE},
-                {"non-persistent", "non-partitioned", Boolean.FALSE}
+                {"persistent", "partitioned", true},
+                {"persistent", "non-partitioned", true},
+                {"non-persistent", "partitioned", true},
+                {"non-persistent", "non-partitioned", true},
+                {"persistent", "partitioned", false},
+                {"persistent", "non-partitioned", false},
+                {"non-persistent", "partitioned", false},
+                {"non-persistent", "non-partitioned", false}
         };
     }
 
@@ -122,11 +122,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topicType")
-    public void testEvents(Object[] topicType) throws Exception {
-        String topicTypePersistence = (String) topicType[0];
-        String topicTypePartitioned = (String) topicType[1];
-        boolean forceDelete = (Boolean) topicType[2];
-
+    public void testEvents(String topicTypePersistence, String topicTypePartitioned,
+                           boolean forceDelete) throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
@@ -149,11 +146,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topicType")
-    public void testEventsWithUnload(Object[] topicType) throws Exception {
-        String topicTypePersistence = (String) topicType[0];
-        String topicTypePartitioned = (String) topicType[1];
-        boolean forceDelete = (Boolean) topicType[2];
-
+    public void testEventsWithUnload(String topicTypePersistence, String topicTypePartitioned,
+                                     boolean forceDelete) throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
@@ -184,11 +178,8 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topicType")
-    public void testEventsActiveSub(Object[] topicType) throws Exception {
-        String topicTypePersistence = (String) topicType[0];
-        String topicTypePartitioned = (String) topicType[1];
-        boolean forceDelete = (Boolean) topicType[2];
-
+    public void testEventsActiveSub(String topicTypePersistence, String topicTypePartitioned,
+                                    boolean forceDelete) throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
@@ -244,10 +235,7 @@ public class TopicEventsListenerTest extends BrokerTestBase {
     }
 
     @Test(dataProvider = "topicTypeNoDelete")
-    public void testTopicAutoGC(Object[] topicType) throws Exception {
-        String topicTypePersistence = (String) topicType[0];
-        String topicTypePartitioned = (String) topicType[1];
-
+    public void testTopicAutoGC(String topicTypePersistence, String topicTypePartitioned) throws Exception {
         String topicName = topicTypePersistence + "://" + namespace + "/" + "topic-" + UUID.randomUUID();
 
         createTopicAndVerifyEvents(topicTypePartitioned, topicName);
