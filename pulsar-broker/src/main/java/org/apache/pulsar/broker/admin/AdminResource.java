@@ -503,23 +503,6 @@ public abstract class AdminResource extends PulsarWebResource {
         return getNamespacePolicies(ns);
     }
 
-    protected boolean isNamespaceReplicated(NamespaceName namespaceName) {
-        return getNamespaceReplicatedClusters(namespaceName).size() > 1;
-    }
-
-    protected Set<String> getNamespaceReplicatedClusters(NamespaceName namespaceName) {
-        try {
-            final Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-            return policies.replication_clusters;
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
-    }
-
     protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
         return namespaceResources().getPoliciesAsync(namespaceName)
                 .thenApply(policies -> {
@@ -616,26 +599,9 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
                 .thenRun(() -> {
-                    List<String> replicatedClusters = new ArrayList<>();
-                    if (!createLocalTopicOnly && topicName.isGlobal() && isNamespaceReplicated(namespaceName)) {
-                        getNamespaceReplicatedClusters(namespaceName)
-                                .stream()
-                                .filter(cluster -> !cluster.equals(pulsar().getConfiguration().getClusterName()))
-                                .forEach(replicatedClusters::add);
+                    if (!createLocalTopicOnly && topicName.isGlobal()) {
+                        internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
                     }
-                    replicatedClusters.forEach(cluster -> {
-                        pulsar().getPulsarResources().getClusterResources().getClusterAsync(cluster)
-                                .thenAccept(clusterDataOp ->
-                                        ((TopicsImpl) pulsar().getBrokerService()
-                                                .getClusterPulsarAdmin(cluster, clusterDataOp).topics())
-                                                .createPartitionedTopicAsync(
-                                                        topicName.getPartitionedTopicName(), numPartitions,
-                                                        true, null))
-                                .exceptionally(ex -> {
-                                    log.error("Failed to create partition topic in cluster {}.", cluster, ex);
-                                    return null;
-                                });
-                    });
                     log.info("[{}] Successfully created partitions for topic {} in cluster {}",
                             clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
                     asyncResponse.resume(Response.noContent().build());
@@ -644,6 +610,39 @@ public abstract class AdminResource extends PulsarWebResource {
                     log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
+                });
+    }
+
+    private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
+        getNamespaceReplicatedClustersAsync(namespaceName)
+                .thenAccept(clusters -> {
+                    for (String cluster : clusters) {
+                        if (!cluster.equals(pulsar().getConfiguration().getClusterName())) {
+                            // this call happens in the background without async composition. completion is logged.
+                            pulsar().getPulsarResources().getClusterResources()
+                                    .getClusterAsync(cluster)
+                                    .thenCompose(clusterDataOp ->
+                                            ((TopicsImpl) pulsar().getBrokerService()
+                                                    .getClusterPulsarAdmin(cluster,
+                                                            clusterDataOp).topics())
+                                                    .createPartitionedTopicAsync(
+                                                            topicName.getPartitionedTopicName(),
+                                                            numPartitions,
+                                                            true, null))
+                                    .whenComplete((__, ex) -> {
+                                        if (ex != null) {
+                                            log.error(
+                                                    "[{}] Failed to create partitioned topic {} in cluster {}.",
+                                                    clientAppId(), topicName, cluster, ex);
+                                        } else {
+                                            log.info(
+                                                    "[{}] Successfully created partitioned topic {} in "
+                                                            + "cluster {}",
+                                                    clientAppId(), topicName, cluster);
+                                        }
+                                    });
+                        }
+                    }
                 });
     }
 
