@@ -138,7 +138,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
                 }
             }
-            if (originalDataLen != duplicateBuffer.readableBytes()) {
+            if (payloadProcessorHandle != null && originalDataLen != duplicateBuffer.readableBytes()) {
                 this.dataLength = duplicateBuffer.readableBytes();
                 this.ml.currentLedgerSize += (dataLength - originalDataLen);
             }
