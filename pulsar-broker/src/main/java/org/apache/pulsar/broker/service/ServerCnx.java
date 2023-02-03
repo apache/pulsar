@@ -765,7 +765,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 if (state != State.Connected) {
                     // First time authentication is done
-                    if (service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+                    if (originalAuthState != null) {
+                        // We only set originalAuthState when we are going to use it.
                         authenticateOriginalData(clientProtocolVersion, clientVersion);
                     } else {
                         completeConnect(clientProtocolVersion, clientVersion);
