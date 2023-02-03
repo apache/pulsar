@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.testcontext;
 
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -29,18 +30,26 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+/**
+ * This is an internal class used by {@link PulsarTestContext} as the abstract base class for
+ * {@link PulsarService} implementations for a PulsarService instance used in tests.
+ * Please see {@link PulsarTestContext} for more details.
+ */
 abstract class AbstractTestPulsarService extends PulsarService {
+    protected final SpyConfig spyConfig;
     protected final MetadataStoreExtended localMetadataStore;
     protected final MetadataStoreExtended configurationMetadataStore;
     protected final Compactor compactor;
     protected final BrokerInterceptor brokerInterceptor;
     protected final BookKeeperClientFactory bookKeeperClientFactory;
 
-    public AbstractTestPulsarService(ServiceConfiguration config, MetadataStoreExtended localMetadataStore,
+    public AbstractTestPulsarService(SpyConfig spyConfig, ServiceConfiguration config,
+                                     MetadataStoreExtended localMetadataStore,
                                      MetadataStoreExtended configurationMetadataStore, Compactor compactor,
                                      BrokerInterceptor brokerInterceptor,
                                      BookKeeperClientFactory bookKeeperClientFactory) {
         super(config);
+        this.spyConfig = spyConfig;
         this.localMetadataStore =
                 NonClosingProxyHandler.createNonClosingProxy(localMetadataStore, MetadataStoreExtended.class);
         this.configurationMetadataStore =
@@ -53,22 +62,27 @@ abstract class AbstractTestPulsarService extends PulsarService {
     @Override
     public MetadataStore createConfigurationMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException {
-
+        if (synchronizer != null) {
+            synchronizer.registerSyncListener(configurationMetadataStore::handleMetadataEvent);
+        }
         return configurationMetadataStore;
     }
 
     @Override
     public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer)
             throws MetadataStoreException, PulsarServerException {
+        if (synchronizer != null) {
+            synchronizer.registerSyncListener(localMetadataStore::handleMetadataEvent);
+        }
         return localMetadataStore;
     }
 
     @Override
-    public Compactor getCompactor() throws PulsarServerException {
+    public Compactor newCompactor() throws PulsarServerException {
         if (compactor != null) {
             return compactor;
         } else {
-            return super.getCompactor();
+            return spyConfig.getCompactor().spy(super.newCompactor());
         }
     }
 

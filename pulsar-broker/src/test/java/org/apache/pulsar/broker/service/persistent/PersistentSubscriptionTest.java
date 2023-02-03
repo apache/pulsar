@@ -18,22 +18,16 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,19 +39,15 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.transaction.buffer.impl.InMemTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -68,13 +58,7 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
-import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
-import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,10 +69,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentSubscriptionTest {
 
-    private PulsarService pulsarMock;
-    private BrokerService brokerMock;
-    private ManagedLedgerFactory mlFactoryMock;
-    private MetadataStore store;
+    private PulsarTestContext pulsarTestContext;
     private ManagedLedger ledgerMock;
     private ManagedCursorImpl cursorMock;
     private PersistentTopic topic;
@@ -109,23 +90,18 @@ public class PersistentSubscriptionTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-subscription-test").build();
-        eventLoopGroup = new NioEventLoopGroup();
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
+                .spyByDefault()
+                .configCustomizer(config -> config.setTransactionCoordinatorEnabled(true))
+                .useTestPulsarResources()
+                .build();
 
-        ServiceConfiguration svcConfig = new ServiceConfiguration();
-        svcConfig.setBrokerShutdownTimeoutMs(0L);
-        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        svcConfig.setClusterName("pulsar-cluster");
-        pulsarMock = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        PulsarResources pulsarResources = mock(PulsarResources.class);
-        doReturn(pulsarResources).when(pulsarMock).getPulsarResources();
-        NamespaceResources namespaceResources = mock(NamespaceResources.class);
-        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
+        NamespaceResources namespaceResources = pulsarTestContext.getPulsarResources().getNamespaceResources();
+        doReturn(Optional.of(new Policies())).when(namespaceResources)
+                .getPoliciesIfCached(any());
 
-        doReturn(Optional.of(new Policies())).when(namespaceResources).getPoliciesIfCached(any());
-
-        doReturn(new InMemTransactionBufferProvider()).when(pulsarMock).getTransactionBufferProvider();
+        doReturn(new InMemTransactionBufferProvider()).when(pulsarTestContext.getPulsarService())
+                .getTransactionBufferProvider();
         doReturn(new TransactionPendingAckStoreProvider() {
             @Override
             public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
@@ -172,24 +148,7 @@ public class PersistentSubscriptionTest {
             public CompletableFuture<Boolean> checkInitializedBefore(PersistentSubscription subscription) {
                 return CompletableFuture.completedFuture(true);
             }
-        }).when(pulsarMock).getTransactionPendingAckStoreProvider();
-        doReturn(svcConfig).when(pulsarMock).getConfiguration();
-        doReturn(mock(Compactor.class)).when(pulsarMock).getCompactor();
-
-        mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsarMock).getManagedLedgerFactory();
-
-        ZooKeeper zkMock = createMockZooKeeper();
-        doReturn(createMockBookKeeper(executor))
-                .when(pulsarMock).getBookKeeperClient();
-
-        store = new ZKMetadataStore(zkMock);
-        doReturn(store).when(pulsarMock).getLocalMetadataStore();
-        doReturn(store).when(pulsarMock).getConfigurationMetadataStore();
-
-        brokerMock = spyWithClassAndConstructorArgs(BrokerService.class, pulsarMock, eventLoopGroup);
-        doNothing().when(brokerMock).unloadNamespaceBundlesGracefully();
-        doReturn(brokerMock).when(pulsarMock).getBrokerService();
+        }).when(pulsarTestContext.getPulsarService()).getTransactionPendingAckStoreProvider();
 
         ledgerMock = mock(ManagedLedgerImpl.class);
         cursorMock = mock(ManagedCursorImpl.class);
@@ -201,7 +160,7 @@ public class PersistentSubscriptionTest {
         doReturn(managedLedgerConfigMock).when(ledgerMock).getConfig();
         doReturn(false).when(managedLedgerConfigMock).isAutoSkipNonRecoverableData();
 
-        topic = new PersistentTopic(successTopicName, ledgerMock, brokerMock);
+        topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
 
         consumerMock = mock(Consumer.class);
 
@@ -210,14 +169,10 @@ public class PersistentSubscriptionTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        brokerMock.close();
-        pulsarMock.close();
-        GracefulExecutorServicesShutdown.initiate()
-                .timeout(Duration.ZERO)
-                .shutdown(executor)
-                .handle().get();
-        EventLoopUtil.shutdownGracefully(eventLoopGroup).get();
-        store.close();
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
+        }
     }
 
     @Test

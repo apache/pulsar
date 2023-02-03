@@ -486,36 +486,39 @@ public abstract class NamespacesBase extends AdminResource {
                                     });
                         }
                     }
-                    return future.thenCompose(__ -> {
-                        NamespaceBundle bundle =
-                                validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                                        authoritative, true);
-                        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
-                                .thenCompose(topics -> {
-                                    CompletableFuture<Void> deleteTopicsFuture =
-                                            CompletableFuture.completedFuture(null);
-                                    if (!force) {
-                                        List<CompletableFuture<NamespaceBundle>> futures = new ArrayList<>();
-                                        for (String topic : topics) {
-                                            futures.add(pulsar().getNamespaceService()
-                                                    .getBundleAsync(TopicName.get(topic))
-                                                    .thenCompose(topicBundle -> {
-                                                        if (bundle.equals(topicBundle)) {
-                                                            throw new RestException(Status.CONFLICT,
-                                                                    "Cannot delete non empty bundle");
-                                                        }
-                                                        return CompletableFuture.completedFuture(null);
-                                                    }));
+                    return future
+                            .thenCompose(__ ->
+                                    validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
+                                            bundleRange,
+                                            authoritative, true))
+                            .thenCompose(bundle -> {
+                                return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                                        .thenCompose(topics -> {
+                                            CompletableFuture<Void> deleteTopicsFuture =
+                                                    CompletableFuture.completedFuture(null);
+                                            if (!force) {
+                                                List<CompletableFuture<NamespaceBundle>> futures = new ArrayList<>();
+                                                for (String topic : topics) {
+                                                    futures.add(pulsar().getNamespaceService()
+                                                            .getBundleAsync(TopicName.get(topic))
+                                                            .thenCompose(topicBundle -> {
+                                                                if (bundle.equals(topicBundle)) {
+                                                                    throw new RestException(Status.CONFLICT,
+                                                                            "Cannot delete non empty bundle");
+                                                                }
+                                                                return CompletableFuture.completedFuture(null);
+                                                            }));
 
-                                        }
-                                        deleteTopicsFuture = FutureUtil.waitForAll(futures);
-                                    }
-                                    return deleteTopicsFuture.thenCompose(
-                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle))
-                                            .thenRun(() -> pulsar().getBrokerService().getBundleStats()
-                                                    .remove(bundle.toString()));
-                                });
-                    });
+                                                }
+                                                deleteTopicsFuture = FutureUtil.waitForAll(futures);
+                                            }
+                                            return deleteTopicsFuture.thenCompose(
+                                                            ___ -> pulsar().getNamespaceService()
+                                                                    .removeOwnedServiceUnitAsync(bundle))
+                                                    .thenRun(() -> pulsar().getBrokerService().getBundleStats()
+                                                            .remove(bundle.toString()));
+                                        });
+                            });
                 });
     }
 
@@ -642,9 +645,10 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenApply(__ -> {
                     checkNotNull(clusterIds, "ClusterIds should not be null");
-                    if (!namespaceName.isGlobal()) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Cannot set replication on a non-global namespace");
+                    if (!namespaceName.isGlobal() && !(clusterIds.size() == 1
+                            && clusterIds.get(0).equals(pulsar().getConfiguration().getClusterName()))) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Cannot set replication on a non-global namespace");
                     }
                     Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
                     if (replicationClusterSet.contains("global")) {
@@ -2046,8 +2050,8 @@ public abstract class NamespacesBase extends AdminResource {
         CompletableFuture<Void> f = new CompletableFuture<>();
 
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.WRITE)
-                .thenApply(v -> validatePoliciesReadOnlyAccessAsync())
-                .thenApply(v -> updatePoliciesAsync(namespaceName,
+                .thenCompose(v -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(v -> updatePoliciesAsync(namespaceName,
                         policies -> {
                             if (policies.offload_policies == null) {
                                 policies.offload_policies = new OffloadPoliciesImpl();

@@ -56,6 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -66,6 +67,14 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.service.plugin.EntryFilter2Test;
+import org.apache.pulsar.broker.service.plugin.EntryFilterDefinition;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
+import org.apache.pulsar.broker.service.plugin.EntryFilterTest;
+import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.testcontext.MockEntryFilterProvider;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -319,13 +328,15 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         conf.setWebServicePort(Optional.of(1026));
         conf.setWebServicePortTls(Optional.of(1027));
         @Cleanup
-        PulsarService pulsar2 = startBrokerWithoutAuthorization(conf);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         conf.setBrokerServicePort(Optional.of(2048));
         conf.setBrokerServicePortTls(Optional.of(2049));
         conf.setWebServicePort(Optional.of(2050));
         conf.setWebServicePortTls(Optional.of(2051));
         @Cleanup
-        PulsarService pulsar3 = startBrokerWithoutAuthorization(conf);
+        PulsarTestContext pulsarTestContext3 = createAdditionalPulsarTestContext(conf);
+        PulsarService pulsar3 = pulsarTestContext.getPulsarService();
         @Cleanup
         PulsarAdmin admin2 = PulsarAdmin.builder().serviceHttpUrl(pulsar2.getWebServiceAddress()).build();
         @Cleanup
@@ -2233,35 +2244,244 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30000)
     public void testSetNamespaceEntryFilters() throws Exception {
-        EntryFilters entryFilters = new EntryFilters(
-                "org.apache.pulsar.broker.service.plugin.EntryFilterTest");
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(conf);
 
-        final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
-        admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+        testEntryFilterProvider
+                .setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ));
+        final EntryFilterProvider oldEntryFilterProvider = pulsar.getBrokerService().getEntryFilterProvider();
+        FieldUtils.writeField(pulsar.getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
 
-        assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+        try {
+            EntryFilters entryFilters = new EntryFilters("test");
 
-        admin.namespaces().setNamespaceEntryFilters(myNamespace, entryFilters);
-        assertEquals(admin.namespaces().getNamespaceEntryFilters(myNamespace), entryFilters);
-        admin.namespaces().removeNamespaceEntryFilters(myNamespace);
-        assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+            final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
+            admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+            final String topicName = myNamespace + "/topic";
+            admin.topics().createNonPartitionedTopic(topicName);
+
+            assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(topicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 0);
+
+            admin.namespaces().setNamespaceEntryFilters(myNamespace, entryFilters);
+            assertEquals(admin.namespaces().getNamespaceEntryFilters(myNamespace), entryFilters);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(pulsar
+                        .getBrokerService()
+                        .getTopic(topicName, false)
+                        .get()
+                        .get()
+                        .getEntryFiltersPolicy()
+                        .getEntryFilterNames(), "test");
+            });
+
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(topicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 1);
+            admin.namespaces().removeNamespaceEntryFilters(myNamespace);
+            assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(pulsar
+                        .getBrokerService()
+                        .getTopic(topicName, false)
+                        .get()
+                        .get()
+                        .getEntryFiltersPolicy()
+                        .getEntryFilterNames(), "");
+            });
+
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(topicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 0);
+        } finally {
+            FieldUtils.writeField(pulsar.getBrokerService(),
+                    "entryFilterProvider", oldEntryFilterProvider, true);
+        }
     }
 
     @Test(dataProvider = "topicType")
     public void testSetTopicLevelEntryFilters(String topicType) throws Exception {
-        EntryFilters entryFilters = new EntryFilters("org.apache.pulsar.broker.service.plugin.EntryFilterTest");
-        final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
-        admin.topics().createPartitionedTopic(topic, 1);
-        @Cleanup
-        Producer<byte[]> producer1 = pulsarClient.newProducer()
-                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
-                .create();
-        assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
-        admin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilters);
-        Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic,
-                false), entryFilters));
-        admin.topicPolicies().removeEntryFiltersPerTopic(topic);
-        assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(conf);
+
+        testEntryFilterProvider
+                .setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ));
+        final EntryFilterProvider oldEntryFilterProvider = pulsar.getBrokerService().getEntryFilterProvider();
+        FieldUtils.writeField(pulsar.getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
+        try {
+            EntryFilters entryFilters = new EntryFilters("test");
+            final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
+            admin.topics().createPartitionedTopic(topic, 1);
+            final String fullTopicName = topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0;
+            @Cleanup
+            Producer<byte[]> producer1 = pulsarClient.newProducer()
+                    .topic(fullTopicName)
+                    .create();
+            assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(fullTopicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 0);
+            admin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilters);
+            Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic,
+                    false), entryFilters));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(pulsar
+                        .getBrokerService()
+                        .getTopic(fullTopicName, false)
+                        .get()
+                        .get()
+                        .getEntryFiltersPolicy()
+                        .getEntryFilterNames(), "test");
+            });
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(fullTopicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 1);
+            admin.topicPolicies().removeEntryFiltersPerTopic(topic);
+            assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(pulsar
+                        .getBrokerService()
+                        .getTopic(fullTopicName, false)
+                        .get()
+                        .get()
+                        .getEntryFiltersPolicy()
+                        .getEntryFilterNames(), "");
+            });
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(fullTopicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 0);
+        } finally {
+            FieldUtils.writeField(pulsar.getBrokerService(),
+                    "entryFilterProvider", oldEntryFilterProvider, true);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testSetEntryFiltersHierarchy() throws Exception {
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(conf);
+        conf.setEntryFilterNames(List.of("test", "test1"));
+
+        testEntryFilterProvider.setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ), new EntryFilterDefinition(
+                        "test1",
+                        null,
+                        EntryFilter2Test.class.getName()
+                ));
+        final EntryFilterProvider oldEntryFilterProvider = pulsar.getBrokerService().getEntryFilterProvider();
+        FieldUtils.writeField(pulsar.getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
+        try {
+
+            final String topic = "persistent://prop-xyz/ns1/test-schema-validation-enforced";
+            admin.topics().createPartitionedTopic(topic, 1);
+            final String fullTopicName = topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0;
+            @Cleanup
+            Producer<byte[]> producer1 = pulsarClient.newProducer()
+                    .topic(fullTopicName)
+                    .create();
+            assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+            assertEquals(pulsar
+                    .getBrokerService()
+                    .getTopic(fullTopicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters()
+                    .size(), 2);
+
+            EntryFilters nsEntryFilters = new EntryFilters("test");
+            admin.namespaces().setNamespaceEntryFilters("prop-xyz/ns1", nsEntryFilters);
+            assertEquals(admin.namespaces().getNamespaceEntryFilters("prop-xyz/ns1"), nsEntryFilters);
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(pulsar
+                        .getBrokerService()
+                        .getTopic(fullTopicName, false)
+                        .get()
+                        .get()
+                        .getEntryFiltersPolicy()
+                        .getEntryFilterNames(), "test");
+            });
+
+            Awaitility.await().untilAsserted(() -> {
+                final List<EntryFilter> entryFilters = pulsar
+                        .getBrokerService()
+                        .getTopic(fullTopicName, false)
+                        .get()
+                        .get()
+                        .getEntryFilters();
+                assertEquals(entryFilters.size(), 1);
+                assertEquals(((EntryFilterWithClassLoader)entryFilters.get(0))
+                        .getEntryFilter().getClass(), EntryFilterTest.class);
+
+            });
+
+
+            EntryFilters topicEntryFilters = new EntryFilters("test1");
+            admin.topicPolicies().setEntryFiltersPerTopic(topic, topicEntryFilters);
+            Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic,
+                    false), topicEntryFilters));
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(pulsar
+                        .getBrokerService()
+                        .getTopic(fullTopicName, false)
+                        .get()
+                        .get()
+                        .getEntryFiltersPolicy()
+                        .getEntryFilterNames(), "test1");
+            });
+            final List<EntryFilter> entryFilters = pulsar
+                    .getBrokerService()
+                    .getTopic(fullTopicName, false)
+                    .get()
+                    .get()
+                    .getEntryFilters();
+            assertEquals(entryFilters.size(), 1);
+            assertEquals(((EntryFilterWithClassLoader) entryFilters.get(0))
+                    .getEntryFilter().getClass(), EntryFilter2Test.class);
+
+        } finally {
+            FieldUtils.writeField(pulsar.getBrokerService(),
+                    "entryFilterProvider", oldEntryFilterProvider, true);
+        }
     }
 
     @Test(timeOut = 30000)

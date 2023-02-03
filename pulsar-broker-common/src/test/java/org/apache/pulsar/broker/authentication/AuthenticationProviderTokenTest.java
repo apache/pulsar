@@ -26,6 +26,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -682,6 +683,7 @@ public class AuthenticationProviderTokenTest {
                 Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
 
         AuthenticationState authState = provider.newAuthState(AuthData.of(expiringToken.getBytes()), null, null);
+        authState.authenticate(AuthData.of(expiringToken.getBytes()));
         assertTrue(authState.isComplete());
         assertFalse(authState.isExpired());
 
@@ -691,6 +693,34 @@ public class AuthenticationProviderTokenTest {
 
         AuthData brokerData = authState.refreshAuthentication();
         assertEquals(brokerData, AuthData.REFRESH_AUTH_DATA);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testExpiredTokenFailsOnAuthenticate() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Create a token that is already expired
+        String expiringToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
+                Optional.of(new Date(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(3))));
+
+        AuthData expiredAuthData = AuthData.of(expiringToken.getBytes());
+
+        // It is important that this call doesn't fail because we no longer authenticate the auth data at construction
+        AuthenticationState authState = provider.newAuthState(expiredAuthData,null, null);
+        // The call to authenticate the token is the call that fails
+        assertThrows(AuthenticationException.class, () -> authState.authenticate(expiredAuthData));
     }
 
     // tests for Token Audience
@@ -916,6 +946,7 @@ public class AuthenticationProviderTokenTest {
         assertTrue(doFilter, "Authentication should have passed");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenStateUpdatesAuthenticationDataSource() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -931,20 +962,26 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
         provider.initialize(conf);
 
+        AuthenticationState authState = provider.newAuthState(null,null, null);
+
+        // Haven't authenticated yet, so cannot get role when using constructor with no auth data
+        assertThrows(AuthenticationException.class, authState::getAuthRole);
+        assertNull(authState.getAuthDataSource(), "Haven't created a source yet.");
+
         String firstToken = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
 
-        AuthenticationState authState = provider.newAuthState(AuthData.of(firstToken.getBytes()),null, null);
-
+        AuthData firstChallenge = authState.authenticate(AuthData.of(firstToken.getBytes()));
         AuthenticationDataSource firstAuthDataSource = authState.getAuthDataSource();
-        assertNotNull(firstAuthDataSource, "Should be initialized.");
 
-        String secondToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
-                Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
+        assertNull(firstChallenge, "TokenAuth doesn't respond with challenges");
+        assertNotNull(firstAuthDataSource, "Created authDataSource");
 
-        AuthData challenge = authState.authenticate(AuthData.of(secondToken.getBytes()));
+        String secondToken = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+
+        AuthData secondChallenge = authState.authenticate(AuthData.of(secondToken.getBytes()));
         AuthenticationDataSource secondAuthDataSource = authState.getAuthDataSource();
 
-        assertNull(challenge, "TokenAuth doesn't respond with challenges");
+        assertNull(secondChallenge, "TokenAuth doesn't respond with challenges");
         assertNotNull(secondAuthDataSource, "Created authDataSource");
 
         assertNotEquals(firstAuthDataSource, secondAuthDataSource);

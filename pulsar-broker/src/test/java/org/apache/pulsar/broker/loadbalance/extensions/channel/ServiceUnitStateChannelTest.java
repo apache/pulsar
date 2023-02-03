@@ -29,7 +29,6 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -44,6 +43,7 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertNotNull;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -67,6 +67,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -94,6 +95,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private String bundle1;
     private String bundle2;
+    private PulsarTestContext additionalPulsarTestContext;
 
     @BeforeClass
     @Override
@@ -108,7 +110,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("public/default");
 
         pulsar1 = pulsar;
-        pulsar2 = startBrokerWithoutAuthorization(getDefaultConf());
+        additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
+        pulsar2 = additionalPulsarTestContext.getPulsarService();
         channel1 = spy(new ServiceUnitStateChannelImpl(pulsar1));
         channel1.start();
         channel2 = spy(new ServiceUnitStateChannelImpl(pulsar2));
@@ -135,8 +138,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         channel1.close();
         channel2.close();
+        if (additionalPulsarTestContext != null) {
+            additionalPulsarTestContext.close();
+            additionalPulsarTestContext = null;
+        }
         pulsar1 = null;
-        pulsar2.close();
+        pulsar2 = null;
         super.internalCleanup();
     }
 
@@ -158,7 +165,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(newChannelOwner1, newChannelOwner2);
         assertNotEquals(channelOwner1, newChannelOwner1);
 
-        if (newChannelOwner1.equals(lookupServiceAddress1)) {
+        if (newChannelOwner1.equals(Optional.of(lookupServiceAddress1))) {
             assertTrue(channel1.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
             assertFalse(channel2.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
         } else {
@@ -280,8 +287,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         var assigned1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         var assigned2 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
@@ -327,15 +334,15 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
-        owner1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
-        owner2 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
-        assertTrue(owner1.isCompletedExceptionally());
-        assertNotNull(owner2);
-        String ownerAddr2 = owner2.get(5, TimeUnit.SECONDS);
-        assertEquals(ownerAddr2, lookupServiceAddress2);
+        var owner3 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
+        var owner4 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
+        assertTrue(owner3.isCompletedExceptionally());
+        assertNotNull(owner4);
+        String ownerAddrOpt2 = owner4.get(5, TimeUnit.SECONDS);
+        assertEquals(ownerAddrOpt2, lookupServiceAddress2);
         waitUntilNewOwner(channel1, bundle, lookupServiceAddress2);
         assertEquals(0, getOwnerRequests1.size());
         assertEquals(0, getOwnerRequests2.size());
@@ -350,8 +357,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
 
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
@@ -361,7 +368,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var ownerAddr2 = channel2.getOwnerAsync(bundle).get();
 
         assertEquals(ownerAddr1, ownerAddr2);
-        assertEquals(ownerAddr1, lookupServiceAddress1);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
 
         Unload unload = new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2));
         channel1.publishUnloadEventAsync(unload);
@@ -372,7 +379,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         ownerAddr1 = channel1.getOwnerAsync(bundle).get(5, TimeUnit.SECONDS);
         ownerAddr2 = channel2.getOwnerAsync(bundle).get(5, TimeUnit.SECONDS);
         assertEquals(ownerAddr1, ownerAddr2);
-        assertEquals(ownerAddr1, lookupServiceAddress2);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress2));
     }
 
     @Test(priority = 5)
@@ -391,7 +398,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var ownerAddr2 = channel2.getOwnerAsync(bundle).get();
 
         assertEquals(ownerAddr1, ownerAddr2);
-        assertEquals(ownerAddr1, lookupServiceAddress1);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
 
         var producer = (Producer<ServiceUnitStateData>) FieldUtils.readDeclaredField(channel1,
                 "producer", true);
@@ -452,8 +459,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel2, bundle, lookupServiceAddress1);
         var ownerAddr1 = channel1.getOwnerAsync(bundle).get();
         var ownerAddr2 = channel2.getOwnerAsync(bundle).get();
-        assertEquals(ownerAddr1, lookupServiceAddress1);
-        assertEquals(ownerAddr2, lookupServiceAddress1);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
+        assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
+        assertTrue(ownerAddr1.isPresent());
 
         NamespaceService namespaceService = spy(pulsar1.getNamespaceService());
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -578,8 +586,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle1);
         var owner2 = channel2.getOwnerAsync(bundle2);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         String broker = lookupServiceAddress1;
         channel1.publishAssignEventAsync(bundle1, broker);
@@ -734,8 +742,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(bundle).send();
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         var assigned1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         assertNotNull(assigned1);
@@ -757,12 +765,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
         assertNotNull(ex);
         assertEquals(TimeoutException.class, ex.getCause().getClass());
-        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(bundle).get());
-        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(bundle).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(bundle).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(bundle).get());
 
         var compactor = spy (pulsar1.getStrategicCompactor());
-        FieldUtils.writeDeclaredField(pulsar1, "strategicCompactor", compactor, true);
-        FieldUtils.writeDeclaredField(pulsar2, "strategicCompactor", compactor, true);
+        Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
+        FieldUtils.writeField(strategicCompactorField, pulsar1, compactor, true);
+        FieldUtils.writeField(strategicCompactorField, pulsar2, compactor, true);
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(140, TimeUnit.SECONDS)
@@ -775,7 +784,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(
-                        channel3.getOwnerAsync(bundle).get(), lookupServiceAddress1));
+                        channel3.getOwnerAsync(bundle).get(), Optional.of(lookupServiceAddress1)));
         channel3.close();
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
@@ -819,10 +828,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     if (!owner.isDone()) {
                         return false;
                     }
-                    if (oldOwner == null) {
-                        return owner != null;
-                    }
-                    return !oldOwner.equals(owner);
+
+                    return !StringUtils.equals(oldOwner, owner.get().orElse(null));
                 });
     }
 
@@ -831,11 +838,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
-                    CompletableFuture<String> owner = channel.getOwnerAsync(serviceUnit);
+                    CompletableFuture<Optional<String>> owner = channel.getOwnerAsync(serviceUnit);
                     if (!owner.isDone()) {
                         return false;
                     }
-                    return !StringUtils.equals(oldOwner, owner.get());
+                    return !StringUtils.equals(oldOwner, owner.get().orElse(null));
                 });
     }
 
@@ -845,11 +852,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .atMost(15, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     try {
-                        CompletableFuture<String> owner = channel.getOwnerAsync(serviceUnit);
+                        CompletableFuture<Optional<String>> owner = channel.getOwnerAsync(serviceUnit);
                         if (!owner.isDone()) {
                             return false;
                         }
-                        return StringUtils.equals(newOwner, owner.get());
+                        return StringUtils.equals(newOwner, owner.get().orElse(null));
                     } catch (Exception e) {
                         return false;
                     }

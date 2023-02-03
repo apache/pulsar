@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.AssertJUnit.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -43,9 +42,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -375,18 +373,9 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         }
     }
 
-    @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                return spy(new BrokerService(this, ioEventLoopGroup));
-            }
-        };
-    }
-
     @Test
     public void testAvgMessagesPerEntry() throws Exception {
+        conf.setAllowOverrideEntryFilters(true);
         final String topic = "persistent://public/default/testFilterState";
         String subName = "sub";
 
@@ -419,7 +408,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         EntryFilterWithClassLoader
                 loader = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter,
                 narClassLoader);
-        Map<String, EntryFilterWithClassLoader> entryFilters = Map.of("filter", loader);
+        Pair<String, List<EntryFilter>> entryFilters = Pair.of("filter", List.of(loader));
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicReference(topic).get();
