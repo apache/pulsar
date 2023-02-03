@@ -31,6 +31,7 @@
   <name>Pulsar IO :: Debezium :: oracle</name>
 
   <dependencies>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-core</artifactId>
