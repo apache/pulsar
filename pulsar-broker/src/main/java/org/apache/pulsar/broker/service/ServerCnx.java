@@ -1023,7 +1023,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
 
             doAuthentication(clientData, false, clientProtocolVersion, clientVersion);
-        } catch (AuthenticationException e) {
+        } catch (Exception e) {
             authenticationFailed(e);
         }
     }
@@ -1040,9 +1040,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 remoteAddress, authResponse.getResponse().getAuthMethodName());
         }
 
-        AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
-        doAuthentication(clientData, originalAuthState != null, authResponse.getProtocolVersion(),
-                authResponse.hasClientVersion() ? authResponse.getClientVersion() : EMPTY);
+        try {
+            AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
+            doAuthentication(clientData, originalAuthState != null, authResponse.getProtocolVersion(),
+                    authResponse.hasClientVersion() ? authResponse.getClientVersion() : EMPTY);
+        } catch (Exception e) {
+            authenticationFailed(e);
+        }
     }
 
     @Override
