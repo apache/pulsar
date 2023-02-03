@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
@@ -137,9 +136,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-        }).thenRun(() -> {
-            log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic);
-        });
+        }).thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
     }
 
     @Override

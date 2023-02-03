@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.broker.transaction;
 
 import static org.testng.Assert.assertTrue;
@@ -71,17 +89,17 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //1.1 Put 10 aborted txn IDs to persistent two sealed segments.
         for (int i = 0; i < 10; i++) {
             TxnID txnID = new TxnID(0, i);
-            PositionImpl position = new PositionImpl(0,i);
+            PositionImpl position = new PositionImpl(0, i);
             processor.putAbortedTxnAndPosition(txnID, position);
         }
         //1.2 Put 4 aborted txn IDs into the unsealed segment.
         for (int i = 10; i < 14; i++) {
             TxnID txnID = new TxnID(0, i);
-            PositionImpl position = new PositionImpl(0,i);
+            PositionImpl position = new PositionImpl(0, i);
             processor.putAbortedTxnAndPosition(txnID, position);
         }
         //1.3 Verify the common data flow
-        verifyAbortedTxnIDAndSegmentIndex(processor,0,14);
+        verifyAbortedTxnIDAndSegmentIndex(processor, 0, 14);
         //2. Take the latest snapshot and verify recover from snapshot
         AbortedTxnProcessor newProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(persistentTopic);
         PositionImpl maxReadPosition = new PositionImpl(0, 14);
@@ -91,7 +109,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         processor.takeAbortedTxnsSnapshot(maxReadPosition).get();
         newProcessor.recoverFromSnapshot().get();
         //Verify the recovery data flow
-        verifyAbortedTxnIDAndSegmentIndex(newProcessor,0,14);
+        verifyAbortedTxnIDAndSegmentIndex(newProcessor, 0, 14);
         //3. Delete the ledgers and then verify the date.
         Field ledgersField = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);

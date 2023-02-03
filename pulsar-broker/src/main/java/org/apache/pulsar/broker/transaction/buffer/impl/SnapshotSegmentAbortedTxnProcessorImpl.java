@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -9,7 +9,7 @@
  *
  *   http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,2
+ * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
  * KIND, either express or implied.  See the License for the
@@ -159,8 +159,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         if (unsealedTxnIds.size() >= snapshotSegmentCapacity) {
             LinkedList<TxnID> abortedSegment = unsealedTxnIds;
             segmentIndex.put(position, txnID);
-            persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment, () ->
-                    persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position));
+            persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment,
+                    () -> persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position));
             this.unsealedTxnIds = new LinkedList<>();
         }
     }
@@ -212,8 +212,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         TransactionBufferSnapshotIndexesMetadata metadata = new TransactionBufferSnapshotIndexesMetadata(
                 maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(),
                 convertTypeToTxnIDData(unsealedTxnIds));
-        return persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex, () -> persistentWorker
-                .updateSnapshotIndex(metadata, indexes.values().stream().toList()));
+        return persistentWorker.appendTask(PersistentWorker.OperationType.UpdateIndex,
+                () -> persistentWorker.updateSnapshotIndex(metadata, indexes.values().stream().toList()));
     }
 
     @Override
@@ -308,7 +308,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                   the segment can not be read according to the index.
                                                   We update index again if there are invalid indexes.
                                                  */
-                                                if (((ManagedLedgerImpl)topic.getManagedLedger())
+                                                if (((ManagedLedgerImpl) topic.getManagedLedger())
                                                         .ledgerExists(index.getAbortedMarkLedgerID())) {
                                                     log.error("[{}] Failed to read snapshot segment [{}:{}]",
                                                             topic.getName(), index.segmentLedgerID,
@@ -560,10 +560,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private void executeTask() {
-            if (taskQueue.isEmpty()) return;
+            if (taskQueue.isEmpty()) {
+                return;
+            }
             if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
                 //Double-check. Avoid NoSuchElementException due to the first task is completed by other thread.
-                if (taskQueue.isEmpty()) return;
+                if (taskQueue.isEmpty()) {
+                    return;
+                }
                 Pair<OperationType, Pair<CompletableFuture<Void>, Supplier<CompletableFuture<Void>>>> firstTask =
                         taskQueue.getFirst();
                 firstTask.getValue().getRight().get().whenComplete((ignore, throwable) -> {
@@ -592,7 +596,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 if (log.isDebugEnabled()) {
                     log.debug("Successes to take snapshot segment [{}] at maxReadPosition [{}] "
                                     + "for the topic [{}], and the size of the segment is [{}]",
-                            this.sequenceID, abortedMarkerPersistentPosition, topic.getName(), sealedAbortedTxnIdSegment.size());
+                            this.sequenceID, abortedMarkerPersistentPosition, topic.getName(),
+                            sealedAbortedTxnIdSegment.size());
                 }
                 this.sequenceID.getAndIncrement();
             }).exceptionally(e -> {
@@ -600,7 +605,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 //append aborted txn next time.
                 log.error("Failed to take snapshot segment [{}] at maxReadPosition [{}] "
                                 + "for the topic [{}], and the size of the segment is [{}]",
-                        this.sequenceID, abortedMarkerPersistentPosition, topic.getName(), sealedAbortedTxnIdSegment.size(), e);
+                        this.sequenceID, abortedMarkerPersistentPosition, topic.getName(),
+                        sealedAbortedTxnIdSegment.size(), e);
                 return null;
             });
         }
@@ -611,7 +617,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             transactionBufferSnapshotSegment.setAborts(convertTypeToTxnIDData(segment));
             transactionBufferSnapshotSegment.setTopicName(this.topic.getName());
             transactionBufferSnapshotSegment.setPersistentPositionEntryId(abortedMarkerPersistentPosition.getEntryId());
-            transactionBufferSnapshotSegment.setPersistentPositionLedgerId(abortedMarkerPersistentPosition.getLedgerId());
+            transactionBufferSnapshotSegment.setPersistentPositionLedgerId(
+                    abortedMarkerPersistentPosition.getLedgerId());
 
             return snapshotSegmentsWriterFuture.thenCompose(segmentWriter -> {
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());

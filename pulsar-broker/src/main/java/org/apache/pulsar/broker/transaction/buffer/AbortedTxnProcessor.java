@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
