@@ -223,7 +223,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
                     PositionImpl startReadCursorPosition = null;
                     TransactionBufferSnapshotIndexes persistentSnapshotIndexes = null;
-                    boolean hasIndex = false;
                     try {
                         /*
                           Read the transaction snapshot segment index.
@@ -240,7 +239,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             if (topic.getName().equals(message.getKey())) {
                                 TransactionBufferSnapshotIndexes transactionBufferSnapshotIndexes = message.getValue();
                                 if (transactionBufferSnapshotIndexes != null) {
-                                    hasIndex = true;
                                     persistentSnapshotIndexes = transactionBufferSnapshotIndexes;
                                     startReadCursorPosition = PositionImpl.get(
                                             transactionBufferSnapshotIndexes.getSnapshot().getMaxReadPositionLedgerId(),
@@ -264,7 +262,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                     PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
                     TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes = persistentSnapshotIndexes;
-                    if (!hasIndex) {
+                    if (persistentSnapshotIndexes == null) {
                         return CompletableFuture.completedFuture(null);
                     } else {
                         this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
@@ -299,28 +297,25 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                                             @Override
                                             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                                                if (exception instanceof ManagedLedgerException
-                                                        .NonRecoverableLedgerException) {
-                                                    /*
-                                                      The logic flow of deleting expired segment is:
-                                                      <p>
-                                                          1. delete segment
-                                                          2. update segment index
-                                                      </p>
-                                                      If the worker delete segment successfully
-                                                      but failed to update segment index,
-                                                      the segment can not be read according to the index.
-                                                      We update index again if there are invalid indexes.
-                                                     */
-                                                    if (((ManagedLedgerImpl)topic.getManagedLedger())
-                                                            .ledgerExists(index.getAbortedMarkLedgerID())) {
-                                                        log.error("[{}] Failed to read snapshot segment [{}:{}]",
-                                                                topic.getName(), index.segmentLedgerID,
-                                                                index.segmentEntryID, exception);
-                                                        handleSegmentFuture.completeExceptionally(exception);
-                                                    } else {
-                                                        hasInvalidIndex.set(true);
-                                                    }
+                                                /*
+                                                  The logic flow of deleting expired segment is:
+                                                  <p>
+                                                      1. delete segment
+                                                      2. update segment index
+                                                  </p>
+                                                  If the worker delete segment successfully
+                                                  but failed to update segment index,
+                                                  the segment can not be read according to the index.
+                                                  We update index again if there are invalid indexes.
+                                                 */
+                                                if (((ManagedLedgerImpl)topic.getManagedLedger())
+                                                        .ledgerExists(index.getAbortedMarkLedgerID())) {
+                                                    log.error("[{}] Failed to read snapshot segment [{}:{}]",
+                                                            topic.getName(), index.segmentLedgerID,
+                                                            index.segmentEntryID, exception);
+                                                    handleSegmentFuture.completeExceptionally(exception);
+                                                } else {
+                                                    hasInvalidIndex.set(true);
                                                 }
                                             }
                                         }, null);
@@ -540,7 +535,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Closed)) {
                         taskQueue.forEach(pair ->
                                 pair.getRight().getRight().get().completeExceptionally(
-                                        new BrokerServiceException.TransactionBufferClosedException(
+                                        new BrokerServiceException.ServiceUnitNotReadyException(
                                                 String.format("Cancel the operation [%s] due to the"
                                                                 + " transaction buffer of the topic[%s] already closed",
                                                         pair.getLeft().name(), this.topic.getName()))));
@@ -602,7 +597,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 this.sequenceID.getAndIncrement();
             }).exceptionally(e -> {
                 //Just log the error, and the processor will try to take snapshot again when the transactionBuffer
-                //append aborted txn nex time.
+                //append aborted txn next time.
                 log.error("Failed to take snapshot segment [{}] at maxReadPosition [{}] "
                                 + "for the topic [{}], and the size of the segment is [{}]",
                         this.sequenceID, abortedMarkerPersistentPosition, topic.getName(), sealedAbortedTxnIdSegment.size(), e);
@@ -633,6 +628,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                 indexes.put(abortedMarkerPersistentPosition, index);
                 //update snapshot segment index.
+                //If the index can not be written successfully, the snapshot segment wil be overwritten
+                // when the processor writes snapshot segment next time.
                 return updateSnapshotIndex(new TransactionBufferSnapshotIndexesMetadata(
                                 maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), new LinkedList<>()),
                         indexes.values().stream().toList());

@@ -834,7 +834,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     //Verify the snapshotSegmentProcessor end to end
     @Test
     public void testSnapshotSegment() throws Exception {
-        String topic = NAMESPACE1 + "/testSnapshotSegment";
+        String topic ="persistent://" + NAMESPACE1 + "/testSnapshotSegment";
         String subName = "testSnapshotSegment";
 
         LinkedMap<Transaction, MessageId> ongoingTxns = new LinkedMap<>();
@@ -843,7 +843,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         int theSizeOfSegment = 10;
         int theCountOfSnapshotMaxTxnCount = 3;
         this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSnapshotSegmentSize(theSizeOfSegment);
+        this.getPulsarServiceList().get(0).getConfig()
+                .setTransactionBufferSnapshotSegmentSize(8 + topic.length() + theSizeOfSegment * 3);
         this.getPulsarServiceList().get(0).getConfig()
                 .setTransactionBufferSnapshotMaxTransactionCount(theCountOfSnapshotMaxTxnCount);
         // 1. Build producer and consumer

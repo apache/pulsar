@@ -22,7 +22,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class AbortTxnProcessorTest extends TransactionTestBase {
+public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
     private static final String PROCESSOR_TOPIC = "persistent://" + NAMESPACE1 + "/abortedTxnProcessor";
     private static final int SEGMENT_SIZE = 5;
@@ -34,7 +34,8 @@ public class AbortTxnProcessorTest extends TransactionTestBase {
         setUpBase(1, 1, PROCESSOR_TOPIC, 0);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() + 5 * 3);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
+                SEGMENT_SIZE * 3);
     }
 
     @Override

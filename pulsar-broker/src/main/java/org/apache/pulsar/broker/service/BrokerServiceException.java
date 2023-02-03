@@ -77,12 +77,6 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TransactionBufferClosedException extends BrokerServiceException {
-        public TransactionBufferClosedException(String s) {
-            super(s);
-        }
-    }
-
     @Deprecated
     public static class AddEntryMetadataException extends BrokerServiceException {
         public AddEntryMetadataException(Throwable t) {
