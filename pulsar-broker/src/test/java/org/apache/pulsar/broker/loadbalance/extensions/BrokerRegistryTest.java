@@ -211,8 +211,10 @@ public class BrokerRegistryTest {
         brokerRegistries.clear();
         log.info("Cleaning up the pulsar services...");
         pulsarServices.forEach(pulsarService -> {
-            if (pulsarService.isRunning()) {
-                pulsarService.shutdownNow();
+            try {
+                pulsarService.close();
+            } catch (PulsarServerException e) {
+                throw new RuntimeException(e);
             }
         });
         pulsarServices.clear();
@@ -274,8 +276,12 @@ public class BrokerRegistryTest {
 
         // Unregister and see the available brokers.
         brokerRegistry1.unregister();
-        assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
 
+        // After unregistering, the other broker registry lock manager's metadata cache might not be updated yet,
+        // so we need to wait for it to synchronize.
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(brokerRegistry2.getAvailableBrokersAsync().get().size(), 2);
+        });
     }
 
     @Test
