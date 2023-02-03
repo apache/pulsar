@@ -136,11 +136,12 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
                         duplicateBuffer);
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
+                    // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
+                    if (originalDataLen != duplicateBuffer.readableBytes()) {
+                        this.dataLength = duplicateBuffer.readableBytes();
+                        this.ml.currentLedgerSize += (dataLength - originalDataLen);
+                    }
                 }
-            }
-            if (payloadProcessorHandle != null && originalDataLen != duplicateBuffer.readableBytes()) {
-                this.dataLength = duplicateBuffer.readableBytes();
-                this.ml.currentLedgerSize += (dataLength - originalDataLen);
             }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
         } else {
