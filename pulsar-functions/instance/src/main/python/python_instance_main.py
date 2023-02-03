@@ -75,61 +75,11 @@ def merge_arguments(args, config_file):
   default_config = config["DEFAULT"]
   if not default_config:
     return
-  if not args.client_auth_plugin and default_config.get("client_auth_plugin", None):
-    args.client_auth_plugin = default_config.get("client_auth_plugin")
-  if not args.client_auth_params and default_config.get("client_auth_params", None):
-    args.client_auth_params = default_config.get("client_auth_params")
-  if not args.use_tls and default_config.get("use_tls", None):
-    args.use_tls = default_config.get("use_tls")
-  if not args.tls_allow_insecure_connection and default_config.get("tls_allow_insecure_connection", None):
-    args.tls_allow_insecure_connection = default_config.get("tls_allow_insecure_connection")
-  if not args.hostname_verification_enabled and default_config.get("hostname_verification_enabled", None):
-    args.hostname_verification_enabled = default_config.get("hostname_verification_enabled")
-  if not args.tls_trust_cert_path and default_config.get("tls_trust_cert_path", None):
-    args.tls_trust_cert_path = default_config.get("tls_trust_cert_path")
-  if not args.logging_level and default_config.get("logging_level", None):
-    args.logging_level = default_config.get("logging_level")
-  if not args.secrets_provider and default_config.get("secrets_provider", None):
-    args.secrets_provider = default_config.get("secrets_provider")
-  if not args.secrets_provider_config and default_config.get("secrets_provider_config", None):
-    args.secrets_provider_config = default_config.get("secrets_provider_config")
-  if not args.install_usercode_dependencies and default_config.get("install_usercode_dependencies", None):
-    args.install_usercode_dependencies = default_config.get("install_usercode_dependencies")
-  if not args.dependency_repository and default_config.get("dependency_repository", None):
-    args.dependency_repository = default_config.get("dependency_repository")
-  if not args.extra_dependency_repository and default_config.get("extra_dependency_repository", None):
-    args.extra_dependency_repository = default_config.get("extra_dependency_repository")
-  if not args.state_storage_serviceurl and default_config.get("state_storage_serviceurl", None):
-    args.state_storage_serviceurl = default_config.get("state_storage_serviceurl")
-  # mandatory_args
-  if not args.function_details and default_config.get("function_details", None):
-    args.function_details = default_config.get("function_details")
-  if not args.py and default_config.get("py", None):
-    args.py = default_config.get("py")
-  if not args.instance_id and default_config.get("instance_id", None):
-    args.instance_id = default_config.get("instance_id")
-  if not args.function_id and default_config.get("function_id", None):
-    args.function_id = default_config.get("function_id")
-  if not args.function_version and default_config.get("function_version", None):
-    args.function_version = default_config.get("function_version")
-  if not args.pulsar_serviceurl and default_config.get("pulsar_serviceurl", None):
-    args.pulsar_serviceurl = default_config.get("pulsar_serviceurl")
-  if not args.port and default_config.get("port", None):
-    args.port = default_config.get("port")
-  if not args.metrics_port and default_config.get("metrics_port", None):
-    args.metrics_port = default_config.get("metrics_port")
-  if not args.max_buffered_tuples and default_config.get("max_buffered_tuples", None):
-    args.max_buffered_tuples = default_config.get("max_buffered_tuples")
-  if not args.logging_directory and default_config.get("logging_directory", None):
-    args.logging_directory = default_config.get("logging_directory")
-  if not args.logging_file and default_config.get("logging_file", None):
-    args.logging_file = default_config.get("logging_file")
-  if not args.logging_config_file and default_config.get("logging_config_file", None):
-    args.logging_config_file = default_config.get("logging_config_file")
-  if not args.expected_healthcheck_interval and default_config.get("expected_healthcheck_interval", None):
-    args.expected_healthcheck_interval = default_config.get("expected_healthcheck_interval")
-  if not args.cluster_name and default_config.get("cluster_name", None):
-    args.cluster_name = default_config.get("cluster_name")
+  for k, v in vars(args).items():
+    if k == "config_file":
+      continue
+    if not v and default_config.get(k, None):
+      vars(args)[k] = default_config.get(k)
 
 
 def validate_arguments(args):
