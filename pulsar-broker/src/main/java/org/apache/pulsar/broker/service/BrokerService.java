@@ -110,6 +110,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -281,6 +283,8 @@ public class BrokerService implements Closeable {
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
     private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
 
+    private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
+
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
         this.preciseTopicPublishRateLimitingEnable =
@@ -396,6 +400,16 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
+    }
+
+    public void addTopicEventListener(TopicEventsListener... listeners) {
+        topicEventsDispatcher.addTopicEventListener(listeners);
+        getTopics().keys().forEach(topic ->
+                TopicEventsDispatcher.notify(listeners, topic, TopicEvent.LOAD, EventStage.SUCCESS, null));
+    }
+
+    public void removeTopicEventListener(TopicEventsListener... listeners) {
+        topicEventsDispatcher.removeTopicEventListener(listeners);
     }
 
     // This call is used for starting additional protocol handlers
@@ -1024,21 +1038,41 @@ public class BrokerService implements Closeable {
                     return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
                 });
             } else {
-            return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                    topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                             if (topicName.getPartitionIndex() < metadata.partitions) {
-                                return createNonPersistentTopic(name);
+                                topicEventsDispatcher
+                                        .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+
+                                CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+
+                                CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                        .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                                topicEventsDispatcher
+                                        .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                                return res;
                             }
+                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
                     } else if (createIfMissing) {
-                        return createNonPersistentTopic(name);
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+
+                        CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+
+                        CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                        topicEventsDispatcher
+                                .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                        return res;
                     } else {
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
-                    });
+                });
             }
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Illegalargument exception when loading topic", topicName, e);
@@ -1056,6 +1090,13 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
+        topicEventsDispatcher.notify(topic, TopicEvent.DELETE, EventStage.BEFORE);
+        CompletableFuture<Void> result =  deleteTopicInternal(topic, forceDelete);
+        topicEventsDispatcher.notifyOnCompletion(result, topic, TopicEvent.DELETE);
+        return result;
+    }
+
+    private CompletableFuture<Void> deleteTopicInternal(String topic, boolean forceDelete) {
         TopicName topicName = TopicName.get(topic);
         Optional<Topic> optTopic = getTopicReference(topic);
 
@@ -1402,7 +1443,7 @@ public class BrokerService implements Closeable {
                 log.debug("Broker is unable to load persistent topic {}", topic);
             }
             topicFuture.completeExceptionally(new NotAllowedException(
-                    "Broker is not unable to load persistent topic"));
+                    "Broker is unable to load persistent topic"));
             return topicFuture;
         }
 
@@ -1542,6 +1583,24 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setShadowSourceName(TopicName.get(shadowSource).getPersistenceNamingEncoding());
             }
 
+            topicEventsDispatcher.notify(topic, TopicEvent.LOAD, EventStage.BEFORE);
+            // load can fail with topicFuture completed non-exceptionally
+            // work around this
+            final CompletableFuture<Void> loadFuture = new CompletableFuture<>();
+            topicFuture.whenComplete((res, ex) -> {
+                if (ex == null) {
+                    loadFuture.complete(null);
+                } else {
+                    loadFuture.completeExceptionally(ex);
+                }
+            });
+
+            if (createIfMissing) {
+                topicEventsDispatcher.notify(topic, TopicEvent.CREATE, EventStage.BEFORE);
+                topicEventsDispatcher.notifyOnCompletion(topicFuture, topic, TopicEvent.CREATE);
+            }
+            topicEventsDispatcher.notifyOnCompletion(loadFuture, topic, TopicEvent.LOAD);
+
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
@@ -1603,6 +1662,7 @@ public class BrokerService implements Closeable {
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
+                                loadFuture.completeExceptionally(exception);
                                 topicFuture.complete(Optional.empty());
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
@@ -2135,6 +2195,8 @@ public class BrokerService implements Closeable {
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
+        topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
+
         synchronized (multiLayerTopicsMap) {
             ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
                     .get(namespaceName);
@@ -2169,6 +2231,7 @@ public class BrokerService implements Closeable {
         if (compactor != null) {
             compactor.getStats().removeTopic(topic);
         }
+        topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
     }
 
     public int getNumberOfNamespaceBundles() {

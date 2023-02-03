@@ -24,9 +24,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -78,7 +77,7 @@ public class LeastResourceUsageWithWeightTest {
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
         // Should choice broker from broker1 2 3.
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new HashSet<>();
         candidates.add("1");
         candidates.add("2");
         candidates.add("3");
@@ -125,7 +124,7 @@ public class LeastResourceUsageWithWeightTest {
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
         // Should choice broker from broker1 2 3.
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new HashSet<>();
         candidates.add("1");
         candidates.add("2");
         candidates.add("3");
@@ -141,7 +140,7 @@ public class LeastResourceUsageWithWeightTest {
 
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new HashSet<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
         brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
@@ -189,7 +188,7 @@ public class LeastResourceUsageWithWeightTest {
                 1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
-    public LoadManagerContext getContext() {
+    public static LoadManagerContext getContext() {
         var ctx = mock(LoadManagerContext.class);
         var conf = new ServiceConfiguration();
         conf.setLoadBalancerCPUResourceWeight(1.0);

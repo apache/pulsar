@@ -116,9 +116,9 @@ public interface ServiceUnitStateChannel extends Closeable {
      *                 the future object will complete and return the owner broker.
      *      Sub-case2: If the assigned broker does not take the ownership in time,
      *                 the future object will time out.
-     * Case 3: If none of them, it returns null.
+     * Case 3: If none of them, it returns Optional.empty().
      */
-    CompletableFuture<String> getOwnerAsync(String serviceUnit);
+    CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
      * Asynchronously publishes the service unit assignment event to the system topic in this channel.

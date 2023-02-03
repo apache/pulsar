@@ -673,13 +673,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
-        try {
-            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, this.testLocalCluster,
-                    this.testLocalNamespaces.get(0).getLocalName(), List.of("use")));
-            fail("should have failed");
-        } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
-        }
+        // setting the replication clusters for a local namespace to the local cluster should succeed
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName(), List.of(this.testLocalCluster)));
 
         // cleanup
         resetBroker();

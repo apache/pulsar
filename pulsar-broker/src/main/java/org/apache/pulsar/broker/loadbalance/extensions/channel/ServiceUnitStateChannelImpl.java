@@ -63,6 +63,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -276,21 +277,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    public CompletableFuture<String> getOwnerAsync(String serviceUnit) {
+    public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
         validateChannelState(Started, true);
         ServiceUnitStateData data = tableview.get(serviceUnit);
         if (data == null) {
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(Optional.empty());
         }
         switch (data.state()) {
             case Owned, Splitting -> {
-                return CompletableFuture.completedFuture(data.broker());
+                return CompletableFuture.completedFuture(Optional.of(data.broker()));
             }
             case Assigned, Released -> {
-                return deferGetOwnerRequest(serviceUnit);
+                return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
             }
             default -> {
-                return null;
+                String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
+                log.error(errorMsg);
+                return FutureUtil.failedFuture(new IllegalStateException(errorMsg));
             }
         }
     }
