@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -39,7 +40,9 @@ import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
@@ -52,6 +55,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -784,6 +788,26 @@ public abstract class AdminResource extends PulsarWebResource {
                         persistence.getBookkeeperEnsemble(), persistence.getBookkeeperWriteQuorum(),
                         persistence.getBookkeeperAckQuorum()));
 
+    }
+
+    protected void validateEntryFilters(EntryFilters entryFilters) {
+        if (entryFilters == null) {
+            // remove entry filters
+            return;
+        }
+        if (StringUtils.isBlank(entryFilters.getEntryFilterNames())
+                || Arrays.stream(entryFilters.getEntryFilterNames().split(","))
+                        .filter(n -> StringUtils.isNotBlank(n))
+                        .findAny().isEmpty()) {
+            throw new RestException(new RestException(Status.BAD_REQUEST,
+                    "entryFilterNames can't be empty. To remove entry filters use the remove method."));
+        }
+        try {
+            pulsar().getBrokerService().getEntryFilterProvider()
+                    .validateEntryFilters(entryFilters.getEntryFilterNames());
+        } catch (InvalidEntryFilterException ex) {
+            throw new RestException(new RestException(Status.BAD_REQUEST, ex));
+        }
     }
 
     /**

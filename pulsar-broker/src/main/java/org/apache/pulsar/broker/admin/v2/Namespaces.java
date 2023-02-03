@@ -2771,8 +2771,11 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{tenant}/{namespace}/entryFilters")
     @ApiOperation(value = "Set entry filters for namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Specified entry filters are not valid"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")
+    })
     public void setEntryFiltersPerTopic(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
                                        @PathParam("namespace") String namespace,
                                        @ApiParam(value = "entry filters", required = true)

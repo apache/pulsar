@@ -2479,11 +2479,13 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<Void> internalSetEntryFiltersPerTopicAsync(EntryFilters entryFilters) {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> validateEntryFilters(entryFilters))
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.entryFilters = entryFilters;
                     return policies;
                 }));
     }
+
 
     /**
      * Base method for setReplicatorDispatchRate v1 and v2.
