@@ -500,8 +500,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                       If the taskQueue is not empty, the worker will execute the tasks in the queue.
                      */
                     if (!taskQueue.isEmpty()) {
-                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
-                                .getExecutor(this).submit(this::executeTask);
+                        executeTask();
                         return CompletableFuture.completedFuture(null);
                     } else if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
                         return task.get().whenComplete((ignore, throwable) -> {
@@ -563,9 +562,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         private void executeTask() {
             if (taskQueue.isEmpty()) return;
             if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
+                //Double-check. Avoid NoSuchElementException due to the first task is completed by other thread.
+                if (taskQueue.isEmpty()) return;
                 Pair<OperationType, Pair<CompletableFuture<Void>, Supplier<CompletableFuture<Void>>>> firstTask =
                         taskQueue.getFirst();
-                if (firstTask == null) return;
                 firstTask.getValue().getRight().get().whenComplete((ignore, throwable) -> {
                     if (throwable != null) {
                         if (log.isDebugEnabled()) {
@@ -579,7 +579,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                     STATE_UPDATER.compareAndSet(this, OperationState.Operating,
                             OperationState.None);
-                    //Execute the next task in the task queue.
+                    //Execute the next task in the other thread.
                     topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                             .getExecutor(this).submit(this::executeTask);
                 });
