@@ -156,7 +156,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     public Integer maxPendingAsyncRequests = 1000;
 
     @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url")
-    public String webServiceUrl;
+    public String webServiceUrl  = null;
 
     @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
             + "exposed to function context, default is disabled. Providing this flag set value to true")
@@ -571,13 +571,9 @@ public class JavaInstanceStarter implements AutoCloseable {
     /**
      * If a config field is not provided in JCommander, then it will be initialized to null.
      *
-     * <p>Then we reads from file. If file is not valid or non-exist or empty (cannot load the file), just skip the file
-     * as if no file are provided. When reading configs from file, first check if the config field is null, only
-     * set the config field from file if the config field is null (which indicates command line didn't provide this
-     * config field). This way we can ensure the command line has a higher priority than the file config.
-     *
-     * <p> If a config field is not provided by command nor by file (also indicated by a null value),
-     * then we will throw an exception if the config field is required, or set it with the default value.
+     * <p>File config and Command line config should be exclusive. When --config_file is used,
+     * users should not provide any other command line arguments. This design is to avoid possible confusion and
+     * allow users to easy reason where a configuration value comes from.
      * @param args
      * @throws IOException
      */
@@ -589,10 +585,8 @@ public class JavaInstanceStarter implements AutoCloseable {
         if (configFile != null) {
             checkNoOtherConfigs(args);
             useConfigFromFileAndProvideDefaultValue();
-            validateRequiredConfigs();
-        } else {
-            validateRequiredConfigs();
         }
+        validateRequiredConfigs();
     }
 
     protected static Set<String> requireConfigFieldsNames = new HashSet<>(){{
