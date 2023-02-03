@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -175,7 +176,14 @@ public class NamespaceService implements AutoCloseable {
         long startTime = System.nanoTime();
 
         CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
-                .thenCompose(bundle -> findBrokerServiceUrl(bundle, options));
+                .thenCompose(bundle -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                        return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
+                    } else {
+                        // TODO: Add unit tests cover it.
+                        return findBrokerServiceUrl(bundle, options);
+                    }
+                });
 
         future.thenAccept(optResult -> {
             lookupLatency.observe(System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
@@ -232,16 +240,18 @@ public class NamespaceService implements AutoCloseable {
                 LOG.debug("Getting web service URL of topic: {} - options: {}", name, options);
             }
             return getBundleAsync(name)
-                    .thenCompose(namespaceBundle -> internalGetWebServiceUrl(namespaceBundle, options));
+                    .thenCompose(namespaceBundle ->
+                            internalGetWebServiceUrl(Optional.of(name), namespaceBundle, options));
         }
 
         if (suName instanceof NamespaceName) {
             return getFullBundleAsync((NamespaceName) suName)
-                    .thenCompose(namespaceBundle -> internalGetWebServiceUrl(namespaceBundle, options));
+                    .thenCompose(namespaceBundle ->
+                            internalGetWebServiceUrl(Optional.empty(), namespaceBundle, options));
         }
 
         if (suName instanceof NamespaceBundle) {
-            return internalGetWebServiceUrl((NamespaceBundle) suName, options);
+            return internalGetWebServiceUrl(Optional.empty(), (NamespaceBundle) suName, options);
         }
 
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
@@ -257,9 +267,14 @@ public class NamespaceService implements AutoCloseable {
                 .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
     }
 
-    private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, LookupOptions options) {
+    private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(Optional<ServiceUnitId> topic,
+                                                                      NamespaceBundle bundle,
+                                                                      LookupOptions options) {
 
-        return findBrokerServiceUrl(bundle, options).thenApply(lookupResult -> {
+        return (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+                ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
+                // TODO: Add unit tests cover it.
+                findBrokerServiceUrl(bundle, options)).thenApply(lookupResult -> {
             if (lookupResult.isPresent()) {
                 try {
                     LookupData lookupData = lookupResult.get().getLookupData();
@@ -1024,6 +1039,10 @@ public class NamespaceService implements AutoCloseable {
         }
 
         if (suName instanceof NamespaceBundle) {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                return loadManager.get().checkOwnershipAsync(Optional.empty(), suName);
+            }
+            // TODO: Add unit tests cover it.
             return CompletableFuture.completedFuture(
                     ownershipCache.isNamespaceBundleOwned((NamespaceBundle) suName));
         }
@@ -1046,6 +1065,11 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
+        // TODO: Add unit tests cover it.
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return getBundleAsync(topicName)
+                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
+        }
         Optional<CompletableFuture<OwnedBundle>> res = ownershipCache.getOwnedBundleAsync(getBundle(topicName));
         if (!res.isPresent()) {
             return CompletableFuture.completedFuture(false);
@@ -1059,15 +1083,30 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
+        // TODO: Add unit tests cover it.
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return getFullBundleAsync(fqnn)
+                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.empty(), bundle));
+        }
         return getFullBundleAsync(fqnn)
                 .thenApply(bundle -> ownershipCache.getOwnedBundle(bundle) != null);
     }
 
     private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
+        // TODO: Add unit tests cover it.
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return getBundleAsync(topic)
+                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topic), bundle));
+        }
         return getBundleAsync(topic).thenApply(bundle -> ownershipCache.isNamespaceBundleOwned(bundle));
     }
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
+        // TODO: Add unit tests cover it.
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return getBundleAsync(topicName)
+                    .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
+        }
         return getBundleAsync(topicName)
                 .thenCompose(ownershipCache::checkOwnershipAsync);
     }
