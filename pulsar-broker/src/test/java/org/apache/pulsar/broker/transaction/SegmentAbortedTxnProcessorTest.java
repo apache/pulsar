@@ -25,11 +25,13 @@ import java.util.NavigableMap;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -168,8 +170,10 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field taskQueueField = SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.class
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
+        Supplier task = CompletableFuture::new;
         Queue queue = (Queue) taskQueueField.get(persistentWorker);
-        queue.add(new Object());
+        queue.add(new MutablePair<>(SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.OperationType.WriteSegment,
+                new MutablePair<>(new CompletableFuture<>(), task)));
         processor.takeAbortedTxnsSnapshot(new PositionImpl(1, 10)).get(2, TimeUnit.SECONDS);
     }
 
