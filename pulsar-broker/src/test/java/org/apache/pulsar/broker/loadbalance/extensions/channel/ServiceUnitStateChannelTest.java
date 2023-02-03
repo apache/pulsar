@@ -702,8 +702,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(bundle).send();
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         var assigned1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         assertNotNull(assigned1);
@@ -725,8 +725,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
         assertNotNull(ex);
         assertEquals(TimeoutException.class, ex.getCause().getClass());
-        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(bundle).get());
-        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(bundle).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(bundle).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(bundle).get());
 
         var compactor = spy (pulsar1.getStrategicCompactor());
         Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
@@ -744,7 +744,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(
-                        channel3.getOwnerAsync(bundle).get(), lookupServiceAddress1));
+                        channel3.getOwnerAsync(bundle).get(), Optional.of(lookupServiceAddress1)));
         channel3.close();
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
