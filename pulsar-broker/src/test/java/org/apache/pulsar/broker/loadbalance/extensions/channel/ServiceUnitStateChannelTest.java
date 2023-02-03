@@ -228,38 +228,52 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     private int validateChannelStart(ServiceUnitStateChannelImpl channel)
-            throws ExecutionException, InterruptedException, TimeoutException {
+            throws InterruptedException, TimeoutException {
         int errorCnt = 0;
         try {
             channel.isChannelOwnerAsync().get(2, TimeUnit.SECONDS);
-        } catch (IllegalStateException e) {
-            errorCnt++;
+        } catch (ExecutionException e) {
+            if(e.getCause() instanceof IllegalStateException){
+                errorCnt++;
+            }
         }
         try {
             channel.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
-        } catch (IllegalStateException e) {
-            errorCnt++;
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
-            channel.getOwnerAsync(bundle);
-        } catch (IllegalStateException e) {
-            errorCnt++;
+            channel.getOwnerAsync(bundle).get(2, TimeUnit.SECONDS).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
-            channel.publishAssignEventAsync(bundle, lookupServiceAddress1);
-        } catch (IllegalStateException e) {
-            errorCnt++;
+            channel.publishAssignEventAsync(bundle, lookupServiceAddress1).get(2, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
             channel.publishUnloadEventAsync(
-                    new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2)));
-        } catch (IllegalStateException e) {
-            errorCnt++;
+                    new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2)))
+                    .get(2, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
-            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()));
-        } catch (IllegalStateException e) {
-            errorCnt++;
+            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()))
+                    .get(2, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         return errorCnt;
     }
@@ -483,8 +497,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel2, bundle, null);
 
         // TODO: assert child bundle ownerships in the channels.
-        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0);
-        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0);
+        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
+        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
         validateEventCounters(channel1, 1, 0, 1, 0, 0, 0);
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
     }

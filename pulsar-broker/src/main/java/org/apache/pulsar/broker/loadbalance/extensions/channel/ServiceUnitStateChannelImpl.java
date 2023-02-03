@@ -68,7 +68,6 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -190,7 +189,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public synchronized void start() throws PulsarServerException {
-        validateChannelState(LeaderElectionServiceStarted, false);
+        if (!validateChannelState(LeaderElectionServiceStarted, false)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+        }
+
         try {
             leaderElectionService.start();
             this.channelState = LeaderElectionServiceStarted;
@@ -269,15 +271,24 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void validateChannelState(ChannelState targetState, boolean checkLowerIds) {
+    private boolean validateChannelState(ChannelState targetState, boolean checkLowerIds) {
         int order = checkLowerIds ? -1 : 1;
         if (Integer.compare(channelState.id, targetState.id) * order > 0) {
-            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+            return false;
         }
+        return true;
+    }
+
+    private boolean debug() {
+        return pulsar.getConfiguration().isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
 
     public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
-        validateChannelState(LeaderElectionServiceStarted, true);
+        if (!validateChannelState(LeaderElectionServiceStarted, true)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        }
+
         return leaderElectionService.readCurrentLeader().thenApply(leader -> {
                     //expecting http://broker-xyz:port
                     // TODO: discard this protocol prefix removal
@@ -317,7 +328,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
-        validateChannelState(Started, true);
+        if (!validateChannelState(Started, true)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        }
+
         ServiceUnitStateData data = tableview.get(serviceUnit);
         ServiceUnitState state = data == null ? Free : data.state();
         ownerLookUpCounters.get(state).incrementAndGet();
@@ -329,12 +344,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
             }
             case Free -> {
-                return CompletableFuture.completedFuture(null);
+                return CompletableFuture.completedFuture(Optional.empty());
             }
             default -> {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
-                return FutureUtil.failedFuture(new IllegalStateException(errorMsg));
+                return CompletableFuture.failedFuture(new IllegalStateException(errorMsg));
             }
         }
     }
@@ -342,68 +357,50 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
         EventType eventType = Assign;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        try {
-            CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
-            pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
-                    .whenComplete((__, ex) -> {
-                        if (ex != null) {
-                            getOwnerRequests.remove(serviceUnit, getOwnerRequest);
-                            if (!getOwnerRequest.isCompletedExceptionally()) {
-                                getOwnerRequest.completeExceptionally(ex);
-                            }
-                            eventCounters.get(eventType).getFailure().incrementAndGet();
+        CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
+        pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        getOwnerRequests.remove(serviceUnit, getOwnerRequest);
+                        if (!getOwnerRequest.isCompletedExceptionally()) {
+                            getOwnerRequest.completeExceptionally(ex);
                         }
-                    });
-            return getOwnerRequest;
-        } catch (Throwable e) {
-            log.error("Failed to publish assign event. serviceUnit:{}, broker:{}, assignPublishFailureCount:{}",
-                    serviceUnit, broker, eventCounters.get(eventType).getFailure().incrementAndGet(), e);
-            throw e;
-        }
+                        eventCounters.get(eventType).getFailure().incrementAndGet();
+                    }
+                });
+        return getOwnerRequest;
     }
 
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
         EventType eventType = Unload;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        try {
-            String serviceUnit = unload.serviceUnit();
-            CompletableFuture<MessageId> future;
-            if (isTransferCommand(unload)) {
-                ServiceUnitStateData next = new ServiceUnitStateData(Assigned,
-                        unload.destBroker().get(), unload.sourceBroker());
-                future = pubAsync(serviceUnit, next);
-            } else {
-                future = tombstoneAsync(serviceUnit);
-            }
-
-            return future.whenComplete((__, ex) -> {
-                if (ex != null) {
-                    eventCounters.get(eventType).getFailure().incrementAndGet();
-                }
-            }).thenApply(__ -> null);
-        } catch (Throwable e) {
-            log.error("Failed to publish unload event. unload:{}. unloadPublishFailureCount:{}",
-                    unload, eventCounters.get(eventType).getFailure().incrementAndGet(), e);
-            throw e;
+        String serviceUnit = unload.serviceUnit();
+        CompletableFuture<MessageId> future;
+        if (isTransferCommand(unload)) {
+            ServiceUnitStateData next = new ServiceUnitStateData(Assigned,
+                    unload.destBroker().get(), unload.sourceBroker());
+            future = pubAsync(serviceUnit, next);
+        } else {
+            future = tombstoneAsync(serviceUnit);
         }
+
+        return future.whenComplete((__, ex) -> {
+            if (ex != null) {
+                eventCounters.get(eventType).getFailure().incrementAndGet();
+            }
+        }).thenApply(__ -> null);
     }
 
     public CompletableFuture<Void> publishSplitEventAsync(Split split) {
         EventType eventType = Split;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        try {
-            String serviceUnit = split.serviceUnit();
-            ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
-            return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
-                if (ex != null) {
-                    eventCounters.get(eventType).getFailure().incrementAndGet();
-                }
-            }).thenApply(__ -> null);
-        } catch (Throwable e) {
-            log.error("Failed to publish split event. split:{}, splitPublishFailureCount:{}",
-                    split, eventCounters.get(eventType).getFailure().incrementAndGet(), e);
-            throw e;
-        }
+        String serviceUnit = split.serviceUnit();
+        ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
+        return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
+            if (ex != null) {
+                eventCounters.get(eventType).getFailure().incrementAndGet();
+            }
+        }).thenApply(__ -> null);
     }
 
     private void handle(String serviceUnit, ServiceUnitStateData data) {
@@ -424,8 +421,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 default -> throw new IllegalStateException("Failed to handle channel data:" + data);
             }
         } catch (Throwable e){
-            getHandlerFailureCounter(data).incrementAndGet();
-            log.error("Failed to handle the event. serviceUnit:{}, data:{}", serviceUnit, data, e);
+            log.error("Failed to handle the event. serviceUnit:{}, data:{}, handlerFailureCount:{}",
+                    serviceUnit, data, getHandlerFailureCounter(data).incrementAndGet(), e);
             throw e;
         }
     }
@@ -455,7 +452,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private AtomicLong getHandlerCounter(ServiceUnitStateData data, boolean total) {
-        var state = data.state() == null ? Free : data.state();
+        var state = data == null ? Free : data.state();
         var counter = total
                 ? handlerCounters.get(state).getTotal() : handlerCounters.get(state).getFailure();
         if (counter == null) {
@@ -541,7 +538,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
-        validateChannelState(Started, true);
+        if (!validateChannelState(Started, true)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        }
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         producer.newMessage()
                 .key(serviceUnit)
