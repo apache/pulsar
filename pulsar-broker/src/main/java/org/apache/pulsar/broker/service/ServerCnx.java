@@ -717,7 +717,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // in presence of a proxy and if the proxy is forwarding the credentials).
         // In this case, the re-validation needs to be done against the original client
         // credentials.
-        AuthenticationState authState =  useOriginalAuthState ? originalAuthState : this.authState;
+        AuthenticationState authState = useOriginalAuthState ? originalAuthState : this.authState;
         String authRole = useOriginalAuthState ? originalPrincipal : this.authRole;
         if (log.isDebugEnabled()) {
             log.debug("Authenticate using original auth state : {}, role = {}", useOriginalAuthState, authRole);
@@ -745,7 +745,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 // 1. the 1st time the authentication process was done, in which case we'll send
                 //    a `CommandConnected` response
                 // 2. an authentication refresh, in which case we need to refresh authenticationData
-
+                AuthenticationState authState = useOriginalAuthState ? originalAuthState : this.authState;
                 String newAuthRole = authState.getAuthRole();
 
                 // Refresh the auth data.
