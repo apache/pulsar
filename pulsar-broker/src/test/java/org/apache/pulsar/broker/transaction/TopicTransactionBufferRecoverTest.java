@@ -80,6 +80,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -532,9 +533,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 (AbortedTxnProcessor) abortedTxnProcessorField.get(topicTransactionBuffer);
         abortedTxnProcessor.takeAbortedTxnsSnapshot(topicTransactionBuffer.getMaxReadPosition());
 
-        TopicName transactionBufferTopicName =
-                NamespaceEventsSystemTopicFactory.getSystemTopicName(
-                        TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
+        TopicName transactionBufferTopicName;
+        if (!enableSnapshotSegment) {
+            transactionBufferTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                            TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
+        }  else {
+            transactionBufferTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                    TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+        }
         PersistentTopic snapshotTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(transactionBufferTopicName.toString(), false).get().get();
         Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
@@ -552,7 +558,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
 
-        Reader<TransactionBufferSnapshot> reader = pulsarClient.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+        Reader<GenericRecord> reader = pulsarClient.newReader(Schema.AUTO_CONSUME())
                 .readCompacted(true)
                 .startMessageId(MessageId.earliest)
                 .startMessageIdInclusive()
@@ -561,7 +567,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         int count = 0;
         while (true) {
-            Message<TransactionBufferSnapshot> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
+            Message<GenericRecord> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
             if (snapshotMsg != null) {
                 count++;
             } else {

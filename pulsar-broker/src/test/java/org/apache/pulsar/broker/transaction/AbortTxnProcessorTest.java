@@ -116,7 +116,7 @@ public class AbortTxnProcessorTest extends TransactionTestBase {
         }
         //Verify there are 2 sealed segment and the unsealed segment size is 4.
         Field unsealedSegmentField = SnapshotSegmentAbortedTxnProcessorImpl.class
-                .getDeclaredField("unsealedAbortedTxnIdSegment");
+                .getDeclaredField("unsealedTxnIds");
         Field indexField = SnapshotSegmentAbortedTxnProcessorImpl.class
                 .getDeclaredField("segmentIndex");
         unsealedSegmentField.setAccessible(true);
