@@ -455,12 +455,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         schemaFutureList.thenCompose(FutureUtils::collect).handle((schemaList, ex) -> {
             List<SchemaAndMetadata> list = ex != null ? new ArrayList<>() : schemaList;
             if (ex != null) {
-                boolean recoverable = ex.getCause() != null && (ex.getCause() instanceof SchemaException)
-                        ? ((SchemaException) ex.getCause()).isRecoverable()
-                        : true;
+                final Throwable rc = FutureUtil.unwrapCompletionException(ex);
+                boolean recoverable = !(rc instanceof SchemaException) || ((SchemaException) rc).isRecoverable();
                 // if error is recoverable then fail the request.
                 if (recoverable) {
-                    schemaResult.completeExceptionally(ex.getCause());
+                    schemaResult.completeExceptionally(rc);
                     return null;
                 }
                 // clean the schema list for recoverable and delete the schema from zk
@@ -473,7 +472,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 trimDeletedSchemaAndGetList(list);
                 // clean up the broken schema from zk
                 deleteSchemaStorage(schemaId, true).handle((sv, th) -> {
-                    log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", ex.getCause().getMessage(),
+                    log.info("Clean up non-recoverable schema {}. Deletion of schema {} {}", rc.getMessage(),
                             schemaId, (th == null ? "successful" : "failed, " + th.getCause().getMessage()));
                     schemaResult.complete(list);
                     return null;
