@@ -70,15 +70,33 @@ public class EntryFilterProvider implements AutoCloseable {
         }
     }
 
+    public void validateEntryFilters(String entryFilterNames) throws InvalidEntryFilterException {
+        if (StringUtils.isBlank(entryFilterNames)) {
+            return;
+        }
+        final List<String> entryFilterList = readEntryFiltersString(entryFilterNames);
+        for (String filterName : entryFilterList) {
+            EntryFilterMetaData metaData = definitions.get(filterName);
+            if (metaData == null) {
+                throw new InvalidEntryFilterException("Entry filter '" + filterName + "' not found");
+            }
+        }
+    }
+
+    private List<String> readEntryFiltersString(String entryFilterNames) {
+        final List<String> entryFilterList = Arrays.stream(entryFilterNames.split(","))
+                .filter(n -> StringUtils.isNotBlank(n))
+                .toList();
+        return entryFilterList;
+    }
+
     public List<EntryFilter> loadEntryFiltersForPolicy(EntryFilters policy)
             throws IOException {
         final String names = policy.getEntryFilterNames();
         if (StringUtils.isBlank(names)) {
             return Collections.emptyList();
         }
-        final List<String> entryFilterList = Arrays.stream(names.split(","))
-                .filter(n -> StringUtils.isNotBlank(n))
-                .toList();
+        final List<String> entryFilterList = readEntryFiltersString(names);
         return loadEntryFilters(entryFilterList);
     }
 
