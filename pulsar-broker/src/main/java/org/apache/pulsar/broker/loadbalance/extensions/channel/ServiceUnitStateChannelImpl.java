@@ -27,6 +27,9 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Constructed;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Started;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Assign;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Split;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Unload;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Jittery;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Stable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
@@ -44,6 +47,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -107,6 +112,40 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalCleanupIgnoredCnt = 0;
     private long totalCleanupCancelledCnt = 0;
     private volatile ChannelState channelState;
+
+    enum EventType {
+        Assign,
+        Split,
+        Unload
+    }
+
+    @Getter
+    @AllArgsConstructor
+    static class Counters {
+        private AtomicLong total;
+        private AtomicLong failure;
+    }
+
+    // operation metrics
+    final Map<ServiceUnitState, AtomicLong> ownerLookUpCounters = Map.of(
+            Owned, new AtomicLong(),
+            Assigned, new AtomicLong(),
+            Released, new AtomicLong(),
+            Splitting, new AtomicLong(),
+            Free, new AtomicLong()
+    );
+    final Map<EventType, Counters> eventCounters = Map.of(
+            Assign, new Counters(new AtomicLong(), new AtomicLong()),
+            Split, new Counters(new AtomicLong(), new AtomicLong()),
+            Unload, new Counters(new AtomicLong(), new AtomicLong())
+    );
+    final Map<ServiceUnitState, Counters> handlerCounters = Map.of(
+            Owned, new Counters(new AtomicLong(), new AtomicLong()),
+            Assigned, new Counters(new AtomicLong(), new AtomicLong()),
+            Released, new Counters(new AtomicLong(), new AtomicLong()),
+            Splitting, new Counters(new AtomicLong(), new AtomicLong()),
+            Free, new Counters(new AtomicLong(), new AtomicLong())
+    );
 
     enum ChannelState {
         Closed(0),
@@ -280,15 +319,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
         validateChannelState(Started, true);
         ServiceUnitStateData data = tableview.get(serviceUnit);
-        if (data == null) {
-            return CompletableFuture.completedFuture(Optional.empty());
-        }
-        switch (data.state()) {
+        ServiceUnitState state = data == null ? Free : data.state();
+        ownerLookUpCounters.get(state).incrementAndGet();
+        switch (state) {
             case Owned, Splitting -> {
                 return CompletableFuture.completedFuture(Optional.of(data.broker()));
             }
             case Assigned, Released -> {
                 return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
+            }
+            case Free -> {
+                return CompletableFuture.completedFuture(null);
             }
             default -> {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
@@ -299,50 +340,93 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
-        CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
-        pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
-                .whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        getOwnerRequests.remove(serviceUnit, getOwnerRequest);
-                        if (!getOwnerRequest.isCompletedExceptionally()) {
-                            getOwnerRequest.completeExceptionally(ex);
+        EventType eventType = Assign;
+        eventCounters.get(eventType).getTotal().incrementAndGet();
+        try {
+            CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
+            pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
+                    .whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            getOwnerRequests.remove(serviceUnit, getOwnerRequest);
+                            if (!getOwnerRequest.isCompletedExceptionally()) {
+                                getOwnerRequest.completeExceptionally(ex);
+                            }
+                            eventCounters.get(eventType).getFailure().incrementAndGet();
                         }
-                    }
-                });
-
-        return getOwnerRequest;
+                    });
+            return getOwnerRequest;
+        } catch (Throwable e) {
+            log.error("Failed to publish assign event. serviceUnit:{}, broker:{}, assignPublishFailureCount:{}",
+                    serviceUnit, broker, eventCounters.get(eventType).getFailure().incrementAndGet(), e);
+            throw e;
+        }
     }
 
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
-        String serviceUnit = unload.serviceUnit();
-        if (isTransferCommand(unload)) {
-            ServiceUnitStateData next = new ServiceUnitStateData(Assigned,
-                    unload.destBroker().get(), unload.sourceBroker());
-            return pubAsync(serviceUnit, next).thenApply(__ -> null);
+        EventType eventType = Unload;
+        eventCounters.get(eventType).getTotal().incrementAndGet();
+        try {
+            String serviceUnit = unload.serviceUnit();
+            CompletableFuture<MessageId> future;
+            if (isTransferCommand(unload)) {
+                ServiceUnitStateData next = new ServiceUnitStateData(Assigned,
+                        unload.destBroker().get(), unload.sourceBroker());
+                future = pubAsync(serviceUnit, next);
+            } else {
+                future = tombstoneAsync(serviceUnit);
+            }
+
+            return future.whenComplete((__, ex) -> {
+                if (ex != null) {
+                    eventCounters.get(eventType).getFailure().incrementAndGet();
+                }
+            }).thenApply(__ -> null);
+        } catch (Throwable e) {
+            log.error("Failed to publish unload event. unload:{}. unloadPublishFailureCount:{}",
+                    unload, eventCounters.get(eventType).getFailure().incrementAndGet(), e);
+            throw e;
         }
-        return tombstoneAsync(serviceUnit).thenApply(__ -> null);
     }
 
     public CompletableFuture<Void> publishSplitEventAsync(Split split) {
-        String serviceUnit = split.serviceUnit();
-        ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
-        return pubAsync(serviceUnit, next).thenApply(__ -> null);
+        EventType eventType = Split;
+        eventCounters.get(eventType).getTotal().incrementAndGet();
+        try {
+            String serviceUnit = split.serviceUnit();
+            ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
+            return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
+                if (ex != null) {
+                    eventCounters.get(eventType).getFailure().incrementAndGet();
+                }
+            }).thenApply(__ -> null);
+        } catch (Throwable e) {
+            log.error("Failed to publish split event. split:{}, splitPublishFailureCount:{}",
+                    split, eventCounters.get(eventType).getFailure().incrementAndGet(), e);
+            throw e;
+        }
     }
 
     private void handle(String serviceUnit, ServiceUnitStateData data) {
+        long totalHandledRequests = getHandlerTotalCounter(data).incrementAndGet();
         if (log.isDebugEnabled()) {
-            log.info("{} received a handle request for serviceUnit:{}, data:{}",
-                    lookupServiceAddress, serviceUnit, data);
+            log.info("{} received a handle request for serviceUnit:{}, data:{}. totalHandledRequests:{}",
+                    lookupServiceAddress, serviceUnit, data, totalHandledRequests);
         }
 
         ServiceUnitState state = data == null ? Free : data.state();
-        switch (state) {
-            case Owned -> handleOwnEvent(serviceUnit, data);
-            case Assigned -> handleAssignEvent(serviceUnit, data);
-            case Released -> handleReleaseEvent(serviceUnit, data);
-            case Splitting -> handleSplitEvent(serviceUnit, data);
-            case Free -> handleFreeEvent(serviceUnit);
-            default -> throw new IllegalStateException("Failed to handle channel data:" + data);
+        try {
+            switch (state) {
+                case Owned -> handleOwnEvent(serviceUnit, data);
+                case Assigned -> handleAssignEvent(serviceUnit, data);
+                case Released -> handleReleaseEvent(serviceUnit, data);
+                case Splitting -> handleSplitEvent(serviceUnit, data);
+                case Free -> handleFreeEvent(serviceUnit);
+                default -> throw new IllegalStateException("Failed to handle channel data:" + data);
+            }
+        } catch (Throwable e){
+            getHandlerFailureCounter(data).incrementAndGet();
+            log.error("Failed to handle the event. serviceUnit:{}, data:{}", serviceUnit, data, e);
+            throw e;
         }
     }
 
@@ -362,19 +446,46 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 isTransferCommand(data) ? "Transfer:" + data.state() : data.state().toString();
     }
 
+    private AtomicLong getHandlerTotalCounter(ServiceUnitStateData data) {
+        return getHandlerCounter(data, true);
+    }
+
+    private AtomicLong getHandlerFailureCounter(ServiceUnitStateData data) {
+        return getHandlerCounter(data, false);
+    }
+
+    private AtomicLong getHandlerCounter(ServiceUnitStateData data, boolean total) {
+        var state = data.state() == null ? Free : data.state();
+        var counter = total
+                ? handlerCounters.get(state).getTotal() : handlerCounters.get(state).getFailure();
+        if (counter == null) {
+            throw new IllegalStateException("Unknown state:" + state);
+        }
+        return counter;
+    }
+
     private void log(Throwable e, String serviceUnit, ServiceUnitStateData data, ServiceUnitStateData next) {
         if (e == null) {
             if (log.isDebugEnabled() || isTransferCommand(data)) {
-                log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}",
+                long handlerTotalCount = getHandlerTotalCounter(data).get();
+                long handlerFailureCount = getHandlerFailureCounter(data).get();
+                log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
+                                + "totalHandledRequests{}, totalFailedRequests:{}",
                         lookupServiceAddress, getLogEventTag(data), serviceUnit,
                         data == null ? "" : data,
-                        next == null ? "" : next);
+                        next == null ? "" : next,
+                        handlerTotalCount, handlerFailureCount
+                );
             }
         } else {
-            log.error("{} failed to handle {} event for serviceUnit:{}, cur:{}, next:{}",
+            long handlerTotalCount = getHandlerTotalCounter(data).get();
+            long handlerFailureCount = getHandlerFailureCounter(data).incrementAndGet();
+            log.error("{} failed to handle {} event for serviceUnit:{}, cur:{}, next:{}, "
+                            + "totalHandledRequests{}, totalFailedRequests:{}",
                     lookupServiceAddress, getLogEventTag(data), serviceUnit,
                     data == null ? "" : data,
                     next == null ? "" : next,
+                    handlerTotalCount, handlerFailureCount,
                     e);
         }
     }
@@ -387,7 +498,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
-
     }
 
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
@@ -401,7 +511,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
-
         if (isTargetBroker(data.sourceBroker())) {
             ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker());
             // TODO: when close, pass message to clients to connect to the new broker
