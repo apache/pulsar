@@ -795,8 +795,8 @@ public abstract class AdminResource extends PulsarWebResource {
             // remove entry filters
             return;
         }
-        if (StringUtils.isBlank(entryFilters.getEntryFilterNames()) ||
-                Arrays.stream(entryFilters.getEntryFilterNames().split(","))
+        if (StringUtils.isBlank(entryFilters.getEntryFilterNames())
+                || Arrays.stream(entryFilters.getEntryFilterNames().split(","))
                         .filter(n -> StringUtils.isNotBlank(n))
                         .findAny().isEmpty()) {
             throw new RestException(new RestException(Status.BAD_REQUEST,
