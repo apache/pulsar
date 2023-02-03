@@ -679,9 +679,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
-            //Delete all segment
-            return persistentWorker.deleteSnapshotSegment(segmentIndex.keySet().stream().toList())
-                    //Delete index
+            return persistentWorker.clearAllSnapshotSegments()
                     .thenCompose((ignore) -> snapshotIndexWriterFuture
                             .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
                     .thenRun(() ->
@@ -692,6 +690,41 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 topic.getName(), e);
                         return null;
                     });
+        }
+
+        /**
+         * Because the operation of writing segment and index is not atomic,
+         * we cannot use segment index to clear the snapshot segments.
+         * If we use segment index to clear snapshot segments, there will case dirty data in the below case:
+         * <p>
+         *     1. Write snapshot segment 1, 2, 3, update index (1, 2, 3)
+         *     2. Write snapshot 4, failing to update index
+         *     3. Trim expired snapshot segment 1, 2, 3, update index (empty)
+         *     4. Write snapshot segment 1, 2, update  index (1, 2)
+         *     5. Delete topic, clear all snapshot segment (segment1. segment2).
+         *     Segment 3 and segment 4 can not be cleared until this namespace being deleted.
+         * </p>
+         */
+        private CompletableFuture<Void> clearAllSnapshotSegments() {
+            return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
+                    .getTxnBufferSnapshotSegmentService()
+                    .createReader(TopicName.get(topic.getName())).thenComposeAsync(reader -> {
+                        try {
+                            while (reader.hasMoreEvents()) {
+                                Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
+                                        .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+                                if (topic.getName().equals(message.getValue().getTopicName())) {
+                                   snapshotSegmentsWriterFuture.get().write(message.getKey(), null);
+                                }
+                            }
+                            return CompletableFuture.completedFuture(null);
+                        } catch (Exception ex) {
+                            log.error("[{}] Transaction buffer clear snapshot segments fail!", topic.getName(), ex);
+                            return FutureUtil.failedFuture(ex);
+                        } finally {
+                            closeReader(reader);
+                        }
+           });
         }
 
 

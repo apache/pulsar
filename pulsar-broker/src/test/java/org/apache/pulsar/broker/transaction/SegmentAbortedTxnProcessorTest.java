@@ -1,9 +1,11 @@
 package org.apache.pulsar.broker.transaction;
 
+import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -12,9 +14,16 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
+import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -144,5 +153,91 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Queue queue = (Queue) taskQueueField.get(persistentWorker);
         queue.add(new Object());
         processor.takeAbortedTxnsSnapshot(new PositionImpl(1, 10)).get(2, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testClearSnapshotSegments() throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) pulsarService.getBrokerService()
+                .getTopic(PROCESSOR_TOPIC, false).get().get();
+        AbortedTxnProcessor processor = new SnapshotSegmentAbortedTxnProcessorImpl(persistentTopic);
+        //1. Write two snapshot segment.
+        for (int j = 0; j < SEGMENT_SIZE * 2; j++) {
+            TxnID txnID = new TxnID(0, j);
+            PositionImpl position = new PositionImpl(0, j);
+            processor.putAbortedTxnAndPosition(txnID, position);
+        }
+        //2. Close index writer, making the index can not be updated.
+        Field field = SnapshotSegmentAbortedTxnProcessorImpl.class.getDeclaredField("persistentWorker");
+        field.setAccessible(true);
+        SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker worker =
+                (SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker) field.get(processor);
+        Field indexWriteFutureField = SnapshotSegmentAbortedTxnProcessorImpl
+                .PersistentWorker.class.getDeclaredField("snapshotIndexWriterFuture");
+        indexWriteFutureField.setAccessible(true);
+        CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>> snapshotIndexWriterFuture =
+                (CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>>)
+                        indexWriteFutureField.get(worker);
+        snapshotIndexWriterFuture.get().close();
+        //3. Try to write a snapshot segment.
+        for (int j = 0; j < SEGMENT_SIZE; j++) {
+            TxnID txnID = new TxnID(0, j);
+            PositionImpl position = new PositionImpl(0, j);
+            processor.putAbortedTxnAndPosition(txnID, position);
+        }
+        //4. Wait writing segment completed.
+        Awaitility.await().untilAsserted(() -> verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 3));
+        //5. Clear all the snapshot segments and indexes.
+        processor.clearAbortedTxnSnapshot().get();
+        //6. Do compaction and wait it completed.
+        TopicName segmentTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                TopicName.get(PROCESSOR_TOPIC).getNamespaceObject(),
+                EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+        TopicName indexTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                TopicName.get(PROCESSOR_TOPIC).getNamespaceObject(),
+                EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+        doCompaction(segmentTopicName);
+        doCompaction(indexTopicName);
+
+        //6. Verify the snapshot segments and index after clearing.
+        verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 0);
+        verifySnapshotSegmentsIndexSize(PROCESSOR_TOPIC, 0);
+    }
+
+    private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {
+        SystemTopicClient.Reader<TransactionBufferSnapshotSegment> reader =
+                pulsarService.getTransactionBufferSnapshotServiceFactory()
+                .getTxnBufferSnapshotSegmentService()
+                .createReader(TopicName.get(topic)).get();
+        while (reader.hasMoreEvents()) {
+            Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
+                    .get(5, TimeUnit.SECONDS);
+            if (topic.equals(message.getValue().getTopicName())) {
+                Assert.assertFalse(size-- < 0);
+            }
+        }
+    }
+
+    private void verifySnapshotSegmentsIndexSize(String topic, int size) throws Exception {
+        SystemTopicClient.Reader<TransactionBufferSnapshotIndexes> reader =
+                pulsarService.getTransactionBufferSnapshotServiceFactory()
+                        .getTxnBufferSnapshotIndexService()
+                        .createReader(TopicName.get(topic)).get();
+        while (reader.hasMoreEvents()) {
+            Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
+                    .get(5, TimeUnit.SECONDS);
+            if (topic.equals(message.getValue().getTopicName())) {
+                Assert.assertFalse(size-- < 0);
+            }
+        }
+    }
+
+    private void doCompaction(TopicName topic) throws Exception {
+        PersistentTopic snapshotTopic = (PersistentTopic) pulsarService.getBrokerService()
+                .getTopic(topic.toString(), false).get().get();
+        Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
+        field.setAccessible(true);
+        snapshotTopic.triggerCompaction();
+        CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(snapshotTopic);
+        org.awaitility.Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
     }
 }
