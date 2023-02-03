@@ -478,7 +478,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }).when(namespaceService).updateNamespaceBundles(any(), any());
         doReturn(namespaceService).when(pulsar1).getNamespaceService();
 
-        Split split = new Split(bundle, ownerAddr1, new HashMap<>());
+        Split split = new Split(bundle, ownerAddr1.get(), new HashMap<>());
         channel1.publishSplitEventAsync(split);
 
         waitUntilNewOwner(channel1, bundle, null);
@@ -496,10 +496,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, childBundle2, lookupServiceAddress1);
         waitUntilNewOwner(channel2, childBundle1, lookupServiceAddress1);
         waitUntilNewOwner(channel2, childBundle2, lookupServiceAddress1);
-        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(childBundle1).get());
-        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(childBundle2).get());
-        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(childBundle1).get());
-        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(childBundle2).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(childBundle1).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(childBundle2).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(childBundle1).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(childBundle2).get());
 
         cleanTableView(channel1, childBundle1);
         cleanTableView(channel2, childBundle1);
