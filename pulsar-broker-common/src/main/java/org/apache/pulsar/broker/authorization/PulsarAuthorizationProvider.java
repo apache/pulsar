@@ -140,7 +140,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }).exceptionally(ex -> {
                     log.warn("Client with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                             ex.getMessage());
-                    return null;
+                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 
