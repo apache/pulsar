@@ -1325,6 +1325,12 @@ public class BrokerService implements Closeable {
                 });
     }
 
+    @VisibleForTesting
+    public void createPersistentTopic0(final String topic, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture) {
+        createPersistentTopic(topic, createIfMissing, topicFuture);
+    }
+
     private void createPersistentTopic(final String topic, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture) {
         final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
@@ -1367,7 +1373,7 @@ public class BrokerService implements Closeable {
                             try {
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
-                                        : new PersistentTopic(topic, ledger, BrokerService.this);
+                                        : newPersistentTopic(topic, ledger, BrokerService.this);
                                 CompletableFuture<Void> preCreateSubForCompaction =
                                         persistentTopic.preCreateSubscriptionForCompactionIfNeeded();
                                 CompletableFuture<Void> replicationFuture = persistentTopic
@@ -1400,6 +1406,12 @@ public class BrokerService implements Closeable {
                                             "Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}",
                                             topic, ex);
+                                    persistentTopic.getTransactionBuffer()
+                                            .closeAsync()
+                                            .exceptionally(t -> {
+                                                log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                return null;
+                                            });
                                     persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                         topics.remove(topic, topicFuture);
                                         topicFuture.completeExceptionally(ex);
@@ -2945,6 +2957,11 @@ public class BrokerService implements Closeable {
 
     public long getPausedConnections() {
         return pausedConnections.longValue();
+    }
+
+    @VisibleForTesting
+    public PersistentTopic newPersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService){
+        return new PersistentTopic(topic, ledger, brokerService);
     }
 
     @VisibleForTesting
