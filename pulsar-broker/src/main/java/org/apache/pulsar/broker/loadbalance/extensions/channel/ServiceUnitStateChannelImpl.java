@@ -63,6 +63,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -292,9 +293,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             default -> {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
-                CompletableFuture<Optional<String>> future = new CompletableFuture<>();
-                future.completeExceptionally(new IllegalStateException(errorMsg));
-                return future;
+                return FutureUtil.failedFuture(new IllegalStateException(errorMsg));
             }
         }
     }
