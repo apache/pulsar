@@ -36,7 +36,7 @@ public interface BrokerFilter {
     /**
      * Filter out unqualified brokers based on implementation.
      *
-     * @param brokers The full brokers.
+     * @param brokers The full broker and lookup data.
      * @param context The load manager context.
      * @return Filtered broker list.
      */
