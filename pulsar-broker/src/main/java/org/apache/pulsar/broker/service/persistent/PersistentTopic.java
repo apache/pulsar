@@ -2786,6 +2786,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             throws PulsarServerException, AlreadyRunningException {
         if (currentCompaction.isDone()) {
             currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+            currentCompaction.whenComplete((ignore, ex) -> {
+                if (ex != null){
+                    log.warn("[{}] Compaction failure.", topic, ex);
+                }
+            });
         } else {
             throw new AlreadyRunningException("Compaction already in progress");
         }
