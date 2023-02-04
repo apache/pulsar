@@ -48,9 +48,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -189,7 +187,6 @@ public class PulsarClientImpl implements PulsarClient {
             if (conf == null || isBlank(conf.getServiceUrl())) {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
-            setAuth(conf);
             this.conf = conf;
             clientClock = conf.getClock();
             conf.getAuthentication().start();
@@ -240,19 +237,6 @@ public class PulsarClientImpl implements PulsarClient {
     private void reduceConsumerReceiverQueueSize() {
         for (ConsumerBase<?> consumer : consumers) {
             consumer.reduceCurrentReceiverQueueSize();
-        }
-    }
-
-    private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getAuthPluginClassName())
-                || (StringUtils.isBlank(conf.getAuthParams()) && conf.getAuthParamMap() == null)) {
-            return;
-        }
-
-        if (StringUtils.isNotBlank(conf.getAuthParams())) {
-            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
-        } else if (conf.getAuthParamMap() != null) {
-            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParamMap()));
         }
     }
 
