@@ -159,12 +159,9 @@ public class PulsarAdminImpl implements PulsarAdmin {
         this.requestTimeoutUnit = requestTimeoutUnit;
         this.clientConfigData = clientConfigData;
         this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
-        LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
-                auth != null ? auth.getAuthMethodName() : null);
+        LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl, auth.getAuthMethodName());
 
-        if (auth != null) {
-            auth.start();
-        }
+        this.auth.start();
 
         if (clientConfigData != null && StringUtils.isBlank(clientConfigData.getServiceUrl())) {
             clientConfigData.setServiceUrl(serviceUrl);
@@ -240,7 +237,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
+     *            the Pulsar service URL (eg. 'http://my-broker.example.com:8080')
      * @param auth
      *            the Authentication object to be used to talk with Pulsar
      * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
@@ -262,7 +259,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
-     *            the Pulsar URL (eg. "http://my-broker.example.com:8080")
+     *            the Pulsar URL (eg. 'http://my-broker.example.com:8080')
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
      * @param authParamsString
@@ -281,7 +278,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
      * This client object can be used to perform many subsquent API calls
      *
      * @param serviceUrl
-     *            the Pulsar URL (eg. "http://my-broker.example.com:8080")
+     *            the Pulsar URL (eg. 'http://my-broker.example.com:8080')
      * @param authPluginClassName
      *            name of the Authentication-Plugin you want to use
      * @param authParams
@@ -479,9 +476,7 @@ public class PulsarAdminImpl implements PulsarAdmin {
     @Override
     public void close() {
         try {
-            if (auth != null) {
-                auth.close();
-            }
+            auth.close();
         } catch (IOException e) {
             LOG.error("Failed to close the authentication service", e);
         }
