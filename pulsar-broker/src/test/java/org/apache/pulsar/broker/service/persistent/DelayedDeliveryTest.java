@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -32,9 +31,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -611,7 +608,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(msg);
 
         // Inject failure in BK read
-        this.mockBookKeeper.failNow(BKException.Code.ReadException);
+        pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.ReadException);
 
         Set<String> receivedMsgs = new TreeSet<>();
         for (int i = 0; i < 10; i++) {

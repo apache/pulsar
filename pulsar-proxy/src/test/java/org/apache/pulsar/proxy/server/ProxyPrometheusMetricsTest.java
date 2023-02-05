@@ -39,6 +39,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -86,6 +87,15 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         proxyWebServer = new WebServer(proxyConfig, authService);
         ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
         proxyWebServer.start();
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @Override

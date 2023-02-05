@@ -34,6 +34,9 @@ function mvn_test() {
         shift
     fi
     local coverage_arg="-Pcoverage"
+    if [[ "${COLLECT_COVERAGE}" == "false" ]]; then
+      coverage_arg=""
+    fi
     local target="verify"
     if [[ "$1" == "--install" ]]; then
       target="install"
@@ -128,12 +131,12 @@ function print_testng_failures() {
 function test_group_broker_flaky() {
   echo "::endgroup::"
   echo "::group::Running quarantined tests"
-  mvn_test -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
+  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='quarantine' -DexcludedGroups='' -DfailIfNoTests=false \
     -DtestForkCount=2 ||
     print_testng_failures pulsar-broker/target/surefire-reports/testng-failed.xml "Quarantined test failure in" "Quarantined test failures"
   echo "::endgroup::"
   echo "::group::Running flaky tests"
-  mvn_test -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
+  mvn_test --no-fail-fast -pl pulsar-broker -Dgroups='flaky' -DtestForkCount=2
   echo "::endgroup::"
 }
 
@@ -168,7 +171,7 @@ function test_group_other() {
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
-    mvn_test -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
+    mvn_test --no-fail-fast -pl "${modules_with_quarantined_tests}" test -Dgroups='quarantine' -DexcludedGroups='' \
       -DfailIfNoTests=false || \
         echo "::warning::There were test failures in the 'quarantine' test group."
     echo "::endgroup::"
@@ -191,6 +194,11 @@ function list_test_groups() {
 }
 
 # Test Groups  -- end --
+
+if [[ "$1" == "--list" ]]; then
+  list_test_groups
+  exit 0
+fi
 
 TEST_GROUP=$1
 if [ -z "$TEST_GROUP" ]; then

@@ -1484,6 +1484,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r2", "r3"));
         String topic = TopicName.get("persistent", NamespaceName.get(namespace),
                 "testDoesNotReplicateSystemTopic").toString();
+        admin1.topics().createNonPartitionedTopic(topic);
         String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT).toString();
 
@@ -1496,7 +1497,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .subscriptionName("sub-rep")
                 .subscribe();
 
-        admin1.topics().createNonPartitionedTopic(topic);
         // Replicator will not replicate System Topic other than topic policies
         initTransaction(2, admin1, pulsar1.getBrokerServiceUrl(), pulsar1);
         @Cleanup
@@ -1520,13 +1520,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
         transaction.commit();
 
-        Awaitility.await().untilAsserted(() -> {
-            Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
-            Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
-            Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
-        });
         Assert.assertEquals(consumerFromR2.receive(5, TimeUnit.SECONDS).getValue(),
                 "1".getBytes(StandardCharsets.UTF_8));
+
+        // wait extra 500ms before evaluating stats for the system topics
+        Thread.sleep(500L);
+
+        Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
+        Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
+        Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
+
         cleanup();
         setup();
     }

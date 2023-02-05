@@ -25,8 +25,12 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.Reflections;
@@ -57,6 +61,15 @@ public interface LoadManager {
      * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific.
      */
     Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
+
+    default CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(
+            Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+        throw new UnsupportedOperationException();
+    }
+
+    default CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundle) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Generate the load report.
@@ -143,6 +156,11 @@ public interface LoadManager {
                 return casted;
             } else if (loadManagerInstance instanceof ModularLoadManager) {
                 final LoadManager casted = new ModularLoadManagerWrapper((ModularLoadManager) loadManagerInstance);
+                casted.initialize(pulsar);
+                return casted;
+            } else if (loadManagerInstance instanceof ExtensibleLoadManager) {
+                final LoadManager casted =
+                        new ExtensibleLoadManagerWrapper((ExtensibleLoadManagerImpl) loadManagerInstance);
                 casted.initialize(pulsar);
                 return casted;
             }

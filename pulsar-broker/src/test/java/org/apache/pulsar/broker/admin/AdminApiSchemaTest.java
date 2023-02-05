@@ -393,7 +393,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             public long getCToken() {
                 return 0;
             }
-        })).when(mockBookKeeper).getLedgerMetadata(anyLong());
+        })).when(pulsarTestContext.getBookKeeperClient()).getLedgerMetadata(anyLong());
         PersistentTopicInternalStats persistentTopicInternalStats = admin.topics().getInternalStats(topicName);
         List<PersistentTopicInternalStats.LedgerInfo> list = persistentTopicInternalStats.schemaLedgers;
         assertEquals(list.size(), 1);

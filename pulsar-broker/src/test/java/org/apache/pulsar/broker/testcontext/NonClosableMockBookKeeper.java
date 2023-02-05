@@ -16,13 +16,35 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.plugin;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
+package org.apache.pulsar.broker.testcontext;
 
-@Data
-public class EntryFilterDefinitions {
-    private final Map<String, EntryFilterMetaData> filters = new TreeMap<>();
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+
+/**
+ * An in-memory mock bookkeeper which prevents closing when "close" method is called.
+ * This is an internal class used by {@link PulsarTestContext}
+ *
+ * @see PulsarMockBookKeeper
+ */
+class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
+
+    public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
+        super(executor);
+    }
+
+    @Override
+    public void close() {
+        // no-op
+    }
+
+    @Override
+    public void shutdown() {
+        // no-op
+    }
+
+    public void reallyShutdown() {
+        super.shutdown();
+    }
 }
