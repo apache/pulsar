@@ -692,7 +692,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
-        if (service.isAuthorizationEnabled()) {
+        if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
             if (!isValidRoleAndOriginalPrincipal()) {
                 state = State.Failed;
                 service.getPulsarStats().recordConnectionCreateFail();
