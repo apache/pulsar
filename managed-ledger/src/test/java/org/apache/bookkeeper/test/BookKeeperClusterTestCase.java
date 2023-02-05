@@ -226,6 +226,8 @@ public abstract class BookKeeperClusterTestCase {
         if (tearDownException != null) {
             throw tearDownException;
         }
+        // cleanup for metrics.
+        metadataStore.close();
     }
 
     /**

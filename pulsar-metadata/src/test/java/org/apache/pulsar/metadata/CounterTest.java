@@ -95,6 +95,8 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l1, l4);
         assertNotEquals(l2, l4);
         assertNotEquals(l3, l4);
+
+        store2.close();
     }
 
     @Test(dataProvider = "impl")
