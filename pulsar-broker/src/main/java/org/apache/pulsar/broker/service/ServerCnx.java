@@ -403,8 +403,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      * <p>
      * The {@link #authRole} is in {@link #proxyRoles}, if, and only if, the {@link #originalPrincipal} is set to a role
      * that is not also in {@link #proxyRoles}.
+     * @return true when roles are valid and false when roles are invalid
      */
-    private void validateRoleAndOriginalPrincipal() {
+    private boolean isValidRoleAndOriginalPrincipal() {
         String errorMsg = null;
         if (proxyRoles.contains(authRole)) {
             if (StringUtils.isBlank(originalPrincipal)) {
@@ -418,7 +419,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (errorMsg != null) {
             log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress, authRole,
                     originalPrincipal, errorMsg);
-            closeForAuthenticationError();
+            return false;
+        } else {
+            return true;
         }
     }
 
@@ -689,6 +692,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
+        if (service.isAuthorizationEnabled()) {
+            if (!isValidRoleAndOriginalPrincipal()) {
+                state = State.Failed;
+                service.getPulsarStats().recordConnectionCreateFail();
+                final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError, "Invalid roles.");
+                NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
+                return;
+            }
+        }
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableSubscriptionPatternEvaluation));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
@@ -1022,14 +1034,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } catch (Exception e) {
             authenticationFailed(e);
         }
-    }
-
-    private void closeForAuthenticationError() {
-        state = State.Failed;
-        service.getPulsarStats().recordConnectionCreateFail();
-        String msg = "Unable to authenticate";
-        writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
-        close();
     }
 
     @Override

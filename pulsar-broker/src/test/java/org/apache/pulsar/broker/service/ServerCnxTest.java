@@ -479,31 +479,24 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testConnectCommandWithInvalidRoleCombinations() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
-        AuthenticationProvider authenticationProvider = new BasicCommandAuthenticationProvider();
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
         String authMethodName = authenticationProvider.getAuthMethodName();
 
         when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
         when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
         svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(false);
         svcConfig.setAuthorizationEnabled(true);
-        svcConfig.setProxyRoles(Collections.singleton("proxy"));
-
-        resetChannel();
-        assertTrue(channel.isActive());
-        assertEquals(serverCnx.getState(), State.Start);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
 
         // Invalid combinations where authData is proxy role
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "proxy", "proxy");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "proxy", "");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "proxy", null);
-        // Invalid combinations where original principal is set to a proxy role
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "", "proxy");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, null, "proxy");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "client", "proxy");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "pass.proxy");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", null);
+        // Invalid combinations where original principal is set to a pass.proxy role
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.proxy");
         // Invalid combinations where the original principal is set to a non-proxy role
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "", "some_user");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, null, "some_user");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "client", "some_user");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client1", "pass.client");
     }
 
     private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
@@ -516,11 +509,9 @@ public class ServerCnxTest {
                 null, originalPrincipal, null, null);
         channel.writeInbound(clientCommand);
 
-        Object response1 = getResponse();
-        assertTrue(response1 instanceof CommandConnected);
-        Object response2 = getResponse();
-        assertTrue(response2 instanceof CommandError);
-        assertEquals(((CommandError) response2).getMessage(), "Unable to authenticate");
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        assertEquals(((CommandError) response).getError(), ServerError.AuthorizationError);
         assertEquals(serverCnx.getState(), State.Failed);
         channel.finish();
     }
@@ -3106,35 +3097,6 @@ public class ServerCnxTest {
         assertEquals(response.getMessage(), "Handle end txn on subscription failed: server error");
 
         channel.finish();
-    }
-
-    /**
-     * Used to verify certain ServerCnx handling of roles, so the authentication component is essentially bypassed.
-     */
-    public static class BasicCommandAuthenticationProvider implements AuthenticationProvider {
-
-        @Override
-        public void close() throws IOException {
-        }
-
-        @Override
-        public void initialize(ServiceConfiguration config) throws IOException {
-        }
-
-        @Override
-        public String getAuthMethodName() {
-            return "BasicAuthentication";
-        }
-
-        @Override
-        public String authenticate(AuthenticationDataSource authData) {
-            if (authData.hasDataFromCommand()) {
-                // Because we're only using this to verify the ServerCnx, there is no need to verify any other
-                // kind of data.
-                return authData.getCommandData();
-            }
-            return null;
-        }
     }
 
 }
