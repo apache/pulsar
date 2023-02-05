@@ -399,7 +399,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     /**
      * When transitioning from Connecting to Connected, this method validates the roles.
-     * Tf the authRole is one of proxyRoles, the following must be true:
+     * If the authRole is one of proxyRoles, the following must be true:
      * - the originalPrincipal is given while connecting
      * - originalPrincipal is not blank
      * - originalPrincipal is not a proxy principal.
