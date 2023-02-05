@@ -398,11 +398,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     /**
-     * When transitioning from Connecting to Connected, this class validates that the {@link #authRole} and the
-     * {@link #originalPrincipal} are a valid combination. Valid combinations fulfill the following rule:
-     * <p>
-     * The {@link #authRole} is in {@link #proxyRoles}, if, and only if, the {@link #originalPrincipal} is set to a role
-     * that is not also in {@link #proxyRoles}.
+     * When transitioning from Connecting to Connected, this method validates that if the authRole is one of proxyRoles,
+     * - the originalPrincipal is given while connecting
+     * - originalPrincipal is not blank
+     * - originalPrincipal is not a proxy principal
      * @return true when roles are valid and false when roles are invalid
      */
     private boolean isValidRoleAndOriginalPrincipal() {
@@ -413,8 +412,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else if (proxyRoles.contains(originalPrincipal)) {
                 errorMsg = "originalPrincipal cannot be a proxy role.";
             }
-        } else if (StringUtils.isNotBlank(originalPrincipal)) {
-            errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
             log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress, authRole,
