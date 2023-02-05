@@ -1027,6 +1027,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         remoteAddress, originalPrincipal);
                 }
             }
+
             doAuthentication(clientData, false, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             authenticationFailed(e);
