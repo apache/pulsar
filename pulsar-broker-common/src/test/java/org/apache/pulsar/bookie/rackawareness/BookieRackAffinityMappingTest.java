@@ -110,7 +110,7 @@ public class BookieRackAffinityMappingTest {
     public void testMultipleMetadataServiceUris() {
         BookieRackAffinityMapping mapping1 = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf1 = new ClientConfiguration();
-        bkClientConf1.setProperty("metadataStoreUrl", "memory:local,memory:local");
+        bkClientConf1.setProperty("metadataServiceUri", "memory:local,memory:local");
         bkClientConf1.setProperty("zkTimeout", "100000");
 
         mapping1.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
