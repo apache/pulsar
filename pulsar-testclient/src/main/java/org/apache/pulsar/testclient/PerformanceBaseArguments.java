@@ -94,6 +94,9 @@ public abstract class PerformanceBaseArguments {
     @Parameter(names = { "--proxy-protocol" }, description = "Proxy protocol to select type of routing at proxy.")
     ProxyProtocol proxyProtocol = null;
 
+    @Parameter(names = { "-m", "--memory", }, description = "Configure the Pulsar client memory limit")
+    Long memory=0L;
+
     public abstract void fillArgumentsFromProperties(Properties prop);
 
     @SneakyThrows

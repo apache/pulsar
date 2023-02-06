@@ -67,7 +67,7 @@ public class CompactorTool {
 
     public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES);
+                .memoryLimit(rootParams.memory, SizeUnit.BYTES);
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.

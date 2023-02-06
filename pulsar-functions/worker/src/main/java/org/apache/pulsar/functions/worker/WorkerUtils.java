@@ -282,7 +282,7 @@ public final class WorkerUtils {
 
         try {
             ClientBuilder clientBuilder = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
+                    .memoryLimit(rootParams.memory, SizeUnit.BYTES)
                     .serviceUrl(pulsarServiceUrl);
 
             if (workerConfig != null) {

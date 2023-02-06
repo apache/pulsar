@@ -158,7 +158,7 @@ public class InstanceUtils {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
             clientBuilder = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
+                    .memoryLimit(memoryLimit.get(), SizeUnit.BYTES)
                     .serviceUrl(pulsarServiceUrl);
             if (authConfig != null) {
                 if (isNotBlank(authConfig.getClientAuthenticationPlugin())

@@ -76,6 +76,9 @@ public class PulsarClientTool {
 
         @Parameter(names = { "--tlsTrustCertsFilePath" }, description = "File path to client trust certificates")
         String tlsTrustCertsFilePath;
+
+        @Parameter(names = { "-m", "--memory", }, description = "Configure the Pulsar client memory limit")
+        Long memory=0L;
     }
 
     protected RootParams rootParams;
@@ -162,7 +165,7 @@ public class PulsarClientTool {
 
     private void updateConfig() throws UnsupportedAuthenticationException {
         ClientBuilder clientBuilder = PulsarClient.builder()
-                .memoryLimit(0, SizeUnit.BYTES);
+                .memoryLimit(rootParams.memory, SizeUnit.BYTES);
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);

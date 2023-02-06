@@ -180,6 +180,9 @@ public class LoadSimulationClient {
 
         @Parameter(names = { "--service-url" }, description = "Pulsar Service URL", required = true)
         public String serviceURL;
+
+        @Parameter(names = { "-m", "--memory", }, description = "Configure the Pulsar client memory limit")
+        Long memory=0L;
     }
 
     // Configuration class for initializing or modifying TradeUnits.
@@ -318,7 +321,7 @@ public class LoadSimulationClient {
                     .serviceHttpUrl(arguments.serviceURL)
                     .build();
         client = PulsarClient.builder()
-                    .memoryLimit(0, SizeUnit.BYTES)
+                    .memoryLimit(arguments.memory, SizeUnit.BYTES)
                     .serviceUrl(arguments.serviceURL)
                     .connectionsPerBroker(4)
                     .ioThreads(Runtime.getRuntime().availableProcessors())

@@ -1353,7 +1353,7 @@ public class NamespaceService implements AutoCloseable {
         return namespaceClients.computeIfAbsent(cluster, key -> {
             try {
                 ClientBuilder clientBuilder = PulsarClient.builder()
-                        .memoryLimit(0, SizeUnit.BYTES)
+                        .memoryLimit(rootParams.memory, SizeUnit.BYTES)
                         .enableTcpNoDelay(false)
                         .statsInterval(0, TimeUnit.SECONDS);
 
