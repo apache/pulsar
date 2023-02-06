@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.delayed;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
@@ -119,7 +120,7 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             List<ByteBuf> remove = this.bucketSnapshots.remove(bucketId);
             if (remove != null) {
                 for (ByteBuf byteBuf : remove) {
-                    byteBuf.release();
+                    ReferenceCountUtil.safeRelease(byteBuf);
                 }
             }
             return null;
@@ -151,7 +152,7 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
     public void clean() {
         for (List<ByteBuf> value : bucketSnapshots.values()) {
             for (ByteBuf byteBuf : value) {
-                byteBuf.release();
+                ReferenceCountUtil.safeRelease(byteBuf);
             }
         }
         bucketSnapshots.clear();
