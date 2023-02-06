@@ -517,9 +517,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, bundle, null);
         waitUntilNewOwner(channel2, bundle, null);
 
-        // TODO: assert child bundle ownerships in the channels.
-        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
-        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
+        validateHandlerCounters(channel1, 1, 0, 9, 0, 0, 0, 1, 0, 7, 0);
+        validateHandlerCounters(channel2, 1, 0, 9, 0, 0, 0, 1, 0, 7, 0);
         validateEventCounters(channel1, 1, 0, 1, 0, 0, 0);
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
         // Verify the retry count
