@@ -74,7 +74,7 @@ public class CmdSchemas extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete the latest schema for a topic")
+    @Parameters(commandDescription = "Delete all versions schema of a topic")
     private class DeleteSchema extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;

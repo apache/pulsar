@@ -48,7 +48,7 @@
     <maven-shade-plugin.version>3.4.0</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
-    <netty.version>4.1.86.Final</netty.version>
+    <netty.version>4.1.87.Final</netty.version>
     <guice.version>4.2.3</guice.version>
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>

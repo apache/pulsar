@@ -5378,34 +5378,47 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<EntryFilters> internalGetEntryFilters(boolean applied, boolean isGlobal) {
         return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
-                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-                .thenApply(op -> op.map(TopicPolicies::getEntryFilters)
-                        .orElseGet(() -> {
-                            if (applied) {
-                                EntryFilters entryFilters = getNamespacePolicies(namespaceName).entryFilters;
-                                if (entryFilters == null) {
-                                    return new EntryFilters(String.join(",",
-                                            pulsar().getConfiguration().getEntryFilterNames()));
+                .thenCompose(__ -> {
+                    if (!applied) {
+                        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                                .thenApply(op -> op.map(TopicPolicies::getEntryFilters).orElse(null));
+                    }
+                    if (!pulsar().getConfiguration().isAllowOverrideEntryFilters()) {
+                        return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
+                                pulsar().getConfiguration().getEntryFilterNames())));
+                    }
+                    return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                            .thenApply(op -> op.map(TopicPolicies::getEntryFilters))
+                            .thenCompose(policyEntryFilters -> {
+                                if (policyEntryFilters.isPresent()) {
+                                    return CompletableFuture.completedFuture(policyEntryFilters.get());
                                 }
-                                return entryFilters;
-                            }
-                            return null;
-                        })));
-
+                                return getNamespacePoliciesAsync(namespaceName)
+                                        .thenApply(policies -> policies.entryFilters)
+                                        .thenCompose(nsEntryFilters -> {
+                                            if (nsEntryFilters != null) {
+                                                return CompletableFuture.completedFuture(nsEntryFilters);
+                                            }
+                                            return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
+                                                    pulsar().getConfiguration().getEntryFilterNames())));
+                                        });
+                            });
+                });
     }
 
     protected CompletableFuture<Void> internalSetEntryFilters(EntryFilters entryFilters,
                                                               boolean isGlobal) {
 
         return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenAccept(__ -> validateEntryFilters(entryFilters))
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-                        .thenCompose(op -> {
-                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                            topicPolicies.setEntryFilters(entryFilters);
-                            topicPolicies.setIsGlobal(isGlobal);
-                            return pulsar().getTopicPoliciesService()
-                                    .updateTopicPoliciesAsync(topicName, topicPolicies);
-                        }));
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setEntryFilters(entryFilters);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    return pulsar().getTopicPoliciesService()
+                            .updateTopicPoliciesAsync(topicName, topicPolicies);
+                }));
     }
 
     protected CompletableFuture<Void> internalRemoveEntryFilters(boolean isGlobal) {
