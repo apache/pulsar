@@ -400,7 +400,8 @@ func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
 	gi.consumers[trimTopicNamePartition(inputMessage.Topic())].Nack(inputMessage)
 }
 
-// trimTopicNamePartition Check if topic contains partition, remove partition part. Format: `persistent://tenant/namespace/name`
+// trimTopicNamePartition Check if topic contains partition, remove partition part.
+// Format: `persistent://tenant/namespace/name`
 func trimTopicNamePartition(topic string) string {
 	topicName, err := ParseTopicName(topic)
 	if err != nil {
