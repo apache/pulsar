@@ -80,7 +80,6 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store = (MetadataStore) storeProperty;
         } else {
             String url;
-
             // First get from the Pulsar broker side
             String metadataStoreUrl = ConfigurationStringUtil.castToString(conf.getProperty("metadataStoreUrl"));
             if (StringUtils.isNotBlank(metadataStoreUrl)) {
@@ -96,7 +95,8 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
             // Then downgrade to the bookkeeper side, compatible with previous versions.
             if (StringUtils.isBlank(url)) {
-                String metadataServiceUri = ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
+                String metadataServiceUri =
+                        ConfigurationStringUtil.castToString(conf.getProperty("metadataServiceUri"));
                 if (StringUtils.isNotBlank(metadataServiceUri)) {
                     try {
                         url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
