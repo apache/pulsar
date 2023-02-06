@@ -1625,8 +1625,15 @@ public class BrokerService implements Closeable {
                                                                         - topicCreateTimeMs;
                                             pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
                                             if (topicFuture.isCompletedExceptionally()) {
+                                                // Check create persistent topic timeout.
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
+                                                persistentTopic.getTransactionBuffer()
+                                                        .closeAsync()
+                                                        .exceptionally(t -> {
+                                                            log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                            return null;
+                                                        });
                                                 persistentTopic.stopReplProducers()
                                                         .whenCompleteAsync((v, exception) -> {
                                                             topics.remove(topic, topicFuture);
