@@ -23,6 +23,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
@@ -42,8 +43,11 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -136,6 +140,40 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         TopicTransactionBuffer ttb = (TopicTransactionBuffer) buffer;
         TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
         Assert.assertEquals(ttb.getState(), expectState);
+    }
+
+
+    @Test
+    public void testCloseTransactionBufferWhenTimeout() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 + "/test_" + UUID.randomUUID();
+        PulsarService pulsar = pulsarServiceList.get(0);
+        BrokerService brokerService0 = pulsar.getBrokerService();
+        BrokerService brokerService = Mockito.spy(brokerService0);
+        AtomicReference<PersistentTopic> reference = new AtomicReference<>();
+        pulsar.getConfiguration().setTopicLoadTimeoutSeconds(10);
+        long topicLoadTimeout = TimeUnit.SECONDS.toMillis(pulsar.getConfiguration().getTopicLoadTimeoutSeconds() + 1);
+
+        Mockito
+                .doAnswer(inv -> {
+                    Thread.sleep(topicLoadTimeout);
+                    PersistentTopic persistentTopic = (PersistentTopic) inv.callRealMethod();
+                    reference.set(persistentTopic);
+                    return persistentTopic;
+                })
+                .when(brokerService)
+                .newPersistentTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService));
+
+        CompletableFuture<Optional<Topic>> f = brokerService.getTopic(topic, true);
+
+        Awaitility.waitAtMost(20, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofSeconds(2)).until(() -> reference.get() != null);
+        PersistentTopic persistentTopic = reference.get();
+        TransactionBuffer buffer = persistentTopic.getTransactionBuffer();
+        Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
+        TopicTransactionBuffer ttb = (TopicTransactionBuffer) buffer;
+        TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
+        Assert.assertEquals(ttb.getState(), expectState);
+        Assert.assertTrue(f.isCompletedExceptionally());
     }
 
 }
