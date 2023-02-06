@@ -828,18 +828,7 @@ public class NamespaceService implements AutoCloseable {
                                        CompletableFuture<Void> completionFuture,
                                        NamespaceBundleSplitAlgorithm splitAlgorithm,
                                        List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption;
-        if (config.getDefaultNamespaceBundleSplitAlgorithm()
-                  .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
-            Map<String, TopicStatsImpl> topicStatsMap =  pulsar.getBrokerService().getTopicStats(bundle);
-            bundleSplitOption = new FlowOrQpsEquallyDivideBundleSplitOption(this, bundle, boundaries,
-                    topicStatsMap,
-                    config.getLoadBalancerNamespaceBundleMaxMsgRate(),
-                    config.getLoadBalancerNamespaceBundleMaxBandwidthMbytes(),
-                    config.getFlowOrQpsDifferenceThresholdPercentage());
-        } else {
-            bundleSplitOption = new BundleSplitOption(this, bundle, boundaries);
-        }
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
 
         splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
@@ -967,7 +956,25 @@ public class NamespaceService implements AutoCloseable {
      */
     public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> getSplitBoundary(
             NamespaceBundle bundle, List<Long> boundaries) {
-        ServiceConfiguration config = pulsar.getConfig();
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
+                getNamespaceBundleSplitAlgorithmByName(config.getDefaultNamespaceBundleSplitAlgorithm());
+        CompletableFuture<List<Long>> splitBoundary =
+                nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
+        return splitBoundary.thenCompose(splitBoundaries -> {
+                    if (splitBoundaries == null || splitBoundaries.size() == 0) {
+                        LOG.info("[{}] No valid boundary found in {} to split bundle {}",
+                                bundle.getNamespaceObject().toString(), boundaries, bundle.getBundleRange());
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries);
+                });
+    }
+
+    private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,
+                                                   List<Long> boundaries,
+                                                   ServiceConfiguration config) {
         BundleSplitOption bundleSplitOption;
         if (config.getDefaultNamespaceBundleSplitAlgorithm()
                 .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
@@ -980,19 +987,18 @@ public class NamespaceService implements AutoCloseable {
         } else {
             bundleSplitOption = new BundleSplitOption(this, bundle, boundaries);
         }
-        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
-                NamespaceBundleSplitAlgorithm.of(pulsar.getConfig().getDefaultNamespaceBundleSplitAlgorithm());
-        CompletableFuture<List<Long>> splitBoundary =
-                nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
-        return splitBoundary.thenCompose(splitBoundaries -> {
-                    if (splitBoundaries == null || splitBoundaries.size() == 0) {
-                        LOG.info("[{}] No valid boundary found in {} to split bundle {}",
-                                bundle.getNamespaceObject().toString(), boundaries, bundle.getBundleRange());
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    return pulsar.getNamespaceService().getNamespaceBundleFactory()
-                            .splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries);
-                });
+        return bundleSplitOption;
+    }
+
+    public NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
+        NamespaceBundleSplitAlgorithm algorithm = NamespaceBundleSplitAlgorithm.of(algorithmName);
+        if (algorithm == null) {
+            algorithm = NamespaceBundleSplitAlgorithm.of(pulsar.getConfig().getDefaultNamespaceBundleSplitAlgorithm());
+        }
+        if (algorithm == null) {
+            algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
+        }
+        return algorithm;
     }
 
     /**

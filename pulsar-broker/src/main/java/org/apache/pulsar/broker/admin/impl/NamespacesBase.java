@@ -1028,7 +1028,9 @@ public abstract class NamespacesBase extends AdminResource {
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
                                         authoritative, false))
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                                    getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries));
+                                    pulsar().getNamespaceService()
+                                            .getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName),
+                                    splitBoundaries));
                 });
     }
 
@@ -1107,18 +1109,6 @@ public abstract class NamespacesBase extends AdminResource {
     private CompletableFuture<NamespaceBundle> findHotBundleAsync(NamespaceName namespaceName) {
         return pulsar().getNamespaceService().getNamespaceBundleFactory()
                 .getBundleWithHighestThroughputAsync(namespaceName);
-    }
-
-    private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
-        NamespaceBundleSplitAlgorithm algorithm = NamespaceBundleSplitAlgorithm.of(algorithmName);
-        if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.of(
-                    pulsar().getConfig().getDefaultNamespaceBundleSplitAlgorithm());
-        }
-        if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
-        }
-        return algorithm;
     }
 
     protected void internalSetPublishRate(PublishRate maxPublishMessageRate) {
