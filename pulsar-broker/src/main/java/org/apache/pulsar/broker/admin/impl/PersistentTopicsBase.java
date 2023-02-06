@@ -3346,7 +3346,7 @@ public class PersistentTopicsBase extends AdminResource {
                 ? BacklogQuota.BacklogQuotaType.destination_storage : backlogQuotaType;
 
         return validateTopicPolicyOperationAsync(topicName, PolicyName.BACKLOG, PolicyOperation.WRITE)
-                .thenAccept(__ -> validatePoliciesReadOnlyAccess())
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal))
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
@@ -3390,20 +3390,22 @@ public class PersistentTopicsBase extends AdminResource {
 
         return validateTopicPolicyOperationAsync(topicName, PolicyName.REPLICATION, PolicyOperation.WRITE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenAccept(__ -> {
+                .thenCompose(__ -> {
                     Set<String> replicationClusters = Sets.newHashSet(clusterIds);
                     if (replicationClusters.contains("global")) {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Cannot specify global in the list of replication clusters");
                     }
                     Set<String> clusters = clusters();
+                    List<CompletableFuture<Void>> futures = new ArrayList<>(replicationClusters.size());
                     for (String clusterId : replicationClusters) {
                         if (!clusters.contains(clusterId)) {
                             throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
                         }
-                        validatePeerClusterConflict(clusterId, replicationClusters);
-                        validateClusterForTenant(namespaceName.getTenant(), clusterId);
+                        futures.add(validatePeerClusterConflictAsync(clusterId, replicationClusters));
+                        futures.add(validateClusterForTenantAsync(namespaceName.getTenant(), clusterId));
                     }
+                    return FutureUtil.waitForAll(futures);
                 }).thenCompose(__ ->
                     getTopicPoliciesAsyncWithRetry(topicName).thenCompose(op -> {
                             TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
@@ -5220,7 +5222,7 @@ public class PersistentTopicsBase extends AdminResource {
                     .thenAccept(partitionMetadata -> {
                         if (partitionMetadata.partitions > 0) {
                             List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
-                            Map<String, Boolean> status = new HashMap<>();
+                            Map<String, Boolean> status = new ConcurrentHashMap<>(partitionMetadata.partitions);
 
                             for (int i = 0; i < partitionMetadata.partitions; i++) {
                                 TopicName partition = topicName.getPartition(i);
@@ -5376,34 +5378,47 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<EntryFilters> internalGetEntryFilters(boolean applied, boolean isGlobal) {
         return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
-                .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-                .thenApply(op -> op.map(TopicPolicies::getEntryFilters)
-                        .orElseGet(() -> {
-                            if (applied) {
-                                EntryFilters entryFilters = getNamespacePolicies(namespaceName).entryFilters;
-                                if (entryFilters == null) {
-                                    return new EntryFilters(String.join(",",
-                                            pulsar().getConfiguration().getEntryFilterNames()));
+                .thenCompose(__ -> {
+                    if (!applied) {
+                        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                                .thenApply(op -> op.map(TopicPolicies::getEntryFilters).orElse(null));
+                    }
+                    if (!pulsar().getConfiguration().isAllowOverrideEntryFilters()) {
+                        return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
+                                pulsar().getConfiguration().getEntryFilterNames())));
+                    }
+                    return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                            .thenApply(op -> op.map(TopicPolicies::getEntryFilters))
+                            .thenCompose(policyEntryFilters -> {
+                                if (policyEntryFilters.isPresent()) {
+                                    return CompletableFuture.completedFuture(policyEntryFilters.get());
                                 }
-                                return entryFilters;
-                            }
-                            return null;
-                        })));
-
+                                return getNamespacePoliciesAsync(namespaceName)
+                                        .thenApply(policies -> policies.entryFilters)
+                                        .thenCompose(nsEntryFilters -> {
+                                            if (nsEntryFilters != null) {
+                                                return CompletableFuture.completedFuture(nsEntryFilters);
+                                            }
+                                            return CompletableFuture.completedFuture(new EntryFilters(String.join(",",
+                                                    pulsar().getConfiguration().getEntryFilterNames())));
+                                        });
+                            });
+                });
     }
 
     protected CompletableFuture<Void> internalSetEntryFilters(EntryFilters entryFilters,
                                                               boolean isGlobal) {
 
         return validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenAccept(__ -> validateEntryFilters(entryFilters))
                 .thenCompose(__ -> getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-                        .thenCompose(op -> {
-                            TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                            topicPolicies.setEntryFilters(entryFilters);
-                            topicPolicies.setIsGlobal(isGlobal);
-                            return pulsar().getTopicPoliciesService()
-                                    .updateTopicPoliciesAsync(topicName, topicPolicies);
-                        }));
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setEntryFilters(entryFilters);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    return pulsar().getTopicPoliciesService()
+                            .updateTopicPoliciesAsync(topicName, topicPolicies);
+                }));
     }
 
     protected CompletableFuture<Void> internalRemoveEntryFilters(boolean isGlobal) {

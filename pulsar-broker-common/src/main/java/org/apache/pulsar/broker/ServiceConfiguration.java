@@ -2450,6 +2450,70 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long namespaceBundleUnloadingTimeoutMs = 60000;
 
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Option to enable the debug mode for the load balancer logics. "
+                    + "The debug mode prints more logs to provide more information "
+                    + "such as load balance states and decisions. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private boolean loadBalancerDebugModeEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "The target standard deviation of the resource usage across brokers "
+                    + "(100% resource usage is 1.0 load). "
+                    + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
+                    + "The smaller value will incur load balancing more frequently. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private double loadBalancerBrokerLoadTargetStd = 0.25;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Option to enable the bundle transfer mode when distributing bundle loads. "
+                    + "On: transfer bundles from overloaded brokers to underloaded "
+                    + "-- pre-assigns the destination broker upon unloading). "
+                    + "Off: unload bundles from overloaded brokers "
+                    + "-- post-assigns the destination broker upon lookups). "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private boolean loadBalancerTransferEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Maximum number of brokers to transfer bundle load for each unloading cycle. "
+                    + "The bigger value will incur more unloading/transfers for each unloading cycle. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private int loadBalancerMaxNumberOfBrokerTransfersPerCycle = 3;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Delay (in seconds) to the next unloading cycle after unloading. "
+                    + "The logic tries to give enough time for brokers to recompute load after unloading. "
+                    + "The bigger value will delay the next unloading cycle longer. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private long loadBalanceUnloadDelayInSeconds = 600;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Broker load data time to live (TTL in seconds). "
+                    + "The logic tries to avoid (possibly unavailable) brokers with out-dated load data, "
+                    + "and those brokers will be ignored in the load computation. "
+                    + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
+                    + "The current default is loadBalancerReportUpdateMaxIntervalMinutes * 2. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,

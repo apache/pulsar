@@ -61,7 +61,7 @@ public class MessageCumulativeAckTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        pulsarTestContext = PulsarTestContext.builder()
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
                 .build();
 
         serverCnx = pulsarTestContext.createServerCnxSpy();

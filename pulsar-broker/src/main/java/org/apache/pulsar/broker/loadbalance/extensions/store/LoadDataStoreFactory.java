@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.broker.loadbalance.extensions.store;
 
-import org.testng.annotations.Test;
+import org.apache.pulsar.client.api.PulsarClient;
 
-@Test(groups = "broker-api")
-public class SimpleSchemaWithSchemaValidationEnforcedTest extends SimpleSchemaTest {
-    public SimpleSchemaWithSchemaValidationEnforcedTest() {
-        super(true);
+/**
+ * The load data store factory, use to create the load data store.
+ */
+public class LoadDataStoreFactory {
+
+    public static <T> LoadDataStore<T> create(PulsarClient client, String name, Class<T> clazz)
+            throws LoadDataStoreException {
+        return new TableViewLoadDataStoreImpl<>(client, name, clazz);
     }
 }

@@ -20,22 +20,15 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 public class EntryFilterSupport {
 
-    /**
-     * Entry filters in Broker.
-     * Not set to final, for the convenience of testing mock.
-     */
-    protected final List<EntryFilterWithClassLoader> entryFilters;
+    protected final List<EntryFilter> entryFilters;
     protected final boolean hasFilter;
     protected final FilterContext filterContext;
     protected final Subscription subscription;
@@ -43,19 +36,18 @@ public class EntryFilterSupport {
     public EntryFilterSupport(Subscription subscription) {
         this.subscription = subscription;
         if (subscription != null && subscription.getTopic() != null) {
-            if (MapUtils.isNotEmpty(subscription.getTopic()
-                    .getBrokerService().getEntryFilters())
-                    && !subscription.getTopic().getBrokerService().pulsar()
-                    .getConfiguration().isAllowOverrideEntryFilters()) {
-                this.entryFilters = subscription.getTopic().getBrokerService().getEntryFilters().values().stream()
-                        .toList();
+            final BrokerService brokerService = subscription.getTopic().getBrokerService();
+            final boolean allowOverrideEntryFilters = brokerService
+                    .pulsar().getConfiguration().isAllowOverrideEntryFilters();
+            if (!allowOverrideEntryFilters) {
+                this.entryFilters = brokerService.getEntryFilterProvider().getBrokerEntryFilters();
             } else {
-                Map<String, EntryFilterWithClassLoader> entryFiltersMap =
+                List<EntryFilter> topicEntryFilters =
                         subscription.getTopic().getEntryFilters();
-                if (entryFiltersMap != null) {
-                    this.entryFilters = subscription.getTopic().getEntryFilters().values().stream().toList();
+                if (topicEntryFilters != null && !topicEntryFilters.isEmpty()) {
+                    this.entryFilters = topicEntryFilters;
                 } else {
-                    this.entryFilters = Collections.emptyList();
+                    this.entryFilters = brokerService.getEntryFilterProvider().getBrokerEntryFilters();
                 }
             }
             this.filterContext = new FilterContext();
@@ -86,7 +78,7 @@ public class EntryFilterSupport {
 
 
     private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
-                                                            List<EntryFilterWithClassLoader> entryFilters) {
+                                                            List<EntryFilter> entryFilters) {
         for (EntryFilter entryFilter : entryFilters) {
             EntryFilter.FilterResult filterResult =
                     entryFilter.filterEntry(entry, filterContext);

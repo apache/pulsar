@@ -60,7 +60,7 @@ public class BrokerLoadDataTest {
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
         data.update(usage1, 1,2,3,4, conf);
-
+        
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
         assertEquals(data.getDirectMemory(), directMemory);

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
@@ -39,6 +40,11 @@ public interface BrokerRegistry extends AutoCloseable {
     void start() throws PulsarServerException;
 
     /**
+     * Return the broker registry is started.
+     */
+    boolean isStarted();
+
+    /**
      * Register local broker to metadata store.
      */
     void register() throws MetadataStoreException;
@@ -51,11 +57,11 @@ public interface BrokerRegistry extends AutoCloseable {
     void unregister() throws MetadataStoreException;
 
     /**
-     * Get the current broker lookup service address.
+     * Get the current broker ID.
      *
      * @return The service url without the protocol prefix, 'http://'. e.g. broker-xyz:port
      */
-    String getLookupServiceAddress();
+    String getBrokerId();
 
     /**
      * Async get available brokers.
@@ -72,18 +78,19 @@ public interface BrokerRegistry extends AutoCloseable {
     CompletableFuture<Optional<BrokerLookupData>> lookupAsync(String broker);
 
     /**
-     * For each the broker lookup data.
-     * The key is lookupServiceAddress{@link BrokerRegistry#getLookupServiceAddress()}
+     * Get the map of brokerId->brokerLookupData.
+     *
+     * @return Map of broker lookup data.
      */
-    void forEach(BiConsumer<String, BrokerLookupData> action);
+    CompletableFuture<Map<String, BrokerLookupData>> getAvailableBrokerLookupDataAsync();
 
     /**
-     * Listen the broker register change.
+     * Add listener to listen the broker register change.
      *
-     * @param listener Key is lookup service address{@link BrokerRegistry#getLookupServiceAddress()}
+     * @param listener Key is broker Id{@link BrokerRegistry#getBrokerId()}
      *                 Value is notification type.
      */
-    void listen(BiConsumer<String, NotificationType> listener);
+    void addListener(BiConsumer<String, NotificationType> listener);
 
     /**
      * Close the broker registry.

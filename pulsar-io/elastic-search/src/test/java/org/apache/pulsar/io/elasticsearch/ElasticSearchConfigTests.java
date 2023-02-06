@@ -92,7 +92,7 @@ public class ElasticSearchConfigTests {
         assertEquals(config.isCompressionEnabled(), false);
         assertEquals(config.getConnectTimeoutInMs(), 5000L);
         assertEquals(config.getConnectionRequestTimeoutInMs(), 1000L);
-        assertEquals(config.getConnectionIdleTimeoutInMs(), 5L);
+        assertEquals(config.getConnectionIdleTimeoutInMs(), 30000L);
         assertEquals(config.getSocketTimeoutInMs(), 60000);
 
         assertEquals(config.isStripNulls(), true);

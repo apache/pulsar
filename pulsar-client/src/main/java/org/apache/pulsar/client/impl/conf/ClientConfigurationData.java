@@ -379,16 +379,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @Secret
     private String socks5ProxyPassword;
 
+    /**
+     * Gets the authentication settings for the client.
+     *
+     * @return authentication settings for the client or {@link AuthenticationDisabled} when auth has not been specified
+     */
     public Authentication getAuthentication() {
-        if (authentication == null) {
-            this.authentication = AuthenticationDisabled.INSTANCE;
-        }
-        return authentication;
+        return this.authentication != null ? this.authentication : AuthenticationDisabled.INSTANCE;
     }
 
     public void setAuthentication(Authentication authentication) {
         this.authentication = authentication;
     }
+
     public boolean isUseTls() {
         if (useTls) {
             return true;

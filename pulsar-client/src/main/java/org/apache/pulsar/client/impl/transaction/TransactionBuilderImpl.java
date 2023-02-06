@@ -65,13 +65,13 @@ public class TransactionBuilderImpl implements TransactionBuilder {
         transactionCoordinatorClient
                 .newTransactionAsync(txnTimeout, timeUnit)
                 .whenComplete((txnID, throwable) -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Success to new txn. txnID: {}", txnID);
-                    }
                     if (throwable != null) {
                         log.error("New transaction error.", throwable);
                         future.completeExceptionally(throwable);
                         return;
+                    }
+                    if (log.isDebugEnabled()) {
+                        log.debug("'newTransaction' command completed successfully for transaction: {}", txnID);
                     }
                     TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
                             txnID.getLeastSigBits(), txnID.getMostSigBits());

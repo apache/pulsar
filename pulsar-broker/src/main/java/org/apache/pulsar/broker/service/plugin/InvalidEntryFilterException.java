@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.broker.service.plugin;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
+public class InvalidEntryFilterException extends Exception {
 
-@Data
-public class EntryFilterDefinitions {
-    private final Map<String, EntryFilterMetaData> filters = new TreeMap<>();
+    public InvalidEntryFilterException(String message) {
+        super(message);
+    }
+
+    public InvalidEntryFilterException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

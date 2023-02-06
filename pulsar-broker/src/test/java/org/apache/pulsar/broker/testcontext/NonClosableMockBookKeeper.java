@@ -16,12 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.testcontext;
 
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 
-// Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
+/**
+ * An in-memory mock bookkeeper which prevents closing when "close" method is called.
+ * This is an internal class used by {@link PulsarTestContext}
+ *
+ * @see PulsarMockBookKeeper
+ */
 class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
     public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {

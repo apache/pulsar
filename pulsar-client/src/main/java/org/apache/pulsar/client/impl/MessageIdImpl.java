@@ -27,7 +27,9 @@ import java.io.IOException;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.naming.TopicName;
 
 public class MessageIdImpl implements MessageId {
@@ -116,15 +118,20 @@ public class MessageIdImpl implements MessageId {
         return messageId;
     }
 
+    @InterfaceStability.Unstable
     public static MessageIdImpl convertToMessageIdImpl(MessageId messageId) {
-        if (messageId instanceof BatchMessageIdImpl) {
-            return (BatchMessageIdImpl) messageId;
-        } else if (messageId instanceof MessageIdImpl) {
-            return (MessageIdImpl) messageId;
-        } else if (messageId instanceof TopicMessageIdImpl) {
-            return convertToMessageIdImpl(((TopicMessageIdImpl) messageId).getInnerMessageId());
+        if (messageId instanceof TopicMessageId) {
+            if (messageId instanceof TopicMessageIdImpl) {
+                return (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
+            } else {
+                try {
+                    return (MessageIdImpl) MessageId.fromByteArray(messageId.toByteArray());
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
-        return null;
+        return (MessageIdImpl) messageId;
     }
 
     public static MessageId fromByteArrayWithTopic(byte[] data, String topicName) throws IOException {
@@ -210,8 +217,8 @@ public class MessageIdImpl implements MessageId {
                 this.ledgerId, this.entryId, this.partitionIndex, NO_BATCH,
                 other.ledgerId, other.entryId, other.partitionIndex, batchIndex
             );
-        } else if (o instanceof TopicMessageIdImpl) {
-            return compareTo(((TopicMessageIdImpl) o).getInnerMessageId());
+        } else if (o instanceof TopicMessageId) {
+            return compareTo(convertToMessageIdImpl(o));
         } else {
             throw new UnsupportedOperationException("Unknown MessageId type: " + o.getClass().getName());
         }
