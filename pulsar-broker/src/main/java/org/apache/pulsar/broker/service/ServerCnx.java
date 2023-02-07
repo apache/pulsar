@@ -2837,7 +2837,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             future.whenCompleteAsync((producer2, exception) -> {
                     if (exception != null || producer2 == producer) {
                         producers.remove(producerId, future);
-                        if (keepTombstoneForProducer && isActive && getRemoteEndpointProtocolVersion() >= v5.getValue()) {
+                        if (keepTombstoneForProducer
+                                && isActive
+                                && getRemoteEndpointProtocolVersion() >= v5.getValue()) {
                             final long epoch = producer.getEpoch();
                             recentlyClosedProducers.put(producerId, epoch);
                             ctx.executor().schedule(() -> {
