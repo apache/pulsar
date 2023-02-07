@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromCompressionType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -164,6 +166,9 @@ public class SourceConfigUtils {
             if (conf.getBatchBuilder() != null) {
                 pbldr.setBatchBuilder(conf.getBatchBuilder());
             }
+            if (conf.getCompressionType() != null) {
+                pbldr.setCompressionType(convertFromCompressionType(conf.getCompressionType()));
+            }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
 
@@ -264,6 +269,7 @@ public class SourceConfigUtils {
                 producerConfig.setBatchBuilder(spec.getBatchBuilder());
             }
             producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
             sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {
