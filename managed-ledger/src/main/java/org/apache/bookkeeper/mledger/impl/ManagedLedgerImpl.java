@@ -498,7 +498,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 ledgersStat = stat;
                 emptyLedgersToBeDeleted.forEach(ledgerId -> {
                     bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
-                        log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, li.getLedgerId(), rc);
+                        log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, ledgerId, rc);
                     }, null);
                 });
                 initializeCursors(callback);
