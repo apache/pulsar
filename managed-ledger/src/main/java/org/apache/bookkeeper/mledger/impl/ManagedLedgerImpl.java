@@ -553,7 +553,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void triggerDeleteClosedAndEmptyLedgers(){
-        Long ledgerId = null;
+        Long ledgerId;
         while ((ledgerId = ledgersClosedAndEmpty.poll()) != null){
             final long ledgerIdForLog = ledgerId;
             bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
@@ -1663,6 +1663,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     protected synchronized void updateLedgersIdsComplete() {
         STATE_UPDATER.set(this, State.LedgerOpened);
+        triggerDeleteClosedAndEmptyLedgers();
         updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
         if (log.isDebugEnabled()) {
