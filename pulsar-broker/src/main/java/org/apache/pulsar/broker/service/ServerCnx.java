@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,6 +179,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
+    private final HashMap<Long, Long> recentlyClosedProducers;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private final boolean enableSubscriptionPatternEvaluation;
@@ -277,6 +279,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
+        this.recentlyClosedProducers = new HashMap<>();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
@@ -1622,6 +1625,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
         if (producerFuture == null || !producerFuture.isDone() || producerFuture.isCompletedExceptionally()) {
+            if (recentlyClosedProducers.containsKey(send.getProducerId())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Received message, but the producer was recently closed : {}. Ignoring message.",
+                            remoteAddress, send.getProducerId());
+                }
+                // We expect these messages because we recently closed the producer. Do not close the connection.
+                return;
+            }
             log.warn("[{}] Received message, but the producer is not ready : {}. Closing the connection.",
                     remoteAddress, send.getProducerId());
             close();
@@ -2774,6 +2785,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            // The client does not necessarily know that the producer is closed, but the connection is still
+            // active, and there could be messages in flight already. We want to ignore these messages for a time
+            // because they are expected. Once the interval has passed, the client should have received the
+            // CloseProducer command and should not send any additional messages until it sends a create Producer
+            // command.
+            final long epoch = producer.getEpoch();
+            final long producerId = producer.getProducerId();
+            recentlyClosedProducers.put(producerId, epoch);
+            ctx.executor().schedule(() -> {
+                recentlyClosedProducers.remove(producerId, epoch);
+            }, service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         } else {
             close();
         }
