@@ -48,6 +48,7 @@ import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -75,7 +76,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import lombok.Cleanup;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -142,6 +145,117 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @DataProvider(name = "checkOwnershipFlag")
     public Object[][] checkOwnershipFlagProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+
+    private void makeAddEntryTimeout(ManagedLedgerImpl ml, AtomicBoolean addEntryFinished) throws Exception {
+        LedgerHandle currentLedger = ml.currentLedger;
+        final LedgerHandle spyLedgerHandle = spy(currentLedger);
+        doAnswer(invocation -> {
+            ByteBuf bs = (ByteBuf) invocation.getArguments()[0];
+            AddCallback addCallback = (AddCallback) invocation.getArguments()[1];
+            Object originalContext = invocation.getArguments()[2];
+            currentLedger.asyncAddEntry(bs, (rc, lh, entryId, ctx) -> {
+                addEntryFinished.set(true);
+                addCallback.addComplete(BKException.Code.TimeoutException, spyLedgerHandle,  -1, ctx);
+            }, originalContext);
+            return null;
+        }).when(spyLedgerHandle).asyncAddEntry(any(ByteBuf.class), any(AddCallback.class), any());
+        ml.currentLedger = spyLedgerHandle;
+    }
+
+    @Data
+    private static class DeleteLedgerInfo{
+        volatile boolean hasCalled;
+        volatile CompletableFuture<Void> future = new CompletableFuture<>();
+    }
+
+    private DeleteLedgerInfo makeDelayIfDoLedgerDelete(LedgerHandle ledger, final AtomicBoolean signal,
+                                                              BookKeeper spyBookKeeper) {
+        DeleteLedgerInfo deleteLedgerInfo = new DeleteLedgerInfo();
+        doAnswer(invocation -> {
+            long ledgerId = (long) invocation.getArguments()[0];
+            AsyncCallback.DeleteCallback originalCb = (AsyncCallback.DeleteCallback) invocation.getArguments()[1];
+            AsyncCallback.DeleteCallback cb = (rc, ctx) -> {
+                if (deleteLedgerInfo.hasCalled) {
+                    deleteLedgerInfo.future.complete(null);
+                }
+                originalCb.deleteComplete(rc, ctx);
+            };
+            Object ctx = invocation.getArguments()[2];
+            if (ledgerId != ledger.getId()){
+                bkc.asyncDeleteLedger(ledgerId, originalCb, ctx);
+            } else {
+                deleteLedgerInfo.hasCalled = true;
+                new Thread(() -> {
+                    Awaitility.await().atMost(Duration.ofSeconds(60)).until(signal::get);
+                    bkc.asyncDeleteLedger(ledgerId, cb, ctx);
+                }).start();
+            }
+            return null;
+        }).when(spyBookKeeper).asyncDeleteLedger(any(long.class), any(AsyncCallback.DeleteCallback.class), any());
+        return deleteLedgerInfo;
+    }
+
+    /***
+     * This test simulates the following problems that can occur when ZK connections are unstable:
+     *  - add entry timeout
+     *  - write ZK fail when update ledger info of ML
+     * and verifies that ledger info of ML is still correct when the above problems occur.
+     */
+    @Test
+    public void testLedgerInfoMetaCorrectIfAddEntryTimeOut() throws Exception {
+        String mlName = "testLedgerInfoMetaCorrectIfAddEntryTimeOut";
+        BookKeeper spyBookKeeper = spy(bkc);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(mlName);
+
+        // Make add entry timeout(The data write was actually successful).
+        AtomicBoolean addEntryFinished = new AtomicBoolean(false);
+        makeAddEntryTimeout(ml, addEntryFinished);
+
+        // Make the update operation of ledger info failure when switch ledger.
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException(""), (opType, path) -> {
+            if (opType == FaultInjectionMetadataStore.OperationType.PUT && addEntryFinished.get()
+                    && "/managed-ledgers/testLedgerInfoMetaCorrectIfAddEntryTimeOut".equals(path)) {
+                return true;
+            }
+            return false;
+        });
+
+        // Make delete ledger is delayed if delete is called.
+        AtomicBoolean deleteLedgerDelaySignal = new AtomicBoolean(false);
+        DeleteLedgerInfo deleteLedgerInfo =
+                makeDelayIfDoLedgerDelete(ml.currentLedger, deleteLedgerDelaySignal, spyBookKeeper);
+
+        // Add one entry.
+        // - it will fail and trigger ledger switch(we mocked the error).
+        // - ledger switch will also fail(we mocked the error).
+        try {
+            ml.addEntry("1".getBytes(Charset.defaultCharset()));
+            fail("Expected the operation of add entry will fail by timeout or ledger fenced.");
+        } catch (Exception e){
+            // expected ex.
+        }
+
+        // Reopen ML.
+        try {
+            ml.close();
+            fail("Expected the operation of ml close will fail by fenced state.");
+        } catch (Exception e){
+            // expected ex.
+        }
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(mlName);
+        deleteLedgerDelaySignal.set(true);
+        if (deleteLedgerInfo.hasCalled){
+            deleteLedgerInfo.future.join();
+        }
+        mlReopened.close();
+
+        // verify: all ledgers in ledger info is worked.
+        for (long ledgerId : mlReopened.getLedgersInfo().keySet()){
+            LedgerHandle lh = bkc.openLedger(ledgerId, ml.digestType, ml.getConfig().getPassword());
+            lh.close();
+        }
     }
 
     @Test

@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -211,6 +212,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     private final CallbackMutex metadataMutex = new CallbackMutex();
     private final CallbackMutex trimmerMutex = new CallbackMutex();
+    /** If current ledger is empty when switch ledger, it will be deleted from BK when updating LedgerInfo. **/
+    private final LinkedList<Long> ledgersClosedAndEmpty = new LinkedList();
+
 
     private final CallbackMutex offloadMutex = new CallbackMutex();
     private static final CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
@@ -479,9 +483,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 TOTAL_SIZE_UPDATER.addAndGet(this, li.getSize());
             } else {
                 iterator.remove();
-                bookKeeper.asyncDeleteLedger(li.getLedgerId(), (rc, ctx) -> {
-                    log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, li.getLedgerId(), rc);
-                }, null);
+                ledgersClosedAndEmpty.add(li.getLedgerId());
             }
         }
 
@@ -550,6 +552,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, ledgerMetadata);
     }
 
+    private synchronized void triggerDeleteClosedAndEmptyLedgers(){
+        Long ledgerId = null;
+        while ((ledgerId = ledgersClosedAndEmpty.poll()) != null){
+            final long ledgerIdForLog = ledgerId;
+            bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+                    mbean.endDataLedgerDeleteOp();
+                    log.info("[{}] Delete complete for empty ledger {}. rc={}", name, ledgerIdForLog, rc);
+                }, null);
+        }
+    }
+
+
     protected void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing cursors", name);
@@ -616,6 +630,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
                                 cursor.setActive();
                                 synchronized (ManagedLedgerImpl.this) {
+                                    triggerDeleteClosedAndEmptyLedgers();
                                     addCursor(cursor);
                                     uninitializedCursors.remove(cursor.getName()).complete(cursor);
                                 }
@@ -1710,10 +1725,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
             mbean.startDataLedgerDeleteOp();
-            bookKeeper.asyncDeleteLedger(lh.getId(), (rc, ctx) -> {
-                mbean.endDataLedgerDeleteOp();
-                log.info("[{}] Delete complete for empty ledger {}. rc={}", name, lh.getId(), rc);
-            }, null);
+            ledgersClosedAndEmpty.add(lh.getId());
         }
 
         trimConsumedLedgersInBackground();
