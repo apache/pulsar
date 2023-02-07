@@ -129,8 +129,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
-        // TODO: Add metrics.
-        return null;
+        return loadManager.getMetrics();
     }
 
     @Override

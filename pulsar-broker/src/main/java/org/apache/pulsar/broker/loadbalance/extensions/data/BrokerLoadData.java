@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -185,6 +189,37 @@ public class BrokerLoadData {
                 msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
                 maxResourceUsage * 100, weightedMaxEMA * 100, updatedAt
         );
+    }
+
+    public List<Metrics> toMetrics(String advertisedBrokerAddress) {
+        var metrics = new ArrayList<Metrics>();
+        var dimensions = new HashMap<String, String>();
+        dimensions.put("metric", "loadBalancing");
+        dimensions.put("broker", advertisedBrokerAddress);
+        {
+            var metric = Metrics.create(dimensions);
+            metric.put("brk_lb_cpu_usage", getCpu().percentUsage());
+            metric.put("brk_lb_memory_usage", getMemory().percentUsage());
+            metric.put("brk_lb_directMemory_usage", getDirectMemory().percentUsage());
+            metric.put("brk_lb_bandwidth_in_usage", getBandwidthIn().percentUsage());
+            metric.put("brk_lb_bandwidth_out_usage", getBandwidthOut().percentUsage());
+            metrics.add(metric);
+        }
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("feature", "max_ema");
+            var metric = Metrics.create(dim);
+            metric.put("brk_lb_resource_usage", weightedMaxEMA);
+            metrics.add(metric);
+        }
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("feature", "max");
+            var metric = Metrics.create(dim);
+            metric.put("brk_lb_resource_usage", maxResourceUsage);
+            metrics.add(metric);
+        }
+        return metrics;
     }
 
 }
