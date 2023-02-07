@@ -89,7 +89,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final int NUM_PARTITIONS = 16;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, PENDING_ACK_REPLAY_TOPIC, 0);
     }
