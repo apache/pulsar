@@ -64,7 +64,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.swagger.models.auth.In;
 import lombok.Cleanup;
 import lombok.Lombok;
 import lombok.extern.slf4j.Slf4j;
