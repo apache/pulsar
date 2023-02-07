@@ -578,9 +578,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         preallocatedBundleData.entrySet().iterator();
                 while (preallocatedIterator.hasNext()) {
                     final String bundle = preallocatedIterator.next().getKey();
-                    if (!ownedNsBundles.contains(bundle) ||
-                            (brokerData.getLocalData().getBundles().contains(bundle) &&
-                                    bundleData.containsKey(bundle))) {
+                    if (!ownedNsBundles.contains(bundle)
+                            || (brokerData.getLocalData().getBundles().contains(bundle)
+                            && bundleData.containsKey(bundle))) {
                         preallocatedIterator.remove();
                     }
                 }
