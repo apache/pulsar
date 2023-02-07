@@ -77,9 +77,10 @@ public class SplitCounter {
         m.put("brk_lb_bundles_split_total", splitCount);
         metrics.add(m);
 
-        for (var etr : breakdownCounters.entrySet()) {
+        for (Map.Entry<SplitDecision.Label, Map<SplitDecision.Reason, MutableLong>> etr
+                : breakdownCounters.entrySet()) {
             var result = etr.getKey();
-            for (var counter : etr.getValue().entrySet()) {
+            for (Map.Entry<SplitDecision.Reason, MutableLong> counter : etr.getValue().entrySet()) {
                 var reason = counter.getKey();
                 var count = counter.getValue();
                 Map<String, String> breakdownDims = new HashMap<>(dimensions);

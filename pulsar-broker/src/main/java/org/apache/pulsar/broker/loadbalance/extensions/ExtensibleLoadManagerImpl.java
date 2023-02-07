@@ -98,11 +98,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private final SplitCounter splitCounter = new SplitCounter();
 
     // record load metrics
-    private AtomicReference<List<Metrics>> brokerLoadMetrics = new AtomicReference<>();
+    private final AtomicReference<List<Metrics>> brokerLoadMetrics = new AtomicReference<>();
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference();
     // record split metrics
-    private AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
+    private final AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
             lookupRequests = ConcurrentOpenHashMap.<String,
