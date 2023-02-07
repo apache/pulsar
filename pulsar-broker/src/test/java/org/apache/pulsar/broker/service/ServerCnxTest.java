@@ -307,7 +307,7 @@ public class ServerCnxTest {
         // Connection will be closed in 2 seconds, in the meantime give chance to run the cleanup logic
         for (int i = 0; i < 3; i++) {
             channel.runPendingTasks();
-            Thread.sleep(1000);
+            channel.advanceTimeBy(1, TimeUnit.SECONDS);
         }
 
         assertFalse(channel.isActive());
@@ -334,7 +334,7 @@ public class ServerCnxTest {
         // Connection will *not* be closed in 2 seconds
         for (int i = 0; i < 3; i++) {
             channel.runPendingTasks();
-            Thread.sleep(1000);
+            channel.advanceTimeBy(1, TimeUnit.SECONDS);
         }
         assertTrue(channel.isActive());
 
@@ -352,7 +352,7 @@ public class ServerCnxTest {
         // Connection will be closed in 2 seconds, in the meantime give chance to run the cleanup logic
         for (int i = 0; i < 3; i++) {
             channel.runPendingTasks();
-            Thread.sleep(1000);
+            channel.advanceTimeBy(1, TimeUnit.SECONDS);
         }
 
         assertFalse(channel.isActive());
