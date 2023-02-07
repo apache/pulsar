@@ -2782,9 +2782,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
-        safelyRemoveProducer(producer, true);
+        safelyRemoveProducer(producer);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
+            // The client does not necessarily know that the producer is closed, but the connection is still
+            // active, and there could be messages in flight already. We want to ignore these messages for a time
+            // because they are expected. Once the interval has passed, the client should have received the
+            // CloseProducer command and should not send any additional messages until it sends a create Producer
+            // command.
+            final long epoch = producer.getEpoch();
+            final long producerId = producer.getProducerId();
+            recentlyClosedProducers.put(producerId, epoch);
+            ctx.executor().schedule(() -> {
+                recentlyClosedProducers.remove(producerId, epoch);
+            }, service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         } else {
             close();
         }
@@ -2824,30 +2835,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void removedProducer(Producer producer) {
-        safelyRemoveProducer(producer, false);
+        safelyRemoveProducer(producer);
     }
 
-    private void safelyRemoveProducer(Producer producer, boolean keepTombstoneForProducer) {
+    private void safelyRemoveProducer(Producer producer) {
         long producerId = producer.getProducerId();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Removed producer: producerId={}, producer={}", remoteAddress, producerId, producer);
         }
         CompletableFuture<Producer> future = producers.get(producerId);
         if (future != null) {
-            future.whenCompleteAsync((producer2, exception) -> {
+            future.whenComplete((producer2, exception) -> {
                     if (exception != null || producer2 == producer) {
                         producers.remove(producerId, future);
-                        if (keepTombstoneForProducer
-                                && isActive
-                                && getRemoteEndpointProtocolVersion() >= v5.getValue()) {
-                            final long epoch = producer.getEpoch();
-                            recentlyClosedProducers.put(producerId, epoch);
-                            ctx.executor().schedule(() -> {
-                                recentlyClosedProducers.remove(producerId, epoch);
-                            }, service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
-                        }
                     }
-                }, ctx.executor());
+                });
         }
     }
 
