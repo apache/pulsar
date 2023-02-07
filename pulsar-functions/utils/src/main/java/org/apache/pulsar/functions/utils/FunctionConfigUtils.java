@@ -730,7 +730,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static void doCommonChecks(FunctionConfig functionConfig) {
+    public static void doCommonChecks(FunctionConfig functionConfig) {
         if (isEmpty(functionConfig.getTenant())) {
             throw new IllegalArgumentException("Function tenant cannot be null");
         }
@@ -872,7 +872,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static Collection<String> collectAllInputTopics(FunctionConfig functionConfig) {
+    public static Collection<String> collectAllInputTopics(FunctionConfig functionConfig) {
         List<String> retval = new LinkedList<>();
         if (functionConfig.getInputs() != null) {
             retval.addAll(functionConfig.getInputs());
