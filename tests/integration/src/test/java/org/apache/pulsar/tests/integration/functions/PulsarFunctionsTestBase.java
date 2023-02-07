@@ -68,11 +68,13 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
 
     public static final String PUBLISH_PYTHON_CLASS = "typed_message_builder_publish.TypedMessageBuilderPublish";
     public static final String EXCEPTION_PYTHON_CLASS = "exception_function";
+    public static final String AVRO_SCHEMA_PYTHON_CLASS = "avro_schema_test_function.AvroSchemaTestFunction";
     public static final String EXCLAMATION_PYTHON_FILE = "exclamation_function.py";
     public static final String EXCLAMATION_WITH_DEPS_PYTHON_FILE = "exclamation_with_extra_deps.py";
     public static final String EXCLAMATION_PYTHON_ZIP_FILE = "exclamation.zip";
     public static final String PUBLISH_FUNCTION_PYTHON_FILE = "typed_message_builder_publish.py";
     public static final String EXCEPTION_FUNCTION_PYTHON_FILE = "exception_function.py";
+    public static final String AVRO_SCHEMA_FUNCTION_PYTHON_FILE = "avro_schema_test_function.py";
 
     public static final String EXCLAMATION_GO_FILE = "exclamationFunc";
     public static final String PUBLISH_FUNCTION_GO_FILE = "exclamationFunc";

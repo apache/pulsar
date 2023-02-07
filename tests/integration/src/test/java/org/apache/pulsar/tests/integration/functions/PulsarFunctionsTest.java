@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,6 +61,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
@@ -559,9 +561,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_JAVA_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null);
+                        null, null, null, null, null);
                 break;
             case PYTHON:
+                ConsumerConfig consumerConfig = new ConsumerConfig();
+                consumerConfig.setSchemaType("string");
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>() {{
+                    put(inputTopicName, consumerConfig);
+                }};
                 submitFunction(
                         runtime,
                         inputTopicName,
@@ -571,7 +578,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_PYTHON_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null);
+                        objectMapper.writeValueAsString(inputSpecs), "string", null, null, null);
                 break;
             case GO:
                 submitFunction(
@@ -583,7 +590,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         null,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null);
+                        null, null, null, null, null);
         }
 
         // get function info
@@ -793,7 +800,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String functionClass,
                                     Schema<T> inputTopicSchema) throws Exception {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
-                inputTopicSchema, null, null, null, null);
+                inputTopicSchema, null, null, null, null, null, null);
     }
 
     private <T> void submitFunction(Runtime runtime,
@@ -806,7 +813,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     Map<String, String> userConfigs,
                                     String customSchemaInputs,
                                     String outputSchemaType,
-                                    SubscriptionInitialPosition subscriptionInitialPosition) throws Exception {
+                                    SubscriptionInitialPosition subscriptionInitialPosition,
+                                    String inputTypeClassName,
+                                    String outputTypeClassName) throws Exception {
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(
@@ -835,6 +844,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         if (subscriptionInitialPosition != null) {
             generator.setSubscriptionInitialPosition(subscriptionInitialPosition);
+        }
+        if (inputTypeClassName != null) {
+            generator.setInputTypeClassName(inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            generator.setOutputTypeClassName(outputTypeClassName);
         }
         String command = "";
 
@@ -1326,7 +1341,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    protected void testAvroSchemaFunction() throws Exception {
+    protected void testAvroSchemaFunction(Runtime runtime) throws Exception {
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
@@ -1375,14 +1390,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
         });
 
-        submitFunction(
-                Runtime.JAVA,
-                inputTopic,
-                outputTopic,
-                functionName,
-                null,
-                AvroSchemaTestFunction.class.getName(),
-                Schema.AVRO(AvroTestObject.class));
+        if (runtime == Runtime.JAVA) {
+            submitFunction(
+                    Runtime.JAVA,
+                    inputTopic,
+                    outputTopic,
+                    functionName,
+                    null,
+                    AvroSchemaTestFunction.class.getName(),
+                    Schema.AVRO(AvroTestObject.class));
+        } else if (runtime == Runtime.PYTHON) {
+            ConsumerConfig consumerConfig = new ConsumerConfig();
+            consumerConfig.setSchemaType("string");
+            Map<String, ConsumerConfig> inputSpecs = new HashMap<>() {{
+                put(inputTopic, consumerConfig);
+            }};
+            submitFunction(
+                    Runtime.PYTHON,
+                    inputTopic,
+                    outputTopic,
+                    AVRO_SCHEMA_FUNCTION_PYTHON_FILE,
+                    null,
+                    AVRO_SCHEMA_PYTHON_CLASS,
+                    Schema.AVRO(AvroTestObject.class),
+                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null, "AvroTestObject", "AvroTestObject");
+        }
         log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
@@ -1457,7 +1489,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
-                Collections.singletonMap("publish-topic", outputTopicName), null, null, null);
+                Collections.singletonMap("publish-topic", outputTopicName), null, null, null, null, null);
 
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
@@ -1645,7 +1677,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 null,
                 SchemaType.NONE.name(),
-                SubscriptionInitialPosition.Earliest);
+                SubscriptionInitialPosition.Earliest, null, null);
         try {
             if (keyValue) {
                 @Cleanup
@@ -1830,7 +1862,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 inputSpecNode.toString(),
                 SchemaType.AUTO_PUBLISH.name().toUpperCase(),
-                SubscriptionInitialPosition.Earliest);
+                SubscriptionInitialPosition.Earliest, null, null);
 
         getFunctionInfoSuccess(functionName);
 
