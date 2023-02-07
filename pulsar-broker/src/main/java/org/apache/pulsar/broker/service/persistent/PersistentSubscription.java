@@ -1295,6 +1295,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return pendingAckHandle;
     }
 
+    public boolean checkPositionInPendingAckState(PositionImpl position) {
+        return pendingAckHandle.checkPositionInPendingAckState(position);
+    }
+
     public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }

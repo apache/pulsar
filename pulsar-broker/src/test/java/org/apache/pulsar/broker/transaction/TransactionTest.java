@@ -63,6 +63,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.swagger.models.auth.In;
 import lombok.Cleanup;
 import lombok.Lombok;
 import lombok.extern.slf4j.Slf4j;
@@ -1410,6 +1412,57 @@ public class TransactionTest extends TransactionTestBase {
                 .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
         // repeat ack the second message, can ack successful
         consumer.acknowledgeAsync(messageId, txn3).get();
+    }
+
+    public Transaction getTxn() throws Exception {
+        return pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(1000, TimeUnit.SECONDS)
+                .build()
+                .get();
+    }
+
+    @Test
+    private void testTxnAckNonBatchMessageRedelivery() throws Exception {
+        final String topicName = NAMESPACE1 + "/testTxnAckNonBatchMessageRedelivery";
+        int count = 2;
+
+        // do not enable batching
+        Producer<Integer> producer = pulsarClient
+                .newProducer(Schema.INT32)
+                .topic(topicName)
+                .create();
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        for (int i = 0; i < count; i++) {
+            producer.sendAsync(i).get();
+        }
+
+        Transaction txn = getTxn();
+        for (int i = 0; i < count / 2; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn).get();
+        }
+
+        // try to redeliver
+        Transaction txn2 = getTxn();
+        for (int i = 0; i < count / 2; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn2).get();
+        }
+        // abort txn to redeliver msg, expected:only msg2, actual:both msg1 and msg2 are redelivered.
+        txn2.abort().get();
+
+        Transaction txn3 = getTxn();
+        // ack msg1 will raise TransactionConflictException
+        Message<Integer> message = consumer.receive();
+        consumer.acknowledgeAsync(message.getMessageId(), txn3).get();
+        assertEquals(message.getValue().intValue(), 1);
+        assertEquals(consumer.receive(2, TimeUnit.SECONDS), null);
     }
 
     /**

@@ -1051,6 +1051,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
+    @Override
+    public boolean checkPositionInPendingAckState(PositionImpl position) {
+        if (individualAckPositions != null) {
+            return individualAckPositions.containsKey(position);
+        }
+        return false;
+    }
+
     @VisibleForTesting
     public Map<PositionImpl, MutablePair<PositionImpl, Integer>> getIndividualAckPositions() {
         return individualAckPositions;

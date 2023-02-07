@@ -166,4 +166,11 @@ public interface PendingAckHandle {
      * @return the stats of the message position.
      */
     PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex);
+
+
+
+    /**
+     * check whether specific Position is in pending ack state.
+     */
+    boolean checkPositionInPendingAckState(PositionImpl position);
 }

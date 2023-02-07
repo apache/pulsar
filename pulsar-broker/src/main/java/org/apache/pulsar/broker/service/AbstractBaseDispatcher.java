@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -136,6 +137,16 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 msgMetadata = ((EntryAndMetadata) entry).getMetadata();
             } else {
                 msgMetadata = Commands.peekAndCopyMessageMetadata(metadataAndPayload, subscription.toString(), -1);
+            }
+
+            PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+            // filter non batch messages in pending ack state
+            if (subscription instanceof PersistentSubscription &&
+                    msgMetadata.hasNumMessagesInBatch() &&
+                    ((PersistentSubscription) subscription).checkPositionInPendingAckState(position)) {
+                entries.set(i, null);
+                entry.release();
+                continue;
             }
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
