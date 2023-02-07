@@ -87,6 +87,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         // Delete all the empty container nodes
         zks.checkContainers();
 
+        @Cleanup
         MetadataStoreExtended store2 = MetadataStoreExtended.create(metadataUrl, MetadataStoreConfig.builder().build());
         @Cleanup
         CoordinationService cs2 = new CoordinationServiceImpl(store2);
@@ -95,8 +96,6 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l1, l4);
         assertNotEquals(l2, l4);
         assertNotEquals(l3, l4);
-
-        store2.close();
     }
 
     @Test(dataProvider = "impl")
