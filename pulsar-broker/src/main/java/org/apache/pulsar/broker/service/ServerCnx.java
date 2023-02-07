@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -178,6 +179,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final BrokerService service;
     private final SchemaRegistryService schemaService;
     private final String listenerName;
+    private final HashMap<Long, Long> recentlyClosedProducers;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private final boolean enableSubscriptionPatternEvaluation;
@@ -277,6 +279,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
+        this.recentlyClosedProducers = new HashMap<>();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
@@ -1622,6 +1625,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Producer> producerFuture = producers.get(send.getProducerId());
 
         if (producerFuture == null || !producerFuture.isDone() || producerFuture.isCompletedExceptionally()) {
+            if (recentlyClosedProducers.containsKey(send.getProducerId())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Received message, but the producer was recently closed : {}. Ignoring message.",
+                            remoteAddress, send.getProducerId());
+                }
+                // We expect these messages because we recently closed the producer. Do not close the connection.
+                return;
+            }
             log.warn("[{}] Received message, but the producer is not ready : {}. Closing the connection.",
                     remoteAddress, send.getProducerId());
             close();
@@ -2771,7 +2782,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void closeProducer(Producer producer) {
         // removes producer-connection from map and send close command to producer
-        safelyRemoveProducer(producer);
+        safelyRemoveProducer(producer, true);
         if (getRemoteEndpointProtocolVersion() >= v5.getValue()) {
             writeAndFlush(Commands.newCloseProducer(producer.getProducerId(), -1L));
         } else {
@@ -2813,21 +2824,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void removedProducer(Producer producer) {
-        safelyRemoveProducer(producer);
+        safelyRemoveProducer(producer, false);
     }
 
-    private void safelyRemoveProducer(Producer producer) {
+    private void safelyRemoveProducer(Producer producer, boolean keepTombstoneForProducer) {
         long producerId = producer.getProducerId();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Removed producer: producerId={}, producer={}", remoteAddress, producerId, producer);
         }
         CompletableFuture<Producer> future = producers.get(producerId);
         if (future != null) {
-            future.whenComplete((producer2, exception) -> {
+            future.whenCompleteAsync((producer2, exception) -> {
                     if (exception != null || producer2 == producer) {
                         producers.remove(producerId, future);
+                        if (keepTombstoneForProducer && isActive && getRemoteEndpointProtocolVersion() >= v5.getValue()) {
+                            final long epoch = producer.getEpoch();
+                            recentlyClosedProducers.put(producerId, epoch);
+                            ctx.executor().schedule(() -> {
+                                recentlyClosedProducers.remove(producerId, epoch);
+                            }, service.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+                        }
                     }
-                });
+                }, ctx.executor());
         }
     }
 
