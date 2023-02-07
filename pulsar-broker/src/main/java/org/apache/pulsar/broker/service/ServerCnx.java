@@ -198,6 +198,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private AuthData originalAuthDataCopy;
     private boolean pendingAuthChallengeResponse = false;
 
+    private SSLSession sslSession = null;
+
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
     private final int maxPendingSendRequests;
@@ -971,6 +973,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
                     .orElseThrow(() ->
                         new AuthenticationException("No anonymous role, and no authentication provider configured"));
+                checkAndStoreOriginalAuthDataForwardedByProxy(connect);
                 completeConnect(clientProtocolVersion, clientVersion);
                 return;
             }
@@ -993,45 +996,48 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 log.debug("[{}] Authenticate role : {}", remoteAddress, role);
             }
 
-            if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
-                // Flow:
-                // 1. Initialize original authentication.
-                // 2. Authenticate the proxy's authentication data.
-                // 3. Authenticate the original authentication data.
-                String originalAuthMethod;
-                if (connect.hasOriginalAuthMethod()) {
-                    originalAuthMethod = connect.getOriginalAuthMethod();
-                } else {
-                    originalAuthMethod = "none";
-                }
-
-                AuthenticationProvider originalAuthenticationProvider = getBrokerService()
-                        .getAuthenticationService()
-                        .getAuthenticationProvider(originalAuthMethod);
-
-                if (originalAuthenticationProvider == null) {
-                    throw new AuthenticationException(
-                            String.format("Can't find AuthenticationProvider for original role"
-                                    + " using auth method [%s] is not available", originalAuthMethod));
-                }
-
-                originalAuthDataCopy = AuthData.of(connect.getOriginalAuthData().getBytes());
-                originalAuthState = originalAuthenticationProvider.newAuthState(
-                        originalAuthDataCopy,
-                        remoteAddress,
-                        sslSession);
-            } else if (connect.hasOriginalPrincipal()) {
-                originalPrincipal = connect.getOriginalPrincipal();
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Setting original role (forwarded from proxy): {}",
-                        remoteAddress, originalPrincipal);
-                }
-            }
-
+            checkAndStoreOriginalAuthDataForwardedByProxy(connect);
             doAuthentication(clientData, false, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             authenticationFailed(e);
+        }
+    }
+
+    private void checkAndStoreOriginalAuthDataForwardedByProxy(CommandConnect connect) throws AuthenticationException {
+        if (connect.hasOriginalPrincipal() && service.getPulsar().getConfig().isAuthenticateOriginalAuthData()) {
+            // Flow:
+            // 1. Initialize original authentication.
+            // 2. Authenticate the proxy's authentication data.
+            // 3. Authenticate the original authentication data.
+            String originalAuthMethod;
+            if (connect.hasOriginalAuthMethod()) {
+                originalAuthMethod = connect.getOriginalAuthMethod();
+            } else {
+                originalAuthMethod = "none";
+            }
+
+            AuthenticationProvider originalAuthenticationProvider = getBrokerService()
+                    .getAuthenticationService()
+                    .getAuthenticationProvider(originalAuthMethod);
+
+            if (originalAuthenticationProvider == null) {
+                throw new AuthenticationException(
+                        String.format("Can't find AuthenticationProvider for original role"
+                                + " using auth method [%s] is not available", originalAuthMethod));
+            }
+
+            originalAuthDataCopy = AuthData.of(connect.getOriginalAuthData().getBytes());
+            originalAuthState = originalAuthenticationProvider.newAuthState(
+                    originalAuthDataCopy,
+                    remoteAddress,
+                    sslSession);
+        } else if (connect.hasOriginalPrincipal()) {
+            originalPrincipal = connect.getOriginalPrincipal();
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Setting original role (forwarded from proxy): {}",
+                        remoteAddress, originalPrincipal);
+            }
         }
     }
 
