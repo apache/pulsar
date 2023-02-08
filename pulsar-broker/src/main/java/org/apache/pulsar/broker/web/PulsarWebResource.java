@@ -25,7 +25,6 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
-import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -152,7 +151,7 @@ public abstract class PulsarWebResource {
     }
 
     private void validateOriginalPrincipal(String authenticatedPrincipal, String originalPrincipal) {
-        if (! pulsar.getBrokerService().getAuthorizationService()
+        if (!pulsar.getBrokerService().getAuthorizationService()
                 .isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, clientAuthData())) {
             throw new RestException(Status.UNAUTHORIZED,
                     "Invalid combination of Original principal cannot be empty if the request is via proxy.");
