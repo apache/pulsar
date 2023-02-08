@@ -299,6 +299,12 @@ public class TopicStatsImpl implements TopicStats {
                 }
             }
         }
+
+        if (earliestMsgPublishTimeInBacklogs != 0 && ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs != 0) {
+            earliestMsgPublishTimeInBacklogs = Math.min(earliestMsgPublishTimeInBacklogs, ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs);
+        } else {
+            earliestMsgPublishTimeInBacklogs = Math.max(earliestMsgPublishTimeInBacklogs, ((TopicStatsImpl) ts).earliestMsgPublishTimeInBacklogs);
+        }
         return this;
     }
 }

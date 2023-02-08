@@ -1828,6 +1828,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
             assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
             assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
+            assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
         });
 
         for (int i = 0; i < 5; i++) {
@@ -1839,6 +1840,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 5);
             assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 223);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
         });
 
     }

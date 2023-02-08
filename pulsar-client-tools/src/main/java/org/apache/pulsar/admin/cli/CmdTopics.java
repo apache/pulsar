@@ -864,6 +864,11 @@ public class CmdTopics extends CmdBase {
                 "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
         private boolean getEarliestTimeInBacklog = false;
 
+        @Parameter(names = { "-etb",
+                "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
+        private boolean getEarliestTimeInBacklog = false;
+
+
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
