@@ -499,7 +499,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                      */
                     if (!taskQueue.isEmpty()) {
                         executeTask();
-                        return CompletableFuture.completedFuture(null);
+                        return cancelUpdateIndexTask();
                     } else if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
                         return task.get().whenComplete((ignore, throwable) -> {
                             if (throwable != null && log.isDebugEnabled()) {
@@ -508,7 +508,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             STATE_UPDATER.compareAndSet(this, OperationState.Operating, OperationState.None);
                         });
                     } else {
-                        return CompletableFuture.completedFuture(null);
+                        return cancelUpdateIndexTask();
                     }
                 }
                 /*
@@ -555,6 +555,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             operationType.name())));
                 }
             }
+        }
+
+        private CompletableFuture<Void> cancelUpdateIndexTask() {
+            if (log.isDebugEnabled()) {
+                log.debug("The operation of updating index is canceled due there is other operation executing");
+            }
+            return FutureUtil.failedFuture(new BrokerServiceException
+                    .ServiceUnitNotReadyException("The operation of updating index is canceled"));
         }
 
         private void executeTask() {
