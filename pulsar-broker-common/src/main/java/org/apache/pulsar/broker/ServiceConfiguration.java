@@ -356,12 +356,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "logic to handle fixed delays in messages in a different way.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
-            + "when detecting if all the messages in the topic have a fixed delay. "
-            + "Default is 50,000. Setting the lookahead window to 0 will disable the "
-            + "logic to handle fixed delays in messages in a different way.")
-    private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
-
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
 
