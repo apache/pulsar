@@ -240,21 +240,21 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         AuthorizationService auth = new AuthorizationService(conf, Mockito.mock(PulsarResources.class));
 
         // Original principal should be supplied when authenticatedPrincipal is proxy role
-        assertTrue(auth.validateOriginalPrincipal("proxy", "client", null));
+        assertTrue(auth.isValidOriginalPrincipal("proxy", "client", null));
 
         // Non proxy role should not supply originalPrincipal
-        assertTrue(auth.validateOriginalPrincipal("client", "", null));
-        assertTrue(auth.validateOriginalPrincipal("client", null, null));
+        assertTrue(auth.isValidOriginalPrincipal("client", "", null));
+        assertTrue(auth.isValidOriginalPrincipal("client", null, null));
 
         // Proxy role must supply an original principal
-        assertFalse(auth.validateOriginalPrincipal("proxy", "", null));
-        assertFalse(auth.validateOriginalPrincipal("proxy", null, null));
+        assertFalse(auth.isValidOriginalPrincipal("proxy", "", null));
+        assertFalse(auth.isValidOriginalPrincipal("proxy", null, null));
 
         // OriginalPrincipal cannot be proxy role
-        assertFalse(auth.validateOriginalPrincipal("proxy", "proxy", null));
-        assertFalse(auth.validateOriginalPrincipal("client", "proxy", null));
-        assertFalse(auth.validateOriginalPrincipal("", "proxy", null));
-        assertFalse(auth.validateOriginalPrincipal(null, "proxy", null));
+        assertFalse(auth.isValidOriginalPrincipal("proxy", "proxy", null));
+        assertFalse(auth.isValidOriginalPrincipal("client", "proxy", null));
+        assertFalse(auth.isValidOriginalPrincipal("", "proxy", null));
+        assertFalse(auth.isValidOriginalPrincipal(null, "proxy", null));
     }
 
     @Test

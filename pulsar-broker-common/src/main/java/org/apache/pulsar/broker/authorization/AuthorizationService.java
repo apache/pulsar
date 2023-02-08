@@ -299,9 +299,9 @@ public class AuthorizationService {
      * that is not also in {@link ServiceConfiguration#getProxyRoles()}.
      * @return true when roles are a valid combination and false when roles are an invalid combination
      */
-    public boolean validateOriginalPrincipal(String authenticatedPrincipal, 
-                                             String originalPrincipal, 
-                                             SocketAddress remoteAddress) {
+    public boolean isValidOriginalPrincipal(String authenticatedPrincipal,
+                                            String originalPrincipal,
+                                            SocketAddress remoteAddress) {
         String errorMsg = null;
         if (conf.getProxyRoles().contains(authenticatedPrincipal)) {
             if (StringUtils.isBlank(originalPrincipal)) {
@@ -352,7 +352,7 @@ public class AuthorizationService {
                                                                 String originalRole,
                                                                 String role,
                                                                 AuthenticationDataSource authData) {
-        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -414,7 +414,7 @@ public class AuthorizationService {
                                                                    String originalRole,
                                                                    String role,
                                                                    AuthenticationDataSource authData) {
-        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -458,7 +458,7 @@ public class AuthorizationService {
                                                                          String originalRole,
                                                                          String role,
                                                                          AuthenticationDataSource authData) {
-        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -521,7 +521,7 @@ public class AuthorizationService {
                                                                      String originalRole,
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
-        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -610,7 +610,7 @@ public class AuthorizationService {
                                                                String originalRole,
                                                                String role,
                                                                AuthenticationDataSource authData) {
-        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
