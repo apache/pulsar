@@ -39,6 +39,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerScheduler;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.UnloadScheduler;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
@@ -74,6 +76,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
+
+    private LoadManagerScheduler unloadScheduler;
 
     @Getter
     private LoadManagerContext context;
@@ -131,7 +135,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 .topBundleLoadDataStore(topBundlesLoadDataStore).build();
         // TODO: Start load data reporter.
 
-        // TODO: Start unload scheduler and bundle split scheduler
+        // TODO: Start bundle split scheduler.
+        this.unloadScheduler = new UnloadScheduler(pulsar.getLoadManagerExecutor(), context, serviceUnitStateChannel);
+        this.unloadScheduler.start();
         this.started = true;
     }
 
@@ -245,6 +251,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         try {
             this.brokerLoadDataStore.close();
             this.topBundlesLoadDataStore.close();
+            this.unloadScheduler.close();
         } catch (IOException ex) {
             throw new PulsarServerException(ex);
         } finally {
