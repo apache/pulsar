@@ -215,7 +215,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .completedFuture(PositionImpl.LATEST);
     private volatile LedgerHandle currentLedger;
     private long currentLedgerEntries = 0;
-    private long currentLedgerSize = 0;
+    protected long currentLedgerSize = 0;
     private long lastLedgerCreatedTimestamp = 0;
     private long lastLedgerCreationFailureTimestamp = 0;
     private long lastLedgerCreationInitiationTimestamp = 0;
@@ -1510,7 +1510,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         currentLedger = lh;
                         currentLedgerEntries = 0;
                         currentLedgerSize = 0;
-                        updateLedgersIdsComplete();
+                        updateLedgersIdsComplete(ledgersStat);
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
                                 - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
                     }
