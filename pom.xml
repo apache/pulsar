@@ -171,7 +171,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>363</trino.version>
+    <presto.version>334</presto.version>
     <scala.binary.version>2.13</scala.binary.version>
     <scala-library.version>2.13.10</scala-library.version>
     <debezium.version>1.7.2.Final</debezium.version>
