@@ -292,6 +292,13 @@ public class AuthorizationService {
         return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
     }
 
+    public boolean isValidOriginalPrincipal(String authenticatedPrincipal,
+                                            String originalPrincipal,
+                                            AuthenticationDataSource authDataSource) {
+        SocketAddress remoteAddress = authDataSource != null ? authDataSource.getPeerAddress() : null;
+        return isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, remoteAddress);
+    }
+
     /**
      * Validates that the authenticatedPrincipal and the originalPrincipal are a valid combination.
      * Valid combinations fulfill the following rule: the authenticatedPrincipal is in
@@ -352,7 +359,7 @@ public class AuthorizationService {
                                                                 String originalRole,
                                                                 String role,
                                                                 AuthenticationDataSource authData) {
-        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -414,7 +421,7 @@ public class AuthorizationService {
                                                                    String originalRole,
                                                                    String role,
                                                                    AuthenticationDataSource authData) {
-        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -458,7 +465,7 @@ public class AuthorizationService {
                                                                          String originalRole,
                                                                          String role,
                                                                          AuthenticationDataSource authData) {
-        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -521,7 +528,7 @@ public class AuthorizationService {
                                                                      String originalRole,
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
-        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
@@ -610,7 +617,7 @@ public class AuthorizationService {
                                                                String originalRole,
                                                                String role,
                                                                AuthenticationDataSource authData) {
-        if (!isValidOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {

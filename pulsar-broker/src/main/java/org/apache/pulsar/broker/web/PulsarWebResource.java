@@ -152,9 +152,8 @@ public abstract class PulsarWebResource {
     }
 
     private void validateOriginalPrincipal(String authenticatedPrincipal, String originalPrincipal) {
-        AuthorizationService authorizationService = pulsar.getBrokerService().getAuthorizationService();
-        SocketAddress peerAddress = clientAuthData().getPeerAddress();
-        if (!authorizationService.isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, peerAddress)) {
+        if (! pulsar.getBrokerService().getAuthorizationService()
+                .isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, clientAuthData())) {
             throw new RestException(Status.UNAUTHORIZED,
                     "Invalid combination of Original principal cannot be empty if the request is via proxy.");
         }

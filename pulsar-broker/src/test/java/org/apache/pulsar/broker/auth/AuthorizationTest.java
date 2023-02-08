@@ -23,9 +23,11 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.EnumSet;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -240,27 +242,30 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         AuthorizationService auth = new AuthorizationService(conf, Mockito.mock(PulsarResources.class));
 
         // Original principal should be supplied when authenticatedPrincipal is proxy role
-        assertTrue(auth.isValidOriginalPrincipal("proxy", "client", null));
+        assertTrue(auth.isValidOriginalPrincipal("proxy", "client", (SocketAddress) null));
 
         // Non proxy role should not supply originalPrincipal
-        assertTrue(auth.isValidOriginalPrincipal("client", "", null));
-        assertTrue(auth.isValidOriginalPrincipal("client", null, null));
+        assertTrue(auth.isValidOriginalPrincipal("client", "", (SocketAddress) null));
+        assertTrue(auth.isValidOriginalPrincipal("client", null, (SocketAddress) null));
 
         // Only likely in cases when authentication is disabled, but we still define these to be valid.
-        assertTrue(auth.isValidOriginalPrincipal(null, null, null));
-        assertTrue(auth.isValidOriginalPrincipal(null, "", null));
-        assertTrue(auth.isValidOriginalPrincipal("", null, null));
-        assertTrue(auth.isValidOriginalPrincipal("", "", null));
+        assertTrue(auth.isValidOriginalPrincipal(null, null, (SocketAddress) null));
+        assertTrue(auth.isValidOriginalPrincipal(null, "", (SocketAddress) null));
+        assertTrue(auth.isValidOriginalPrincipal("", null, (SocketAddress) null));
+        assertTrue(auth.isValidOriginalPrincipal("", "", (SocketAddress) null));
 
         // Proxy role must supply an original principal
-        assertFalse(auth.isValidOriginalPrincipal("proxy", "", null));
-        assertFalse(auth.isValidOriginalPrincipal("proxy", null, null));
+        assertFalse(auth.isValidOriginalPrincipal("proxy", "", (SocketAddress) null));
+        assertFalse(auth.isValidOriginalPrincipal("proxy", null, (SocketAddress) null));
 
         // OriginalPrincipal cannot be proxy role
-        assertFalse(auth.isValidOriginalPrincipal("proxy", "proxy", null));
-        assertFalse(auth.isValidOriginalPrincipal("client", "proxy", null));
-        assertFalse(auth.isValidOriginalPrincipal("", "proxy", null));
-        assertFalse(auth.isValidOriginalPrincipal(null, "proxy", null));
+        assertFalse(auth.isValidOriginalPrincipal("proxy", "proxy", (SocketAddress) null));
+        assertFalse(auth.isValidOriginalPrincipal("client", "proxy", (SocketAddress) null));
+        assertFalse(auth.isValidOriginalPrincipal("", "proxy", (SocketAddress) null));
+        assertFalse(auth.isValidOriginalPrincipal(null, "proxy", (SocketAddress) null));
+
+        // Must gracefully handle a missing AuthenticationDataSource
+        assertTrue(auth.isValidOriginalPrincipal("proxy", "client", (AuthenticationDataSource) null));
     }
 
     @Test
