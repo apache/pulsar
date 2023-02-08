@@ -1436,7 +1436,7 @@ public class TransactionTest extends TransactionTestBase {
                 .newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionName("test")
-                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionType(SubscriptionType.Exclusive)
                 .subscribe();
 
         for (int i = 0; i < count; i++) {
