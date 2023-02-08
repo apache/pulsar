@@ -58,7 +58,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
+    private static final Logger log = LoggerFactory.getLogger(ProxyWithJwtAuthorizationTest.class);
 
     private final String ADMIN_ROLE = "admin";
     private final String PROXY_ROLE = "proxy";
