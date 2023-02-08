@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.authorization;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -293,19 +294,32 @@ public class AuthorizationService {
         return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
     }
 
-    private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
-                                                  String originalPrincipal) {
-        if (proxyRoles.contains(authenticatedPrincipal)) {
-            // Request has come from a proxy
+    /**
+     * Validates that the authenticatedPrincipal and the originalPrincipal are a valid combination.
+     * Valid combinations fulfill the following rule: the authenticatedPrincipal is in
+     * {@link ServiceConfiguration#getProxyRoles()}, if, and only if, the originalPrincipal is set to a role
+     * that is not also in {@link ServiceConfiguration#getProxyRoles()}.
+     * @return true when roles are a valid combination and false when roles are an invalid combination
+     */
+    public boolean validateOriginalPrincipal(String authenticatedPrincipal, 
+                                             String originalPrincipal, 
+                                             SocketAddress remoteAddress) {
+        String errorMsg = null;
+        if (conf.getProxyRoles().contains(authenticatedPrincipal)) {
             if (StringUtils.isBlank(originalPrincipal)) {
-                log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Response.Status.UNAUTHORIZED, "Original principal cannot be empty if the "
-                        + "request is via proxy.");
+                errorMsg = "originalPrincipal must be provided when connecting with a proxy role.";
+            } else if (conf.getProxyRoles().contains(originalPrincipal)) {
+                errorMsg = "originalPrincipal cannot be a proxy role.";
             }
-            if (proxyRoles.contains(originalPrincipal)) {
-                log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Response.Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
-            }
+        } else if (StringUtils.isNotBlank(originalPrincipal)) {
+            errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
+        }
+        if (errorMsg != null) {
+            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress,
+                    authenticatedPrincipal, originalPrincipal, errorMsg);
+            return false;
+        } else {
+            return true;
         }
     }
 
@@ -340,7 +354,9 @@ public class AuthorizationService {
                                                                 String originalRole,
                                                                 String role,
                                                                 AuthenticationDataSource authData) {
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+            return CompletableFuture.completedFuture(false);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTenantOperationAsync(
                     tenantName, operation, role, authData);
@@ -400,7 +416,9 @@ public class AuthorizationService {
                                                                    String originalRole,
                                                                    String role,
                                                                    AuthenticationDataSource authData) {
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+            return CompletableFuture.completedFuture(false);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespaceOperationAsync(
                     namespaceName, operation, role, authData);
@@ -442,7 +460,9 @@ public class AuthorizationService {
                                                                          String originalRole,
                                                                          String role,
                                                                          AuthenticationDataSource authData) {
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+            return CompletableFuture.completedFuture(false);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespacePolicyOperationAsync(
                     namespaceName, policy, operation, role, authData);
@@ -503,10 +523,8 @@ public class AuthorizationService {
                                                                      String originalRole,
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
-        try {
-            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
-        } catch (RestException e) {
-            return FutureUtil.failedFuture(e);
+        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+            return CompletableFuture.completedFuture(false);
         }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
@@ -594,7 +612,9 @@ public class AuthorizationService {
                                                                String originalRole,
                                                                String role,
                                                                AuthenticationDataSource authData) {
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        if (!validateOriginalPrincipal(role, originalRole, authData.getPeerAddress())) {
+            return CompletableFuture.completedFuture(false);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
                     topicName, operation, role, authData);

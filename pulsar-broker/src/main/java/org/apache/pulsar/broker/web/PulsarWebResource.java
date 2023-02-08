@@ -25,6 +25,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import java.net.MalformedURLException;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
@@ -150,19 +151,12 @@ public abstract class PulsarWebResource {
         return appId != null;
     }
 
-    private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
-                                                  String originalPrincipal) {
-        if (proxyRoles.contains(authenticatedPrincipal)) {
-            // Request has come from a proxy
-            if (StringUtils.isBlank(originalPrincipal)) {
-                log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Status.UNAUTHORIZED,
-                        "Original principal cannot be empty if the request is via proxy.");
-            }
-            if (proxyRoles.contains(originalPrincipal)) {
-                log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
-            }
+    private void validateOriginalPrincipal(String authenticatedPrincipal, String originalPrincipal) {
+        AuthorizationService authorizationService = pulsar.getBrokerService().getAuthorizationService();
+        SocketAddress peerAddress = clientAuthData().getPeerAddress();
+        if (!authorizationService.validateOriginalPrincipal(authenticatedPrincipal, originalPrincipal, peerAddress)) {
+            throw new RestException(Status.UNAUTHORIZED,
+                    "Invalid combination of Original principal cannot be empty if the request is via proxy.");
         }
     }
 
@@ -185,7 +179,7 @@ public abstract class PulsarWebResource {
                     isClientAuthenticated(appId), appId);
         }
         String originalPrincipal = originalPrincipal();
-        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), appId, originalPrincipal);
+        validateOriginalPrincipal(appId, originalPrincipal);
 
         if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
             BrokerService brokerService = pulsar.getBrokerService();
@@ -260,7 +254,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
+    protected void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
                                                 String originalPrincipal, String tenant,
                                                 AuthenticationDataSource authenticationData,
                                                 long timeout, TimeUnit unit) {
@@ -287,7 +281,7 @@ public abstract class PulsarWebResource {
                 clientAuthData());
     }
 
-    protected static CompletableFuture<Void> validateAdminAccessForTenantAsync(
+    protected CompletableFuture<Void> validateAdminAccessForTenantAsync(
             PulsarService pulsar, String clientAppId,
             String originalPrincipal, String tenant,
             AuthenticationDataSource authenticationData) {
@@ -306,8 +300,7 @@ public abstract class PulsarWebResource {
                         if (!isClientAuthenticated(clientAppId)) {
                             throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
                         }
-                        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId,
-                                originalPrincipal);
+                        validateOriginalPrincipal(clientAppId, originalPrincipal);
                         if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
                             AuthorizationService authorizationService =
                                     pulsar.getBrokerService().getAuthorizationService();

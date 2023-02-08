@@ -210,7 +210,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private int nonPersistentPendingMessages = 0;
     private final int maxNonPersistentPendingMessages;
     private String originalPrincipal = null;
-    private Set<String> proxyRoles;
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
@@ -282,7 +281,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.recentlyClosedProducers = new HashMap<>();
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
-        this.proxyRoles = conf.getProxyRoles();
         this.schemaValidationEnforced = conf.isSchemaValidationEnforced();
         this.maxMessageSize = conf.getMaxMessageSize();
         this.maxPendingSendRequests = conf.getMaxPendingPublishRequestsPerConnection();
@@ -398,34 +396,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
         }
         ctx.close();
-    }
-
-    /**
-     * When transitioning from Connecting to Connected, this class validates that the {@link #authRole} and the
-     * {@link #originalPrincipal} are a valid combination. Valid combinations fulfill the following rule:
-     * <p>
-     * The {@link #authRole} is in {@link #proxyRoles}, if, and only if, the {@link #originalPrincipal} is set to a role
-     * that is not also in {@link #proxyRoles}.
-     * @return true when roles are valid and false when roles are invalid
-     */
-    private boolean isValidRoleAndOriginalPrincipal() {
-        String errorMsg = null;
-        if (proxyRoles.contains(authRole)) {
-            if (StringUtils.isBlank(originalPrincipal)) {
-                errorMsg = "originalPrincipal must be provided when connecting with a proxy role.";
-            } else if (proxyRoles.contains(originalPrincipal)) {
-                errorMsg = "originalPrincipal cannot be a proxy role.";
-            }
-        } else if (StringUtils.isNotBlank(originalPrincipal)) {
-            errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
-        }
-        if (errorMsg != null) {
-            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress, authRole,
-                    originalPrincipal, errorMsg);
-            return false;
-        } else {
-            return true;
-        }
     }
 
     // ////
@@ -696,7 +666,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
         if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
-            if (!isValidRoleAndOriginalPrincipal()) {
+            if (!service.getAuthorizationService()
+                    .validateOriginalPrincipal(authRole, originalPrincipal, remoteAddress)) {
                 state = State.Failed;
                 service.getPulsarStats().recordConnectionCreateFail();
                 final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError, "Invalid roles.");
