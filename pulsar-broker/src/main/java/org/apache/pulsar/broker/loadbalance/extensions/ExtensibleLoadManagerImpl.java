@@ -293,14 +293,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private void updateUnloadMetrics(UnloadDecision decision) {
         unloadCounter.update(decision);
-        this.unloadMetrics.set(unloadCounter.toMetrics());
+        this.unloadMetrics.set(unloadCounter.toMetrics(pulsar.getAdvertisedAddress()));
     }
 
     private void updateSplitMetrics(List<SplitDecision> decisions) {
         for (var decision : decisions) {
             splitCounter.update(decision);
         }
-        this.splitMetrics.set(splitCounter.toMetrics());
+        this.splitMetrics.set(splitCounter.toMetrics(pulsar.getAdvertisedAddress()));
     }
 
     public List<Metrics> getMetrics() {
@@ -316,7 +316,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             metricsCollection.addAll(this.splitMetrics.get());
         }
 
-        metricsCollection.addAll(this.assignCounter.toMetrics());
+        metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
 
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
 

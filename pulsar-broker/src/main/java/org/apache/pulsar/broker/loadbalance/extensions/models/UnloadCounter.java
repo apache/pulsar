@@ -77,13 +77,13 @@ public class UnloadCounter {
         loadStd = decision.loadStd;
     }
 
-    public List<Metrics> toMetrics() {
+    public List<Metrics> toMetrics(String advertisedBrokerAddress) {
 
         var metrics = new ArrayList<Metrics>();
         var dimensions = new HashMap<String, String>();
 
         dimensions.put("metric", "bundleUnloading");
-
+        dimensions.put("broker", advertisedBrokerAddress);
         var m = Metrics.create(dimensions);
         m.put("brk_lb_unload_broker_total", unloadBrokerCount);
         m.put("brk_lb_unload_bundle_total", unloadBundleCount);

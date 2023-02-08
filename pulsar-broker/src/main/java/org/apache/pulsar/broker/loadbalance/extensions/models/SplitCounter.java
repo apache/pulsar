@@ -67,12 +67,12 @@ public class SplitCounter {
         breakdownCounters.get(decision.getLabel()).get(decision.getReason()).increment();
     }
 
-    public List<Metrics> toMetrics() {
+    public List<Metrics> toMetrics(String advertisedBrokerAddress) {
         List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
         dimensions.put("metric", "bundlesSplit");
-
+        dimensions.put("broker", advertisedBrokerAddress);
         Metrics m = Metrics.create(dimensions);
         m.put("brk_lb_bundles_split_total", splitCount);
         metrics.add(m);

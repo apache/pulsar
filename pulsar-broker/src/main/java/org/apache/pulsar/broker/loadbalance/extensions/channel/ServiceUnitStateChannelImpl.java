@@ -873,6 +873,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         var metrics = new ArrayList<Metrics>();
         var dimensions = new HashMap<String, String>();
         dimensions.put("metric", "sunitStateChn");
+        dimensions.put("broker", pulsar.getAdvertisedAddress());
 
         for (var etr : ownerLookUpCounters.entrySet()) {
             var dim = new HashMap<>(dimensions);

@@ -62,10 +62,11 @@ public class AssignCounter {
         breakdownCounters.get(Skip).incrementAndGet();
     }
 
-    public List<Metrics> toMetrics() {
+    public List<Metrics> toMetrics(String advertisedBrokerAddress) {
         var metrics = new ArrayList<Metrics>();
         var dimensions = new HashMap<String, String>();
         dimensions.put("metric", "assign");
+        dimensions.put("broker", advertisedBrokerAddress);
 
         for (var etr : breakdownCounters.entrySet()) {
             var label = etr.getKey();
