@@ -114,10 +114,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             this.sslCtxRefresher = null;
         }
         this.brokerConf = pulsar.getConfiguration();
-
-        pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::refreshAuthenticationCredentials),
-                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(),
-                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(), TimeUnit.SECONDS);
     }
 
     @Override
@@ -150,16 +146,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         ch.pipeline().addLast("handler", cnx);
 
         connections.put(ch.remoteAddress(), cnx);
-    }
-
-    private void refreshAuthenticationCredentials() {
-        connections.asMap().values().forEach(cnx -> {
-            try {
-                cnx.refreshAuthenticationCredentials();
-            } catch (Throwable t) {
-                log.warn("[{}] Failed to refresh auth credentials", cnx.clientAddress());
-            }
-        });
     }
 
     @VisibleForTesting
