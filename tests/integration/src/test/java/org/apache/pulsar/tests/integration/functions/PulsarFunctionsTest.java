@@ -872,6 +872,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
+        log.info("---------- stdout is: {}", result.getStdout());
+        log.info("---------- stderr is: {}", result.getStderr());
         assertTrue(result.getStdout().contains("Created successfully"));
     }
 
@@ -1342,6 +1344,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void testAvroSchemaFunction(Runtime runtime) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
+            // python can only run on process mode
+            return;
+        }
+
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
@@ -1401,7 +1408,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     Schema.AVRO(AvroTestObject.class));
         } else if (runtime == Runtime.PYTHON) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
-            consumerConfig.setSchemaType("string");
+            consumerConfig.setSchemaType("avro");
             Map<String, ConsumerConfig> inputSpecs = new HashMap<>() {{
                 put(inputTopic, consumerConfig);
             }};
