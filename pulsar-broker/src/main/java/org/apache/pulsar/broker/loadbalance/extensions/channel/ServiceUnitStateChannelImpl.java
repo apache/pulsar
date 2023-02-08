@@ -718,16 +718,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             });
         }).exceptionally(ex -> {
             // Retry several times on BadVersion
-            if ((ex.getCause() instanceof MetadataStoreException.BadVersionException)
+            Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+            if ((throwable instanceof MetadataStoreException.BadVersionException)
                     && (counter.incrementAndGet() < NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT)) {
                 pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory,
                                 bundle, serviceUnit, data, counter, startTime, completionFuture), 100, MILLISECONDS);
-            } else if (ex instanceof IllegalArgumentException) {
-                completionFuture.completeExceptionally(ex);
+            } else if (throwable instanceof IllegalArgumentException) {
+                completionFuture.completeExceptionally(throwable);
             } else {
                 // Retry enough, or meet other exception
                 String msg = format("Bundle: %s not success update nsBundles, counter %d, reason %s",
-                        bundle.toString(), counter.get(), ex.getMessage());
+                        bundle.toString(), counter.get(), throwable.getMessage());
                 completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
             }
             return null;
