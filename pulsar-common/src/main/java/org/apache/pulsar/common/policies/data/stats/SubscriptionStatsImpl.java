@@ -169,6 +169,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
+        earliestMsgPublishTimeInBacklog = 0L;
         delayedTrackerMemoryUsage = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
