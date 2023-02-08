@@ -33,8 +33,8 @@ public class TestCmdRead {
     @DataProvider(name = "startMessageIds")
     public Object[][] startMessageIds() {
         return new Object[][] {
-            { "Latest", "latest" },
-            { "Earliest", "earliest" },
+            { "latest", "latest" },
+            { "earliest", "earliest" },
             { "10:0", "CAoQADAA" },
             { "10:1", "CAoQATAA" },
         };
@@ -59,8 +59,8 @@ public class TestCmdRead {
 
     @Test
     public void testPrseMessageId() {
-        assertEquals(CmdRead.parseMessageId("Latest"), MessageId.latest);
-        assertEquals(CmdRead.parseMessageId("Earliest"), MessageId.earliest);
+        assertEquals(CmdRead.parseMessageId("latest"), MessageId.latest);
+        assertEquals(CmdRead.parseMessageId("earliest"), MessageId.earliest);
         assertEquals(CmdRead.parseMessageId("20:-1"), new MessageIdImpl(20, -1, -1));
         assertEquals(CmdRead.parseMessageId("30:0"), new MessageIdImpl(30, 0, -1));
         try {

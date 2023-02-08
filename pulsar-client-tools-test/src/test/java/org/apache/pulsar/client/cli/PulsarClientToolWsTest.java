@@ -160,7 +160,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
             executor.execute(() -> {
                 try {
                     PulsarClientTool pulsarClientToolReader = new PulsarClientTool(properties);
-                    String[] args = {"read", "-m", "Latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r",
+                    String[] args = {"read", "-m", "latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r",
                             "30", topicName};
                     Assert.assertEquals(pulsarClientToolReader.run(args), 0);
                     future.complete(null);

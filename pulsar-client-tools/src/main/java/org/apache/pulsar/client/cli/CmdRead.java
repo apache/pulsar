@@ -61,8 +61,8 @@ public class CmdRead extends AbstractCmdConsume {
     private List<String> mainOptions = new ArrayList<String>();
 
     @Parameter(names = { "-m", "--start-message-id" },
-            description = "Initial reader position, it can be 'Latest', 'Earliest' or '<ledgerId>:<entryId>'")
-    private String startMessageId = "Latest";
+            description = "Initial reader position, it can be 'latest', 'earliest' or '<ledgerId>:<entryId>'")
+    private String startMessageId = "latest";
 
     @Parameter(names = { "-i", "--start-message-id-inclusive" },
             description = "Whether to include the position specified by -m option.")
@@ -220,8 +220,8 @@ public class CmdRead extends AbstractCmdConsume {
         }
 
         String msgIdQueryParam;
-        if ("Latest".equals(startMessageId) || "Earliest".equals(startMessageId)) {
-            msgIdQueryParam = startMessageId.toLowerCase();
+        if ("latest".equals(startMessageId) || "earliest".equals(startMessageId)) {
+            msgIdQueryParam = startMessageId;
         } else {
             MessageId msgId = parseMessageId(startMessageId);
             msgIdQueryParam = Base64.getEncoder().encodeToString(msgId.toByteArray());
@@ -306,16 +306,16 @@ public class CmdRead extends AbstractCmdConsume {
     @VisibleForTesting
     static MessageId parseMessageId(String msgIdStr) {
         MessageId msgId;
-        if ("Latest".equals(msgIdStr)) {
+        if ("latest".equals(msgIdStr)) {
             msgId = MessageId.latest;
-        } else if ("Earliest".equals(msgIdStr)) {
+        } else if ("earliest".equals(msgIdStr)) {
             msgId = MessageId.earliest;
         } else {
             Matcher matcher = MSG_ID_PATTERN.matcher(msgIdStr);
             if (matcher.find()) {
                 msgId = new MessageIdImpl(Long.parseLong(matcher.group(1)), Long.parseLong(matcher.group(2)), -1);
             } else {
-                throw new IllegalArgumentException("Message ID must be 'Latest', 'Earliest' or '<ledgerId>:<entryId>'");
+                throw new IllegalArgumentException("Message ID must be 'latest', 'earliest' or '<ledgerId>:<entryId>'");
             }
         }
         return msgId;
