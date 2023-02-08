@@ -275,6 +275,8 @@ public class FunctionConfigUtils {
             }
             if (producerConf.getCompressionType() != null) {
                 pbldr.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
+            } else {
+                pbldr.setCompressionType(Function.CompressionType.LZ4);
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
