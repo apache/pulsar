@@ -246,6 +246,12 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertTrue(auth.isValidOriginalPrincipal("client", "", null));
         assertTrue(auth.isValidOriginalPrincipal("client", null, null));
 
+        // Only likely in cases when authentication is disabled, but we still define these to be valid.
+        assertTrue(auth.isValidOriginalPrincipal(null, null, null));
+        assertTrue(auth.isValidOriginalPrincipal(null, "", null));
+        assertTrue(auth.isValidOriginalPrincipal("", null, null));
+        assertTrue(auth.isValidOriginalPrincipal("", "", null));
+
         // Proxy role must supply an original principal
         assertFalse(auth.isValidOriginalPrincipal("proxy", "", null));
         assertFalse(auth.isValidOriginalPrincipal("proxy", null, null));
