@@ -213,7 +213,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex offloadMutex = new CallbackMutex();
     private static final CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionImpl.LATEST);
-    private volatile LedgerHandle currentLedger;
+    protected volatile LedgerHandle currentLedger;
     private long currentLedgerEntries = 0;
     protected long currentLedgerSize = 0;
     private long lastLedgerCreatedTimestamp = 0;
