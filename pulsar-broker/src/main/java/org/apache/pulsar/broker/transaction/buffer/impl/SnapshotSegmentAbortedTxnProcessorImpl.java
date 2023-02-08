@@ -270,7 +270,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     }
                     //Read snapshot segment to recover aborts.
                     ArrayList<CompletableFuture<Void>> completableFutures = new ArrayList<>();
-                    CompletableFuture<Void> openManagedLedgerFuture = new CompletableFuture<>();
+                    CompletableFuture<Void> openManagedLedgerAndHandleSegmentsFuture = new CompletableFuture<>();
                     AtomicBoolean hasInvalidIndex = new AtomicBoolean(false);
                     AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback = new AsyncCallbacks
                             .OpenReadOnlyManagedLedgerCallback() {
@@ -320,21 +320,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                             }
                                         }, null);
                             });
-                            openManagedLedgerFuture.complete(null);
+                            openManagedLedgerAndHandleSegmentsFuture.complete(null);
                         }
 
                         @Override
                         public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             log.error("[{}] Failed to open readOnly managed ledger", topic, exception);
-                            openManagedLedgerFuture.completeExceptionally(exception);
+                            openManagedLedgerAndHandleSegmentsFuture.completeExceptionally(exception);
                         }
                     };
 
-                    TopicName snapshotIndexTopicName = TopicName.get(TopicDomain.persistent.toString(),
+                    TopicName snapshotSegmentTopicName = TopicName.get(TopicDomain.persistent.toString(),
                             TopicName.get(topic.getName()).getNamespaceObject(),
                             SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
                     this.topic.getBrokerService().getPulsar().getManagedLedgerFactory()
-                            .asyncOpenReadOnlyManagedLedger(snapshotIndexTopicName
+                            .asyncOpenReadOnlyManagedLedger(snapshotSegmentTopicName
                                             .getPersistenceNamingEncoding(), callback,
                                     topic.getManagedLedger().getConfig(),
                                     null);
@@ -342,7 +342,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                        Wait the processor recover completely and then allow TB
                        to recover the messages after the startReadCursorPosition.
                      */
-                    return openManagedLedgerFuture
+                    return openManagedLedgerAndHandleSegmentsFuture
                             .thenCompose((ignore) -> FutureUtil.waitForAll(completableFutures))
                             .thenCompose((i) -> {
                                 /*
