@@ -145,10 +145,7 @@
                   <include>com.google.errorprone:*</include>
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
-                  <include>com.fasterxml.jackson.core</include>
-                  <include>com.fasterxml.jackson.module</include>
-                  <include>com.fasterxml.jackson.core:jackson-core</include>
-                  <include>com.fasterxml.jackson.dataformat</include>
+                  <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:*</include>
                   <include>io.netty.incubator:*</include>
                   <include>io.perfmark:*</include>
