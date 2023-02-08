@@ -141,9 +141,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
             PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
             // filter non batch messages in pending ack state
-            if (subscription instanceof PersistentSubscription &&
-                    msgMetadata.hasNumMessagesInBatch() &&
-                    ((PersistentSubscription) subscription).checkPositionInPendingAckState(position)) {
+            if (subscription instanceof PersistentSubscription
+                    && msgMetadata.hasNumMessagesInBatch()
+                    && ((PersistentSubscription) subscription).checkPositionInPendingAckState(position)) {
                 entries.set(i, null);
                 entry.release();
                 continue;
