@@ -25,8 +25,8 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.List;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
