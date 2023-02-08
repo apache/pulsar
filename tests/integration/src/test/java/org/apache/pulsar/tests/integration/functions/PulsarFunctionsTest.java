@@ -566,8 +566,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             case PYTHON:
                 ConsumerConfig consumerConfig = new ConsumerConfig();
                 consumerConfig.setSchemaType("string");
-                Map<String, ConsumerConfig> inputSpecs = new HashMap<>() {{
-                    put(inputTopicName, consumerConfig);
+                Map<String, String> inputSpecs = new HashMap<>() {{
+                    put(inputTopicName, objectMapper.writeValueAsString(consumerConfig));
                 }};
                 submitFunction(
                         runtime,
@@ -1409,8 +1409,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else if (runtime == Runtime.PYTHON) {
             ConsumerConfig consumerConfig = new ConsumerConfig();
             consumerConfig.setSchemaType("avro");
-            Map<String, ConsumerConfig> inputSpecs = new HashMap<>() {{
-                put(inputTopic, consumerConfig);
+            Map<String, String> inputSpecs = new HashMap<>() {{
+                put(inputTopic, objectMapper.writeValueAsString(consumerConfig));
             }};
             submitFunction(
                     Runtime.PYTHON,
