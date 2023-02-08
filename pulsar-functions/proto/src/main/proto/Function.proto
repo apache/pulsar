@@ -42,11 +42,12 @@ enum SubscriptionPosition {
 }
 
 enum CompressionType {
-    NONE = 0;
-    LZ4 = 1;
-    ZLIB = 2;
-    ZSTD = 3;
-    SNAPPY = 4;
+    NOTSET = 0;
+    NONE = 1;
+    LZ4 = 2;
+    ZLIB = 3;
+    ZSTD = 4;
+    SNAPPY = 5;
 }
 
 message Resources {

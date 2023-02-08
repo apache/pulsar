@@ -354,13 +354,13 @@ class PythonInstance(object):
 
       compression_type = pulsar.CompressionType.LZ4
       if self.instance_config.function_details.sink.producerSpec.compressionType is not None:
-        if self.instance_config.function_details.source.compressionType == Function_pb2.CompressionType.Value("NONE"):
+        if self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("NONE"):
           compression_type = pulsar.CompressionType.NONE
-        elif self.instance_config.function_details.source.compressionType == Function_pb2.CompressionType.Value("ZLIB"):
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("ZLIB"):
           compression_type = pulsar.CompressionType.ZLib
-        elif self.instance_config.function_details.source.compressionType == Function_pb2.CompressionType.Value("ZSTD"):
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("ZSTD"):
           compression_type = pulsar.CompressionType.ZSTD
-        elif self.instance_config.function_details.source.compressionType == Function_pb2.CompressionType.Value("SNAPPY"):
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("SNAPPY"):
           compression_type = pulsar.CompressionType.SNAPPY
 
       self.producer = self.pulsar_client.create_producer(
