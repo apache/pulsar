@@ -1420,7 +1420,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     AVRO_SCHEMA_FUNCTION_PYTHON_FILE,
                     AVRO_SCHEMA_PYTHON_CLASS,
                     Schema.AVRO(AvroTestObject.class),
-                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null, "AvroTestObject", "AvroTestObject");
+                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null, "avro_schema_test_function.AvroTestObject", "avro_schema_test_function.AvroTestObject");
         }
         log.info("pulsar submitFunction");
 
