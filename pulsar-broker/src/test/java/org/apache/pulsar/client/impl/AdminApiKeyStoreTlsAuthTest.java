@@ -83,8 +83,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         conf.setTlsKeyStorePassword(BROKER_KEYSTORE_PW);
 
         conf.setTlsTrustStoreType(KEYSTORE_TYPE);
-        conf.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
-        conf.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
+        conf.setTlsTrustStore(PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH);
+        conf.setTlsTrustStorePassword(PROXY_AND_CLIENT_TRUSTSTORE_PW);
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
@@ -94,6 +94,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         // config for authentication and authorization.
         conf.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
+        conf.setProxyRoles(Sets.newHashSet("proxy"));
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         Set<String> providers = new HashSet<>();
@@ -139,8 +140,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
                 KEYSTORE_TYPE,
-                CLIENT_KEYSTORE_FILE_PATH,
-                CLIENT_KEYSTORE_PW,
+                PROXY_KEYSTORE_FILE_PATH,
+                PROXY_KEYSTORE_PW,
                 KEYSTORE_TYPE,
                 BROKER_TRUSTSTORE_FILE_PATH,
                 BROKER_TRUSTSTORE_PW);
@@ -178,11 +179,11 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testSuperUserCantListNamespaces() throws Exception {
+    public void testSuperUserCanListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(Set.of("proxy"),
+                                         new TenantInfoImpl(Set.of(""),
                                                         Set.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
             Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
