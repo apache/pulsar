@@ -58,7 +58,7 @@ public class TestCmdRead {
     }
 
     @Test
-    public void testPrseMessageId() {
+    public void testParseMessageId() {
         assertEquals(CmdRead.parseMessageId("latest"), MessageId.latest);
         assertEquals(CmdRead.parseMessageId("earliest"), MessageId.earliest);
         assertEquals(CmdRead.parseMessageId("20:-1"), new MessageIdImpl(20, -1, -1));
