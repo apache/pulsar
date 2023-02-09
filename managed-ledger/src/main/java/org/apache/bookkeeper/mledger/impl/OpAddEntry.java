@@ -326,6 +326,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         // be marked as failed.
         ManagedLedgerImpl finalMl = this.ml;
         finalMl.mbean.recordAddEntryError();
+        finalMl.pendingAddEntries.remove(this);
 
         finalMl.getExecutor().execute(SafeRun.safeRun(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock

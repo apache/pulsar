@@ -4034,7 +4034,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.error("Failed to add entry for ledger {} in time-out {} sec",
                         (opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1), timeoutSec);
                 opAddEntry.handleAddTimeoutFailure(opAddEntry.ledger, finalAddOpCount);
-                pendingAddEntries.remove(opAddEntry);
             }
         }
     }
