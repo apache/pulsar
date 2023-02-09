@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -45,6 +46,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
+import org.apache.pulsar.broker.loadbalance.extensions.reporter.TopBundleLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
@@ -90,6 +93,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
+
+    /**
+     * The load data reporter.
+     */
+    private BrokerLoadDataReporter brokerLoadDataReporter;
+
+    private TopBundleLoadDataReporter topBundleLoadDataReporter;
 
     private boolean started = false;
 
@@ -147,7 +157,23 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 .brokerRegistry(brokerRegistry)
                 .brokerLoadDataStore(brokerLoadDataStore)
                 .topBundleLoadDataStore(topBundlesLoadDataStore).build();
-        // TODO: Start load data reporter.
+
+
+        this.brokerLoadDataReporter =
+                new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
+
+        this.topBundleLoadDataReporter =
+                new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
+
+        var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
+        this.pulsar.getLoadManagerExecutor()
+                .scheduleAtFixedRate(() -> brokerLoadDataReporter.reportAsync(false),
+                        interval,
+                        interval, TimeUnit.MILLISECONDS);
+        this.pulsar.getLoadManagerExecutor()
+                .scheduleAtFixedRate(() -> topBundleLoadDataReporter.reportAsync(false),
+                        interval,
+                        interval, TimeUnit.MILLISECONDS);
 
         // TODO: Start unload scheduler and bundle split scheduler
         this.started = true;

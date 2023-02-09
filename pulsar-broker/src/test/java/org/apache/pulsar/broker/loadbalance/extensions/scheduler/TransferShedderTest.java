@@ -37,7 +37,6 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -52,6 +51,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
@@ -82,11 +82,11 @@ public class TransferShedderTest {
         brokerLoadDataStore.pushAsync("broker5", getCpuLoad(ctx,  90));
 
         var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
-        topBundlesLoadDataStore.pushAsync("broker1", getTopBundlesLoad("bundleA", 1, 1));
-        topBundlesLoadDataStore.pushAsync("broker2", getTopBundlesLoad("bundleB", 3, 1));
-        topBundlesLoadDataStore.pushAsync("broker3", getTopBundlesLoad("bundleC", 4, 2));
-        topBundlesLoadDataStore.pushAsync("broker4", getTopBundlesLoad("bundleD", 20, 60));
-        topBundlesLoadDataStore.pushAsync("broker5", getTopBundlesLoad("bundleE", 70, 20));
+        topBundlesLoadDataStore.pushAsync("broker1", getTopBundlesLoad("bundleA", 2000000, 1000000));
+        topBundlesLoadDataStore.pushAsync("broker2", getTopBundlesLoad("bundleB", 3000000, 1000000));
+        topBundlesLoadDataStore.pushAsync("broker3", getTopBundlesLoad("bundleC", 4000000, 2000000));
+        topBundlesLoadDataStore.pushAsync("broker4", getTopBundlesLoad("bundleD", 6000000, 2000000));
+        topBundlesLoadDataStore.pushAsync("broker5", getTopBundlesLoad("bundleE", 7000000, 2000000));
         return ctx;
     }
 
@@ -121,7 +121,7 @@ public class TransferShedderTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        loadData.update(usage1, 1,2,3,4,
+        loadData.update(usage1, 1,2,3,4,5,
                 ctx.brokerConfiguration());
         return loadData;
     }
@@ -131,18 +131,18 @@ public class TransferShedderTest {
         namespaceBundleStats1.msgThroughputOut = load1;
         var namespaceBundleStats2 = new NamespaceBundleStats();
         namespaceBundleStats2.msgThroughputOut = load2;
-        var topLoadData = TopBundlesLoadData.of(List.of(
-                new TopBundlesLoadData.BundleLoadData(bundlePrefix + "-1", namespaceBundleStats1),
-                new TopBundlesLoadData.BundleLoadData(bundlePrefix + "-2", namespaceBundleStats2)),  2);
-        return topLoadData;
+        var topKBundles = new TopKBundles();
+        topKBundles.update(Map.of(bundlePrefix + "-1", namespaceBundleStats1,
+                bundlePrefix + "-2", namespaceBundleStats2), 2);
+        return topKBundles.getLoadData();
     }
 
     public TopBundlesLoadData getTopBundlesLoad(String bundlePrefix, int load1) {
         var namespaceBundleStats1 = new NamespaceBundleStats();
         namespaceBundleStats1.msgThroughputOut = load1;
-        var topLoadData = TopBundlesLoadData.of(List.of(
-                new TopBundlesLoadData.BundleLoadData(bundlePrefix + "-1", namespaceBundleStats1)), 2);
-        return topLoadData;
+        var topKBundles = new TopKBundles();
+        topKBundles.update(Map.of(bundlePrefix + "-1", namespaceBundleStats1), 2);
+        return topKBundles.getLoadData();
     }
 
     public LoadManagerContext getContext(){
@@ -311,7 +311,7 @@ public class TransferShedderTest {
         unloads.put("broker5",
                 new Unload("broker5", "bundleE-1", Optional.of("broker1")));
         unloads.put("broker4",
-                new Unload("broker4", "bundleD-2", Optional.of("broker2")));
+                new Unload("broker4", "bundleD-1", Optional.of("broker2")));
 
         expected.setLabel(Success);
         expected.setReason(Overloaded);
@@ -494,7 +494,7 @@ public class TransferShedderTest {
         unloads.put("broker5",
                 new Unload("broker5", "bundleE-1", Optional.of("broker1")));
         unloads.put("broker4",
-                new Unload("broker4", "bundleD-2", Optional.of("broker2")));
+                new Unload("broker4", "bundleD-1", Optional.of("broker2")));
         expected.setLabel(Success);
         expected.setReason(Underloaded);
         expected.setLoadAvg(0.26400000000000007);
@@ -515,7 +515,7 @@ public class TransferShedderTest {
         unloads.put("broker5",
                 new Unload("broker5", "bundleE-1", Optional.of("broker1")));
         unloads.put("broker4",
-                new Unload("broker4", "bundleD-2", Optional.of("broker2")));
+                new Unload("broker4", "bundleD-1", Optional.of("broker2")));
         expected.setLabel(Success);
         expected.setReason(Overloaded);
         expected.setLoadAvg(setupLoadAvg);
@@ -528,7 +528,7 @@ public class TransferShedderTest {
         TransferShedder transferShedder = new TransferShedder();
         var ctx = setupContext();
         var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
-        topBundlesLoadDataStore.pushAsync("broker5", getTopBundlesLoad("bundleE", 20, 20));
+        topBundlesLoadDataStore.pushAsync("broker5", getTopBundlesLoad("bundleE", 3000000, 2000000));
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
 
         var expected = new UnloadDecision();
@@ -536,7 +536,7 @@ public class TransferShedderTest {
         unloads.put("broker5",
                 new Unload("broker5", "bundleE-1", Optional.of("broker1")));
         unloads.put("broker4",
-                new Unload("broker4", "bundleD-2", Optional.of("broker2")));
+                new Unload("broker4", "bundleD-1", Optional.of("broker2")));
         expected.setLabel(Success);
         expected.setReason(Overloaded);
         expected.setLoadAvg(setupLoadAvg);

@@ -335,7 +335,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 var topBundlesLoadData = bundlesLoadData.get().getTopBundlesLoadData();
                 if (topBundlesLoadData.size() > 1) {
-                    MutableInt remainingTopBundles = new MutableInt();
+                    MutableInt remainingTopBundles = new MutableInt(topBundlesLoadData.size());
                     topBundlesLoadData.stream()
                             .filter(e ->
                                     !recentlyUnloadedBundles.containsKey(e.bundleName()) && isTransferable(
@@ -344,11 +344,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                 String bundle = e.bundleName();
                                 var bundleData = e.stats();
                                 double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
-                                remainingTopBundles.increment();
                                 return Pair.of(bundle, throughput);
-                            }).sorted((e1, e2) ->
-                                    Double.compare(e2.getRight(), e1.getRight())
-                            ).forEach(e -> {
+                            }).forEach(e -> {
                                 if (remainingTopBundles.getValue() > 1
                                         && (trafficMarkedToOffload.doubleValue() < offloadThroughput
                                         || atLeastOneBundleSelected.isFalse())) {

@@ -16,32 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions.data;
+package org.apache.pulsar.broker.stats;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
-import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+public class BrokerStats extends NamespaceStats {
 
-/**
- * Defines the information of top bundles load data.
- */
-@Getter
-@ToString
-@EqualsAndHashCode
-@NoArgsConstructor
-public class TopBundlesLoadData {
-
-    private final List<BundleLoadData> topBundlesLoadData = new ArrayList<>();
-
-    public record BundleLoadData(String bundleName, NamespaceBundleStats stats) {
-        public BundleLoadData {
-            Objects.requireNonNull(bundleName);
-        }
+    public int bundleCount;
+    public BrokerStats(int ratePeriodInSeconds) {
+        super(ratePeriodInSeconds);
     }
 
+    @Override
+    public void reset() {
+        super.reset();
+        bundleCount = 0;
+    }
 }
