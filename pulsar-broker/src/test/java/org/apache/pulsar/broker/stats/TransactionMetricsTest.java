@@ -73,6 +73,15 @@ public class TransactionMetricsTest extends BrokerTestBase {
         super.baseSetup(serviceConfiguration);
     }
 
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
+    }
+
     protected void afterSetup() throws Exception {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 TenantInfo.builder()
@@ -102,11 +111,11 @@ public class TransactionMetricsTest extends BrokerTestBase {
         Awaitility.await().until(() ->
                 pulsar.getTransactionMetadataStoreService().getStores().size() == 2);
         pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(timeout).get();
+                .get(transactionCoordinatorIDOne).newTransaction(timeout, null).get();
         pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
+                .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
         pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDTwo).newTransaction(timeout).get();
+                .get(transactionCoordinatorIDTwo).newTransaction(timeout, null).get();
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -193,7 +202,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         metric.forEach(item -> assertEquals(item.value, txnCount / 2));
 
         TxnID txnID = pulsar.getTransactionMetadataStoreService().getStores()
-                .get(transactionCoordinatorIDOne).newTransaction(1000).get();
+                .get(transactionCoordinatorIDOne).newTransaction(1000, null).get();
 
         Awaitility.await().atMost(2000, TimeUnit.MILLISECONDS).until(() -> {
             try {

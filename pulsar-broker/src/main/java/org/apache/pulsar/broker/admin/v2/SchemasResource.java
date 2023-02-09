@@ -169,7 +169,7 @@ public class SchemasResource extends SchemasResourceBase {
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
-    @ApiOperation(value = "Delete the schema of a topic", response = DeleteSchemaResponse.class)
+    @ApiOperation(value = "Delete all versions schema of a topic", response = DeleteSchemaResponse.class)
     @ApiResponses(value = {
         @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
         @ApiResponse(code = 401, message = "Client is not authorized or Don't have admin permission"),

@@ -73,6 +73,8 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -168,6 +170,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         setupConfigAndStart(null);
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        pulsarTestContextBuilder.spyConfigCustomizer(
+                // verify(compactor) is used in this test class
+                builder -> builder.compactor(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
     }
 
     private void applyDefaultConfig() {
@@ -1234,14 +1243,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), -1);
 
         // publish several messages
         publishMessagesOnPersistentTopic(topic, 10);
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, true, true);
         assertTrue(topicStats.getEarliestMsgPublishTimeInBacklogs() > 0);
         assertTrue(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog() > 0);
+        assertTrue(topicStats.getSubscriptions().get(subName).getBacklogSize() > 0);
 
         for (int i = 0; i < 10; i++) {
             Message<byte[]> message = consumer.receive();
@@ -1249,9 +1260,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         }
         Thread.sleep(1000);
 
-        topicStats = admin.topics().getStats(topic, false, false, true);
+        topicStats = admin.topics().getStats(topic, false, true, true);
         assertEquals(topicStats.getEarliestMsgPublishTimeInBacklogs(), 0);
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 0);
     }
 
 

@@ -281,7 +281,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
             }
             withEnv("OPTS", "-javaagent:/jacocoDir/" + jacocoAgentJar.getName()
                     + "=destfile=/jacocoDir/jacoco_" + getContainerName() + "_" + System.currentTimeMillis() + ".exec"
-                    + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*");
+                    + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*"
+                    + ",excludes=*.proto.*:*.shade.*:*.shaded.*");
         } else {
             log.error("Cannot find jacoco agent jar from '" + jacocoAgentJar.getAbsolutePath() + "'");
         }

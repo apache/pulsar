@@ -215,6 +215,7 @@ public abstract class TransactionsBase extends AdminResource {
         transactionMetadata.status = txnMeta.status().name();
         transactionMetadata.openTimestamp = txnMeta.getOpenTimestamp();
         transactionMetadata.timeoutAt = txnMeta.getTimeoutAt();
+        transactionMetadata.owner = txnMeta.getOwner();
 
         List<CompletableFuture<TransactionInPendingAckStats>> ackedPartitionsFutures = new ArrayList<>();
         Map<String, Map<String, CompletableFuture<TransactionInPendingAckStats>>> ackFutures = new HashMap<>();

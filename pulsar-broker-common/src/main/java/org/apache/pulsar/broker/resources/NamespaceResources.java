@@ -50,7 +50,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     private final PartitionedTopicResources partitionedTopicResources;
     private final MetadataStore configurationStore;
 
-    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
+    public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
     private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 

@@ -47,7 +47,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -315,9 +314,7 @@ public class FunctionCommon {
     }
 
     public static final long getSequenceId(MessageId messageId) {
-        MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
-                ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
-                : messageId);
+        MessageIdImpl msgId = MessageIdImpl.convertToMessageIdImpl(messageId);
         long ledgerId = msgId.getLedgerId();
         long entryId = msgId.getEntryId();
 

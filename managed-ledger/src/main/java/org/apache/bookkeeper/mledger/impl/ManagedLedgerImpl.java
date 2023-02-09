@@ -993,12 +993,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
-                // Update the ack position (ignoring entries that were written while the cursor was being created)
-                cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
-                        ? getFirstPositionAndCounter()
-                        : getLastPositionAndCounter());
-
                 synchronized (ManagedLedgerImpl.this) {
+                    // Update the ack position (ignoring entries that were written while the cursor was being created)
+                    cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
+                            ? getFirstPositionAndCounter()
+                            : getLastPositionAndCounter());
                     addCursor(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
                 }
@@ -1555,16 +1554,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
-                    ledgers.put(lh.getId(), newLedger);
-                    currentLedger = lh;
-                    currentLedgerEntries = 0;
-                    currentLedgerSize = 0;
-                    metadataMutex.unlock();
-                    updateLedgersIdsComplete();
                     synchronized (ManagedLedgerImpl.this) {
+                        ledgers.put(lh.getId(), newLedger);
+                        currentLedger = lh;
+                        currentLedgerEntries = 0;
+                        currentLedgerSize = 0;
+                        updateLedgersIdsComplete();
                         mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
                                 - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
                     }
+                    metadataMutex.unlock();
 
                     // May need to update the cursor position
                     maybeUpdateCursorBeforeTrimmingConsumedLedger();
@@ -3663,7 +3662,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public void activateCursor(ManagedCursor cursor) {
         synchronized (activeCursors) {
-            if (!cursor.isActive()) {
+            if (!isCursorActive(cursor)) {
                 Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
                         ? cursor.getMarkDeletedPosition()
                         : cursor.getReadPosition();

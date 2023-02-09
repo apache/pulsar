@@ -331,6 +331,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     private static final class TokenAuthenticationState implements AuthenticationState {
         private final AuthenticationProviderToken provider;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
         private long expiration;
@@ -341,28 +343,28 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
             this.provider = provider;
-            String token = new String(authData.getBytes(), UTF_8);
-            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
-            this.checkExpiration(token);
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
         }
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
-            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
-            }
 
-            // Remove prefix
-            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            // Set this for backwards compatibility with AuthenticationProvider#newHttpAuthState
             this.authenticationDataSource = new AuthenticationDataHttps(request);
-            this.checkExpiration(token);
+
+            // These are not used when this constructor is invoked, set them to null.
+            this.sslSession = null;
+            this.remoteAddress = null;
         }
 
         @Override
         public String getAuthRole() throws AuthenticationException {
+            if (jwt == null) {
+                throw new AuthenticationException("Must authenticate before calling getAuthRole");
+            }
             return provider.getPrincipal(jwt);
         }
 
@@ -375,6 +377,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
             String token = new String(authData.getBytes(), UTF_8);
             checkExpiration(token);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             return null;
         }
 
@@ -395,8 +398,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public boolean isComplete() {
-            // The authentication of tokens is always done in one single stage
-            return true;
+            // The authentication of tokens is always done in one single stage, so once jwt is set, it is "complete"
+            return jwt != null;
         }
 
         @Override

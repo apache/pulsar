@@ -89,8 +89,9 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
     }
 
     @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+
         // enable transaction.
         conf.setSystemTopicEnabled(true);
         conf.setTransactionCoordinatorEnabled(true);
@@ -99,11 +100,17 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
         conf.setTransactionPendingAckBatchedWriteMaxRecords(10);
         conf.setTransactionLogBatchedWriteEnabled(true);
         conf.setTransactionLogBatchedWriteMaxRecords(10);
+
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
+
     @Override
-    protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
+    protected void startBroker() throws Exception {
+        super.startBroker();
         ensureClusterExists(pulsar, clusterName);
         ensureTenantExists(pulsar.getPulsarResources().getTenantResources(), TopicName.PUBLIC_TENANT, clusterName);
         ensureNamespaceExists(pulsar.getPulsarResources().getNamespaceResources(), DEFAULT_NAMESPACE,
@@ -112,7 +119,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 clusterName);
         ensureTopicExists(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(),
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, 16);
-        return pulsar;
     }
 
     @Test
