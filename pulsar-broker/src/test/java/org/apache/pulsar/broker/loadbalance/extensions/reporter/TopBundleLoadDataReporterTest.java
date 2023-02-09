@@ -27,6 +27,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -58,6 +59,7 @@ public class TopBundleLoadDataReporterTest {
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
+        doReturn(CompletableFuture.completedFuture(null)).when(store).pushAsync(any(), any());
 
         bundleStats = new HashMap<>();
         NamespaceBundleStats stats1 = new NamespaceBundleStats();

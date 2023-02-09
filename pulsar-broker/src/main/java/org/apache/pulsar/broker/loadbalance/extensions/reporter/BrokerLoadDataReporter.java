@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -48,6 +49,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData> 
 
     private final String lookupServiceAddress;
 
+    @Getter
     private final BrokerLoadData localData;
 
     private final BrokerLoadData lastData;
@@ -89,31 +91,25 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData> 
 
     @Override
     public CompletableFuture<Void> reportAsync(boolean force) {
-        try {
-            BrokerLoadData newLoadData = this.generateLoadData();
-            if (needBrokerDataUpdate() || force) {
-                log.info("publishing load report:{}", localData.toString(conf));
-                CompletableFuture<Void> future =
-                        this.brokerLoadDataStore.pushAsync(this.lookupServiceAddress, newLoadData);
-                future.whenComplete((__, ex) -> {
-                    if (ex == null) {
-                        localData.setReportedAt(System.currentTimeMillis());
-                        lastData.update(localData);
-                    } else {
-                        log.error("Failed to report the broker load data.", ex);
-                    }
-                    return;
-                });
-                return future;
-            } else {
-                log.info("skipping load report:{}", localData.toString(conf));
-            }
-            return CompletableFuture.completedFuture(null);
-        } catch (Throwable e) {
-            log.error("Failed to report the broker load data.", e);
-            return CompletableFuture.failedFuture(e);
+        BrokerLoadData newLoadData = this.generateLoadData();
+        if (needBrokerDataUpdate() || force) {
+            log.info("publishing load report:{}", localData.toString(conf));
+            CompletableFuture<Void> future =
+                    this.brokerLoadDataStore.pushAsync(this.lookupServiceAddress, newLoadData);
+            future.whenComplete((__, ex) -> {
+                if (ex == null) {
+                    localData.setReportedAt(System.currentTimeMillis());
+                    lastData.update(localData);
+                } else {
+                    log.error("Failed to report the broker load data.", ex);
+                }
+                return;
+            });
+            return future;
+        } else {
+            log.info("skipping load report:{}", localData.toString(conf));
         }
-
+        return CompletableFuture.completedFuture(null);
     }
 
     private boolean needBrokerDataUpdate() {

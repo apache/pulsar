@@ -167,11 +167,24 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
         this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> brokerLoadDataReporter.reportAsync(false),
+                .scheduleAtFixedRate(() -> {
+                            try {
+                                brokerLoadDataReporter.reportAsync(false);
+                                // TODO: update broker load metrics using getLocalData
+                            } catch (Throwable e) {
+                                log.error("Failed to run the broker load manager executor job.", e);
+                            }
+                        },
                         interval,
                         interval, TimeUnit.MILLISECONDS);
         this.pulsar.getLoadManagerExecutor()
-                .scheduleAtFixedRate(() -> topBundleLoadDataReporter.reportAsync(false),
+                .scheduleAtFixedRate(() -> {
+                            try {
+                                topBundleLoadDataReporter.reportAsync(false);
+                            } catch (Throwable e) {
+                                log.error("Failed to run the top bundles load manager executor job.", e);
+                            }
+                        },
                         interval,
                         interval, TimeUnit.MILLISECONDS);
 

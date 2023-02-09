@@ -31,7 +31,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
- * Defines the information of top bundles load data.
+ * Defines the information of top k highest-loaded bundles.
  */
 @Getter
 @ToString
@@ -45,7 +45,7 @@ public class TopKBundles {
     private final TopBundlesLoadData loadData = new TopBundlesLoadData();
 
     /**
-     * Return TopBundlesLoadData with the given bundleStats.
+     * Update the topK bundles from the input bundleStats.
      *
      * @param bundleStats bundle stats.
      * @param topk        top k bundle stats to select.
@@ -58,7 +58,7 @@ public class TopKBundles {
             }
             arr.add(etr);
         }
-        List<TopBundlesLoadData.BundleLoadData> topKBundlesLoadData = loadData.getTopBundlesLoadData();
+        var topKBundlesLoadData = loadData.getTopBundlesLoadData();
         topKBundlesLoadData.clear();
         if (arr.isEmpty()) {
             return;
@@ -71,6 +71,7 @@ public class TopKBundles {
             topKBundlesLoadData.add(
                     new TopBundlesLoadData.BundleLoadData(etr.getKey(), (NamespaceBundleStats) etr.getValue()));
         }
+        arr.clear();
     }
 
     static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {

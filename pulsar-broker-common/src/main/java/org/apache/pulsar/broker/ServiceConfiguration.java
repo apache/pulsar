@@ -2523,7 +2523,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The bigger value will increase the overhead of reporting many bundles in load data. "
                     + "(only used in load balancer extension logics)"
     )
-    private int loadBalancerBundleLoadReportPercentage = 10;
+    private double loadBalancerBundleLoadReportPercentage = 10;
 
     /**** --- Replication. --- ****/
     @FieldContext(

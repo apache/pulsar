@@ -25,6 +25,9 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 
+/**
+ * The top k highest-loaded bundles' load data reporter.
+ */
 @Slf4j
 public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoadData> {
 
@@ -69,20 +72,15 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
 
     @Override
     public CompletableFuture<Void> reportAsync(boolean force) {
-        try {
-            var topBundlesLoadData = generateLoadData();
-            if (topBundlesLoadData != null || force) {
-                return this.bundleLoadDataStore.pushAsync(lookupServiceAddress, topKBundles.getLoadData())
-                        .exceptionally(e -> {
-                            log.error("Failed to report top-bundles load data.", e);
-                            return null;
-                        });
-            } else {
-                return CompletableFuture.completedFuture(null);
-            }
-        } catch (Throwable e) {
-            log.error("Failed to report top-bundles load data.", e);
-            return CompletableFuture.failedFuture(e);
+        var topBundlesLoadData = generateLoadData();
+        if (topBundlesLoadData != null || force) {
+            return this.bundleLoadDataStore.pushAsync(lookupServiceAddress, topKBundles.getLoadData())
+                    .exceptionally(e -> {
+                        log.error("Failed to report top-bundles load data.", e);
+                        return null;
+                    });
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 }

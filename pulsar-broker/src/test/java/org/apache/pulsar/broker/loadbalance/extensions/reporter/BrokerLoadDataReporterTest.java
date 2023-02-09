@@ -40,7 +40,6 @@ import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -54,17 +53,6 @@ public class BrokerLoadDataReporterTest {
     BrokerStats brokerStats;
     SystemResourceUsage usage;
 
-    @BeforeClass
-    void classSetup() {
-        MockedStatic<LoadManagerShared> mockLoadManagerShared = Mockito.mockStatic(LoadManagerShared.class);
-        usage = new SystemResourceUsage();
-        usage.setCpu(new ResourceUsage(1.0, 100.0));
-        usage.setMemory(new ResourceUsage(800.0, 200.0));
-        usage.setDirectMemory(new ResourceUsage(2.0, 100.0));
-        usage.setBandwidthIn(new ResourceUsage(3.0, 100.0));
-        usage.setBandwidthOut(new ResourceUsage(4.0, 100.0));
-        mockLoadManagerShared.when(() -> LoadManagerShared.getSystemResourceUsage(any())).thenReturn(usage);
-    }
     @BeforeMethod
     void setup() {
         config = new ServiceConfiguration();
@@ -85,41 +73,54 @@ public class BrokerLoadDataReporterTest {
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
         doReturn(brokerStats).when(pulsarStats).getBrokerStats();
         doReturn(CompletableFuture.completedFuture(null)).when(store).pushAsync(any(), any());
+
+        usage = new SystemResourceUsage();
+        usage.setCpu(new ResourceUsage(1.0, 100.0));
+        usage.setMemory(new ResourceUsage(800.0, 200.0));
+        usage.setDirectMemory(new ResourceUsage(2.0, 100.0));
+        usage.setBandwidthIn(new ResourceUsage(3.0, 100.0));
+        usage.setBandwidthOut(new ResourceUsage(4.0, 100.0));
     }
 
     public void testGenerate() throws IllegalAccessException {
-        doReturn(0l).when(pulsarStats).getUpdatedAt();
-        var target = new BrokerLoadDataReporter(pulsar, "", store);
-        var expected = new BrokerLoadData();
-        expected.update(usage, 1, 2, 3, 4, 5, config);
-        FieldUtils.writeDeclaredField(expected, "updatedAt", 0l, true);
-        var actual = target.generateLoadData();
-        FieldUtils.writeDeclaredField(actual, "updatedAt", 0l, true);
-        assertEquals(actual, expected);
+        try (MockedStatic<LoadManagerShared> mockLoadManagerShared = Mockito.mockStatic(LoadManagerShared.class)) {
+            mockLoadManagerShared.when(() -> LoadManagerShared.getSystemResourceUsage(any())).thenReturn(usage);
+            doReturn(0l).when(pulsarStats).getUpdatedAt();
+            var target = new BrokerLoadDataReporter(pulsar, "", store);
+            var expected = new BrokerLoadData();
+            expected.update(usage, 1, 2, 3, 4, 5, config);
+            FieldUtils.writeDeclaredField(expected, "updatedAt", 0l, true);
+            var actual = target.generateLoadData();
+            FieldUtils.writeDeclaredField(actual, "updatedAt", 0l, true);
+            assertEquals(actual, expected);
+        }
     }
 
     public void testReport() throws IllegalAccessException {
-        var target = new BrokerLoadDataReporter(pulsar, "broker-1", store);
-        var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
-        localData.setReportedAt(System.currentTimeMillis());
-        var lastData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "lastData", true);
-        lastData.update(usage, 1, 2, 3, 4, 5, config);
-        target.reportAsync(false);
-        verify(store, times(0)).pushAsync(any(), any());
+        try (MockedStatic<LoadManagerShared> mockLoadManagerShared = Mockito.mockStatic(LoadManagerShared.class)) {
+            mockLoadManagerShared.when(() -> LoadManagerShared.getSystemResourceUsage(any())).thenReturn(usage);
+            var target = new BrokerLoadDataReporter(pulsar, "broker-1", store);
+            var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
+            localData.setReportedAt(System.currentTimeMillis());
+            var lastData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "lastData", true);
+            lastData.update(usage, 1, 2, 3, 4, 5, config);
+            target.reportAsync(false);
+            verify(store, times(0)).pushAsync(any(), any());
 
-        target.reportAsync(true);
-        verify(store, times(1)).pushAsync(eq("broker-1"), any());
+            target.reportAsync(true);
+            verify(store, times(1)).pushAsync(eq("broker-1"), any());
 
-        target.reportAsync(false);
-        verify(store, times(1)).pushAsync(eq("broker-1"), any());
+            target.reportAsync(false);
+            verify(store, times(1)).pushAsync(eq("broker-1"), any());
 
-        localData.setReportedAt(0l);
-        target.reportAsync(false);
-        verify(store, times(2)).pushAsync(eq("broker-1"), any());
+            localData.setReportedAt(0l);
+            target.reportAsync(false);
+            verify(store, times(2)).pushAsync(eq("broker-1"), any());
 
-        lastData.update(usage, 10000, 2, 3, 4, 5, config);
-        target.reportAsync(false);
-        verify(store, times(3)).pushAsync(eq("broker-1"), any());
+            lastData.update(usage, 10000, 2, 3, 4, 5, config);
+            target.reportAsync(false);
+            verify(store, times(3)).pushAsync(eq("broker-1"), any());
+        }
     }
 
 }
