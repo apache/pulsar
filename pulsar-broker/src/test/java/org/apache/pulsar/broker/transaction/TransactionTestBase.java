@@ -49,7 +49,10 @@ import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -96,7 +99,9 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         if (admin != null) {
             admin.close();
         }
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()).build());
+        admin = spy(
+                createNewPulsarAdmin(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()))
+        );
 
         if (pulsarClient != null) {
             pulsarClient.shutdown();
@@ -114,6 +119,15 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         mockBookKeeper = createMockBookKeeper(bkExecutor);
         startBroker();
     }
+
+    protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
+        return clientBuilder.build();
+    }
+
+    protected PulsarAdmin createNewPulsarAdmin(PulsarAdminBuilder builder) throws PulsarClientException {
+        return builder.build();
+    }
+
     protected void setUpBase(int numBroker,int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
         setBrokerCount(numBroker);
         internalSetup();
@@ -140,11 +154,10 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         if (pulsarClient != null) {
             pulsarClient.shutdown();
         }
-        pulsarClient = PulsarClient.builder()
+        pulsarClient = createNewPulsarClient(PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .build();
+                .enableTransaction(true));
     }
 
     protected void createTransactionCoordinatorAssign(int numPartitionsOfTC) throws MetadataStoreException {

@@ -141,6 +141,7 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
@@ -2436,6 +2437,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddPartitionToTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2459,6 +2462,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddPartitionToTxnResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2482,6 +2487,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddSubscriptionToTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2508,6 +2515,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddSubscriptionToTxnResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2535,6 +2544,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2558,6 +2569,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2581,6 +2594,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnPartitionResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2608,6 +2623,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnPartitionResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2635,6 +2652,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnSubscription() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2667,6 +2686,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnSubscriptionFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
