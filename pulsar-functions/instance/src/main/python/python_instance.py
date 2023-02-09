@@ -497,7 +497,7 @@ class PythonInstance(object):
       schema = pulsar.schema.JsonSchema(record_kclass)
     elif schema_type.lower() == "avro":
       record_kclass = self.get_record_class(type_class_name)
-      schema = pulsar.schema.AvroSchema(record_kclass, schema_properties)
+      schema = pulsar.schema.AvroSchema(record_kclass)
     else:  # load custom schema
       record_kclass = self.get_record_class(type_class_name)
       schema_kclass = util.import_class(os.path.dirname(self.user_code), schema_type)
@@ -513,7 +513,7 @@ class PythonInstance(object):
           schema = schema_kclass(record_kclass)
         except TypeError:
           schema = schema_kclass(schema_properties)
-      elif args_count == 3:  # take two or more arguments
+      elif args_count >= 3:  # take two or more arguments
         schema = schema_kclass(record_kclass, schema_properties)
       else:
         raise Exception("Invalid schema class %s" % schema_type)
