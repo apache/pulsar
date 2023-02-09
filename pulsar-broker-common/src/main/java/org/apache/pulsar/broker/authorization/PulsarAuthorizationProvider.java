@@ -137,10 +137,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     }
                     return checkAuthorization(topicName, role, AuthAction.consume);
-                }).exceptionally(ex -> {
-                    log.warn("Client with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
-                            ex.getMessage());
-                    return null;
                 });
     }
 
@@ -163,13 +159,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         return CompletableFuture.completedFuture(true);
                     }
                     return canConsumeAsync(topicName, role, authenticationData, null);
-                }).exceptionally(ex -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Topic [{}] Role [{}] exception occurred while trying to check produce/consume"
-                                + " permissions. {}", topicName.toString(), role, ex.getMessage());
-
-                    }
-                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 

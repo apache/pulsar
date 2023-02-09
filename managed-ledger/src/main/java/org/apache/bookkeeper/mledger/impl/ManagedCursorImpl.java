@@ -2912,6 +2912,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         lock.readLock().lock();
         try {
             if (individualDeletedMessages.isEmpty()) {
+                this.individualDeletedMessagesSerializedSize = 0;
                 return Collections.emptyList();
             }
 

@@ -74,6 +74,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -98,6 +99,7 @@ import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
@@ -132,6 +134,7 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -306,7 +309,7 @@ public class ServerCnxTest {
         // Connection will be closed in 2 seconds, in the meantime give chance to run the cleanup logic
         for (int i = 0; i < 3; i++) {
             channel.runPendingTasks();
-            Thread.sleep(1000);
+            channel.advanceTimeBy(1, TimeUnit.SECONDS);
         }
 
         assertFalse(channel.isActive());
@@ -333,7 +336,7 @@ public class ServerCnxTest {
         // Connection will *not* be closed in 2 seconds
         for (int i = 0; i < 3; i++) {
             channel.runPendingTasks();
-            Thread.sleep(1000);
+            channel.advanceTimeBy(1, TimeUnit.SECONDS);
         }
         assertTrue(channel.isActive());
 
@@ -351,7 +354,7 @@ public class ServerCnxTest {
         // Connection will be closed in 2 seconds, in the meantime give chance to run the cleanup logic
         for (int i = 0; i < 3; i++) {
             channel.runPendingTasks();
-            Thread.sleep(1000);
+            channel.advanceTimeBy(1, TimeUnit.SECONDS);
         }
 
         assertFalse(channel.isActive());
@@ -473,6 +476,148 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getPrincipal(), "client");
         assertEquals(serverCnx.getOriginalPrincipal(), "client");
         assertTrue(serverCnx.isActive());
+        channel.finish();
+    }
+
+    public void testAuthChallengePrincipalChangeFails() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
+        channel.writeInbound(clientCommand);
+
+        Object responseConnected = getResponse();
+        assertTrue(responseConnected instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getPrincipal(), "pass.client");
+        assertTrue(serverCnx.isActive());
+
+        // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
+        // and then force channel to run the task
+        serverCnx.refreshAuthenticationCredentials();
+        channel.runPendingTasks();
+        Object responseAuthChallenge1 = getResponse();
+        assertTrue(responseAuthChallenge1 instanceof CommandAuthChallenge);
+
+        // Respond with valid info that will both pass and be the same
+        ByteBuf authResponse1 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client".getBytes()), 1, "");
+        channel.writeInbound(authResponse1);
+
+        // Trigger the ServerCnx to check if authentication is expired again
+        serverCnx.refreshAuthenticationCredentials();
+        assertTrue(channel.hasPendingTasks(), "This test assumes there are pending tasks to run.");
+        channel.runPendingTasks();
+        Object responseAuthChallenge2 = getResponse();
+        assertTrue(responseAuthChallenge2 instanceof CommandAuthChallenge);
+
+        // Respond with invalid info that will pass but have a different authRole
+        ByteBuf authResponse2 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client2".getBytes()), 1, "");
+        channel.writeInbound(authResponse2);
+
+        // Expect the connection to disconnect
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+
+        channel.finish();
+    }
+
+    public void testAuthChallengeOriginalPrincipalChangeFails() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
+                null, "pass.client", "pass.client", authMethodName);
+        channel.writeInbound(clientCommand);
+
+        Object responseConnected = getResponse();
+        assertTrue(responseConnected instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getAuthRole(), "pass.proxy");
+        // These are all taken without verifying the auth data
+        assertEquals(serverCnx.getPrincipal(), "pass.client");
+        assertEquals(serverCnx.getOriginalPrincipal(), "pass.client");
+        assertTrue(serverCnx.isActive());
+
+        // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
+        // and then force channel to run the task
+        serverCnx.refreshAuthenticationCredentials();
+        assertTrue(channel.hasPendingTasks(), "This test assumes there are pending tasks to run.");
+        channel.runPendingTasks();
+        Object responseAuthChallenge1 = getResponse();
+        assertTrue(responseAuthChallenge1 instanceof CommandAuthChallenge);
+
+        // Respond with valid info that will both pass and be the same
+        ByteBuf authResponse1 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client".getBytes()), 1, "");
+        channel.writeInbound(authResponse1);
+
+        // Trigger the ServerCnx to check if authentication is expired again
+        serverCnx.refreshAuthenticationCredentials();
+        channel.runPendingTasks();
+        Object responseAuthChallenge2 = getResponse();
+        assertTrue(responseAuthChallenge2 instanceof CommandAuthChallenge);
+
+        // Respond with invalid info that will pass but have a different authRole
+        ByteBuf authResponse2 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client2".getBytes()), 1, "");
+        channel.writeInbound(authResponse2);
+
+        // Expect the connection to disconnect
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectCommandWithInvalidRoleCombinations() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(false);
+        svcConfig.setAuthorizationEnabled(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        // Invalid combinations where authData is proxy role
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "pass.proxy");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", null);
+    }
+
+    private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
+                                                            String originalPrincipal) throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, authData, 1,null,
+                null, originalPrincipal, null, null);
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        assertEquals(((CommandError) response).getError(), ServerError.AuthorizationError);
+        assertEquals(serverCnx.getState(), State.Failed);
         channel.finish();
     }
 
@@ -1126,15 +1271,7 @@ public class ServerCnxTest {
         assertTrue(getResponse() instanceof CommandProducerSuccess);
 
         // test SEND success
-        MessageMetadata messageMetadata = new MessageMetadata()
-                .setPublishTime(System.currentTimeMillis())
-                .setProducerName("prod-name")
-                .setSequenceId(0);
-        ByteBuf data = Unpooled.buffer(1024);
-
-        clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data));
-        channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
-        clientCommand.release();
+        sendMessage();
 
         assertTrue(getResponse() instanceof CommandSendReceipt);
         channel.finish();
@@ -1146,6 +1283,115 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // test SEND before producer is created
+        sendMessage();
+
+        // Then expect channel to close
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testSendCommandAfterBrokerClosedProducer() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        setConnectionVersion(ProtocolVersion.v5.getValue());
+        serverCnx.cancelKeepAliveTask();
+
+        String producerName = "my-producer";
+
+        ByteBuf clientCommand1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                producerName, Collections.emptyMap(), false);
+        channel.writeInbound(clientCommand1);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        // Call disconnect method on producer to trigger activity similar to unloading
+        Producer producer = serverCnx.getProducers().get(1).get();
+        assertNotNull(producer);
+        producer.disconnect();
+        channel.runPendingTasks();
+        assertTrue(getResponse() instanceof CommandCloseProducer);
+
+        // Send message and expect no response
+        sendMessage();
+
+        // Move clock forward to trigger scheduled clean up task
+        channel.advanceTimeBy(svcConfig.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
+        channel.runScheduledPendingTasks();
+        assertTrue(channel.outboundMessages().isEmpty());
+        assertTrue(channel.isActive());
+
+        // Send message and expect closed connection
+        sendMessage();
+
+        // Then expect channel to close
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testBrokerClosedProducerClientRecreatesProducerThenSendCommand() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        setConnectionVersion(ProtocolVersion.v5.getValue());
+        serverCnx.cancelKeepAliveTask();
+
+        String producerName = "my-producer";
+
+        ByteBuf clientCommand1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                producerName, Collections.emptyMap(), false);
+        channel.writeInbound(clientCommand1);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        // Call disconnect method on producer to trigger activity similar to unloading
+        Producer producer = serverCnx.getProducers().get(1).get();
+        assertNotNull(producer);
+        producer.disconnect();
+        channel.runPendingTasks();
+        assertTrue(getResponse() instanceof CommandCloseProducer);
+
+        // Send message and expect no response
+        sendMessage();
+
+        assertTrue(channel.outboundMessages().isEmpty());
+
+        // Move clock forward to trigger scheduled clean up task
+        ByteBuf createProducer2 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                producerName, Collections.emptyMap(), false);
+        channel.writeInbound(createProducer2);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        // Send message and expect success
+        sendMessage();
+
+        assertTrue(getResponse() instanceof CommandSendReceipt);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testClientClosedProducerThenSendsMessageAndGetsClosed() throws Exception {
+        resetChannel();
+        setChannelConnected();
+        setConnectionVersion(ProtocolVersion.v5.getValue());
+        serverCnx.cancelKeepAliveTask();
+
+        String producerName = "my-producer";
+
+        ByteBuf clientCommand1 = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                producerName, Collections.emptyMap(), false);
+        channel.writeInbound(clientCommand1);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        ByteBuf closeProducer = Commands.newCloseProducer(1,2);
+        channel.writeInbound(closeProducer);
+        assertTrue(getResponse() instanceof CommandSuccess);
+
+        // Send message and get disconnected
+        sendMessage();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+        channel.finish();
+    }
+
+    private void sendMessage() {
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setPublishTime(System.currentTimeMillis())
                 .setProducerName("prod-name")
@@ -1156,10 +1402,6 @@ public class ServerCnxTest {
                 ChecksumType.None, messageMetadata, data));
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
-
-        // Then expect channel to close
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
-        channel.finish();
     }
 
     @Test(timeOut = 30000)
@@ -2792,6 +3034,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddPartitionToTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2815,6 +3059,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddPartitionToTxnResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2838,6 +3084,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddSubscriptionToTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2864,6 +3112,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendAddSubscriptionToTxnResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2891,6 +3141,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2914,6 +3166,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("server error")));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2937,6 +3191,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnPartitionResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2965,6 +3221,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnPartitionResponseFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -2994,6 +3252,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnSubscription() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
@@ -3028,6 +3288,8 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void sendEndTxnOnSubscriptionFailed() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
         when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);

@@ -80,7 +80,8 @@ class PythonInstance(object):
                pulsar_client,
                secrets_provider,
                cluster_name,
-               state_storage_serviceurl):
+               state_storage_serviceurl,
+               config_file):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     # set queue size to one since consumers already have internal queues. Just use queue to communicate message from
@@ -114,6 +115,7 @@ class PythonInstance(object):
                            instance_id, cluster_name,
                            "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name)]
     self.stats = Stats(self.metrics_labels)
+    self.config_file = config_file
 
   def health_check(self):
     self.last_health_check_ts = time.time()
