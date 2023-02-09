@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.exceptions.PendingAckHandleReplayException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -945,7 +946,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public void exceptionHandleFuture(Throwable t) {
-        final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+        final boolean completedNow = this.pendingAckHandleCompletableFuture
+                .completeExceptionally(new PendingAckHandleReplayException(t));
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }

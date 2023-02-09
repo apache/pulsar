@@ -50,6 +50,8 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.broker.transaction.pendingack.exceptions.PendingAckHandleReplayException;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -435,9 +437,12 @@ public class PersistentTopicTest extends BrokerTestBase {
         pulsar.getBrokerService().getTopics().put(topic, CompletableFuture.completedFuture(Optional.of(mpt)));
 
         PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
-        Mockito.doReturn(CompletableFuture.failedFuture(new RuntimeException("aaaaaaaaaaa")))
-                .when(subscription).getInitializeFuture();
+        PendingAckHandleImpl pendingAckHandle = Mockito.mock(PendingAckHandleImpl.class);
+        Mockito.doReturn(CompletableFuture
+                        .failedFuture(new PendingAckHandleReplayException(new RuntimeException("This is an exception"))))
+                        .when(pendingAckHandle.pendingAckHandleFuture());
 
+        Mockito.doReturn(pendingAckHandle).when(subscription).getPendingAckHandle();
         Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getDurableSubscription(Mockito.any(), Mockito.any(),
                 Mockito.anyLong(), Mockito.anyBoolean(), Mockito.anyMap());
         Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getNonDurableSubscription(Mockito.anyString(), Mockito.any(),
