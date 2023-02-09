@@ -86,7 +86,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         conf.setClusterName("proxy-authorization");
         conf.setNumExecutorThreadPoolSize(5);
 
-        conf.setAuthenticationRefreshCheckSeconds(1);
+        conf.setAuthenticationRefreshCheckSeconds(2);
     }
 
     @BeforeClass
@@ -154,7 +154,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
 
         AuthenticationToken authenticationToken = new AuthenticationToken(() -> {
             Calendar calendar = Calendar.getInstance();
-            calendar.add(Calendar.SECOND, 1);
+            calendar.add(Calendar.SECOND, 2);
             return AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.of(calendar.getTime()));
         });
 
@@ -169,7 +169,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
         Set<CompletableFuture<ClientCnx>> connections = pulsarClientImpl.getCnxPool().getConnections();
 
-        Awaitility.await().during(4, SECONDS).untilAsserted(() -> {
+        Awaitility.await().during(6, SECONDS).untilAsserted(() -> {
             pulsarClient.getPartitionsForTopic(topic).get();
             assertTrue(connections.stream().allMatch(n -> {
                 try {
