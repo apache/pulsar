@@ -484,6 +484,8 @@ class PythonInstance(object):
     if self.pulsar_client:
       self.pulsar_client.close()
 
+
+  # TODO: support other schemas: PROTOBUF, PROTOBUF_NATIVE, and KeyValue
   def get_schema(self, schema_type, type_class_name, schema_properties):
     schema = DEFAULT_SCHEMA
     if schema_type == "" or schema_type is None:
