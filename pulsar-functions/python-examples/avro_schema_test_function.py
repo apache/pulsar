@@ -23,7 +23,7 @@ from pulsar.schema import *
 
 
 class AvroTestObject(Record):
-    def __int__(self, baseValue, objectValue):
+    def __init__(self, baseValue, objectValue):
         self.baseValue = baseValue
         self.objectValue = objectValue
 
@@ -36,5 +36,5 @@ class AvroSchemaTestFunction(Function):
         pass
 
     def process(self, input, context):
-        input.setBaseValue(input.getBaseValue() + 10)
+        input.__setattr__("baseValue", input.baseValue + 10)
         return input
