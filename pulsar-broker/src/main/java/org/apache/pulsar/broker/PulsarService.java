@@ -1262,10 +1262,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         });
     }
 
-    public boolean isRunning() {
-        return this.state == State.Started || this.state == State.Init;
-    }
-
     public LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
             throws PulsarServerException {
         try {

@@ -22,9 +22,6 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
@@ -40,7 +37,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -76,7 +72,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -93,23 +88,16 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
-import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
-import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
-import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
-import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
@@ -119,7 +107,6 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
-import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -132,7 +119,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
@@ -1976,8 +1962,8 @@ public class ServerCnxTest {
     public void testNeverDelayConsumerFutureWhenNotFail() throws Exception{
         // Mock ServerCnx.field: consumers
         ConcurrentLongHashMap.Builder mapBuilder = Mockito.mock(ConcurrentLongHashMap.Builder.class);
-        Mockito.when(mapBuilder.expectedItems(anyInt())).thenReturn(mapBuilder);
-        Mockito.when(mapBuilder.concurrencyLevel(anyInt())).thenReturn(mapBuilder);
+        Mockito.when(mapBuilder.expectedItems(Mockito.anyInt())).thenReturn(mapBuilder);
+        Mockito.when(mapBuilder.concurrencyLevel(Mockito.anyInt())).thenReturn(mapBuilder);
         ConcurrentLongHashMap consumers = Mockito.mock(ConcurrentLongHashMap.class);
         Mockito.when(mapBuilder.build()).thenReturn(consumers);
         ArgumentCaptor<Long> ignoreArgumentCaptor = ArgumentCaptor.forClass(Long.class);
@@ -2033,7 +2019,7 @@ public class ServerCnxTest {
                     return false;
                 }
             };
-            Mockito.when(consumers.putIfAbsent(anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
+            Mockito.when(consumers.putIfAbsent(Mockito.anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
             // do test: delay complete after execute 'isDone()' many times
             // Why is the design so complicated, see: https://github.com/apache/pulsar/pull/15051
             try (MockedStatic<ConcurrentLongHashMap> theMock = Mockito.mockStatic(ConcurrentLongHashMap.class)) {
@@ -2072,12 +2058,12 @@ public class ServerCnxTest {
         }
         // case3: exists existingConsumerFuture, already complete and exception
         CompletableFuture existingConsumerFuture = Mockito.mock(CompletableFuture.class);
-        Mockito.when(consumers.putIfAbsent(anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
+        Mockito.when(consumers.putIfAbsent(Mockito.anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
         // make consumerFuture delay finish
         Mockito.when(existingConsumerFuture.isDone()).thenReturn(true);
         // when sync get return, future will return success value.
         Mockito.when(existingConsumerFuture.get()).thenThrow(new NullPointerException());
-        Mockito.when(existingConsumerFuture.get(anyLong(), Mockito.any())).
+        Mockito.when(existingConsumerFuture.get(Mockito.anyLong(), Mockito.any())).
                 thenThrow(new NullPointerException());
         Mockito.when(existingConsumerFuture.isCompletedExceptionally()).thenReturn(true);
         Mockito.when(existingConsumerFuture.getNow(Mockito.any())).thenThrow(new NullPointerException());
@@ -2131,402 +2117,4 @@ public class ServerCnxTest {
         verify(authResponse, times(1)).hasClientVersion();
         verify(authResponse, times(0)).getClientVersion();
     }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleGetTopicsOfNamespace() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleGetTopicsOfNamespace(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleGetSchema() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleGetSchema(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleGetOrCreateSchema() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleGetOrCreateSchema(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleTcClientConnectRequest() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleTcClientConnectRequest(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleNewTxn() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleNewTxn(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleAddPartitionToTxn() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleAddPartitionToTxn(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleEndTxn() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleEndTxn(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleEndTxnOnPartition() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleEndTxnOnPartition(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleEndTxnOnSubscription() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleEndTxnOnSubscription(any());
-    }
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    public void shouldFailHandleAddSubscriptionToTxn() throws Exception {
-        ServerCnx serverCnx = mock(ServerCnx.class, CALLS_REAL_METHODS);
-        Field stateUpdater = ServerCnx.class.getDeclaredField("state");
-        stateUpdater.setAccessible(true);
-        stateUpdater.set(serverCnx, ServerCnx.State.Failed);
-        serverCnx.handleAddSubscriptionToTxn(any());
-    }
-
-    @Test(timeOut = 30000)
-    public void handlePartitionMetadataRequestWithServiceNotReady() throws Exception {
-        resetChannel();
-        setChannelConnected();
-        doReturn(false).when(pulsar).isRunning();
-        assertTrue(channel.isActive());
-
-        ByteBuf clientCommand = Commands.newPartitionMetadataRequest(successTopicName, 1);
-        channel.writeInbound(clientCommand);
-        Object response = getResponse();
-        assertTrue(response instanceof CommandPartitionedTopicMetadataResponse);
-        assertEquals(((CommandPartitionedTopicMetadataResponse) response).getError(), ServerError.ServiceNotReady);
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendAddPartitionToTxnResponse() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        ByteBuf clientCommand = Commands.newAddPartitionToTxn(89L, 1L, 12L,
-                Lists.newArrayList("tenant/ns/topic1"));
-        channel.writeInbound(clientCommand);
-        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertFalse(response.hasError());
-        assertFalse(response.hasMessage());
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendAddPartitionToTxnResponseFailed() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.addProducedPartitionToTxn(any(TxnID.class), any()))
-                .thenReturn(FutureUtil.failedFuture(new RuntimeException("server error")));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        ByteBuf clientCommand = Commands.newAddPartitionToTxn(89L, 1L, 12L,
-                Lists.newArrayList("tenant/ns/topic1"));
-        channel.writeInbound(clientCommand);
-        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertEquals(response.getError().getValue(), 0);
-        assertEquals(response.getMessage(), "server error");
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendAddSubscriptionToTxnResponse() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        final  org.apache.pulsar.common.api.proto.Subscription sub =
-                new org.apache.pulsar.common.api.proto.Subscription();
-        sub.setTopic("topic1");
-        sub.setSubscription("sub1");
-        ByteBuf clientCommand = Commands.newAddSubscriptionToTxn(89L, 1L, 12L,
-                Lists.newArrayList(sub));
-        channel.writeInbound(clientCommand);
-        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertFalse(response.hasError());
-        assertFalse(response.hasMessage());
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendAddSubscriptionToTxnResponseFailed() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.addAckedPartitionToTxn(any(TxnID.class), any()))
-                .thenReturn(FutureUtil.failedFuture(new RuntimeException("server error")));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        final  org.apache.pulsar.common.api.proto.Subscription sub =
-                new org.apache.pulsar.common.api.proto.Subscription();
-        sub.setTopic("topic1");
-        sub.setSubscription("sub1");
-        ByteBuf clientCommand = Commands.newAddSubscriptionToTxn(89L, 1L, 12L,
-                Lists.newArrayList(sub));
-        channel.writeInbound(clientCommand);
-        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertEquals(response.getError().getValue(), 0);
-        assertEquals(response.getMessage(), "server error");
-
-        channel.finish();
-    }
-
-
-    @Test(timeOut = 30000)
-    public void sendEndTxnResponse() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        ByteBuf clientCommand = Commands.serializeWithSize(Commands.newEndTxn(89L, 1L, 12L,
-                TxnAction.COMMIT));
-        channel.writeInbound(clientCommand);
-        CommandEndTxnResponse response = (CommandEndTxnResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertFalse(response.hasError());
-        assertFalse(response.hasMessage());
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendEndTxnResponseFailed() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
-                .thenReturn(FutureUtil.failedFuture(new RuntimeException("server error")));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        ByteBuf clientCommand = Commands.serializeWithSize(Commands.newEndTxn(89L, 1L, 12L,
-                TxnAction.COMMIT));
-        channel.writeInbound(clientCommand);
-        CommandEndTxnResponse response = (CommandEndTxnResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertEquals(response.getError().getValue(), 0);
-        assertEquals(response.getMessage(), "server error");
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendEndTxnOnPartitionResponse() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        Topic topic = mock(Topic.class);
-        doReturn(CompletableFuture.completedFuture(null)).when(topic).endTxn(any(TxnID.class), anyInt(), anyLong());
-        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
-                .getTopicIfExists(any(String.class));
-        ByteBuf clientCommand = Commands.newEndTxnOnPartition(89L, 1L, 12L,
-                successTopicName, TxnAction.COMMIT, 1L);
-        channel.writeInbound(clientCommand);
-        CommandEndTxnOnPartitionResponse response = (CommandEndTxnOnPartitionResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertFalse(response.hasError());
-        assertFalse(response.hasMessage());
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendEndTxnOnPartitionResponseFailed() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        Topic topic = mock(Topic.class);
-        doReturn(FutureUtil.failedFuture(new RuntimeException("server error"))).when(topic)
-                .endTxn(any(TxnID.class), anyInt(), anyLong());
-        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
-                .getTopicIfExists(any(String.class));
-        ByteBuf clientCommand = Commands.newEndTxnOnPartition(89L, 1L, 12L,
-                successTopicName, TxnAction.COMMIT, 1L);
-        channel.writeInbound(clientCommand);
-        CommandEndTxnOnPartitionResponse response = (CommandEndTxnOnPartitionResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertEquals(response.getError().getValue(), 0);
-        assertEquals(response.getMessage(), "server error");
-
-        channel.finish();
-    }
-
-    @Test(timeOut = 30000)
-    public void sendEndTxnOnSubscription() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        Topic topic = mock(Topic.class);
-        final org.apache.pulsar.broker.service.Subscription sub =
-                mock(org.apache.pulsar.broker.service.Subscription.class);
-        doReturn(sub).when(topic).getSubscription(any());
-        doReturn(CompletableFuture.completedFuture(null))
-                .when(sub).endTxn(anyLong(), anyLong(), anyInt(), anyLong());
-        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
-                .getTopicIfExists(any(String.class));
-
-        ByteBuf clientCommand = Commands.newEndTxnOnSubscription(89L, 1L, 12L,
-                successTopicName, successSubName, TxnAction.COMMIT, 1L);
-        channel.writeInbound(clientCommand);
-        CommandEndTxnOnSubscriptionResponse response = (CommandEndTxnOnSubscriptionResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertFalse(response.hasError());
-        assertFalse(response.hasMessage());
-
-        channel.finish();
-    }
-
-
-    @Test(timeOut = 30000)
-    public void sendEndTxnOnSubscriptionFailed() throws Exception {
-        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
-        when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));
-        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
-        when(txnStore.endTransaction(any(TxnID.class), anyInt(), anyBoolean()))
-                .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
-
-        svcConfig.setTransactionCoordinatorEnabled(true);
-        resetChannel();
-        setChannelConnected();
-        Topic topic = mock(Topic.class);
-
-        final org.apache.pulsar.broker.service.Subscription sub =
-                mock(org.apache.pulsar.broker.service.Subscription.class);
-        doReturn(sub).when(topic).getSubscription(any());
-        doReturn(FutureUtil.failedFuture(new RuntimeException("server error")))
-                .when(sub).endTxn(anyLong(), anyLong(), anyInt(), anyLong());
-        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
-                .getTopicIfExists(any(String.class));
-
-        ByteBuf clientCommand = Commands.newEndTxnOnSubscription(89L, 1L, 12L,
-                successTopicName, successSubName, TxnAction.COMMIT, 1L);
-        channel.writeInbound(clientCommand);
-        CommandEndTxnOnSubscriptionResponse response = (CommandEndTxnOnSubscriptionResponse) getResponse();
-
-        assertEquals(response.getRequestId(), 89L);
-        assertEquals(response.getTxnidLeastBits(), 1L);
-        assertEquals(response.getTxnidMostBits(), 12L);
-        assertEquals(response.getError().getValue(), 0);
-        assertEquals(response.getMessage(), "Handle end txn on subscription failed: server error");
-
-        channel.finish();
-    }
-
 }
