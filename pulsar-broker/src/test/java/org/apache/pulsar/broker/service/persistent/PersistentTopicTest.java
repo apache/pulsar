@@ -424,7 +424,7 @@ public class PersistentTopicTest extends BrokerTestBase {
 
 
     @Test
-    public void testPendingAckHandleRelayFailedWhenCreateNewSub() throws Exception {
+    public void testPendingAckHandleReplayFailedWhenCreateNewSub() throws Exception {
         String topic = "persistent://prop/ns-123/aTopic";
         admin.namespaces().createNamespace(TopicName.get(topic).getNamespace());
         admin.topics().createNonPartitionedTopic(topic);
@@ -438,15 +438,32 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         PersistentSubscription subscription = Mockito.mock(PersistentSubscription.class);
         PendingAckHandleImpl pendingAckHandle = Mockito.mock(PendingAckHandleImpl.class);
+
         Mockito.doReturn(CompletableFuture
                         .failedFuture(new PendingAckHandleReplayException(new RuntimeException("This is an exception"))))
-                        .when(pendingAckHandle.pendingAckHandleFuture());
-
+                .when(pendingAckHandle).pendingAckHandleFuture();
+        Mockito.doReturn(mpt).when(subscription).getTopic();
         Mockito.doReturn(pendingAckHandle).when(subscription).getPendingAckHandle();
-        Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getDurableSubscription(Mockito.any(), Mockito.any(),
+
+
+        Mockito.doAnswer(inv -> {
+            String subName = inv.getArgument(0);
+            mpt.getSubscriptions().put(subName, subscription);
+            return CompletableFuture.completedFuture(subscription);
+        }).when(mpt).getDurableSubscription(Mockito.any(), Mockito.any(),
                 Mockito.anyLong(), Mockito.anyBoolean(), Mockito.anyMap());
-        Mockito.doReturn(CompletableFuture.completedFuture(subscription)).when(mpt).getNonDurableSubscription(Mockito.anyString(), Mockito.any(),
+
+        Mockito.doAnswer(inv -> {
+            String subName = inv.getArgument(0);
+            mpt.getSubscriptions().put(subName, subscription);
+            return CompletableFuture.completedFuture(subscription);
+        }).when(mpt).getNonDurableSubscription(Mockito.anyString(), Mockito.any(),
                 Mockito.any(), Mockito.anyLong(), Mockito.anyBoolean(), Mockito.anyMap());
+
+
+        Mockito.doReturn(CompletableFuture
+                        .failedFuture(new PendingAckHandleReplayException(new RuntimeException("This is an exception"))))
+                .when(subscription).addConsumer(Mockito.any());
 
         try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)

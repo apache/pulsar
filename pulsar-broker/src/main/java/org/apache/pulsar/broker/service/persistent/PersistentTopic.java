@@ -899,7 +899,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 } else if (ex.getCause() instanceof BrokerServiceException.SubscriptionFencedException
                         && isCompactionSubscription(subscriptionName)) {
                     log.warn("[{}] Failed to create compaction subscription: {}", topic, ex.getMessage());
-                } else if (ex instanceof PendingAckHandleReplayException) {
+                } else if (ex.getCause() instanceof PendingAckHandleReplayException) {
                     PersistentSubscription subscription = subscriptions.remove(subscriptionName);
                     if (subscription != null) {
                         subscription.retryClose();
