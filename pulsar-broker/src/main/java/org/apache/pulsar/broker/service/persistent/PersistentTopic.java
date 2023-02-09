@@ -906,8 +906,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }
                     log.warn("[{}] Failed to create subscription {} due to PendingAckHandle recover failed.",
                             topic, subscriptionName, ex);
-                }
-                else {
+                } else {
                     log.error("[{}] Failed to create subscription: {}", topic, subscriptionName, ex);
                 }
                 return null;
