@@ -2149,9 +2149,6 @@ flexible messaging model and an intuitive client API.</description>
         <!-- connector-related modules -->
         <module>pulsar-io</module>
 
-        <!-- kafka connect avro converter shaded, because version mismatch    -->
-        <module>kafka-connect-avro-converter-shaded</module>
-
         <!-- Bouncy Castle Provider loaders-->
         <module>bouncy-castle</module>
 

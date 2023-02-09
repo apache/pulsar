@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ExecutionError;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import io.confluent.connect.avro.AvroData;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -37,7 +38,6 @@ import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
 @Slf4j
 public class PulsarSchemaToKafkaSchema {
@@ -74,9 +74,8 @@ public class PulsarSchemaToKafkaSchema {
     }
 
     // Parse json to shaded schema
-    private static org.apache.pulsar.kafka.shade.avro.Schema parseAvroSchema(String schemaJson) {
-        final org.apache.pulsar.kafka.shade.avro.Schema.Parser parser =
-                new org.apache.pulsar.kafka.shade.avro.Schema.Parser();
+    private static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+        final org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
     }
@@ -126,9 +125,8 @@ public class PulsarSchemaToKafkaSchema {
                                              getKafkaConnectSchema(kvSchema.getValueSchema()))
                                 .build();
                 }
-                org.apache.pulsar.kafka.shade.avro.Schema avroSchema =
-                        parseAvroSchema(new String(pulsarSchema.getSchemaInfo().getSchema(),
-                                StandardCharsets.UTF_8));
+                org.apache.avro.Schema avroSchema = parseAvroSchema(
+                        new String(pulsarSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
                 return avroData.toConnectSchema(avroSchema);
             });
         } catch (ExecutionException | UncheckedExecutionException | ExecutionError ee) {
