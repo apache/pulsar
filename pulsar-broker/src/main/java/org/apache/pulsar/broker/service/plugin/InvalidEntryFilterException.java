@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.broker.service.plugin;
 
-import org.testng.annotations.Test;
+public class InvalidEntryFilterException extends Exception {
 
-@Test(groups = "broker-api")
-public class SimpleSchemaWithSchemaValidationEnforcedTest extends SimpleSchemaTest {
-    public SimpleSchemaWithSchemaValidationEnforcedTest() {
-        super(true);
+    public InvalidEntryFilterException(String message) {
+        super(message);
+    }
+
+    public InvalidEntryFilterException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

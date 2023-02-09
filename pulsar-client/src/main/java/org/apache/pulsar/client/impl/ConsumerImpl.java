@@ -2020,6 +2020,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                         log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} of the original"
                                                         + " topic but send to the DLQ successfully.",
                                                 topicName, subscription, consumerName, finalMessageId, ex);
+                                        result.complete(false);
                                     } else {
                                         result.complete(true);
                                     }

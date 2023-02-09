@@ -157,9 +157,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             return asyncPutRequest(path, Entity.entity(policies, MediaType.APPLICATION_JSON));
         } else {
             // For V1 API, we pass the BundlesData on creation
-            return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).thenAccept(ignore -> {
+            return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON)).thenCompose(ignore -> {
                 // For V1, we need to do it in 2 steps
-                setNamespaceReplicationClustersAsync(namespace, clusters);
+                return setNamespaceReplicationClustersAsync(namespace, clusters);
             });
         }
     }

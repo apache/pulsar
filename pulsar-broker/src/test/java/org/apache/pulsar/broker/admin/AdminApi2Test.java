@@ -2397,6 +2397,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final MockEntryFilterProvider testEntryFilterProvider =
                 new MockEntryFilterProvider(conf);
         conf.setEntryFilterNames(List.of("test", "test1"));
+        conf.setAllowOverrideEntryFilters(true);
 
         testEntryFilterProvider.setMockEntryFilters(new EntryFilterDefinition(
                         "test",
@@ -2420,6 +2421,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                     .topic(fullTopicName)
                     .create();
             assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topic, false));
+            assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic, true),
+                    new EntryFilters("test,test1"));
             assertEquals(pulsar
                     .getBrokerService()
                     .getTopic(fullTopicName, false)
@@ -2431,6 +2434,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             EntryFilters nsEntryFilters = new EntryFilters("test");
             admin.namespaces().setNamespaceEntryFilters("prop-xyz/ns1", nsEntryFilters);
             assertEquals(admin.namespaces().getNamespaceEntryFilters("prop-xyz/ns1"), nsEntryFilters);
+            assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic, true),
+                    new EntryFilters("test"));
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(pulsar
                         .getBrokerService()
@@ -2459,6 +2464,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topicPolicies().setEntryFiltersPerTopic(topic, topicEntryFilters);
             Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic,
                     false), topicEntryFilters));
+            assertEquals(admin.topicPolicies().getEntryFiltersPerTopic(topic, true),
+                    new EntryFilters("test1"));
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(pulsar
                         .getBrokerService()
@@ -2478,6 +2485,122 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             assertEquals(((EntryFilterWithClassLoader) entryFilters.get(0))
                     .getEntryFilter().getClass(), EntryFilter2Test.class);
 
+        } finally {
+            FieldUtils.writeField(pulsar.getBrokerService(),
+                    "entryFilterProvider", oldEntryFilterProvider, true);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testValidateNamespaceEntryFilters() throws Exception {
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(conf);
+
+        testEntryFilterProvider
+                .setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ));
+        final EntryFilterProvider oldEntryFilterProvider = pulsar.getBrokerService().getEntryFilterProvider();
+        FieldUtils.writeField(pulsar.getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
+
+        try {
+            final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
+            admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+            try {
+                admin.namespaces().setNamespaceEntryFilters(myNamespace, new EntryFilters("notexists"));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "Entry filter 'notexists' not found");
+            }
+            try {
+                admin.namespaces().setNamespaceEntryFilters(myNamespace, new EntryFilters(""));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "entryFilterNames can't be empty. " +
+                        "To remove entry filters use the remove method.");
+            }
+            try {
+                admin.namespaces().setNamespaceEntryFilters(myNamespace, new EntryFilters(","));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "entryFilterNames can't be empty. " +
+                        "To remove entry filters use the remove method.");
+            }
+            try {
+                admin.namespaces().setNamespaceEntryFilters(myNamespace, new EntryFilters("test,notexists"));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "Entry filter 'notexists' not found");
+            }
+            assertNull(admin.namespaces().getNamespaceEntryFilters(myNamespace));
+        } finally {
+            FieldUtils.writeField(pulsar.getBrokerService(),
+                    "entryFilterProvider", oldEntryFilterProvider, true);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testValidateTopicEntryFilters() throws Exception {
+        final MockEntryFilterProvider testEntryFilterProvider =
+                new MockEntryFilterProvider(conf);
+
+        testEntryFilterProvider
+                .setMockEntryFilters(new EntryFilterDefinition(
+                        "test",
+                        null,
+                        EntryFilterTest.class.getName()
+                ));
+        final EntryFilterProvider oldEntryFilterProvider = pulsar.getBrokerService().getEntryFilterProvider();
+        FieldUtils.writeField(pulsar.getBrokerService(),
+                "entryFilterProvider", testEntryFilterProvider, true);
+
+        try {
+            final String myNamespace = "prop-xyz/ns" + UUID.randomUUID();
+            admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
+            final String topicName = myNamespace + "/topic";
+            admin.topics().createNonPartitionedTopic(topicName);
+            @Cleanup
+            Producer<byte[]> producer1 = pulsarClient.newProducer()
+                    .topic(topicName)
+                    .create();
+            try {
+                admin.topicPolicies().setEntryFiltersPerTopic(topicName, new EntryFilters("notexists"));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "Entry filter 'notexists' not found");
+            }
+            try {
+                admin.topicPolicies().setEntryFiltersPerTopic(topicName, new EntryFilters(""));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "entryFilterNames can't be empty. " +
+                        "To remove entry filters use the remove method.");
+            }
+            try {
+                admin.topicPolicies().setEntryFiltersPerTopic(topicName, new EntryFilters(","));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "entryFilterNames can't be empty. " +
+                        "To remove entry filters use the remove method.");
+            }
+            try {
+                admin.topicPolicies().setEntryFiltersPerTopic(topicName, new EntryFilters("test,notexists"));
+                fail();
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 400);
+                assertEquals(e.getMessage(), "Entry filter 'notexists' not found");
+            }
+            assertNull(admin.topicPolicies().getEntryFiltersPerTopic(topicName, false));
         } finally {
             FieldUtils.writeField(pulsar.getBrokerService(),
                     "entryFilterProvider", oldEntryFilterProvider, true);

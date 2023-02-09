@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Assign;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Split;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Unload;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.ConnectionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.Reconnected;
@@ -29,7 +36,6 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -125,6 +131,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     protected void initTableViews() throws Exception {
         cleanTableView(channel1, bundle);
         cleanTableView(channel2, bundle);
+        cleanOpsCounters(channel1);
+        cleanOpsCounters(channel2);
     }
 
 
@@ -160,7 +168,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(newChannelOwner1, newChannelOwner2);
         assertNotEquals(channelOwner1, newChannelOwner1);
 
-        if (newChannelOwner1.equals(lookupServiceAddress1)) {
+        if (newChannelOwner1.equals(Optional.of(lookupServiceAddress1))) {
             assertTrue(channel1.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
             assertFalse(channel2.isChannelOwnerAsync().get(2, TimeUnit.SECONDS));
         } else {
@@ -220,38 +228,52 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     private int validateChannelStart(ServiceUnitStateChannelImpl channel)
-            throws ExecutionException, InterruptedException, TimeoutException {
+            throws InterruptedException, TimeoutException {
         int errorCnt = 0;
         try {
             channel.isChannelOwnerAsync().get(2, TimeUnit.SECONDS);
-        } catch (IllegalStateException e) {
-            errorCnt++;
+        } catch (ExecutionException e) {
+            if(e.getCause() instanceof IllegalStateException){
+                errorCnt++;
+            }
         }
         try {
             channel.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
-        } catch (IllegalStateException e) {
-            errorCnt++;
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
-            channel.getOwnerAsync(bundle);
-        } catch (IllegalStateException e) {
-            errorCnt++;
+            channel.getOwnerAsync(bundle).get(2, TimeUnit.SECONDS).get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
-            channel.publishAssignEventAsync(bundle, lookupServiceAddress1);
-        } catch (IllegalStateException e) {
-            errorCnt++;
+            channel.publishAssignEventAsync(bundle, lookupServiceAddress1).get(2, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
             channel.publishUnloadEventAsync(
-                    new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2)));
-        } catch (IllegalStateException e) {
-            errorCnt++;
+                    new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2)))
+                    .get(2, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         try {
-            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()));
-        } catch (IllegalStateException e) {
-            errorCnt++;
+            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()))
+                    .get(2, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalStateException) {
+                errorCnt++;
+            }
         }
         return errorCnt;
     }
@@ -282,8 +304,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         var assigned1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         var assigned2 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
@@ -304,6 +326,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr1, ownerAddr2);
         assertEquals(getOwnerRequests1.size(), 0);
         assertEquals(getOwnerRequests2.size(), 0);
+
+        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+        validateEventCounters(channel1, 1, 0, 0, 0, 0, 0);
+        validateEventCounters(channel2, 1, 0, 0, 0, 0, 0);
     }
 
     @Test(priority = 3)
@@ -329,15 +356,15 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
-        owner1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
-        owner2 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
-        assertTrue(owner1.isCompletedExceptionally());
-        assertNotNull(owner2);
-        String ownerAddr2 = owner2.get(5, TimeUnit.SECONDS);
-        assertEquals(ownerAddr2, lookupServiceAddress2);
+        var owner3 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
+        var owner4 = channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
+        assertTrue(owner3.isCompletedExceptionally());
+        assertNotNull(owner4);
+        String ownerAddrOpt2 = owner4.get(5, TimeUnit.SECONDS);
+        assertEquals(ownerAddrOpt2, lookupServiceAddress2);
         waitUntilNewOwner(channel1, bundle, lookupServiceAddress2);
         assertEquals(0, getOwnerRequests1.size());
         assertEquals(0, getOwnerRequests2.size());
@@ -347,13 +374,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     @Test(priority = 4)
     public void unloadTest()
-            throws ExecutionException, InterruptedException, TimeoutException {
+            throws ExecutionException, InterruptedException, TimeoutException, IllegalAccessException {
 
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
 
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
@@ -363,7 +390,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var ownerAddr2 = channel2.getOwnerAsync(bundle).get();
 
         assertEquals(ownerAddr1, ownerAddr2);
-        assertEquals(ownerAddr1, lookupServiceAddress1);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
 
         Unload unload = new Unload(lookupServiceAddress1, bundle, Optional.of(lookupServiceAddress2));
         channel1.publishUnloadEventAsync(unload);
@@ -374,7 +401,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         ownerAddr1 = channel1.getOwnerAsync(bundle).get(5, TimeUnit.SECONDS);
         ownerAddr2 = channel2.getOwnerAsync(bundle).get(5, TimeUnit.SECONDS);
         assertEquals(ownerAddr1, ownerAddr2);
-        assertEquals(ownerAddr1, lookupServiceAddress2);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress2));
+
+        validateHandlerCounters(channel1, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0);
+        validateHandlerCounters(channel2, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0);
+        validateEventCounters(channel1, 1, 0, 0, 0, 1, 0);
+        validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
     }
 
     @Test(priority = 5)
@@ -393,7 +425,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var ownerAddr2 = channel2.getOwnerAsync(bundle).get();
 
         assertEquals(ownerAddr1, ownerAddr2);
-        assertEquals(ownerAddr1, lookupServiceAddress1);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
 
         var producer = (Producer<ServiceUnitStateData>) FieldUtils.readDeclaredField(channel1,
                 "producer", true);
@@ -454,16 +486,21 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel2, bundle, lookupServiceAddress1);
         var ownerAddr1 = channel1.getOwnerAsync(bundle).get();
         var ownerAddr2 = channel2.getOwnerAsync(bundle).get();
-        assertEquals(ownerAddr1, lookupServiceAddress1);
-        assertEquals(ownerAddr2, lookupServiceAddress1);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
+        assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
+        assertTrue(ownerAddr1.isPresent());
 
-        Split split = new Split(bundle, ownerAddr1, new HashMap<>());
+        Split split = new Split(bundle, ownerAddr1.get(), new HashMap<>());
         channel1.publishSplitEventAsync(split);
 
         waitUntilNewOwner(channel1, bundle, null);
         waitUntilNewOwner(channel2, bundle, null);
 
         // TODO: assert child bundle ownerships in the channels.
+        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
+        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
+        validateEventCounters(channel1, 1, 0, 1, 0, 0, 0);
+        validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
     }
 
     @Test(priority = 7)
@@ -545,8 +582,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var owner1 = channel1.getOwnerAsync(bundle1);
         var owner2 = channel2.getOwnerAsync(bundle2);
 
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         String broker = lookupServiceAddress1;
         channel1.publishAssignEventAsync(bundle1, broker);
@@ -701,8 +738,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(bundle).send();
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
-        assertNull(owner1.get());
-        assertNull(owner2.get());
+        assertTrue(owner1.get().isEmpty());
+        assertTrue(owner2.get().isEmpty());
 
         var assigned1 = channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         assertNotNull(assigned1);
@@ -724,8 +761,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
         assertNotNull(ex);
         assertEquals(TimeoutException.class, ex.getCause().getClass());
-        assertEquals(lookupServiceAddress1, channel2.getOwnerAsync(bundle).get());
-        assertEquals(lookupServiceAddress1, channel1.getOwnerAsync(bundle).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(bundle).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(bundle).get());
 
         var compactor = spy (pulsar1.getStrategicCompactor());
         Field strategicCompactorField = FieldUtils.getDeclaredField(PulsarService.class, "strategicCompactor", true);
@@ -743,10 +780,36 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(
-                        channel3.getOwnerAsync(bundle).get(), lookupServiceAddress1));
+                        channel3.getOwnerAsync(bundle).get(), Optional.of(lookupServiceAddress1)));
         channel3.close();
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+    }
+
+    @Test(priority = 11)
+    public void ownerLookupCountTests() throws IllegalAccessException {
+
+        overrideTableView(channel1, bundle, null);
+        channel1.getOwnerAsync(bundle);
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigned, "b1"));
+        channel1.getOwnerAsync(bundle);
+        channel1.getOwnerAsync(bundle);
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, "b1"));
+        channel1.getOwnerAsync(bundle);
+        channel1.getOwnerAsync(bundle);
+        channel1.getOwnerAsync(bundle);
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Released, "b1"));
+        channel1.getOwnerAsync(bundle);
+        channel1.getOwnerAsync(bundle);
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, "b1"));
+        channel1.getOwnerAsync(bundle);
+
+        validateOwnerLookUpCounters(channel1, 2, 3, 2, 1, 1);
+
     }
 
 
@@ -787,10 +850,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     if (!owner.isDone()) {
                         return false;
                     }
-                    if (oldOwner == null) {
-                        return owner != null;
-                    }
-                    return !oldOwner.equals(owner);
+
+                    return !StringUtils.equals(oldOwner, owner.get().orElse(null));
                 });
     }
 
@@ -799,11 +860,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
-                    CompletableFuture<String> owner = channel.getOwnerAsync(serviceUnit);
+                    CompletableFuture<Optional<String>> owner = channel.getOwnerAsync(serviceUnit);
                     if (!owner.isDone()) {
                         return false;
                     }
-                    return !StringUtils.equals(oldOwner, owner.get());
+                    return !StringUtils.equals(oldOwner, owner.get().orElse(null));
                 });
     }
 
@@ -813,11 +874,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .atMost(15, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     try {
-                        CompletableFuture<String> owner = channel.getOwnerAsync(serviceUnit);
+                        CompletableFuture<Optional<String>> owner = channel.getOwnerAsync(serviceUnit);
                         if (!owner.isDone()) {
                             return false;
                         }
-                        return StringUtils.equals(newOwner, owner.get());
+                        return StringUtils.equals(newOwner, owner.get().orElse(null));
                     } catch (Exception e) {
                         return false;
                     }
@@ -850,6 +911,48 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         cache.remove(serviceUnit);
     }
 
+    private static void overrideTableView(ServiceUnitStateChannel channel, String serviceUnit, ServiceUnitStateData val)
+            throws IllegalAccessException {
+        var tv = (TableViewImpl<ServiceUnitStateData>)
+                FieldUtils.readField(channel, "tableview", true);
+        var cache = (ConcurrentMap<String, ServiceUnitStateData>)
+                FieldUtils.readField(tv, "data", true);
+        if(val == null){
+            cache.remove(serviceUnit);
+        } else {
+            cache.put(serviceUnit, val);
+        }
+    }
+
+    private static void cleanOpsCounters(ServiceUnitStateChannel channel)
+            throws IllegalAccessException {
+        var handlerCounters =
+                (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
+                        FieldUtils.readDeclaredField(channel, "handlerCounters", true);
+
+        for(var val : handlerCounters.values()){
+            val.getFailure().set(0);
+            val.getTotal().set(0);
+        }
+
+        var eventCounters =
+                (Map<ServiceUnitStateChannelImpl.EventType, ServiceUnitStateChannelImpl.Counters>)
+                        FieldUtils.readDeclaredField(channel, "eventCounters", true);
+
+        for(var val : eventCounters.values()){
+            val.getFailure().set(0);
+            val.getTotal().set(0);
+        }
+
+        var ownerLookUpCounters =
+                (Map<ServiceUnitStateChannelImpl.EventType, AtomicLong>)
+                        FieldUtils.readDeclaredField(channel, "ownerLookUpCounters", true);
+
+        for(var val : ownerLookUpCounters.values()){
+            val.set(0);
+        }
+    }
+
     private static long getCleanupMetric(ServiceUnitStateChannel channel, String metric)
             throws IllegalAccessException {
         Object var = FieldUtils.readDeclaredField(channel, metric, true);
@@ -858,5 +961,78 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } else {
             return (long) var;
         }
+    }
+
+    private static void validateHandlerCounters(ServiceUnitStateChannel channel,
+                                                long assignedT, long assignedF,
+                                                long ownedT, long ownedF,
+                                                long releasedT, long releasedF,
+                                                long splittingT, long splittingF,
+                                                long freeT, long freeF)
+            throws IllegalAccessException {
+        var handlerCounters =
+                (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
+                        FieldUtils.readDeclaredField(channel, "handlerCounters", true);
+
+        Awaitility.await()
+                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> { // wait until true
+                    assertEquals(assignedT, handlerCounters.get(Assigned).getTotal().get());
+                    assertEquals(assignedF, handlerCounters.get(Assigned).getFailure().get());
+                    assertEquals(ownedT, handlerCounters.get(Owned).getTotal().get());
+                    assertEquals(ownedF, handlerCounters.get(Owned).getFailure().get());
+                    assertEquals(releasedT, handlerCounters.get(Released).getTotal().get());
+                    assertEquals(releasedF, handlerCounters.get(Released).getFailure().get());
+                    assertEquals(splittingT, handlerCounters.get(Splitting).getTotal().get());
+                    assertEquals(splittingF, handlerCounters.get(Splitting).getFailure().get());
+                    assertEquals(freeT, handlerCounters.get(Free).getTotal().get());
+                    assertEquals(freeF, handlerCounters.get(Free).getFailure().get());
+                });
+    }
+
+    private static void validateEventCounters(ServiceUnitStateChannel channel,
+                                              long assignT, long assignF,
+                                              long splitT, long splitF,
+                                              long unloadT, long unloadF)
+            throws IllegalAccessException {
+        var eventCounters =
+                (Map<ServiceUnitStateChannelImpl.EventType, ServiceUnitStateChannelImpl.Counters>)
+                        FieldUtils.readDeclaredField(channel, "eventCounters", true);
+
+        Awaitility.await()
+                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> { // wait until true
+                    assertEquals(assignT, eventCounters.get(Assign).getTotal().get());
+                    assertEquals(assignF, eventCounters.get(Assign).getFailure().get());
+                    assertEquals(splitT, eventCounters.get(Split).getTotal().get());
+                    assertEquals(splitF, eventCounters.get(Split).getFailure().get());
+                    assertEquals(unloadT, eventCounters.get(Unload).getTotal().get());
+                    assertEquals(unloadF, eventCounters.get(Unload).getFailure().get());
+                });
+    }
+
+    private static void validateOwnerLookUpCounters(ServiceUnitStateChannel channel,
+                                                    long assigned,
+                                                    long owned,
+                                                    long released,
+                                                    long splitting,
+                                                    long free)
+            throws IllegalAccessException {
+        var ownerLookUpCounters =
+                (Map<ServiceUnitState, AtomicLong>)
+                        FieldUtils.readDeclaredField(channel, "ownerLookUpCounters", true);
+
+        Awaitility.await()
+                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> { // wait until true
+                    assertEquals(assigned, ownerLookUpCounters.get(Assigned).get());
+                    assertEquals(owned, ownerLookUpCounters.get(Owned).get());
+                    assertEquals(released, ownerLookUpCounters.get(Released).get());
+                    assertEquals(splitting, ownerLookUpCounters.get(Splitting).get());
+                    assertEquals(free, ownerLookUpCounters.get(Free).get());
+                });
     }
 }
