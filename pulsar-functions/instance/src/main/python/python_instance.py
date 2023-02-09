@@ -546,6 +546,7 @@ class PythonInstance(object):
           crypto_key_reader = pulsar.CryptoKeyReader(**crypto_config)
         else:
           crypto_key_reader = util.import_class(os.path.dirname(self.user_code), crypto_spec.cryptoKeyReaderClassName)(**crypto_config)
-      except:
-        pass
+      except Exception as e:
+        Log.error("Failed to load the crypto key reader from spec: %s, error: %s" % (crypto_spec, e))
+        raise e
     return crypto_key_reader
