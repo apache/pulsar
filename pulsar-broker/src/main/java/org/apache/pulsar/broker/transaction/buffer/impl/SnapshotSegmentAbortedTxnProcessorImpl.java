@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -160,8 +161,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             LinkedList<TxnID> abortedSegment = unsealedTxnIds;
             segmentIndex.put(position, txnID);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment,
-                    () -> persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position,
-                            topic.getMaxReadPosition()));
+                    () -> persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position));
             this.unsealedTxnIds = new LinkedList<>();
         }
     }
@@ -598,10 +598,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private CompletableFuture<Void> takeSnapshotSegmentAsync(LinkedList<TxnID> sealedAbortedTxnIdSegment,
-                                                                 PositionImpl abortedMarkerPersistentPosition,
-                                                                 PositionImpl maxReadPosition) {
+                                                                 PositionImpl abortedMarkerPersistentPosition) {
             CompletableFuture<Void> res =  writeSnapshotSegmentAsync(sealedAbortedTxnIdSegment,
-                    abortedMarkerPersistentPosition, maxReadPosition).thenRun(() -> {
+                    abortedMarkerPersistentPosition).thenRun(() -> {
                         if (log.isDebugEnabled()) {
                             log.debug("Successes to take snapshot segment [{}] at maxReadPosition [{}] "
                                             + "for the topic [{}], and the size of the segment is [{}]",
@@ -623,8 +622,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private CompletableFuture<Void> writeSnapshotSegmentAsync(LinkedList<TxnID> segment,
-                                                                  PositionImpl abortedMarkerPersistentPosition,
-                                                                  PositionImpl maxReadPosition) {
+                                                                  PositionImpl abortedMarkerPersistentPosition) {
             TransactionBufferSnapshotSegment transactionBufferSnapshotSegment = new TransactionBufferSnapshotSegment();
             transactionBufferSnapshotSegment.setAborts(convertTypeToTxnIDData(segment));
             transactionBufferSnapshotSegment.setTopicName(this.topic.getName());
@@ -647,11 +645,21 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 indexes.put(abortedMarkerPersistentPosition, index);
                 //update snapshot segment index.
                 //If the index can not be written successfully, the snapshot segment wil be overwritten
-                // when the processor writes snapshot segment next time.
-                return updateSnapshotIndex(new TransactionBufferSnapshotIndexesMetadata(
-                                maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(),
-                                convertTypeToTxnIDData(unsealedTxnIds)));
+                //when the processor writes snapshot segment next time.
+                //And if the task is not the newest in the queue, it is no need to update the index.
+                return updateIndexWhenExecuteTheLatestTask();
             });
+        }
+
+        private CompletionStage<Void> updateIndexWhenExecuteTheLatestTask() {
+            PositionImpl maxReadPosition = topic.getMaxReadPosition();
+            List<TxnIDData> aborts = convertTypeToTxnIDData(unsealedTxnIds);
+            if (taskQueue.size() != 1) {
+                return CompletableFuture.completedFuture(null);
+            } else {
+                return updateSnapshotIndex(new TransactionBufferSnapshotIndexesMetadata(
+                        maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(), aborts));
+            }
         }
 
         // update index after delete all segment.
@@ -667,13 +675,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                                 + "whose sequenceId is [{}] and maxReadPosition is [{}]",
                                         this.topic.getName(), this.sequenceID, positionNeedToDelete);
                             }
-                            //The process will check whether the snapshot segment is null,
-                            // and update index when recovered.
+                            //The index may fail to update but the processor will check
+                            //whether the snapshot segment is null, and update the index when recovering.
+                            //And if the task is not the newest in the queue, it is no need to update the index.
                             indexes.remove(positionNeedToDelete);
-                            PositionImpl maxReadPosition = topic.getMaxReadPosition();
-                            return updateSnapshotIndex(new TransactionBufferSnapshotIndexesMetadata(
-                                    maxReadPosition.getLedgerId(), maxReadPosition.getEntryId(),
-                                    convertTypeToTxnIDData(unsealedTxnIds)));
+                            return updateIndexWhenExecuteTheLatestTask();
                         });
                 res.exceptionally(e -> {
                     log.warn("[{}] Failed to delete the snapshot segment, "
