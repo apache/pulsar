@@ -472,7 +472,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // Calculate total entries and size
-        final List<Long> emptyLedgersToBeDeleted = new ArrayList<>();
+        final List<Long> emptyLedgersToBeDeleted = Collections.synchronizedList(new ArrayList<>());
         Iterator<LedgerInfo> iterator = ledgers.values().iterator();
         while (iterator.hasNext()) {
             LedgerInfo li = iterator.next();
