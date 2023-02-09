@@ -160,7 +160,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             LinkedList<TxnID> abortedSegment = unsealedTxnIds;
             segmentIndex.put(position, txnID);
             persistentWorker.appendTask(PersistentWorker.OperationType.WriteSegment,
-                    () -> persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position));
+                    () -> persistentWorker.takeSnapshotSegmentAsync(abortedSegment, position,
+                            topic.getMaxReadPosition()));
             this.unsealedTxnIds = new LinkedList<>();
         }
     }
@@ -597,9 +598,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private CompletableFuture<Void> takeSnapshotSegmentAsync(LinkedList<TxnID> sealedAbortedTxnIdSegment,
-                                                                 PositionImpl abortedMarkerPersistentPosition) {
+                                                                 PositionImpl abortedMarkerPersistentPosition,
+                                                                 PositionImpl maxReadPosition) {
             CompletableFuture<Void> res =  writeSnapshotSegmentAsync(sealedAbortedTxnIdSegment,
-                    abortedMarkerPersistentPosition).thenRun(() -> {
+                    abortedMarkerPersistentPosition, maxReadPosition).thenRun(() -> {
                         if (log.isDebugEnabled()) {
                             log.debug("Successes to take snapshot segment [{}] at maxReadPosition [{}] "
                                             + "for the topic [{}], and the size of the segment is [{}]",
@@ -621,7 +623,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         }
 
         private CompletableFuture<Void> writeSnapshotSegmentAsync(LinkedList<TxnID> segment,
-                                                                  PositionImpl abortedMarkerPersistentPosition) {
+                                                                  PositionImpl abortedMarkerPersistentPosition,
+                                                                  PositionImpl maxReadPosition) {
             TransactionBufferSnapshotSegment transactionBufferSnapshotSegment = new TransactionBufferSnapshotSegment();
             transactionBufferSnapshotSegment.setAborts(convertTypeToTxnIDData(segment));
             transactionBufferSnapshotSegment.setTopicName(this.topic.getName());
@@ -633,7 +636,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());
                 return segmentWriter.writeAsync(buildKey(this.sequenceID.get()), transactionBufferSnapshotSegment);
             }).thenCompose((messageId) -> {
-                PositionImpl maxReadPosition = topic.getMaxReadPosition();
                 //Build index for this segment
                 TransactionBufferSnapshotIndex index = new TransactionBufferSnapshotIndex();
                 index.setSequenceID(transactionBufferSnapshotSegment.getSequenceId());
