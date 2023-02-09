@@ -889,7 +889,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         && isCompactionSubscription(subscriptionName)) {
                     log.warn("[{}] Failed to create compaction subscription: {}", topic, ex.getMessage());
                 } else if (ex instanceof PendingAckHandleReplayException) {
-                    subscriptions.remove(subscriptionName);
+                    PersistentSubscription subscription = subscriptions.remove(subscriptionName);
+                    if (subscription != null) {
+                        subscription.retryClose();
+                    }
                     log.warn("[{}] Failed to create subscription {} due to PendingAckHandle recover failed.",
                             topic, subscriptionName, ex);
                 }
