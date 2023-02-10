@@ -47,7 +47,6 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
     protected String tlsKeyStorePassword;
     protected FileModifiedTimeUpdater tlsKeyStore;
 
-    protected AuthenticationDataProvider authData;
     protected final boolean isServer;
 
     // for server
@@ -101,11 +100,17 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
         this.tlsAllowInsecureConnection = allowInsecureConnection;
         this.tlsProvider = sslProviderString;
 
-        this.authData = authData;
-
         this.tlsKeyStoreType = keyStoreTypeString;
-        this.tlsKeyStore = new FileModifiedTimeUpdater(keyStore);
         this.tlsKeyStorePassword = keyStorePassword;
+        this.tlsKeyStore = new FileModifiedTimeUpdater(keyStore);
+        if (authData != null) {
+            KeyStoreParams authParams = authData.getTlsKeyStoreParams();
+            if (authParams != null) {
+                this.tlsKeyStoreType = authParams.getKeyStoreType();
+                this.tlsKeyStore = new FileModifiedTimeUpdater(authParams.getKeyStorePath());
+                this.tlsKeyStorePassword = authParams.getKeyStorePassword();
+            }
+        }
 
         this.tlsTrustStoreType = trustStoreTypeString;
         this.tlsTrustStore = new FileModifiedTimeUpdater(trustStore);
@@ -126,11 +131,10 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsRequireTrustedClientCertOnConnect, tlsCiphers, tlsProtocols);
         } else {
-            KeyStoreParams authParams = authData.getTlsKeyStoreParams();
             this.keyStoreSSLContext = KeyStoreSSLContext.createClientKeyStoreSslContext(tlsProvider,
-                    authParams != null ? authParams.getKeyStoreType() : tlsKeyStoreType,
-                    authParams != null ? authParams.getKeyStorePath() : tlsKeyStore.getFileName(),
-                    authParams != null ? authParams.getKeyStorePassword() : tlsKeyStorePassword,
+                    tlsKeyStoreType,
+                    tlsKeyStore.getFileName(),
+                    tlsKeyStorePassword,
                     tlsAllowInsecureConnection,
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsCiphers, tlsProtocols);
