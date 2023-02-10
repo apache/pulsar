@@ -50,7 +50,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -363,9 +362,8 @@ public class PulsarRecordCursor implements RecordCursor {
                                                         if (readCompactedType != null && message.getKey().isPresent()) {
                                                             RawMessageIdImpl messageId =
                                                                     (RawMessageIdImpl) message.getMessageId();
-                                                            System.out.println("xxxx parse message with id " + messageId);
                                                             if (message.getKey().equals("stock-7")) {
-                                                                System.out.println("");
+                                                                System.out.println("stock-7");
                                                             }
                                                             compactMessage(message.getKey().get(),
                                                                     new BatchMessageIdImpl(
@@ -1164,7 +1162,8 @@ public class PulsarRecordCursor implements RecordCursor {
             }
         }
 
-        private void readEntries(LedgerHandle ledgerHandle, long ledgerId, long entryId, int batchIndex, boolean isCompactedLedger) {
+        private void readEntries(LedgerHandle ledgerHandle, long ledgerId, long entryId, int batchIndex,
+                                 boolean isCompactedLedger) {
             try {
                 LedgerEntries ledgerEntries =
                         ledgerHandle.read(entryId, entryId);

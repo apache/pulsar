@@ -51,6 +51,7 @@ import lombok.Data;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -61,7 +62,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.sql.presto.util.ReadCompactedType;
@@ -134,25 +134,6 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         });
         ReadCompactedType readCompactedType = readCompactedTypeReference.get();
 
-        long compactedLedgerId;
-        PositionImpl compactedHorizon = PositionImpl.EARLIEST;
-        List<Long> leftLedgers = new ArrayList<>();
-        if (readCompactedType != null) {
-            try {
-                String topic = String.format("%s/%s", namespace, tableHandle.getTopicName());
-                PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topic);
-                compactedLedgerId = internalStats.compactedLedger.ledgerId;
-                if (internalStats.cursors.containsKey("Compaction")) {
-                    String[] compactedHorizonArr = internalStats.cursors.get("Compaction").markDeletePosition.split(":");
-                    compactedHorizon = PositionImpl.get(
-                            Long.parseLong(compactedHorizonArr[0]), Long.parseLong(compactedHorizonArr[1]));
-                }
-                TopicStats stats = pulsarAdmin.topics().getStats(topic);
-            } catch (PulsarAdminException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
         Collection<PulsarSplit> splits;
         try {
             OffloadPoliciesImpl offloadPolicies = (OffloadPoliciesImpl) this.pulsarAdmin.namespaces()
@@ -164,11 +145,11 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             }
             if (!PulsarConnectorUtils.isPartitionedTopic(topicName, this.pulsarAdmin)) {
                 splits = getSplitsNonPartitionedTopic(
-                        numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies, readCompactedType, compactedHorizon);
+                        numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies, readCompactedType);
                 log.debug("Splits for non-partitioned topic %s: %s", topicName, splits);
             } else {
                 splits = getSplitsPartitionedTopic(
-                        numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies, readCompactedType, compactedHorizon);
+                        numSplits, topicName, tableHandle, schemaInfo, tupleDomain, offloadPolicies, readCompactedType);
                 log.debug("Splits for partitioned topic %s: %s", topicName, splits);
             }
         } catch (Exception e) {
@@ -181,8 +162,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     @VisibleForTesting
     Collection<PulsarSplit> getSplitsPartitionedTopic(int numSplits, TopicName topicName, PulsarTableHandle
             tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
-              OffloadPoliciesImpl offloadPolicies, ReadCompactedType readCompactedType,
-                                                      PositionImpl compactedHorizon) throws Exception {
+              OffloadPoliciesImpl offloadPolicies, ReadCompactedType readCompactedType) throws Exception {
 
         List<Integer> predicatedPartitions = getPredicatedPartitions(topicName, tupleDomain);
         if (log.isDebugEnabled()) {
@@ -194,6 +174,11 @@ public class PulsarSplitManager implements ConnectorSplitManager {
         int splitsPerPartition = actualNumSplits / predicatedPartitions.size();
 
         int splitRemainder = actualNumSplits % predicatedPartitions.size();
+
+        if (readCompactedType != null) {
+            splitsPerPartition = 1;
+            splitRemainder = 0;
+        }
 
         PulsarConnectorCache pulsarConnectorCache = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
         ManagedLedgerFactory managedLedgerFactory = pulsarConnectorCache.getManagedLedgerFactory();
@@ -214,8 +199,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                     topicName.getPartition(predicatedPartitions.get(i)).getLocalName(),
                     tupleDomain,
                     offloadPolicies,
-                    readCompactedType,
-                        compactedHorizon));
+                    readCompactedType));
         }
         return splits;
     }
@@ -272,8 +256,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
     @VisibleForTesting
     Collection<PulsarSplit> getSplitsNonPartitionedTopic(int numSplits, TopicName topicName,
             PulsarTableHandle tableHandle, SchemaInfo schemaInfo, TupleDomain<ColumnHandle> tupleDomain,
-             OffloadPoliciesImpl offloadPolicies, ReadCompactedType readCompactedType,
-                                                         PositionImpl compactedHorizon) throws Exception {
+             OffloadPoliciesImpl offloadPolicies, ReadCompactedType readCompactedType) throws Exception {
         PulsarConnectorCache pulsarConnectorCache = PulsarConnectorCache.getConnectorCache(pulsarConnectorConfig);
         ManagedLedgerFactory managedLedgerFactory = pulsarConnectorCache.getManagedLedgerFactory();
         ManagedLedgerConfig managedLedgerConfig = pulsarConnectorCache.getManagedLedgerConfig(
@@ -289,8 +272,7 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                 topicName.getLocalName(),
                 tupleDomain,
                 offloadPolicies,
-                readCompactedType,
-                compactedHorizon);
+                readCompactedType);
     }
 
     @VisibleForTesting
@@ -302,15 +284,26 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                               SchemaInfo schemaInfo, String tableName,
                                               TupleDomain<ColumnHandle> tupleDomain,
                                               OffloadPoliciesImpl offloadPolicies,
-                                              ReadCompactedType readCompactedType,
-                                              PositionImpl compactedHorizon)
-            throws ManagedLedgerException, InterruptedException, IOException {
+                                              ReadCompactedType readCompactedType)
+            throws ManagedLedgerException, InterruptedException, IOException, PulsarAdminException {
 
         ReadOnlyCursor readOnlyCursor = null;
         try {
+            Position cursorStartPos = PositionImpl.EARLIEST;
+            if (readCompactedType != null) {
+                PersistentTopicInternalStats internalStats = pulsarAdmin.topics()
+                        .getInternalStats(topicNamePersistenceEncoding);
+                if (internalStats.cursors.containsKey("Compaction")) {
+                    String[] compactedHorizonArr =
+                            internalStats.cursors.get("Compaction").markDeletePosition.split(":");
+                    cursorStartPos = PositionImpl.get(
+                            Long.parseLong(compactedHorizonArr[0]), Long.parseLong(compactedHorizonArr[1]));
+                }
+            }
+
             readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
                     topicNamePersistenceEncoding,
-                    compactedHorizon, managedLedgerConfig);
+                    cursorStartPos, managedLedgerConfig);
 
             long numEntries = readOnlyCursor.getNumberOfEntries();
             if (numEntries <= 0) {
