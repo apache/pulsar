@@ -301,7 +301,7 @@ class PythonInstance(object):
 
   def done_producing(self, consumer, orig_message, topic, result, sent_message):
     if result == pulsar.Result.Ok:
-      if self.auto_ack and self.atleast_once:
+      if self.auto_ack and self.atleast_once or self.effectively_once:
         consumer.acknowledge(orig_message)
     else:
       error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, orig_message.message_id())
@@ -309,7 +309,6 @@ class PythonInstance(object):
       self.stats.incr_total_sys_exceptions(Exception(error_msg))
       # If producer fails send output then send neg ack for input message back to broker
       consumer.negative_acknowledge(orig_message)
-
 
   def process_result(self, output, msg):
     if output is not None and self.instance_config.function_details.sink.topic is not None and \
