@@ -472,16 +472,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             this.topic = topic;
             this.snapshotSegmentsWriterFuture =  this.topic.getBrokerService().getPulsar()
                     .getTransactionBufferSnapshotServiceFactory()
-                    .getTxnBufferSnapshotSegmentService().createWriter(TopicName.get(topic.getName()))
-                    .exceptionally(ex -> {
+                    .getTxnBufferSnapshotSegmentService().createWriter(TopicName.get(topic.getName()));
+            this.snapshotSegmentsWriterFuture.exceptionally(ex -> {
                         log.error("{} Failed to create snapshot index writer", topic.getName());
                         topic.close();
                         return null;
                     });
             this.snapshotIndexWriterFuture =  this.topic.getBrokerService().getPulsar()
                     .getTransactionBufferSnapshotServiceFactory()
-                    .getTxnBufferSnapshotIndexService().createWriter(TopicName.get(topic.getName()))
-                    .exceptionally((ex) -> {
+                    .getTxnBufferSnapshotIndexService().createWriter(TopicName.get(topic.getName()));
+            this.snapshotIndexWriterFuture.exceptionally((ex) -> {
                         log.error("{} Failed to create snapshot writer", topic.getName());
                         topic.close();
                         return null;
