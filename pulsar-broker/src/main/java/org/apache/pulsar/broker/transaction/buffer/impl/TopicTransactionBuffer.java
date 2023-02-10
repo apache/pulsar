@@ -353,8 +353,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
-                            updateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, (PositionImpl) position);
+                            updateMaxReadPosition(txnID);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
                         }
