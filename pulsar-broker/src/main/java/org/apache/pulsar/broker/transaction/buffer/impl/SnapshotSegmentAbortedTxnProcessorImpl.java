@@ -583,16 +583,17 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                             log.debug("[{}] Failed to do operation do operation of [{}]",
                                     topic.getName(), firstTask.getKey().name(), throwable);
                         }
+                        //Do not execute the tasks in the task queue until the next task is appended to the task queue.
                         firstTask.getRight().getKey().completeExceptionally(throwable);
                     } else {
                         firstTask.getRight().getKey().complete(null);
                         taskQueue.removeFirst();
+                        //Execute the next task in the other thread.
+                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                .getExecutor(this).submit(this::executeTask);
                     }
                     STATE_UPDATER.compareAndSet(this, OperationState.Operating,
                             OperationState.None);
-                    //Execute the next task in the other thread.
-                    topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
-                            .getExecutor(this).submit(this::executeTask);
                 });
             }
         }
@@ -698,6 +699,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     .thenCompose((indexesWriter) -> {
                         snapshotIndexes.setIndexList(indexes.values().stream().toList());
                         snapshotIndexes.setSnapshot(snapshotSegment);
+                        snapshotIndexes.setTopicName(topic.getName());
                         return indexesWriter.writeAsync(topic.getName(), snapshotIndexes)
                                 .thenCompose(messageId -> CompletableFuture.completedFuture(null));
                     });

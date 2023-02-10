@@ -188,6 +188,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
             PositionImpl position = new PositionImpl(0, j);
             processor.putAbortedTxnAndPosition(txnID, position);
         }
+        Awaitility.await().untilAsserted(() -> verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 2));
         //2. Close index writer, making the index can not be updated.
         Field field = SnapshotSegmentAbortedTxnProcessorImpl.class.getDeclaredField("persistentWorker");
         field.setAccessible(true);
@@ -200,7 +201,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 (CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>>)
                         indexWriteFutureField.get(worker);
         snapshotIndexWriterFuture.get().close();
-        //3. Try to write a snapshot segment.
+        //3. Try to write a snapshot segment that will fail to update indexes.
         for (int j = 0; j < SEGMENT_SIZE; j++) {
             TxnID txnID = new TxnID(0, j);
             PositionImpl position = new PositionImpl(0, j);
@@ -209,7 +210,12 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //4. Wait writing segment completed.
         Awaitility.await().untilAsserted(() -> verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 3));
         //5. Clear all the snapshot segments and indexes.
-        processor.clearAbortedTxnSnapshot().get();
+        try {
+            processor.clearAbortedTxnSnapshot().get();
+            //Failed to clear index due to the index writer is closed.
+            Assert.fail();
+        } catch (Exception ignored) {
+        }
         //6. Do compaction and wait it completed.
         TopicName segmentTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
                 TopicName.get(PROCESSOR_TOPIC).getNamespaceObject(),
@@ -219,10 +225,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
         doCompaction(segmentTopicName);
         doCompaction(indexTopicName);
-
-        //6. Verify the snapshot segments and index after clearing.
+        //7. Verify the snapshot segments and index after clearing.
         verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 0);
-        verifySnapshotSegmentsIndexSize(PROCESSOR_TOPIC, 0);
+        verifySnapshotSegmentsIndexSize(PROCESSOR_TOPIC, 1);
     }
 
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {
@@ -230,13 +235,15 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 pulsarService.getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotSegmentService()
                 .createReader(TopicName.get(topic)).get();
+        int segmentCount = 0;
         while (reader.hasMoreEvents()) {
             Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
                     .get(5, TimeUnit.SECONDS);
             if (topic.equals(message.getValue().getTopicName())) {
-                Assert.assertFalse(size-- < 0);
+                segmentCount++;
             }
         }
+        Assert.assertEquals(segmentCount, size);
     }
 
     private void verifySnapshotSegmentsIndexSize(String topic, int size) throws Exception {
@@ -244,13 +251,16 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 pulsarService.getTransactionBufferSnapshotServiceFactory()
                         .getTxnBufferSnapshotIndexService()
                         .createReader(TopicName.get(topic)).get();
+        int indexCount = 0;
         while (reader.hasMoreEvents()) {
             Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
                     .get(5, TimeUnit.SECONDS);
             if (topic.equals(message.getValue().getTopicName())) {
-                Assert.assertFalse(size-- < 0);
+                indexCount++;
             }
+            System.out.printf("message.getValue().getTopicName() :" + message.getValue().getTopicName());
         }
+        Assert.assertEquals(indexCount, size);
     }
 
     private void doCompaction(TopicName topic) throws Exception {
