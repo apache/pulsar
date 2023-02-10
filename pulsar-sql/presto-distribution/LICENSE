@@ -377,7 +377,7 @@ The Apache Software License, Version 2.0
     - plexus-container-default-1.5.5.jar
     - plexus-interpolation-1.14.jar
     - plexus-sec-dispatcher-1.3.jar
-    - plexus-utils-2.0.6.jar
+    - plexus-utils-3.0.16.jar
   * Apache XBean :: Reflect
     - xbean-reflect-3.4.jar
   * Avro

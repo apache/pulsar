@@ -78,6 +78,11 @@
     </dependency>
 
     <dependency>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-utils</artifactId>
+      <version>3.0.16</version>
+    </dependency>
+    <dependency>
       <groupId>io.prestosql</groupId>
       <artifactId>presto-main</artifactId>
       <version>${presto.version}</version>
@@ -98,6 +103,10 @@
         <exclusion>
           <groupId>com.google.inject.extensions</groupId>
           <artifactId>guice-multibindings</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.codehaus.plexus</groupId>
+          <artifactId>plexus-utils</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
