@@ -90,6 +90,8 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         conf.setTlsCertificateFilePath(TLS_BROKER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
+        // Setting advertised address to localhost to avoid hostname verification failure
+        conf.setAdvertisedAddress("localhost");
         conf.setNumExecutorThreadPoolSize(5);
 
         Set<String> superUserRoles = new HashSet<>();
@@ -121,6 +123,8 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
+        // Setting advertised address to localhost to avoid hostname verification failure
+        proxyConfig.setAdvertisedAddress("localhost");
 
         // enable tls and auth&auth at proxy
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
