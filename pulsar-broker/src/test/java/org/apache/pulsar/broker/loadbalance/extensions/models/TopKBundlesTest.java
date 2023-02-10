@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -85,24 +86,32 @@ public class TopKBundlesTest {
         Random rand = new Random();
         List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
         List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
-        int max = 10;
-        for (int j = 0; j < 50; j++) {
+
+        for (int j = 0; j < 100; j++) {
             Map<String, Integer> map = new HashMap<>();
+            int max = rand.nextInt(10) + 1;
             for (int i = 0; i < max; i++) {
                 int val = rand.nextInt(max);
                 map.put("" + i, val);
             }
             actual.clear();
             expected.clear();
-            for(var etr : map.entrySet()){
+            for (var etr : map.entrySet()) {
                 actual.add(etr);
                 expected.add(etr);
             }
             int topk = rand.nextInt(max) + 1;
             TopKBundles.partitionSort(actual, topk);
             Collections.sort(expected, (a, b) -> b.getValue().compareTo(a.getValue()));
+            String errorMsg = null;
             for (int i = 0; i < topk; i++) {
-                assertEquals(actual.get(i).getValue(), expected.get(i).getValue());
+                Integer l = (Integer) actual.get(i).getValue();
+                Integer r = (Integer) expected.get(i).getValue();
+                if (!l.equals(r)) {
+                    errorMsg = String.format("Diff found at i=%d, %d != %d, actual:%s, expected:%s",
+                            i, l, r, actual, expected);
+                }
+                assertNull(errorMsg);
             }
         }
     }

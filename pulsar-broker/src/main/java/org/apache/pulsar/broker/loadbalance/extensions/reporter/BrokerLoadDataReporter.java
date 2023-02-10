@@ -92,7 +92,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData> 
     @Override
     public CompletableFuture<Void> reportAsync(boolean force) {
         BrokerLoadData newLoadData = this.generateLoadData();
-        if (needBrokerDataUpdate() || force) {
+        if (force || needBrokerDataUpdate()) {
             log.info("publishing load report:{}", localData.toString(conf));
             CompletableFuture<Void> future =
                     this.brokerLoadDataStore.pushAsync(this.lookupServiceAddress, newLoadData);
@@ -103,7 +103,6 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData> 
                 } else {
                     log.error("Failed to report the broker load data.", ex);
                 }
-                return;
             });
             return future;
         } else {

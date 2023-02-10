@@ -26,8 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -101,6 +102,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private TopBundleLoadDataReporter topBundleLoadDataReporter;
 
+    private ScheduledFuture brokerLoadDataReportTask;
+    private ScheduledFuture topBundlesLoadDataReportTask;
+
     private boolean started = false;
 
     private final AssignCounter assignCounter = new AssignCounter();
@@ -166,7 +170,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
 
         var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
-        this.pulsar.getLoadManagerExecutor()
+        this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
                 .scheduleAtFixedRate(() -> {
                             try {
                                 brokerLoadDataReporter.reportAsync(false);
@@ -177,9 +181,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         },
                         interval,
                         interval, TimeUnit.MILLISECONDS);
-        this.pulsar.getLoadManagerExecutor()
+
+        this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
                 .scheduleAtFixedRate(() -> {
                             try {
+                                // TODO: consider excluding the bundles that are in the process of split.
                                 topBundleLoadDataReporter.reportAsync(false);
                             } catch (Throwable e) {
                                 log.error("Failed to run the top bundles load manager executor job.", e);
@@ -303,6 +309,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             return;
         }
         try {
+            if (brokerLoadDataReportTask != null) {
+                brokerLoadDataReportTask.cancel(true);
+            }
+
+            if (topBundlesLoadDataReportTask != null) {
+                topBundlesLoadDataReportTask.cancel(true);
+            }
+
             this.brokerLoadDataStore.close();
             this.topBundlesLoadDataStore.close();
         } catch (IOException ex) {
