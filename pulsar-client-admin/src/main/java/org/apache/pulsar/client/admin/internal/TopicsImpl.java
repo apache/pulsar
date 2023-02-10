@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
@@ -92,6 +93,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -132,6 +134,9 @@ public class TopicsImpl extends BaseResource implements Topics {
     // CHECKSTYLE.ON: MemberName
 
     public static final String PROPERTY_SHADOW_SOURCE_KEY = "PULSAR.SHADOW_SOURCE";
+
+    private static final String PARTITIONS = "partition";
+    private static final String HYPHEN = "-";
 
     public TopicsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
         super(auth, readTimeoutMs);
@@ -199,6 +204,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
         final CompletableFuture<List<String>> persistentList;
         final CompletableFuture<List<String>> nonPersistentList;
+        final CompletableFuture<List<String>> nonPersistentPartitionedList;
         if (topicDomain == null || TopicDomain.persistent.equals(topicDomain)) {
             persistentList = asyncGetRequest(persistentPath, new FutureCallback<List<String>>() {});
         } else {
@@ -206,13 +212,54 @@ public class TopicsImpl extends BaseResource implements Topics {
         }
 
         if (topicDomain == null || TopicDomain.non_persistent.equals(topicDomain)) {
-            nonPersistentList = asyncGetRequest(nonPersistentPath, new FutureCallback<List<String>>() {});
+            nonPersistentList = asyncGetRequest(nonPersistentPath, new FutureCallback<List<String>>() {
+            });
+
+            WebTarget nonPersistentPartitionedPath = namespacePath("non-persistent", ns, "partitioned");
+            nonPersistentPartitionedPath =
+                    nonPersistentPartitionedPath.queryParam("includeSystemTopic", options.isIncludeSystemTopic());
+            nonPersistentPartitionedList =
+                    asyncGetRequest(nonPersistentPartitionedPath, new FutureCallback<List<String>>() {
+            }).thenCompose(nonPersistentPartitionedTopics -> {
+                List<CompletableFuture<List<String>>> nonPersistentPartitionedTopicsMetadata =
+                    nonPersistentPartitionedTopics.stream().map(nonPersistentPartitionedTopic -> {
+                        CompletableFuture<PartitionedTopicMetadata> partitionedTopicMetadataAsync =
+                                    getPartitionedTopicMetadataAsync(nonPersistentPartitionedTopic);
+
+                        CompletableFuture<List<String>> nonPersistentPartitionedTopicsList =
+                                partitionedTopicMetadataAsync.thenCompose(
+                                        partitionedTopicMetadata -> {
+                                            List<String> nonPersistentPartitionedTopicNameList =
+                                                    IntStream.range(0,
+                                                                    partitionedTopicMetadata.partitions)
+                                                            .mapToObj(partitionNumber -> {
+                                                                return new StringBuilder(
+                                                                        nonPersistentPartitionedTopic)
+                                                                        .append(HYPHEN)
+                                                                        .append(PARTITIONS)
+                                                                        .append(HYPHEN)
+                                                                        .append(partitionNumber)
+                                                                        .toString();
+                                                            }).collect(Collectors.toList());
+                                            return CompletableFuture.completedFuture(
+                                                    nonPersistentPartitionedTopicNameList);
+                                        });
+                            return nonPersistentPartitionedTopicsList;
+                        }).collect(Collectors.toList());
+                        return FutureUtil.waitForAll(nonPersistentPartitionedTopicsMetadata).thenApply(__ -> {
+                            return nonPersistentPartitionedTopicsMetadata.stream().map(CompletableFuture::join)
+                                    .flatMap(l1 -> l1.stream()).collect(Collectors.toList());
+                        });
+                    });
         } else {
             nonPersistentList = CompletableFuture.completedFuture(Collections.emptyList());
+            nonPersistentPartitionedList = CompletableFuture.completedFuture(Collections.emptyList());
         }
-
-        return persistentList.thenCombine(nonPersistentList,
-                (l1, l2) -> new ArrayList<>(Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet())));
+        return persistentList.thenCombine(nonPersistentList.thenCombine(nonPersistentPartitionedList,
+                (l1, l2) -> new ArrayList<>(
+                        Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet()))),
+                (l1, l2) -> new ArrayList<>(
+                        Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toSet())));
     }
 
     @Override
