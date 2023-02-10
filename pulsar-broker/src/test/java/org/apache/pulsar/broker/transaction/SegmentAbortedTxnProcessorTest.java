@@ -33,6 +33,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -159,7 +160,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
     // Verify the update index future can be completed when the queue has other tasks.
     @Test
-    public void testFuturesCanCompleteWithException() throws Exception {
+    public void testFuturesCanCompleteWhenItIsCanceled() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) pulsarService.getBrokerService()
                 .getTopic(PROCESSOR_TOPIC, false).get().get();
         AbortedTxnProcessor processor = new SnapshotSegmentAbortedTxnProcessorImpl(persistentTopic);
@@ -174,7 +175,11 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Queue queue = (Queue) taskQueueField.get(persistentWorker);
         queue.add(new MutablePair<>(SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.OperationType.WriteSegment,
                 new MutablePair<>(new CompletableFuture<>(), task)));
-        processor.takeAbortedTxnsSnapshot(new PositionImpl(1, 10)).get(2, TimeUnit.SECONDS);
+        try {
+            processor.takeAbortedTxnsSnapshot(new PositionImpl(1, 10)).get(2, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        }
     }
 
     @Test
