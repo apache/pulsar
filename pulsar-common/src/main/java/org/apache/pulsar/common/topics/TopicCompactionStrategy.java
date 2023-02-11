@@ -44,6 +44,8 @@ import org.apache.pulsar.client.api.Schema;
  *                 .create();
  */
 public interface TopicCompactionStrategy<T> {
+    // Messages will have a metadata property with this key after compaction.
+    String SYSTEM_COMPACTION_MSG_PROPERTY_KEY = "__sys_comp";
 
     /**
      * Returns the schema object for this strategy.

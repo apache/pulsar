@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -104,7 +105,10 @@ public class RawBatchMessageContainerImplTest {
     }
     @Test
     public void testToByteBuf() throws IOException {
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(2);
+        var keyValue = new KeyValue();
+        keyValue.setKey("my");
+        keyValue.setValue("");
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(2, keyValue);
         String topic = "my-topic";
         container.add(createMessage(topic, "hi-1", 0), null);
         container.add(createMessage(topic, "hi-2", 1), null);
@@ -127,13 +131,21 @@ public class RawBatchMessageContainerImplTest {
         Assert.assertEquals(metadata.getNumMessagesInBatch(), 2);
         Assert.assertEquals(metadata.getHighestSequenceId(), 1);
         Assert.assertEquals(metadata.getCompression(), NONE);
+        var outKeyValue = metadata.getPropertyAt(0);
+        Assert.assertEquals(outKeyValue.getKey(), keyValue.getKey());
+        Assert.assertEquals(outKeyValue.getValue(), keyValue.getValue());
 
         SingleMessageMetadata messageMetadata = new SingleMessageMetadata();
         ByteBuf payload1 = Commands.deSerializeSingleMessageInBatch(
                 singleMessageMetadataAndPayload.getPayload(), messageMetadata, 0, 2);
+        outKeyValue = messageMetadata.getPropertyAt(0);
+        Assert.assertEquals(outKeyValue.getKey(), keyValue.getKey());
+        Assert.assertEquals(outKeyValue.getValue(), keyValue.getValue());
         ByteBuf payload2 = Commands.deSerializeSingleMessageInBatch(
                 singleMessageMetadataAndPayload.getPayload(), messageMetadata, 1, 2);
-
+        outKeyValue = messageMetadata.getPropertyAt(0);
+        Assert.assertEquals(outKeyValue.getKey(), keyValue.getKey());
+        Assert.assertEquals(outKeyValue.getValue(), keyValue.getValue());
         Assert.assertEquals(payload1.toString(Charset.defaultCharset()), "hi-1");
         Assert.assertEquals(payload2.toString(Charset.defaultCharset()), "hi-2");
         payload1.release();
@@ -141,6 +153,38 @@ public class RawBatchMessageContainerImplTest {
         singleMessageMetadataAndPayload.release();
         metadataAndPayload.release();
         buf.release();
+    }
+
+    @Test
+    public void testPropertyKeyValueDeduplication() {
+        var keyValue = new KeyValue();
+        keyValue.setKey("my");
+        keyValue.setValue("");
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(2, keyValue);
+        String topic = "my-topic";
+        container.add(createMessage(topic, "hi-1", 0), null);
+        container.add(createMessage(topic, "hi-2", 1), null);
+
+        for (var m : container.messages) {
+            var props = m.getMessageBuilder().getPropertiesList();
+            Assert.assertEquals(props.size(), 1);
+            var outKeyValue = props.get(0);
+            Assert.assertEquals(outKeyValue.getKey(), keyValue.getKey());
+            Assert.assertEquals(outKeyValue.getValue(), keyValue.getValue());
+        }
+
+        RawBatchMessageContainerImpl container2 = new RawBatchMessageContainerImpl(2, keyValue);
+        for (var m : container.messages) {
+            container2.add(m, null);
+        }
+
+        for (var m : container2.messages) {
+            var props = m.getMessageBuilder().getPropertiesList();
+            Assert.assertEquals(props.size(), 1);
+            var outKeyValue = props.get(0);
+            Assert.assertEquals(outKeyValue.getKey(), keyValue.getKey());
+            Assert.assertEquals(outKeyValue.getValue(), keyValue.getValue());
+        }
     }
 
     @Test

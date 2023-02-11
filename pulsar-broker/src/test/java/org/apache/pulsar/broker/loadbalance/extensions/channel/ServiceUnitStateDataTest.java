@@ -53,11 +53,14 @@ public class ServiceUnitStateDataTest {
         new ServiceUnitStateData(null, "A");
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNullBroker() {
         new ServiceUnitStateData(Owned, null);
     }
-
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testEmptyBroker() {
+        new ServiceUnitStateData(Owned, "");
+    }
     @Test
     public void jsonWriteAndReadTest() throws JsonProcessingException {
         ObjectMapper mapper = ObjectMapperFactory.create();

@@ -47,11 +47,11 @@ public class ServiceUnitStateCompactionStrategyTest {
         String dst = "dst";
         assertTrue(strategy.shouldKeepLeft(data(Free), data(Free)));
         assertFalse(strategy.shouldKeepLeft(data(Free), data(Assigned)));
-        assertTrue(strategy.shouldKeepLeft(data(Free), data(Assigned, "")));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Assigned, dst)));
         assertFalse(strategy.shouldKeepLeft(data(Free), data(Owned)));
-        assertTrue(strategy.shouldKeepLeft(data(Free), data(Owned, "")));
-        assertFalse(strategy.shouldKeepLeft(data(Free), data(Released)));
-        assertFalse(strategy.shouldKeepLeft(data(Free), data(Splitting)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Owned, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Released)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Splitting)));
 
         assertFalse(strategy.shouldKeepLeft(data(Assigned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Assigned)));
@@ -65,7 +65,7 @@ public class ServiceUnitStateCompactionStrategyTest {
 
         assertFalse(strategy.shouldKeepLeft(data(Owned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Assigned)));
-        assertTrue(strategy.shouldKeepLeft(data(Owned), data(Assigned, "")));
+        assertTrue(strategy.shouldKeepLeft(data(Owned), data(Assigned, "broker")));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Assigned, "src", dst)));
         assertFalse(strategy.shouldKeepLeft(data(Owned), data(Assigned, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Owned)));

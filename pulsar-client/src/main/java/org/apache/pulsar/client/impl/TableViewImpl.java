@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.pulsar.common.topics.TopicCompactionStrategy.SYSTEM_COMPACTION_MSG_PROPERTY_KEY;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -191,7 +192,9 @@ public class TableViewImpl<T> implements TableView<T> {
                 boolean update = true;
                 if (compactionStrategy != null) {
                     T prev = data.get(key);
-                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
+                    update = !compactionStrategy.shouldKeepLeft(prev, cur)
+                            // Initially, compacted messages are considered as valid transitions.
+                            || (prev == null && msg.hasProperty(SYSTEM_COMPACTION_MSG_PROPERTY_KEY));
                 }
 
                 if (update) {

@@ -338,6 +338,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         var topic = testData.topic;
         var expected = testData.expected;
         var expectedCopy = new HashMap<>(expected);
+        var expectedCopy2 = new HashMap<>(expected);
 
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
@@ -366,14 +367,30 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                         ServiceUnitStateCompactionStrategy.class.getName()))
                 .create();
         for(var etr : tableview.entrySet()){
+            Assert.assertEquals(expectedCopy2.remove(etr.getKey()), etr.getValue());
+            if (expectedCopy2.isEmpty()) {
+                break;
+            }
+        }
+        Assert.assertTrue(expectedCopy2.isEmpty());
+        tableview.close();
+
+        // Run compaction twice to confirm the compacted messages output correctly after the next compaction.
+        compactor.compact(topic, strategy).get();
+        var tableview2 = pulsar.getClient().newTableViewBuilder(schema)
+                .topic(topic)
+                .loadConf(Map.of(
+                        "topicCompactionStrategyClassName",
+                        ServiceUnitStateCompactionStrategy.class.getName()))
+                .create();
+        for(var etr : tableview2.entrySet()){
             Assert.assertEquals(expected.remove(etr.getKey()), etr.getValue());
             if (expected.isEmpty()) {
                 break;
             }
         }
         Assert.assertTrue(expected.isEmpty());
-        tableview.close();
-
+        tableview2.close();
     }
 
 

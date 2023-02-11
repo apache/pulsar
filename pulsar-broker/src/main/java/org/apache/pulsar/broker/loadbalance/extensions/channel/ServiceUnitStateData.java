@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Defines data for the service unit state changes.
@@ -30,7 +31,9 @@ public record ServiceUnitStateData(ServiceUnitState state, String broker, String
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
-        Objects.requireNonNull(broker);
+        if (StringUtils.isBlank(broker)) {
+            throw new IllegalArgumentException("Empty broker");
+        }
     }
 
     public ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker) {

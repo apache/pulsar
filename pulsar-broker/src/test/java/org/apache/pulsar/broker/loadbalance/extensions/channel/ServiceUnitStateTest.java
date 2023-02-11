@@ -36,8 +36,8 @@ public class ServiceUnitStateTest {
         assertFalse(ServiceUnitState.isValidTransition(Free, Free));
         assertTrue(ServiceUnitState.isValidTransition(Free, Assigned));
         assertTrue(ServiceUnitState.isValidTransition(Free, Owned));
-        assertTrue(ServiceUnitState.isValidTransition(Free, Released));
-        assertTrue(ServiceUnitState.isValidTransition(Free, Splitting));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Released));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Splitting));
 
         assertTrue(ServiceUnitState.isValidTransition(Assigned, Free));
         assertFalse(ServiceUnitState.isValidTransition(Assigned, Assigned));

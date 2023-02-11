@@ -28,6 +28,7 @@ import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecNone;
@@ -47,13 +48,23 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     MessageCrypto msgCrypto;
     Set<String> encryptionKeys;
     CryptoKeyReader cryptoKeyReader;
-    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch) {
+    KeyValue propertyKeyValue;
+    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch, KeyValue propertyKeyValue) {
         super();
+        this.propertyKeyValue = propertyKeyValue;
         compressionType = CompressionType.NONE;
         compressor = new CompressionCodecNone();
         if (maxNumMessagesInBatch > 0) {
             this.maxNumMessagesInBatch = maxNumMessagesInBatch;
         }
+        if (propertyKeyValue != null) {
+            messageMetadata.addProperty()
+                    .setKey(propertyKeyValue.getKey())
+                    .setValue(propertyKeyValue.getValue());
+        }
+    }
+    public RawBatchMessageContainerImpl(int maxNumMessagesInBatch) {
+        this(maxNumMessagesInBatch, null);
     }
     private ByteBuf encrypt(ByteBuf compressedPayload) {
         if (msgCrypto == null) {
@@ -80,6 +91,34 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
     @Override
     public ProducerImpl.OpSendMsg createOpSendMsg() {
         throw new UnsupportedOperationException();
+    }
+
+
+    @Override
+    public boolean add(MessageImpl<?> msg, SendCallback callback) {
+        if (propertyKeyValue != null) {
+            addProperty(msg);
+        }
+        return super.add(msg, callback);
+    }
+
+    private void addProperty(MessageImpl<?> msg) {
+        // MessageImpl.properties does not get updated after MessageImpl.getMessageBuilder().addProperty().
+        // This directly searches any existing property in metadata.properties instead of MessageImpl.hasProperty.
+        var props = msg.getMessageBuilder().getPropertiesList();
+        boolean replaced = false;
+        for (var prop : props) {
+            if (prop.getKey().equals(propertyKeyValue.getKey())) {
+                prop.setValue(propertyKeyValue.getValue());
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            msg.getMessageBuilder().addProperty()
+                    .setKey(propertyKeyValue.getKey())
+                    .setValue(propertyKeyValue.getValue());
+        }
     }
 
     /**

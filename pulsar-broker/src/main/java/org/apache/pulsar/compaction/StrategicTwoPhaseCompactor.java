@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.common.topics.TopicCompactionStrategy.SYSTEM_COMPACTION_MSG_PROPERTY_KEY;
 import io.netty.buffer.ByteBuf;
 import java.time.Duration;
 import java.util.Iterator;
@@ -46,6 +47,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawBatchMessageContainerImpl;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -65,14 +67,16 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
     private static final int MAX_OUTSTANDING = 500;
     private final Duration phaseOneLoopReadTimeout;
     private final RawBatchMessageContainerImpl batchMessageContainer;
-
     public StrategicTwoPhaseCompactor(ServiceConfiguration conf,
                                       PulsarClient pulsar,
                                       BookKeeper bk,
                                       ScheduledExecutorService scheduler,
                                       int maxNumMessagesInBatch) {
         super(conf, pulsar, bk, scheduler);
-        batchMessageContainer = new RawBatchMessageContainerImpl(maxNumMessagesInBatch);
+        var keyValue = new KeyValue();
+        keyValue.setKey(SYSTEM_COMPACTION_MSG_PROPERTY_KEY);
+        keyValue.setValue("");
+        batchMessageContainer = new RawBatchMessageContainerImpl(maxNumMessagesInBatch, keyValue);
         phaseOneLoopReadTimeout = Duration.ofSeconds(conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
     }
 
@@ -160,7 +164,10 @@ public class StrategicTwoPhaseCompactor extends TwoPhaseCompactor {
         Message<T> prev = cache.get(key);
         T prevVal = prev == null ? null : prev.getValue();
 
-        if (!strategy.shouldKeepLeft(prevVal, val)) {
+
+        if (!strategy.shouldKeepLeft(prevVal, val)
+                // Initially, compacted messages are considered as valid transitions.
+                || (prev == null && msg.hasProperty(SYSTEM_COMPACTION_MSG_PROPERTY_KEY))) {
             if (val != null && msg.size() > 0) {
                 cache.remove(key); // to reorder
                 cache.put(key, msg);
