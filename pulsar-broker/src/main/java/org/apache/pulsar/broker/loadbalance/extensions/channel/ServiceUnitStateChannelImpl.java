@@ -35,6 +35,8 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -68,6 +70,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -112,15 +115,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalCleanupCancelledCnt = 0;
     private volatile ChannelState channelState;
 
-    enum EventType {
+    public enum EventType {
         Assign,
         Split,
         Unload
+
     }
 
     @Getter
     @AllArgsConstructor
-    static class Counters {
+    public static class Counters {
         private AtomicLong total;
         private AtomicLong failure;
     }
@@ -863,4 +867,112 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         );
     }
 
+
+    @Override
+    public List<Metrics> getMetrics() {
+        var metrics = new ArrayList<Metrics>();
+        var dimensions = new HashMap<String, String>();
+        dimensions.put("metric", "sunitStateChn");
+        dimensions.put("broker", pulsar.getAdvertisedAddress());
+
+        for (var etr : ownerLookUpCounters.entrySet()) {
+            var dim = new HashMap<>(dimensions);
+            dim.put("state", etr.getKey().toString());
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_owner_lookup_total", etr.getValue());
+            metrics.add(metric);
+        }
+
+        for (var etr : eventCounters.entrySet()) {
+            {
+                var dim = new HashMap<>(dimensions);
+                dim.put("event", etr.getKey().toString());
+                dim.put("result", "Total");
+                var metric = Metrics.create(dim);
+                metric.put("brk_sunit_state_chn_event_publish_ops_total",
+                        etr.getValue().getTotal().get());
+                metrics.add(metric);
+            }
+
+            {
+                var dim = new HashMap<>(dimensions);
+                dim.put("event", etr.getKey().toString());
+                dim.put("result", "Failure");
+                var metric = Metrics.create(dim);
+                metric.put("brk_sunit_state_chn_event_publish_ops_total",
+                        etr.getValue().getFailure().get());
+                metrics.add(metric);
+            }
+        }
+
+        for (var etr : handlerCounters.entrySet()) {
+            {
+                var dim = new HashMap<>(dimensions);
+                dim.put("event", etr.getKey().toString());
+                dim.put("result", "Total");
+                var metric = Metrics.create(dim);
+                metric.put("brk_sunit_state_chn_subscribe_ops_total",
+                        etr.getValue().getTotal().get());
+                metrics.add(metric);
+            }
+
+            {
+                var dim = new HashMap<>(dimensions);
+                dim.put("event", etr.getKey().toString());
+                dim.put("result", "Failure");
+                var metric = Metrics.create(dim);
+                metric.put("brk_sunit_state_chn_subscribe_ops_total",
+                        etr.getValue().getFailure().get());
+                metrics.add(metric);
+            }
+        }
+
+
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Total");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_cleanup_ops_total", totalCleanupCnt);
+            metrics.add(metric);
+        }
+
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Failure");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_cleanup_ops_total", totalCleanupErrorCnt.get());
+            metrics.add(metric);
+        }
+
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Skip");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_cleanup_ops_total", totalCleanupIgnoredCnt);
+            metrics.add(metric);
+        }
+
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Cancel");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_cleanup_ops_total", totalCleanupCancelledCnt);
+            metrics.add(metric);
+        }
+
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Schedule");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_cleanup_ops_total", totalCleanupScheduledCnt);
+            metrics.add(metric);
+        }
+
+        var metric = Metrics.create(dimensions);
+        metric.put("brk_sunit_state_chn_broker_cleanup_ops_total", totalBrokerCleanupTombstoneCnt);
+        metric.put("brk_sunit_state_chn_su_cleanup_ops_total", totalServiceUnitCleanupTombstoneCnt);
+        metrics.add(metric);
+
+        return metrics;
+    }
 }
