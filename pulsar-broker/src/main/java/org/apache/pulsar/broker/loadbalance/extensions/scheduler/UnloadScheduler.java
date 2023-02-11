@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -68,8 +68,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
                               ServiceUnitStateChannel channel,
                               NamespaceUnloadStrategy strategy) {
         this.namespaceUnloadStrategy = strategy;
-        this.recentlyUnloadedBundles = new ConcurrentHashMap<>();
-        this.recentlyUnloadedBrokers = new ConcurrentHashMap<>();
+        this.recentlyUnloadedBundles = new HashMap<>();
+        this.recentlyUnloadedBrokers = new HashMap<>();
         this.loadManagerExecutor = loadManagerExecutor;
         this.context = context;
         this.conf = context.brokerConfiguration();
@@ -95,6 +95,11 @@ public class UnloadScheduler implements LoadManagerScheduler {
             }
             return;
         }
+        // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
+        final long timeout = System.currentTimeMillis()
+                - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
+        recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
+
         this.currentRunningFuture = channel.isChannelOwnerAsync().thenCompose(isChannelOwner -> {
             if (!isChannelOwner) {
                 if (debugMode) {
