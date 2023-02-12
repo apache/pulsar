@@ -20,6 +20,7 @@ package org.apache.pulsar.io.kafka.connect;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import io.confluent.connect.avro.AvroData;
 import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
@@ -34,7 +35,6 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaSchemaWrappedSchema;
-import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
 /**
  * A pulsar source that runs.
