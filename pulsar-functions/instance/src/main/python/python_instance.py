@@ -327,6 +327,7 @@ class PythonInstance(object):
           self.setup_producer(producer_name=producer_id)
           self.contextimpl.publish_producers[producer_id] = self.producer
           Log.info("Setup producer [%s] successfully in effectively_once mode." % self.producer.producer_name())
+
       if self.producer is None:
         self.setup_producer()
         Log.info("Setup producer successfully.")
