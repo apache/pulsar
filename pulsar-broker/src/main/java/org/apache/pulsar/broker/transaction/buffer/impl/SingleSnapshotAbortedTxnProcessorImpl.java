@@ -24,7 +24,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
@@ -57,11 +56,16 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
                 .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
+        this.takeSnapshotWriter.exceptionally((ex) -> {
+                    log.error("{} Failed to create snapshot writer", topic.getName());
+                    topic.close();
+                    return null;
+                });
     }
 
     @Override
-    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl position) {
-        aborts.put(abortedTxnId, position);
+    public void putAbortedTxnAndPosition(TxnID abortedTxnId, PositionImpl abortedMarkerPersistentPosition) {
+        aborts.put(abortedTxnId, abortedMarkerPersistentPosition);
     }
 
     //In this implementation we clear the invalid aborted txn ID one by one.
@@ -78,7 +82,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public boolean checkAbortedTransaction(TxnID txnID, Position readPosition) {
+    public boolean checkAbortedTransaction(TxnID txnID) {
         return aborts.containsKey(txnID);
     }
 
@@ -127,14 +131,12 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> deleteAbortedTxnSnapshot() {
+    public CompletableFuture<Void> clearAbortedTxnSnapshot() {
         return this.takeSnapshotWriter.thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             return writer.deleteAsync(snapshot.getTopicName(), snapshot);
-        }).thenRun(() -> {
-            log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic);
-        });
+        }).thenRun(() -> log.info("[{}] Successes to delete the aborted transaction snapshot", this.topic));
     }
 
     @Override
