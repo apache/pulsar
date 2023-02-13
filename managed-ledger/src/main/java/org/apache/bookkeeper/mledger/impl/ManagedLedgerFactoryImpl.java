@@ -507,7 +507,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         // If the future in map is not done or has exceptionally complete, it means that @param-ledger is not in the
         // map.
         CompletableFuture<ManagedLedgerImpl> ledgerFuture = ledgers.get(ledger.getName());
-        if (!ledgerFuture.isDone() || ledgerFuture.isCompletedExceptionally()){
+        if (ledgerFuture == null || !ledgerFuture.isDone() || ledgerFuture.isCompletedExceptionally()){
             return;
         }
         if (ledgerFuture.join() != ledger){
