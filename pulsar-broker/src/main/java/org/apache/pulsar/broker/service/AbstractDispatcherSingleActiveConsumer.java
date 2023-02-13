@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
