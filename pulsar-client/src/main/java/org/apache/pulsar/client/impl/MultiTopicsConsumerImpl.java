@@ -790,7 +790,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     public CompletableFuture<Void> seekAsync(long timestamp) {
         List<CompletableFuture<Void>> futures = new ArrayList<>(consumers.size());
         consumers.values().forEach(consumer -> futures.add(consumer.seekAsync(timestamp)));
-        return FutureUtil.waitForAll(futures).thenApply( f -> {
+        return FutureUtil.waitForAll(futures).thenApply(f -> {
                     clearIncomingMessages();
                     return null;
                 });
