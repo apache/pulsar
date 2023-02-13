@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -37,6 +39,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
  */
 @Getter
 @EqualsAndHashCode
+@ToString
 public class BrokerLoadData {
 
     private static final double DEFAULT_RESOURCE_USAGE = 1.0d;
@@ -53,6 +56,7 @@ public class BrokerLoadData {
     private double msgThroughputOut;  // bytes/sec
     private double msgRateIn; // messages/sec
     private double msgRateOut; // messages/sec
+    private int bundleCount;
 
     // Load data features computed from the above resources.
     private double maxResourceUsage; // max of resource usages
@@ -71,6 +75,9 @@ public class BrokerLoadData {
      */
     private double weightedMaxEMA;
     private long updatedAt;
+
+    @Setter
+    private long reportedAt;
 
     public BrokerLoadData() {
         cpu = new ResourceUsage();
@@ -95,6 +102,8 @@ public class BrokerLoadData {
      *            broker-level message input rate in messages/s.
      * @param msgRateOut
      *            broker-level message output rate in messages/s.
+     * @param bundleCount
+     *            broker-level bundle counts.
      * @param conf
      *            Service configuration to compute load data features.
      */
@@ -103,12 +112,14 @@ public class BrokerLoadData {
                        double msgThroughputOut,
                        double msgRateIn,
                        double msgRateOut,
+                       int bundleCount,
                        ServiceConfiguration conf) {
         updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
         this.msgThroughputIn = msgThroughputIn;
         this.msgThroughputOut = msgThroughputOut;
         this.msgRateIn = msgRateIn;
         this.msgRateOut = msgRateOut;
+        this.bundleCount = bundleCount;
         updateFeatures(conf);
         updatedAt = System.currentTimeMillis();
     }
@@ -125,9 +136,11 @@ public class BrokerLoadData {
         msgThroughputOut = other.msgThroughputOut;
         msgRateIn = other.msgRateIn;
         msgRateOut = other.msgRateOut;
+        bundleCount = other.bundleCount;
         weightedMaxEMA = other.weightedMaxEMA;
         maxResourceUsage = other.maxResourceUsage;
         updatedAt = other.updatedAt;
+        reportedAt = other.reportedAt;
     }
 
     // Update resource usage given each individual usage.
@@ -177,7 +190,9 @@ public class BrokerLoadData {
                         + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "
                         + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
                         + "msgThroughputIn= %.2f, msgThroughputOut= %.2f, msgRateIn= %.2f, msgRateOut= %.2f, "
-                        + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, updatedAt= %d",
+                        + "bundleCount= %d, "
+                        + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, "
+                        + "updatedAt= %d, reportedAt= %d",
 
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
                 bandwidthIn.percentUsage(), bandwidthOut.percentUsage(),
@@ -187,7 +202,9 @@ public class BrokerLoadData {
                 conf.getLoadBalancerBandwithInResourceWeight(),
                 conf.getLoadBalancerBandwithOutResourceWeight(),
                 msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
-                maxResourceUsage * 100, weightedMaxEMA * 100, updatedAt
+                bundleCount,
+                maxResourceUsage * 100, weightedMaxEMA * 100,
+                updatedAt, reportedAt
         );
     }
 

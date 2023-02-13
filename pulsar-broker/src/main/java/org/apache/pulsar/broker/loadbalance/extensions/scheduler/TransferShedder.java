@@ -28,10 +28,6 @@ import java.util.Optional;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.mutable.MutableBoolean;
-import org.apache.commons.lang3.mutable.MutableDouble;
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -323,8 +319,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                             offload * 100, offloadThroughput / KB, (brokerThroughput - offloadThroughput) / KB);
                 }
 
-                MutableDouble trafficMarkedToOffload = new MutableDouble(0);
-                MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
+                double trafficMarkedToOffload = 0;
+                boolean atLeastOneBundleSelected = false;
 
                 Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
                 if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
@@ -335,37 +331,30 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 var topBundlesLoadData = bundlesLoadData.get().getTopBundlesLoadData();
                 if (topBundlesLoadData.size() > 1) {
-                    MutableInt remainingTopBundles = new MutableInt();
-                    topBundlesLoadData.stream()
-                            .filter(e ->
-                                    !recentlyUnloadedBundles.containsKey(e.bundleName()) && isTransferable(
-                                            e.bundleName())
-                            ).map((e) -> {
-                                String bundle = e.bundleName();
-                                var bundleData = e.stats();
-                                double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
-                                remainingTopBundles.increment();
-                                return Pair.of(bundle, throughput);
-                            }).sorted((e1, e2) ->
-                                    Double.compare(e2.getRight(), e1.getRight())
-                            ).forEach(e -> {
-                                if (remainingTopBundles.getValue() > 1
-                                        && (trafficMarkedToOffload.doubleValue() < offloadThroughput
-                                        || atLeastOneBundleSelected.isFalse())) {
-                                    if (transfer) {
-                                        selectedBundlesCache.put(maxBroker,
-                                                new Unload(maxBroker, e.getLeft(),
-                                                        Optional.of(minBroker)));
-                                    } else {
-                                        selectedBundlesCache.put(maxBroker,
-                                                new Unload(maxBroker, e.getLeft()));
-                                    }
-                                    trafficMarkedToOffload.add(e.getRight());
-                                    atLeastOneBundleSelected.setTrue();
-                                    remainingTopBundles.decrement();
+                    int remainingTopBundles = topBundlesLoadData.size();
+                    for (var e : topBundlesLoadData) {
+                        String bundle = e.bundleName();
+                        if (!recentlyUnloadedBundles.containsKey(bundle) && isTransferable(bundle)) {
+                            var bundleData = e.stats();
+                            double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
+                            if (remainingTopBundles > 1
+                                    && (trafficMarkedToOffload < offloadThroughput
+                                    || !atLeastOneBundleSelected)) {
+                                if (transfer) {
+                                    selectedBundlesCache.put(maxBroker,
+                                            new Unload(maxBroker, bundle,
+                                                    Optional.of(minBroker)));
+                                } else {
+                                    selectedBundlesCache.put(maxBroker,
+                                            new Unload(maxBroker, bundle));
                                 }
-                            });
-                    if (atLeastOneBundleSelected.isFalse()) {
+                                trafficMarkedToOffload += throughput;
+                                atLeastOneBundleSelected = true;
+                                remainingTopBundles--;
+                            }
+                        }
+                    }
+                    if (!atLeastOneBundleSelected) {
                         numOfBrokersWithFewBundles++;
                     }
                 } else if (topBundlesLoadData.size() == 1) {
@@ -379,9 +368,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     log.warn("Broker {} is overloaded despite having no bundles", maxBroker);
                 }
 
-
-
-                if (trafficMarkedToOffload.getValue() > 0) {
+                if (trafficMarkedToOffload > 0) {
                     stats.offload(max, min, offload);
                     if (debugMode) {
                         log.info(

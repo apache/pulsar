@@ -2514,6 +2514,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Percentage of bundles to compute topK bundle load data from each broker. "
+                    + "The load balancer distributes bundles across brokers, "
+                    + "based on topK bundle load data and other broker load data."
+                    + "The bigger value will increase the overhead of reporting many bundles in load data. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private double loadBalancerBundleLoadReportPercentage = 10;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
