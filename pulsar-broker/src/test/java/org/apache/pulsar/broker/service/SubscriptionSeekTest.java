@@ -549,6 +549,53 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     }
 
     @Test
+    public void testSeekMidTimeOnPartitionedTopic() throws Exception {
+        final String topicName = "persistent://prop/ns-abc/testSeekMidTimeOnPartitionedTopic";
+        admin.topics().createPartitionedTopic(topicName, 2);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer =
+                pulsarClient
+                        .newConsumer()
+                        .topic(topicName)
+                        .subscriptionName("my-subscription")
+                        .subscribe();
+
+        int numberOfMsg = 10;
+        long resetTimeInMillis = -1;
+        Set<MessageId> msgAfterMidTime = new HashSet<>();
+        for (int i = 0; i < numberOfMsg; i++) {
+            if (i == numberOfMsg / 2) {
+                resetTimeInMillis = System.currentTimeMillis();
+            }
+            // make sure publishTime for each msg is different
+            Thread.sleep(1);
+            String message = "my-message-" + i;
+            MessageId messageId = producer.send(message.getBytes());
+            if (i >= numberOfMsg / 2) {
+                msgAfterMidTime.add(messageId);
+            }
+        }
+        consumer.seek(resetTimeInMillis);
+
+        Message message;
+        int receivedMsgCounter = 0;
+        for (int i = 0; i < numberOfMsg; i++) {
+            message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            receivedMsgCounter ++;
+            msgAfterMidTime.remove(message.getMessageId());
+            assertTrue(message.getPublishTime() > resetTimeInMillis);
+        }
+        assertEquals(receivedMsgCounter, numberOfMsg / 2);
+        assertEquals(msgAfterMidTime.size(), 0);
+
+        producer.close();
+        consumer.close();
+    }
+
+    @Test
     public void testShouldCloseAllConsumersForMultipleConsumerDispatcherWhenSeek() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testShouldCloseAllConsumersForMultipleConsumerDispatcherWhenSeek";
         // Disable pre-fetch in consumer to track the messages received
