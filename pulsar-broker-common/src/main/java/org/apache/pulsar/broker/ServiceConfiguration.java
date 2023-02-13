@@ -3554,4 +3554,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return numWorkerThreadsForNonPersistentTopic > 0
                 ? numWorkerThreadsForNonPersistentTopic : topicOrderedExecutorThreadNum;
     }
+
+    public boolean isSystemTopicAndTopicLevelPoliciesEnabled() {
+        return topicLevelPoliciesEnabled && systemTopicEnabled;
+    }
 }
