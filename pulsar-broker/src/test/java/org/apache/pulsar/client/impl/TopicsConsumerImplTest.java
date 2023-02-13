@@ -1331,7 +1331,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         log.info("Topics are distributed to consumers as {}", eventListener.getActiveConsumers());
         Map<String, Integer> assigned = new HashMap<>();
         eventListener.getActiveConsumers().forEach((k, v) -> assigned.compute(v, (t, c) -> c == null ? 1 : ++ c));
-        assertEquals(assigned.size(), 10);
+        assertEquals(assigned.size(), consumers);
         for (Consumer<?> consumer : consumerList) {
             consumer.close();
         }
