@@ -875,8 +875,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private void refreshAuthenticationCredentials() {
         assert ctx.executor().inEventLoop();
         AuthenticationState authState = this.originalAuthState != null ? originalAuthState : this.authState;
-        if (getState() != State.Connected || !isActive) {
-            // Connection is either still being established or already closed.
+        if (getState() == State.Failed) {
+            // Happens when an exception is thrown that causes this connection to close.
             return;
         } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
