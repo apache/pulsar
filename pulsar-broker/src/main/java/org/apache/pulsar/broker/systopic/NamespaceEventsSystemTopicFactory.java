@@ -44,12 +44,10 @@ public class NamespaceEventsSystemTopicFactory {
     }
 
     public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
-            NamespaceName namespaceName, SystemTopicTxnBufferSnapshotService<T>
+            TopicName systemTopicName, SystemTopicTxnBufferSnapshotService<T>
             systemTopicTxnBufferSnapshotService, Class<T> schemaType) {
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        log.info("Create transaction buffer snapshot client, topicName : {}", topicName.toString());
-        return new TransactionBufferSnapshotBaseSystemTopicClient(client, topicName,
+        log.info("Create transaction buffer snapshot client, topicName : {}", systemTopicName.toString());
+        return new TransactionBufferSnapshotBaseSystemTopicClient(client, systemTopicName,
                 systemTopicTxnBufferSnapshotService, schemaType);
     }
 

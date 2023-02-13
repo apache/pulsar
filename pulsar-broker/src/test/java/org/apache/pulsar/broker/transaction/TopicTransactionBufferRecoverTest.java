@@ -79,6 +79,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -91,6 +93,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -530,9 +533,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 (AbortedTxnProcessor) abortedTxnProcessorField.get(topicTransactionBuffer);
         abortedTxnProcessor.takeAbortedTxnsSnapshot(topicTransactionBuffer.getMaxReadPosition());
 
-        TopicName transactionBufferTopicName =
-                NamespaceEventsSystemTopicFactory.getSystemTopicName(
-                        TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
+        TopicName transactionBufferTopicName;
+        if (!enableSnapshotSegment) {
+            transactionBufferTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                            TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT);
+        }  else {
+            transactionBufferTopicName  = NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                    TopicName.get(topic).getNamespaceObject(), EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+        }
         PersistentTopic snapshotTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(transactionBufferTopicName.toString(), false).get().get();
         Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
@@ -550,7 +558,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
 
-        Reader<TransactionBufferSnapshot> reader = pulsarClient.newReader(Schema.AVRO(TransactionBufferSnapshot.class))
+        Reader<GenericRecord> reader = pulsarClient.newReader(Schema.AUTO_CONSUME())
                 .readCompacted(true)
                 .startMessageId(MessageId.earliest)
                 .startMessageIdInclusive()
@@ -559,7 +567,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         int count = 0;
         while (true) {
-            Message<TransactionBufferSnapshot> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
+            Message<GenericRecord> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
             if (snapshotMsg != null) {
                 count++;
             } else {
@@ -721,10 +729,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         TransactionBufferSnapshotIndex transactionBufferSnapshotIndex =
                 transactionBufferTransactionBufferSnapshotIndexes.getIndexList().get(1);
-        assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionLedgerID(), 1L);
-        assertEquals(transactionBufferSnapshotIndex.getMaxReadPositionEntryID(), 1L);
-        assertEquals(transactionBufferSnapshotIndex.getPersistentPositionLedgerID(), 1L);
-        assertEquals(transactionBufferSnapshotIndex.getPersistentPositionEntryID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getAbortedMarkLedgerID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getAbortedMarkEntryID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getSegmentLedgerID(), 1L);
+        assertEquals(transactionBufferSnapshotIndex.getSegmentEntryID(), 1L);
         assertEquals(transactionBufferSnapshotIndex.getSequenceID(), 1L);
     }
 
@@ -765,8 +773,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         //build and send snapshot
         snapshot.setTopicName(snapshotTopic);
         snapshot.setSequenceId(1L);
-        snapshot.setMaxReadPositionLedgerId(2L);
-        snapshot.setMaxReadPositionEntryId(3L);
+        snapshot.setPersistentPositionLedgerId(2L);
+        snapshot.setPersistentPositionEntryId(3L);
         LinkedList<TxnIDData> txnIDSet = new LinkedList<>();
         txnIDSet.add(new TxnIDData(1, 1));
         snapshot.setAborts(txnIDSet );
@@ -818,9 +826,99 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         //verify snapshot
         assertEquals(snapshot.getTopicName(), snapshotTopic);
         assertEquals(snapshot.getSequenceId(), 2L);
-        assertEquals(snapshot.getMaxReadPositionLedgerId(), 2L);
-        assertEquals(snapshot.getMaxReadPositionEntryId(), 3L);
+        assertEquals(snapshot.getPersistentPositionLedgerId(), 2L);
+        assertEquals(snapshot.getPersistentPositionEntryId(), 3L);
         assertEquals(snapshot.getAborts().toArray()[0], new TxnIDData(1, 1));
+    }
+
+    //Verify the snapshotSegmentProcessor end to end
+    @Test
+    public void testSnapshotSegment() throws Exception {
+        String topic ="persistent://" + NAMESPACE1 + "/testSnapshotSegment";
+        String subName = "testSnapshotSegment";
+
+        LinkedMap<Transaction, MessageId> ongoingTxns = new LinkedMap<>();
+        LinkedList<MessageId> abortedTxns = new LinkedList<>();
+        // 0. Modify the configurations, enabling the segment snapshot and set the size of the snapshot segment.
+        int theSizeOfSegment = 10;
+        int theCountOfSnapshotMaxTxnCount = 3;
+        this.getPulsarServiceList().get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+        this.getPulsarServiceList().get(0).getConfig()
+                .setTransactionBufferSnapshotSegmentSize(8 + topic.length() + theSizeOfSegment * 3);
+        this.getPulsarServiceList().get(0).getConfig()
+                .setTransactionBufferSnapshotMaxTransactionCount(theCountOfSnapshotMaxTxnCount);
+        // 1. Build producer and consumer
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        // 2. Check the AbortedTxnProcessor workflow 10 times
+        int messageSize = theSizeOfSegment * 4;
+        for (int i = 0; i < 10; i++) {
+            MessageId maxReadMessage = null;
+            int abortedTxnSize = 0;
+            for (int j = 0; j < messageSize; j++) {
+                Transaction transaction = pulsarClient.newTransaction()
+                        .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
+                //Half common message and half transaction message.
+                if (j % 2 == 0) {
+                    MessageId messageId = producer.newMessage(transaction).value(i * 10 + j).send();
+                    //And the transaction message have a half which are aborted.
+                    if (RandomUtils.nextInt() % 2 == 0) {
+                        transaction.abort().get();
+                        abortedTxns.add(messageId);
+                        abortedTxnSize++;
+                    } else {
+                        ongoingTxns.put(transaction, messageId);
+                        if (maxReadMessage == null) {
+                            //The except number of the messages that can be read
+                            maxReadMessage = messageId;
+                        }
+                    }
+                } else {
+                    producer.newMessage().value(i * 10 + j).send();
+                    transaction.commit().get();
+                }
+            }
+            // 2.1 Receive all message before the maxReadPosition to verify the correctness of the max read position.
+            int hasReceived = 0;
+            while (true) {
+                Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
+                if (message != null) {
+                    Assert.assertTrue(message.getMessageId().compareTo(maxReadMessage) < 0);
+                    hasReceived ++;
+                } else {
+                    break;
+                }
+            }
+            //2.2 Commit all ongoing transaction and verify that the consumer can receive all rest message
+            // expect for aborted txn message.
+            for (Transaction ongoingTxn: ongoingTxns.keySet()) {
+                ongoingTxn.commit().get();
+            }
+            ongoingTxns.clear();
+            for (int k = hasReceived; k < messageSize - abortedTxnSize; k++) {
+                Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
+                assertNotNull(message);
+                assertFalse(abortedTxns.contains(message.getMessageId()));
+            }
+        }
+        // 3. After the topic unload, the consumer can receive all the messages in the 10 tests
+        // expect for the aborted transaction messages.
+        admin.topics().unload(topic);
+        for (int i = 0; i < messageSize * 10 - abortedTxns.size(); i++) {
+            Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
+            assertNotNull(message);
+            assertFalse(abortedTxns.contains(message.getMessageId()));
+        }
+        assertNull(consumer.receive(2, TimeUnit.SECONDS));
     }
 
 }

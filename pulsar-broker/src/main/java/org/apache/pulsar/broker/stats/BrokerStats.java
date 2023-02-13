@@ -16,20 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.transaction.buffer.metadata.v2;
+package org.apache.pulsar.broker.stats;
 
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+public class BrokerStats extends NamespaceStats {
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class TransactionBufferSnapshotSegment {
-    private String topicName;
-    private long sequenceId;
-    private long persistentPositionLedgerId;
-    private long persistentPositionEntryId;
-    private List<TxnIDData> aborts;
+    public int bundleCount;
+    public BrokerStats(int ratePeriodInSeconds) {
+        super(ratePeriodInSeconds);
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        bundleCount = 0;
+    }
 }

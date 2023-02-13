@@ -38,9 +38,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -61,6 +64,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -69,12 +73,14 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.awaitility.Awaitility;
@@ -113,9 +119,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         pulsar1 = pulsar;
         additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
         pulsar2 = additionalPulsarTestContext.getPulsarService();
-        channel1 = new ServiceUnitStateChannelImpl(pulsar1);
+        channel1 = spy(new ServiceUnitStateChannelImpl(pulsar1));
         channel1.start();
-        channel2 = new ServiceUnitStateChannelImpl(pulsar2);
+        channel2 = spy(new ServiceUnitStateChannelImpl(pulsar2));
         channel2.start();
         lookupServiceAddress1 = (String)
                 FieldUtils.readDeclaredField(channel1, "lookupServiceAddress", true);
@@ -480,7 +486,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(priority = 6)
-    public void splitTest() throws Exception {
+    public void splitAndRetryTest() throws Exception {
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
         waitUntilNewOwner(channel1, bundle, lookupServiceAddress1);
         waitUntilNewOwner(channel2, bundle, lookupServiceAddress1);
@@ -490,17 +496,52 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(lookupServiceAddress1));
         assertTrue(ownerAddr1.isPresent());
 
+        NamespaceService namespaceService = spy(pulsar1.getNamespaceService());
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        int badVersionExceptionCount = 3;
+        AtomicInteger count = new AtomicInteger(badVersionExceptionCount);
+        future.completeExceptionally(new MetadataStoreException.BadVersionException("BadVersion"));
+        doAnswer(invocationOnMock -> {
+            if (count.decrementAndGet() > 0) {
+                return future;
+            }
+            // Call the real method
+            reset(namespaceService);
+            return future;
+        }).when(namespaceService).updateNamespaceBundles(any(), any());
+        doReturn(namespaceService).when(pulsar1).getNamespaceService();
+
         Split split = new Split(bundle, ownerAddr1.get(), new HashMap<>());
         channel1.publishSplitEventAsync(split);
 
         waitUntilNewOwner(channel1, bundle, null);
         waitUntilNewOwner(channel2, bundle, null);
 
-        // TODO: assert child bundle ownerships in the channels.
-        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
-        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0);
+        validateHandlerCounters(channel1, 1, 0, 9, 0, 0, 0, 1, 0, 7, 0);
+        validateHandlerCounters(channel2, 1, 0, 9, 0, 0, 0, 1, 0, 7, 0);
         validateEventCounters(channel1, 1, 0, 1, 0, 0, 0);
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
+        // Verify the retry count
+        verify(((ServiceUnitStateChannelImpl) channel1), times(badVersionExceptionCount + 1))
+                .splitServiceUnitOnceAndRetry(any(), any(), any(), any(), any(), any(), anyLong(), any());
+
+        // Assert child bundle ownerships in the channels.
+        String childBundle1 = "public/default/0x7fffffff_0xffffffff";
+        String childBundle2 = "public/default/0x00000000_0x7fffffff";
+
+        waitUntilNewOwner(channel1, childBundle1, lookupServiceAddress1);
+        waitUntilNewOwner(channel1, childBundle2, lookupServiceAddress1);
+        waitUntilNewOwner(channel2, childBundle1, lookupServiceAddress1);
+        waitUntilNewOwner(channel2, childBundle2, lookupServiceAddress1);
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(childBundle1).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel1.getOwnerAsync(childBundle2).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(childBundle1).get());
+        assertEquals(Optional.of(lookupServiceAddress1), channel2.getOwnerAsync(childBundle2).get());
+
+        cleanTableView(channel1, childBundle1);
+        cleanTableView(channel2, childBundle1);
+        cleanTableView(channel1, childBundle2);
+        cleanTableView(channel2, childBundle2);
     }
 
     @Test(priority = 7)
