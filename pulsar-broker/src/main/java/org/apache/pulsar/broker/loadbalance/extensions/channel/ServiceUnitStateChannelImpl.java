@@ -39,6 +39,7 @@ import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -46,7 +47,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -78,8 +78,8 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -665,15 +665,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 updateFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
                 return;
             }
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
             ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker());
             NamespaceBundles targetNsBundle = splitBundlesPair.getLeft();
             List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
-            List<NamespaceBundle> successPublishedBundles = new CopyOnWriteArrayList<>();
+            List<NamespaceBundle> successPublishedBundles =
+                    Collections.synchronizedList(new ArrayList<>(splitBundles.size()));
+            List<CompletableFuture<Void>> futures = new ArrayList<>(splitBundles.size());
             for (NamespaceBundle sBundle : splitBundles) {
-                futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> {
-                    successPublishedBundles.add(sBundle);
-                }));
+                futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> successPublishedBundles.add(sBundle)));
             }
             NamespaceName nsname = bundle.getNamespaceObject();
             FutureUtil.waitForAll(futures)
