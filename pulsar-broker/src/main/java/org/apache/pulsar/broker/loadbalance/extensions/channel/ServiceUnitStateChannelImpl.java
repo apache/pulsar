@@ -667,7 +667,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker());
             NamespaceBundles targetNsBundle = splitBundlesPair.getLeft();
-            List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
+            List<NamespaceBundle> splitBundles = Collections.unmodifiableList(splitBundlesPair.getRight());
             List<NamespaceBundle> successPublishedBundles =
                     Collections.synchronizedList(new ArrayList<>(splitBundles.size()));
             List<CompletableFuture<Void>> futures = new ArrayList<>(splitBundles.size());
