@@ -32,47 +32,45 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionMode;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 
 /**
- * pulsar-client consume command implementation.
+ * pulsar-client read command implementation.
  *
  */
-@Parameters(commandDescription = "Consume messages from a specified topic")
-public class CmdConsume extends AbstractCmdConsume {
+@Parameters(commandDescription = "Read messages from a specified topic")
+public class CmdRead extends AbstractCmdConsume {
+
+    private static final Pattern MSG_ID_PATTERN = Pattern.compile("^(-?[1-9][0-9]*|0):(-?[1-9][0-9]*|0)$");
 
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
 
-    @Parameter(names = { "-t", "--subscription-type" }, description = "Subscription type.")
-    private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
+    @Parameter(names = { "-m", "--start-message-id" },
+            description = "Initial reader position, it can be 'latest', 'earliest' or '<ledgerId>:<entryId>'")
+    private String startMessageId = "latest";
 
-    @Parameter(names = { "-m", "--subscription-mode" }, description = "Subscription mode.")
-    private SubscriptionMode subscriptionMode = SubscriptionMode.Durable;
-
-    @Parameter(names = { "-p", "--subscription-position" }, description = "Subscription position.")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
-
-    @Parameter(names = { "-s", "--subscription-name" }, required = true, description = "Subscription name.")
-    private String subscriptionName;
+    @Parameter(names = { "-i", "--start-message-id-inclusive" },
+            description = "Whether to include the position specified by -m option.")
+    private boolean startMessageIdInclusive = false;
 
     @Parameter(names = { "-n",
-            "--num-messages" }, description = "Number of messages to consume, 0 means to consume forever.")
-    private int numMessagesToConsume = 1;
+            "--num-messages" }, description = "Number of messages to read, 0 means to read forever.")
+    private int numMessagesToRead = 1;
 
     @Parameter(names = { "--hex" }, description = "Display binary messages in hex.")
     private boolean displayHex = false;
@@ -80,14 +78,11 @@ public class CmdConsume extends AbstractCmdConsume {
     @Parameter(names = { "--hide-content" }, description = "Do not write the message to console.")
     private boolean hideContent = false;
 
-    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to consume, "
-            + "value 0 means to consume messages as fast as possible.")
-    private double consumeRate = 0;
+    @Parameter(names = { "-r", "--rate" }, description = "Rate (in msg/sec) at which to read, "
+            + "value 0 means to read messages as fast as possible.")
+    private double readRate = 0;
 
-    @Parameter(names = { "--regex" }, description = "Indicate the topic name is a regex pattern")
-    private boolean isRegex = false;
-
-    @Parameter(names = {"-q", "--queue-size"}, description = "Consumer receiver queue size.")
+    @Parameter(names = {"-q", "--queue-size"}, description = "Reader receiver queue size.")
     private int receiverQueueSize = 0;
 
     @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
@@ -103,19 +98,19 @@ public class CmdConsume extends AbstractCmdConsume {
     private String encKeyValue;
 
     @Parameter(names = { "-st", "--schema-type"},
-            description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
+            description = "Set a schema type on the reader, it can be 'bytes' or 'auto_consume'")
     private String schemaType = "bytes";
 
     @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
     private boolean poolMessages = true;
 
-    public CmdConsume() {
+    public CmdRead() {
         // Do nothing
         super();
     }
 
     /**
-     * Run the consume command.
+     * Run the read command.
      *
      * @return 0 for success, < 0 otherwise
      */
@@ -123,47 +118,40 @@ public class CmdConsume extends AbstractCmdConsume {
         if (mainOptions.size() != 1) {
             throw (new ParameterException("Please provide one and only one topic name."));
         }
-        if (this.subscriptionName == null || this.subscriptionName.isEmpty()) {
-            throw (new ParameterException("Subscription name is not provided."));
-        }
-        if (this.numMessagesToConsume < 0) {
+        if (this.numMessagesToRead < 0) {
             throw (new ParameterException("Number of messages should be zero or positive."));
         }
 
         String topic = this.mainOptions.get(0);
 
         if (this.serviceURL.startsWith("ws")) {
-            return consumeFromWebSocket(topic);
+            return readFromWebSocket(topic);
         } else {
-            return consume(topic);
+            return read(topic);
         }
     }
 
-    private int consume(String topic) {
-        int numMessagesConsumed = 0;
+    private int read(String topic) {
+        int numMessagesRead = 0;
         int returnCode = 0;
 
         try (PulsarClient client = clientBuilder.build()){
-            ConsumerBuilder<?> builder;
+            ReaderBuilder<?> builder;
+
             Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
             if ("auto_consume".equals(schemaType)) {
                 schema = Schema.AUTO_CONSUME();
             } else if (!"bytes".equals(schemaType)) {
                 throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
             }
-            builder = client.newConsumer(schema)
-                    .subscriptionName(this.subscriptionName)
-                    .subscriptionType(subscriptionType)
-                    .subscriptionMode(subscriptionMode)
-                    .subscriptionInitialPosition(subscriptionInitialPosition)
+            builder = client.newReader(schema)
+                    .topic(topic)
+                    .startMessageId(parseMessageId(startMessageId))
                     .poolMessages(poolMessages);
 
-            if (isRegex) {
-                builder.topicsPattern(Pattern.compile(topic));
-            } else {
-                builder.topic(topic);
+            if (this.startMessageIdInclusive) {
+                builder.startMessageIdInclusive();
             }
-
             if (this.maxPendingChunkedMessage > 0) {
                 builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
             }
@@ -177,27 +165,26 @@ public class CmdConsume extends AbstractCmdConsume {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
             }
 
-            try (Consumer<?> consumer = builder.subscribe();) {
-                RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-                while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
+            try (Reader<?> reader = builder.create()) {
+                RateLimiter limiter = (this.readRate > 0) ? RateLimiter.create(this.readRate) : null;
+                while (this.numMessagesToRead == 0 || numMessagesRead < this.numMessagesToRead) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
 
-                    Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
+                    Message<?> msg = reader.readNext(5, TimeUnit.SECONDS);
                     if (msg == null) {
-                        LOG.debug("No message to consume after waiting for 5 seconds.");
+                        LOG.debug("No message to read after waiting for 5 seconds.");
                     } else {
                         try {
-                            numMessagesConsumed += 1;
+                            numMessagesRead += 1;
                             if (!hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
                                 String output = this.interpretMessage(msg, displayHex);
                                 System.out.println(output);
-                            } else if (numMessagesConsumed % 1000 == 0) {
-                                System.out.println("Received " + numMessagesConsumed + " messages");
+                            } else if (numMessagesRead % 1000 == 0) {
+                                System.out.println("Received " + numMessagesRead + " messages");
                             }
-                            consumer.acknowledge(msg);
                         } finally {
                             msg.release();
                         }
@@ -205,11 +192,11 @@ public class CmdConsume extends AbstractCmdConsume {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Error while consuming messages");
+            LOG.error("Error while reading messages");
             LOG.error(e.getMessage(), e);
             returnCode = -1;
         } finally {
-            LOG.info("{} messages successfully consumed", numMessagesConsumed);
+            LOG.info("{} messages successfully read", numMessagesRead);
         }
 
         return returnCode;
@@ -218,7 +205,7 @@ public class CmdConsume extends AbstractCmdConsume {
 
     @SuppressWarnings("deprecation")
     @VisibleForTesting
-    public String getWebSocketConsumeUri(String topic) {
+    public String getWebSocketReadUri(String topic) {
         String serviceURLWithoutTrailingSlash = serviceURL.substring(0,
                 serviceURL.endsWith("/") ? serviceURL.length() - 1 : serviceURL.length());
 
@@ -232,28 +219,34 @@ public class CmdConsume extends AbstractCmdConsume {
                     topicName.getCluster(), topicName.getNamespacePortion(), topicName.getLocalName());
         }
 
-        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/")
-                + "consumer/%s/%s?subscriptionType=%s&subscriptionMode=%s";
-        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, subscriptionName,
-                subscriptionType.toString(), subscriptionMode.toString());
+        String msgIdQueryParam;
+        if ("latest".equals(startMessageId) || "earliest".equals(startMessageId)) {
+            msgIdQueryParam = startMessageId;
+        } else {
+            MessageId msgId = parseMessageId(startMessageId);
+            msgIdQueryParam = Base64.getEncoder().encodeToString(msgId.toByteArray());
+        }
+
+        String uriFormat = "%s/ws" + (topicName.isV2() ? "/v2/" : "/") + "reader/%s?messageId=%s";
+        return String.format(uriFormat, serviceURLWithoutTrailingSlash, wsTopic, msgIdQueryParam);
     }
 
     @SuppressWarnings("deprecation")
-    private int consumeFromWebSocket(String topic) {
-        int numMessagesConsumed = 0;
+    private int readFromWebSocket(String topic) {
+        int numMessagesRead = 0;
         int returnCode = 0;
 
-        URI consumerUri = URI.create(getWebSocketConsumeUri(topic));
+        URI readerUri = URI.create(getWebSocketReadUri(topic));
 
-        WebSocketClient consumeClient = new WebSocketClient(new SslContextFactory(true));
-        ClientUpgradeRequest consumeRequest = new ClientUpgradeRequest();
+        WebSocketClient readClient = new WebSocketClient(new SslContextFactory(true));
+        ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
         try {
             if (authentication != null) {
                 authentication.start();
                 AuthenticationDataProvider authData = authentication.getAuthData();
                 if (authData.hasDataForHttp()) {
                     for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
-                        consumeRequest.setHeader(kv.getKey(), kv.getValue());
+                        readRequest.setHeader(kv.getKey(), kv.getValue());
                     }
                 }
             }
@@ -262,17 +255,17 @@ public class CmdConsume extends AbstractCmdConsume {
             return -1;
         }
         CompletableFuture<Void> connected = new CompletableFuture<>();
-        ConsumerSocket consumerSocket = new ConsumerSocket(connected);
+        ConsumerSocket readerSocket = new ConsumerSocket(connected);
         try {
-            consumeClient.start();
+            readClient.start();
         } catch (Exception e) {
             LOG.error("Failed to start websocket-client", e);
             return -1;
         }
 
         try {
-            LOG.info("Trying to create websocket session..{}", consumerUri);
-            consumeClient.connect(consumerSocket, consumerUri, consumeRequest);
+            LOG.info("Trying to create websocket session..{}", readerUri);
+            readClient.connect(readerSocket, readerUri, readRequest);
             connected.get();
         } catch (Exception e) {
             LOG.error("Failed to create web-socket session", e);
@@ -280,14 +273,14 @@ public class CmdConsume extends AbstractCmdConsume {
         }
 
         try {
-            RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-            while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
+            RateLimiter limiter = (this.readRate > 0) ? RateLimiter.create(this.readRate) : null;
+            while (this.numMessagesToRead == 0 || numMessagesRead < this.numMessagesToRead) {
                 if (limiter != null) {
                     limiter.acquire();
                 }
-                String msg = consumerSocket.receive(5, TimeUnit.SECONDS);
+                String msg = readerSocket.receive(5, TimeUnit.SECONDS);
                 if (msg == null) {
-                    LOG.debug("No message to consume after waiting for 5 seconds.");
+                    LOG.debug("No message to read after waiting for 5 seconds.");
                 } else {
                     try {
                         String output = interpretByteArray(displayHex, Base64.getDecoder().decode(msg));
@@ -295,19 +288,37 @@ public class CmdConsume extends AbstractCmdConsume {
                     } catch (Exception e) {
                         System.out.println(msg);
                     }
-                    numMessagesConsumed += 1;
+                    numMessagesRead += 1;
                 }
             }
-            consumerSocket.awaitClose(2, TimeUnit.SECONDS);
+            readerSocket.awaitClose(2, TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOG.error("Error while consuming messages");
+            LOG.error("Error while reading messages");
             LOG.error(e.getMessage(), e);
             returnCode = -1;
         } finally {
-            LOG.info("{} messages successfully consumed", numMessagesConsumed);
+            LOG.info("{} messages successfully read", numMessagesRead);
         }
 
         return returnCode;
+    }
+
+    @VisibleForTesting
+    static MessageId parseMessageId(String msgIdStr) {
+        MessageId msgId;
+        if ("latest".equals(msgIdStr)) {
+            msgId = MessageId.latest;
+        } else if ("earliest".equals(msgIdStr)) {
+            msgId = MessageId.earliest;
+        } else {
+            Matcher matcher = MSG_ID_PATTERN.matcher(msgIdStr);
+            if (matcher.find()) {
+                msgId = new MessageIdImpl(Long.parseLong(matcher.group(1)), Long.parseLong(matcher.group(2)), -1);
+            } else {
+                throw new IllegalArgumentException("Message ID must be 'latest', 'earliest' or '<ledgerId>:<entryId>'");
+            }
+        }
+        return msgId;
     }
 
 }
