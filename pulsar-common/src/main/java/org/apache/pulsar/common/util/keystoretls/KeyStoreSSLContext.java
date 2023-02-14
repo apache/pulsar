@@ -159,8 +159,10 @@ public class KeyStoreSSLContext {
                     : TrustManagerFactory.getInstance(tmfAlgorithm);
             KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
             char[] passwordChars = trustStorePassword.toCharArray();
-            try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
-                trustStore.load(inputStream, passwordChars);
+            if (!Strings.isNullOrEmpty(trustStorePath)) {
+                try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
+                    trustStore.load(inputStream, passwordChars);
+                }
             }
             trustManagerFactory.init(trustStore);
         }
