@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -39,6 +42,15 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
+import org.apache.pulsar.broker.loadbalance.extensions.reporter.TopBundleLoadDataReporter;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerScheduler;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.UnloadScheduler;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
@@ -48,6 +60,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 
 @Slf4j
@@ -75,6 +88,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
 
+    private LoadManagerScheduler unloadScheduler;
+
     @Getter
     private LoadManagerContext context;
 
@@ -84,7 +99,28 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
 
+    /**
+     * The load data reporter.
+     */
+    private BrokerLoadDataReporter brokerLoadDataReporter;
+
+    private TopBundleLoadDataReporter topBundleLoadDataReporter;
+
+    private ScheduledFuture brokerLoadDataReportTask;
+    private ScheduledFuture topBundlesLoadDataReportTask;
+
     private boolean started = false;
+
+    private final AssignCounter assignCounter = new AssignCounter();
+    private final UnloadCounter unloadCounter = new UnloadCounter();
+    private final SplitCounter splitCounter = new SplitCounter();
+
+    // record load metrics
+    private final AtomicReference<List<Metrics>> brokerLoadMetrics = new AtomicReference<>();
+    // record unload metrics
+    private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference();
+    // record split metrics
+    private final AtomicReference<List<Metrics>> splitMetrics = new AtomicReference<>();
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
             lookupRequests = ConcurrentOpenHashMap.<String,
@@ -129,9 +165,42 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 .brokerRegistry(brokerRegistry)
                 .brokerLoadDataStore(brokerLoadDataStore)
                 .topBundleLoadDataStore(topBundlesLoadDataStore).build();
-        // TODO: Start load data reporter.
 
-        // TODO: Start unload scheduler and bundle split scheduler
+
+        this.brokerLoadDataReporter =
+                new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
+
+        this.topBundleLoadDataReporter =
+                new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
+
+        var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
+        this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                .scheduleAtFixedRate(() -> {
+                            try {
+                                brokerLoadDataReporter.reportAsync(false);
+                                // TODO: update broker load metrics using getLocalData
+                            } catch (Throwable e) {
+                                log.error("Failed to run the broker load manager executor job.", e);
+                            }
+                        },
+                        interval,
+                        interval, TimeUnit.MILLISECONDS);
+
+        this.topBundlesLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
+                .scheduleAtFixedRate(() -> {
+                            try {
+                                // TODO: consider excluding the bundles that are in the process of split.
+                                topBundleLoadDataReporter.reportAsync(false);
+                            } catch (Throwable e) {
+                                log.error("Failed to run the top bundles load manager executor job.", e);
+                            }
+                        },
+                        interval,
+                        interval, TimeUnit.MILLISECONDS);
+
+        // TODO: Start bundle split scheduler.
+        this.unloadScheduler = new UnloadScheduler(pulsar.getLoadManagerExecutor(), context, serviceUnitStateChannel);
+        this.unloadScheduler.start();
         this.started = true;
     }
 
@@ -158,15 +227,18 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     if (broker.isEmpty()) {
                         return this.selectAsync(serviceUnit).thenCompose(brokerOpt -> {
                             if (brokerOpt.isPresent()) {
+                                assignCounter.incrementSuccess();
                                 log.info("Selected new owner broker: {} for bundle: {}.", brokerOpt.get(), bundle);
                                 return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get())
                                         .thenApply(Optional::of);
                             } else {
+                                assignCounter.incrementEmpty();
                                 throw new IllegalStateException(
                                         "Failed to select the new owner broker for bundle: " + bundle);
                             }
                         });
                     }
+                    assignCounter.incrementSkip();
                     // Already assigned, return it.
                     return CompletableFuture.completedFuture(broker);
                 });
@@ -243,8 +315,17 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             return;
         }
         try {
+            if (brokerLoadDataReportTask != null) {
+                brokerLoadDataReportTask.cancel(true);
+            }
+
+            if (topBundlesLoadDataReportTask != null) {
+                topBundlesLoadDataReportTask.cancel(true);
+            }
+
             this.brokerLoadDataStore.close();
             this.topBundlesLoadDataStore.close();
+            this.unloadScheduler.close();
         } catch (IOException ex) {
             throw new PulsarServerException(ex);
         } finally {
@@ -264,5 +345,41 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC)
                 || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
+    }
+
+    void updateBrokerLoadMetrics(BrokerLoadData loadData) {
+        this.brokerLoadMetrics.set(loadData.toMetrics(pulsar.getAdvertisedAddress()));
+    }
+
+    private void updateUnloadMetrics(UnloadDecision decision) {
+        unloadCounter.update(decision);
+        this.unloadMetrics.set(unloadCounter.toMetrics(pulsar.getAdvertisedAddress()));
+    }
+
+    private void updateSplitMetrics(List<SplitDecision> decisions) {
+        for (var decision : decisions) {
+            splitCounter.update(decision);
+        }
+        this.splitMetrics.set(splitCounter.toMetrics(pulsar.getAdvertisedAddress()));
+    }
+
+    public List<Metrics> getMetrics() {
+        List<Metrics> metricsCollection = new ArrayList<>();
+
+        if (this.brokerLoadMetrics.get() != null) {
+            metricsCollection.addAll(this.brokerLoadMetrics.get());
+        }
+        if (this.unloadMetrics.get() != null) {
+            metricsCollection.addAll(this.unloadMetrics.get());
+        }
+        if (this.splitMetrics.get() != null) {
+            metricsCollection.addAll(this.splitMetrics.get());
+        }
+
+        metricsCollection.addAll(this.assignCounter.toMetrics(pulsar.getAdvertisedAddress()));
+
+        metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
+
+        return metricsCollection;
     }
 }

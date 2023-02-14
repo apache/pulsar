@@ -49,10 +49,102 @@ from bookkeeper.kv.client import Client
 to_run = True
 Log = log.Log
 
+
 def atexit_function(signo, _frame):
   global to_run
   Log.info("Interrupted by %d, shutting down" % signo)
   to_run = False
+
+
+def generate_arguments_parser():
+  parser = argparse.ArgumentParser(description='Pulsar Functions Python Instance')
+  parser.add_argument('--function_details', required=False, help='Function Details Json String')
+  parser.add_argument('--py', required=False, help='Full Path of Function Code File')
+  parser.add_argument('--instance_id', required=False, help='Instance Id')
+  parser.add_argument('--function_id', required=False, help='Function Id')
+  parser.add_argument('--function_version', required=False, help='Function Version')
+  parser.add_argument('--pulsar_serviceurl', required=False, help='Pulsar Service Url')
+  parser.add_argument('--client_auth_plugin', required=False, help='Client authentication plugin')
+  parser.add_argument('--client_auth_params', required=False, help='Client authentication params')
+  parser.add_argument('--use_tls', required=False, help='Use tls')
+  parser.add_argument('--tls_allow_insecure_connection', required=False, help='Tls allow insecure connection')
+  parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
+  parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
+  parser.add_argument('--port', required=False, help='Instance Port', type=int)
+  parser.add_argument('--metrics_port', required=False, help="Port metrics will be exposed on", type=int)
+  parser.add_argument('--max_buffered_tuples', required=False, help='Maximum number of Buffered tuples')
+  parser.add_argument('--logging_directory', required=False, help='Logging Directory')
+  parser.add_argument('--logging_file', required=False, help='Log file name')
+  parser.add_argument('--logging_level', required=False, help='Logging level')
+  parser.add_argument('--logging_config_file', required=False, help='Config file for logging')
+  parser.add_argument('--expected_healthcheck_interval', required=False, help='Expected time in seconds between health checks', type=int)
+  parser.add_argument('--secrets_provider', required=False, help='The classname of the secrets provider')
+  parser.add_argument('--secrets_provider_config', required=False, help='The config that needs to be passed to secrets provider')
+  parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
+  parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
+  parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
+  parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
+  parser.add_argument('--cluster_name', required=False, help='The name of the cluster this instance is running on')
+  parser.add_argument('--config_file', required=False, default="", help='Configuration file name', type=str)
+  return parser
+
+def merge_arguments(args, config_file):
+  """
+  This function is used to merge arguments passed in via the command line
+  and those passed in via the configuration file during initialization.
+
+  :param args: arguments passed in via the command line
+  :param config_file: configuration file name (path)
+
+  During the merge process, the arguments passed in via the command line have higher priority,
+  so only optional arguments need to be merged.
+  """
+  if config_file is None:
+    return
+  config = util.read_config(config_file)
+  if not config:
+    return
+  default_config = config["DEFAULT"]
+  if not default_config:
+    return
+  for k, v in vars(args).items():
+    if k == "config_file":
+      continue
+    if not v and default_config.get(k, None):
+      vars(args)[k] = default_config.get(k)
+
+
+def validate_arguments(args):
+  """
+  This function is used to verify the merged arguments,
+  mainly to check whether the mandatory arguments are assigned properly.
+
+  :param args: arguments after merging
+  """
+  mandatory_args_map = {
+    "function_details": args.function_details,
+    "py": args.py,
+    "instance_id": args.instance_id,
+    "function_id": args.function_id,
+    "function_version": args.function_version,
+    "pulsar_serviceurl": args.pulsar_serviceurl,
+    "port": args.port,
+    "metrics_port": args.metrics_port,
+    "max_buffered_tuples": args.max_buffered_tuples,
+    "logging_directory": args.logging_directory,
+    "logging_file": args.logging_file,
+    "logging_config_file": args.logging_config_file,
+    "expected_healthcheck_interval": args.expected_healthcheck_interval,
+    "cluster_name": args.cluster_name
+  }
+  missing_args = []
+  for k, v in mandatory_args_map.items():
+    if v is None:
+      missing_args.append(k)
+  if missing_args:
+    print("The following arguments are required:", missing_args)
+    sys.exit(1)
+
 
 def main():
   # Setup signal handlers
@@ -60,36 +152,10 @@ def main():
   signal.signal(signal.SIGHUP, atexit_function)
   signal.signal(signal.SIGINT, atexit_function)
 
-  parser = argparse.ArgumentParser(description='Pulsar Functions Python Instance')
-  parser.add_argument('--function_details', required=True, help='Function Details Json String')
-  parser.add_argument('--py', required=True, help='Full Path of Function Code File')
-  parser.add_argument('--instance_id', required=True, help='Instance Id')
-  parser.add_argument('--function_id', required=True, help='Function Id')
-  parser.add_argument('--function_version', required=True, help='Function Version')
-  parser.add_argument('--pulsar_serviceurl', required=True, help='Pulsar Service Url')
-  parser.add_argument('--client_auth_plugin', required=False, help='Client authentication plugin')
-  parser.add_argument('--client_auth_params', required=False, help='Client authentication params')
-  parser.add_argument('--use_tls', required=False, help='Use tls')
-  parser.add_argument('--tls_allow_insecure_connection', required=False, help='Tls allow insecure connection')
-  parser.add_argument('--hostname_verification_enabled', required=False, help='Enable hostname verification')
-  parser.add_argument('--tls_trust_cert_path', required=False, help='Tls trust cert file path')
-  parser.add_argument('--port', required=True, help='Instance Port', type=int)
-  parser.add_argument('--metrics_port', required=True, help="Port metrics will be exposed on", type=int)
-  parser.add_argument('--max_buffered_tuples', required=True, help='Maximum number of Buffered tuples')
-  parser.add_argument('--logging_directory', required=True, help='Logging Directory')
-  parser.add_argument('--logging_file', required=True, help='Log file name')
-  parser.add_argument('--logging_level', required=False, help='Logging level')
-  parser.add_argument('--logging_config_file', required=True, help='Config file for logging')
-  parser.add_argument('--expected_healthcheck_interval', required=True, help='Expected time in seconds between health checks', type=int)
-  parser.add_argument('--secrets_provider', required=False, help='The classname of the secrets provider')
-  parser.add_argument('--secrets_provider_config', required=False, help='The config that needs to be passed to secrets provider')
-  parser.add_argument('--install_usercode_dependencies', required=False, help='For packaged python like wheel files, do we need to install all dependencies', type=bool)
-  parser.add_argument('--dependency_repository', required=False, help='For packaged python like wheel files, which repository to pull the dependencies from')
-  parser.add_argument('--extra_dependency_repository', required=False, help='For packaged python like wheel files, any extra repository to pull the dependencies from')
-  parser.add_argument('--state_storage_serviceurl', required=False, help='Managed State Storage Service Url')
-  parser.add_argument('--cluster_name', required=True, help='The name of the cluster this instance is running on')
-
+  parser = generate_arguments_parser()
   args = parser.parse_args()
+  merge_arguments(args, args.config_file)
+  validate_arguments(args)
   function_details = Function_pb2.FunctionDetails()
   args.function_details = str(args.function_details)
   if args.function_details[0] == '\'':
@@ -216,7 +282,8 @@ def main():
                                               pulsar_client,
                                               secrets_provider,
                                               args.cluster_name,
-                                              state_storage_serviceurl)
+                                              state_storage_serviceurl,
+                                              args.config_file)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 

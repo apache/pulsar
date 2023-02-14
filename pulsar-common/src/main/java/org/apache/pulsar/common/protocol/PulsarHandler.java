@@ -40,7 +40,7 @@ public abstract class PulsarHandler extends PulsarDecoder {
     protected SocketAddress remoteAddress;
     private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
-    private volatile boolean waitingForPingResponse = false;
+    private boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
 
     public int getRemoteEndpointProtocolVersion() {

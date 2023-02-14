@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
@@ -147,5 +149,11 @@ public interface ServiceUnitStateChannel extends Closeable {
      * @return the completable future object staged from the event message sendAsync.
      */
     CompletableFuture<Void> publishSplitEventAsync(Split split);
+
+    /**
+     * Generates the metrics to monitor.
+     * @return a list of the metrics
+     */
+    List<Metrics> getMetrics();
 
 }
