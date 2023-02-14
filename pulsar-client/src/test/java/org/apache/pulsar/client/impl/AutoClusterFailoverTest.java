@@ -227,6 +227,7 @@ public class AutoClusterFailoverTest {
 
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(secondary, autoClusterFailover.getServiceUrl()));
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(secondaryTlsTrustCertsFilePath);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(secondaryAuthentication);
 
@@ -234,6 +235,7 @@ public class AutoClusterFailoverTest {
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
         Awaitility.await().untilAsserted(() ->
                 Assert.assertEquals(primary, autoClusterFailover.getServiceUrl()));
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(primaryAuthentication);
 
