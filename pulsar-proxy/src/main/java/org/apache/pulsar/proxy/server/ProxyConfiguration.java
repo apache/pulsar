@@ -662,6 +662,29 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int httpOutputBufferSize = 32 * 1024;
 
     @FieldContext(
+        minValue = 1,
+        category = CATEGORY_HTTP,
+        doc = """
+                The maximum size in bytes of the request header.
+                Larger headers will allow for more and/or larger cookies plus larger form content encoded in a URL.
+                However, larger headers consume more memory and can make a server more vulnerable to denial of service
+                attacks.
+              """
+    )
+    private int httpMaxRequestHeaderSize = 8 * 1024;
+
+    @FieldContext(
+        minValue = 1,
+        category = CATEGORY_HTTP,
+        doc = """
+                 the size of the buffer used to write requests to Broker.
+                 if "httpMaxRequestHeaderSize" is large than "httpClientRequestBufferSize", will set
+                 "httpClientRequestBufferSize" to the value of "httpMaxRequestHeaderSize"
+              """
+    )
+    private int httpClientRequestBufferSize = 4096;
+
+    @FieldContext(
             minValue = 1,
             category = CATEGORY_HTTP,
             doc = "Http input buffer max size.\n\n"
