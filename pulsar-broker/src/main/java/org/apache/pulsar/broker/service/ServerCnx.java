@@ -737,15 +737,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 // 2. an authentication refresh, in which case we need to refresh authenticationData
                 AuthenticationState authState = useOriginalAuthState ? originalAuthState : this.authState;
                 String newAuthRole = authState.getAuthRole();
+                AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
 
-                // Refresh the auth data.
-                this.authenticationData = authState.getAuthDataSource();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
-                }
-
+                // Refresh the auth data and role.
                 if (!useOriginalAuthState) {
                     this.authRole = newAuthRole;
+                    this.authenticationData = newAuthDataSource;
+                } else {
+                    this.originalAuthData = newAuthDataSource;
+                    this.originalPrincipal = newAuthRole;
                 }
 
                 if (log.isDebugEnabled()) {

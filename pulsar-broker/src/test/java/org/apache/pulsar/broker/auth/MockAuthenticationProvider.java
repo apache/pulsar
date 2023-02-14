@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import java.io.IOException;
+import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
+import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.common.api.AuthData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,4 +71,41 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
                 "Not a valid principle. Should be [pass|fail|error].[pass|fail|error], found " + principal);
     }
 
+    @Override
+    public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
+            throws AuthenticationException {
+        return new MockAuthState(this);
+    }
+
+    private static class MockAuthState implements AuthenticationState {
+        private String authRole = null;
+        private AuthenticationDataSource dataSource = null;
+        private final MockAuthenticationProvider provider;
+
+        public MockAuthState(MockAuthenticationProvider provider) {
+            this.provider = provider;
+        }
+
+        @Override
+        public String getAuthRole() {
+            return authRole;
+        }
+
+        @Override
+        public AuthData authenticate(AuthData authData) throws AuthenticationException {
+            this.dataSource = new AuthenticationDataCommand(new String(authData.getBytes(), UTF_8));
+            this.authRole = provider.authenticate(this.dataSource);
+            return null;
+        }
+
+        @Override
+        public AuthenticationDataSource getAuthDataSource() {
+            return dataSource;
+        }
+
+        @Override
+        public boolean isComplete() {
+            return true;
+        }
+    }
 }
