@@ -1779,7 +1779,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
 
-        CompletableFuture<Position> future = new CompletableFuture();
+        CompletableFuture<Position> future = new CompletableFuture<>();
         Long firstLedgerId = ledgers.firstKey();
         final PositionImpl startPosition = firstLedgerId == null ? null : new PositionImpl(firstLedgerId, 0);
         if (startPosition == null) {
@@ -1792,11 +1792,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 final Position finalPosition;
                 if (position == null) {
                     finalPosition = startPosition;
-                    if (finalPosition == null) {
-                        log.warn("[{}] Unable to find position for predicate {}.", name, predicate);
-                        future.complete(null);
-                        return;
-                    }
                     log.info("[{}] Unable to find position for predicate {}. Use the first position {} instead.", name,
                             predicate, startPosition);
                 } else {
