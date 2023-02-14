@@ -55,11 +55,11 @@ public class Demo {
                 .subscribe();
         consumer.close();
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             User user = new User();
             user.setName("user-" + i);
             user.setAge(10 + i);
-            producer.newMessage().value(user).send();
+            producer.newMessage().key("" + (i % 10)).value(user).send();
         }
 
         producer.close();
@@ -71,9 +71,11 @@ public class Demo {
                 .serviceUrl("pulsar://localhost:6650")
                 .build();
 
-        String topic = "pt-10";
+        String topic = "pt-5";
         Producer<User> producer = pulsarClient.newProducer(Schema.AVRO(User.class))
                 .topic(topic)
+                .batchingMaxMessages(100)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .create();
 
         Consumer<User> consumer = pulsarClient.newConsumer(Schema.AVRO(User.class))
@@ -83,11 +85,12 @@ public class Demo {
                 .subscribe();
         consumer.close();
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10; i++) {
             User user = new User();
             user.setName("user-" + i);
             user.setAge(10 + i);
-            producer.newMessage().key("" + i % 10).value(user).send();
+            producer.newMessage().key("" + i % 10).value(user).sendAsync();
+//            producer.newMessage().key("5").value(user).sendAsync();
         }
 
         producer.close();
@@ -123,9 +126,25 @@ public class Demo {
         pulsarClient.close();
     }
 
+    public void removeKey(String key) throws Exception {
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+
+        String topic = "user";
+        Producer<User> producer = pulsarClient.newProducer(Schema.AVRO(User.class))
+                .topic(topic)
+                .create();
+
+        producer.newMessage().key(key).value(null).send();
+
+        producer.close();
+        pulsarClient.close();
+    }
+
     public static void main(String[] args) throws Exception {
         Demo demo = new Demo();
-        demo.readCompactedData();
+        demo.sendDataWithRepeatedKey();
     }
 
 }

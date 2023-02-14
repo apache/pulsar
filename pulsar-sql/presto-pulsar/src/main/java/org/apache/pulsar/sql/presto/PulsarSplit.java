@@ -35,7 +35,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.sql.presto.util.ReadCompactedType;
 
 /**
  * This class represents information for a split.
@@ -64,7 +63,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final String schemaInfoProperties;
 
     private final OffloadPoliciesImpl offloadPolicies;
-    private final ReadCompactedType readCompactedType;
+    private final Boolean compactedQuery;
 
     @JsonCreator
     public PulsarSplit(
@@ -83,7 +82,7 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
             @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies,
-            @JsonProperty("readCompactedType") ReadCompactedType readCompactedType) throws IOException {
+            @JsonProperty("compactedQuery") Boolean compactedQuery) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -111,7 +110,7 @@ public class PulsarSplit implements ConnectorSplit {
                 .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
                 .build();
 
-        this.readCompactedType = readCompactedType;
+        this.compactedQuery = compactedQuery;
     }
 
     @JsonProperty
@@ -198,8 +197,8 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public ReadCompactedType getReadCompactedType() {
-        return readCompactedType;
+    public Boolean getCompactedQuery() {
+        return compactedQuery;
     }
 
     @Override
@@ -233,7 +232,7 @@ public class PulsarSplit implements ConnectorSplit {
             + ", startPositionLedgerId=" + startPositionLedgerId
             + ", endPositionLedgerId=" + endPositionLedgerId
             + ", schemaInfoProperties=" + schemaInfoProperties
-            + ", readCompactedType=" + readCompactedType
+            + ", compactedQuery=" + compactedQuery
             + (offloadPolicies == null ? "" : offloadPolicies.toString())
             + '}';
     }

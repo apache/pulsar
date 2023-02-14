@@ -23,9 +23,18 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -40,6 +49,7 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -361,6 +371,79 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
         int count = selectCount("public/default", tableName);
         Assert.assertEquals(count, messageCnt);
+    }
+
+    @DataProvider(name = "compactedQueryProvider")
+    public Object[][] compactedQueryProvider() {
+        return new Object[][] {
+                {0, 0},
+                {100, 0},
+                {0, 100},
+                {100, 100}
+        };
+    }
+
+    @Test(timeOut = 1000 * 30, dataProvider = "compactedQueryProvider")
+    public void testCompactedQueryForNoBatchData(int compactedCount, int noCompactedCount) throws Exception {
+        testCompactedQuery(false, compactedCount, noCompactedCount);
+    }
+
+    @Test(timeOut = 1000 * 30, dataProvider = "compactedQueryProvider")
+    public void testCompactedQueryForBatchData(int compactedCount, int noCompactedCount) throws Exception {
+        testCompactedQuery(true, compactedCount, noCompactedCount);
+    }
+
+    private void testCompactedQuery(boolean enableBatch, int compactedCount, int noCompactedCount) throws Exception {
+        String tableName = "compacted-topic-" + randomName(5);
+        String topic = "public/default/" + tableName;
+
+        @Cleanup
+        Producer<Stock> producer = pulsarClient.newProducer(Schema.AVRO(Stock.class))
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .maxPendingMessages(10)
+                .create();
+
+        int divisor = 8;
+        Map<String, Stock> latestStocks = new HashMap<>();
+        prepareDataForCompactedQuery(producer, latestStocks, compactedCount, divisor);
+        if (compactedCount > 0) {
+            pulsarAdmin.topics().triggerCompaction(topic);
+            Awaitility.await().until(() -> {
+                LongRunningProcessStatus status = pulsarAdmin.topics().compactionStatus(topic);
+                return Objects.equals(LongRunningProcessStatus.Status.SUCCESS, status.status);
+            });
+        }
+        prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor);
+
+        Assert.assertEquals(selectCount("public/default", tableName), divisor);
+        ContainerExecResult result = execQuery(
+                "select * from pulsar.\"public/default\".\"" + tableName + "\" where __compacted_query__=true");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        log.info("select sql query output \n{}", result.getStdout());
+        String[] split = result.getStdout().split("\n");
+        assertThat(split.length).isEqualTo(divisor);
+        String[] contentArr = result.getStdout().split("\n|,");
+    }
+
+    private void prepareDataForCompactedQuery(Producer<Stock> producer, Map<String, Stock> latestStocks,
+                                              int messageCount, int divisor) {
+        AtomicInteger sendCount = new AtomicInteger();
+        for (int i = 0; i < messageCount; i++) {
+            int entryId = i % divisor;
+            String key = "" + entryId;
+            Stock stock = new Stock(entryId, "stock-" + entryId, RandomUtils.nextDouble(50, 90));
+            CompletableFuture<MessageId> future = producer.newMessage().key(key).value(stock).sendAsync();
+            future.thenApply(messageId -> {
+                latestStocks.put(key, stock);
+                sendCount.incrementAndGet();
+                return null;
+            });
+        }
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> sendCount.get() == messageCount);
     }
 
 }

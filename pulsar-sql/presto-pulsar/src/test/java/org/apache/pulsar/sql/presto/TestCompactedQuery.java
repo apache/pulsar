@@ -57,7 +57,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.sql.presto.util.ReadCompactedType;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -146,7 +145,8 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
             Double price = BigDecimal.valueOf(
                     RandomUtils.nextDouble(10, 100)).setScale(4, RoundingMode.HALF_UP).doubleValue();
             final int index = i;
-            producer.newMessage().key(name).value(getStock(name, price, name, setValueForKey7)).sendAsync()
+            final Stock stock = getStock(name, price, name, setValueForKey7);
+            producer.newMessage().key(name).value(stock).sendAsync()
                     .thenAccept(messageId -> {
                         if (index == 0) {
                             firstMessageId.set((MessageIdImpl) messageId);
@@ -154,9 +154,13 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
                         if (index == compactedMsgNum - 1) {
                             lastMessageId.set(getNextMessageId(messageId));
                         }
-                        latestPrice.put(name, price);
+                        if (stock == null) {
+                            latestPrice.remove(name);
+                        } else {
+                            latestPrice.put(name, price);
+                        }
                         sendReceiptsCount.incrementAndGet();
-                        System.out.println("xxxx send message with id " + messageId);
+                        System.out.println("xxxx send message, id: " + messageId + ", name: " + name + ", price: " + price);
                     });
         }
 
@@ -173,7 +177,8 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
             Double price = BigDecimal.valueOf(
                     RandomUtils.nextDouble(10, 100)).setScale(4, RoundingMode.HALF_UP).doubleValue();
             final int index = i;
-            producer.newMessage().key(name).value(getStock(name, price, name, setValueForKey7)).sendAsync()
+            final Stock stock = getStock(name, price, name, setValueForKey7);
+            producer.newMessage().key(name).value(stock).sendAsync()
                     .thenAccept(messageId -> {
                         if (index == 0 && firstMessageId.get() == null) {
                             firstMessageId.set((MessageIdImpl) messageId);
@@ -182,7 +187,11 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
                             lastMessageId.set(getNextMessageId(messageId));
                         }
 
-                        latestPrice.put(name, price);
+                        if (stock == null) {
+                            latestPrice.remove(name);
+                        } else {
+                            latestPrice.put(name, price);
+                        }
                         entrySet.add(((MessageIdImpl) messageId).getLedgerId() + ":"
                                 + ((MessageIdImpl) messageId).getEntryId());
                         sendReceiptsCount.incrementAndGet();
@@ -194,8 +203,6 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
                 .atMost(5, TimeUnit.SECONDS)
                 .until(() -> sendReceiptsCount.get() == (compactedMsgNum + unCompactedMsgNum));
         log.info("finish to prepare compaction data");
-//        MessageId messageId = producer.newMessage().value(new Stock("", 0.0)).send();
-//        System.out.println("xxxx the last message id is " + messageId);
 
         ObjectMapper objectMapper = new ObjectMapper();
         PulsarSplit pulsarSplit = new PulsarSplit(
@@ -214,7 +221,7 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
                 TupleDomain.all(),
                 objectMapper.writeValueAsString(new HashMap<>()),
                 null,
-                ReadCompactedType.COMPACTED_LATEST);
+                true);
 
         List<PulsarColumnHandle> pulsarColumnHandles = TestPulsarConnector.getColumnColumnHandles(
                 topicName, Schema.AVRO(Stock.class).getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
@@ -256,7 +263,6 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
             assertTrue(latestPrice.containsKey(key));
             assertEquals(name, key);
             assertEquals(latestPrice.remove(key), price);
-            System.out.println("read message key: " + key + ", price: " + price);
         }
         Assert.assertTrue(latestPrice.isEmpty());
     }

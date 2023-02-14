@@ -20,8 +20,10 @@ package org.apache.pulsar.sql.presto;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static io.trino.decoder.FieldValueProviders.booleanValueProvider;
 import static io.trino.decoder.FieldValueProviders.bytesValueProvider;
 import static io.trino.decoder.FieldValueProviders.longValueProvider;
+import static org.apache.pulsar.sql.presto.PulsarInternalColumn.COMPACTED_QUERY;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
@@ -94,7 +96,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.sql.presto.util.CacheSizeAllocator;
 import org.apache.pulsar.sql.presto.util.NoStrictCacheSizeAllocator;
 import org.apache.pulsar.sql.presto.util.NullCacheSizeAllocator;
-import org.apache.pulsar.sql.presto.util.ReadCompactedType;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -146,9 +147,8 @@ public class PulsarRecordCursor implements RecordCursor {
     private PulsarConnectorCache pulsarConnectorCache;
     private OffloadPoliciesImpl offloadPolicies;
     private volatile Throwable compactedHandleError;
-    private final ReadCompactedType readCompactedType;
+    private final boolean compactedQuery;
     private long compactedLedgerId = -1;
-//    private Position compactedHorizon;
     protected ConcurrentOpenHashMap<String, BatchMessageIdImpl> compactedMessage =
             ConcurrentOpenHashMap.<String, BatchMessageIdImpl>newBuilder().build();
     private LedgerHandle compactedLedgerHandle;
@@ -172,19 +172,23 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
 
+        bookKeeper = pulsarConnectorCache.getBookKeeper();
+        managedLedgerFactory = pulsarConnectorCache.getManagedLedgerFactory();
+        managedLedgerConfig = pulsarConnectorCache.getManagedLedgerConfig(
+                TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
+                        pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies,
+                pulsarConnectorConfig);
+
         offloadPolicies = pulsarSplit.getOffloadPolicies();
         if (offloadPolicies != null) {
             offloadPolicies.setOffloadersDirectory(pulsarConnectorConfig.getOffloadersDirectory());
             offloadPolicies.setManagedLedgerOffloadMaxThreads(
                     pulsarConnectorConfig.getManagedLedgerOffloadMaxThreads());
         }
-        this.readCompactedType = pulsarSplit.getReadCompactedType();
+        this.compactedQuery = pulsarSplit.getCompactedQuery();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig,
-                pulsarConnectorCache.getManagedLedgerFactory(),
-                pulsarConnectorCache.getManagedLedgerConfig(
-                        TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
-                                pulsarSplit.getTableName()).getNamespaceObject(), offloadPolicies,
-                        pulsarConnectorConfig),
+                managedLedgerFactory,
+                managedLedgerConfig,
                 new PulsarConnectorMetricsTracker(pulsarConnectorCache.getStatsProvider()));
         this.decoderFactory = decoderFactory;
     }
@@ -195,7 +199,7 @@ public class PulsarRecordCursor implements RecordCursor {
                        PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker,
                        PulsarDispatchingRowDecoderFactory decoderFactory) {
         this.splitSize = pulsarSplit.getSplitSize();
-        this.readCompactedType = pulsarSplit.getReadCompactedType();
+        this.compactedQuery = pulsarSplit.getCompactedQuery();
         initialize(columnHandles, pulsarSplit, pulsarConnectorConfig, managedLedgerFactory, managedLedgerConfig,
             pulsarConnectorMetricsTracker);
         this.decoderFactory = decoderFactory;
@@ -206,7 +210,7 @@ public class PulsarRecordCursor implements RecordCursor {
                        PulsarConnectorMetricsTracker pulsarConnectorMetricsTracker,
                        PulsarDispatchingRowDecoderFactory decoderFactory, BookKeeper bookKeeper) {
         this.splitSize = pulsarSplit.getSplitSize();
-        this.readCompactedType = pulsarSplit.getReadCompactedType();
+        this.compactedQuery = pulsarSplit.getCompactedQuery();
         this.bookKeeper = bookKeeper;
         this.managedLedgerFactory = managedLedgerFactory;
         this.managedLedgerConfig = managedLedgerConfig;
@@ -245,7 +249,7 @@ public class PulsarRecordCursor implements RecordCursor {
         log.info("Initializing split with parameters: %s", pulsarSplit);
 
         try {
-            if (readCompactedType != null) {
+            if (compactedQuery) {
                 initCompactedRead();
             } else {
                 this.cursor = getCursor(topicName,
@@ -324,8 +328,6 @@ public class PulsarRecordCursor implements RecordCursor {
                         @Override
                         public void accept(Entry entry) {
 
-                            System.out.println("xxxx deserialize entry "
-                                    + entry.getLedgerId() + ":" + entry.getEntryId() + ", size: " + entry.getLength());
                             try {
                                 entryQueueCacheSizeAllocator.release(entry.getLength());
 
@@ -359,18 +361,16 @@ public class PulsarRecordCursor implements RecordCursor {
                                                         message = null;
                                                     }
                                                     if (message != null) {
-                                                        if (readCompactedType != null && message.getKey().isPresent()) {
+                                                        if (compactedQuery && message.getKey().isPresent()) {
                                                             RawMessageIdImpl messageId =
                                                                     (RawMessageIdImpl) message.getMessageId();
-                                                            if (message.getKey().equals("stock-7")) {
-                                                                System.out.println("stock-7");
-                                                            }
                                                             compactMessage(message.getKey().get(),
                                                                     new BatchMessageIdImpl(
                                                                             messageId.getLedgerId(),
                                                                             messageId.getEntryId(),
                                                                             partition,
-                                                                            (int) messageId.getBatchIndex()));
+                                                                            (int) messageId.getBatchIndex()),
+                                                                    message.getData().readableBytes());
                                                         } else {
                                                             while (true) {
                                                                 if (!haveAvailableCacheSize(
@@ -548,7 +548,7 @@ public class PulsarRecordCursor implements RecordCursor {
     public boolean advanceNextPosition() {
 
         if (readEntries == null) {
-            if (readCompactedType != null) {
+            if (compactedQuery) {
                 Thread compactedHandleThread = new Thread(new CompactedLedgerReader());
                 compactedHandleThread.setUncaughtExceptionHandler((t, ex) -> {
                     compactedHandleError = ex;
@@ -594,7 +594,7 @@ public class PulsarRecordCursor implements RecordCursor {
             } else {
                 try {
                     long waitMills = 1;
-                    if (readCompactedType != null) {
+                    if (compactedQuery) {
                         waitMills = 10;
                     }
                     Thread.sleep(waitMills);
@@ -606,6 +606,7 @@ public class PulsarRecordCursor implements RecordCursor {
             }
         }
 
+        log.info("deserialize message " + currentMessage.getMessageId());
         //start time for deserializing record
         metricsTracker.start_RECORD_DESERIALIZE_TIME();
 
@@ -672,9 +673,6 @@ public class PulsarRecordCursor implements RecordCursor {
                             .filter(col -> PulsarColumnHandle.HandleKeyValueType.NONE
                                     .equals(col.getHandleKeyValueType()))
                             .collect(toImmutableSet()));
-            if (this.currentMessage.getData().readableBytes() == 0) {
-                System.out.println("");
-            }
             Optional<Map<DecoderColumnHandle, FieldValueProvider>> decodedValue =
                     messageDecoder.decodeRow(this.currentMessage.getData());
             decodedValue.ifPresent(currentRowValuesMap::putAll);
@@ -708,6 +706,8 @@ public class PulsarRecordCursor implements RecordCursor {
                     } catch (JsonProcessingException e) {
                         throw new RuntimeException(e);
                     }
+                } else if (COMPACTED_QUERY.getName().equals(columnHandle.getName())) {
+                    currentRowValuesMap.put(columnHandle, booleanValueProvider(compactedQuery));
                 } else {
                     throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
                 }
@@ -971,22 +971,20 @@ public class PulsarRecordCursor implements RecordCursor {
             return;
         }
         this.compactedLedgerId = internalStats.compactedLedger.ledgerId;
-//        if (internalStats.cursors.containsKey("Compaction")) {
-//            String compactedHorizonStr = internalStats.cursors.get("Compaction").markDeletePosition;
-//            String[] arr = compactedHorizonStr.split(":");
-//            compactedHorizon = PositionImpl.get(Long.parseLong(arr[0]), Long.parseLong(arr[1]));
-//        }
         this.compactedLedgerHandle = bookKeeper.openLedger(compactedLedgerId,
                 BookKeeper.DigestType.fromApiDigestType(DigestType.CRC32), "".getBytes());
     }
 
-    private void compactMessage(String key, BatchMessageIdImpl messageId) {
+    private void compactMessage(String key, BatchMessageIdImpl messageId, long payloadSize) {
         if (key == null) {
             return;
         }
-        switch (readCompactedType) {
-            case COMPACTED_LATEST -> compactedMessage.put(key, messageId);
-            case COMPACTED_EARLIEST -> compactedMessage.computeIfAbsent(key, __ -> messageId);
+        if (compactedQuery) {
+            if (payloadSize > 0) {
+                compactedMessage.put(key, messageId);
+            } else {
+                compactedMessage.remove(key);
+            }
         }
     }
 
@@ -1023,7 +1021,6 @@ public class PulsarRecordCursor implements RecordCursor {
                 LedgerEntry ledgerEntry = enumeration.nextElement();
                 queue.offer(ledgerEntry);
                 startEntry = ledgerEntry.getEntryId() + 1;
-                System.out.println("increase read entry " + startEntry);
             }
             havePendingRead.set(false);
         }
@@ -1048,7 +1045,6 @@ public class PulsarRecordCursor implements RecordCursor {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                    System.out.println("ledger entry is null, startEntry: " + startEntry);
                     continue;
                 }
 
@@ -1070,10 +1066,10 @@ public class PulsarRecordCursor implements RecordCursor {
                     }
                 } else {
                     compactMessage(messageMetadata.getPartitionKey(), new BatchMessageIdImpl(
-                            ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(), partition, 0));
+                            ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(), partition, 0),
+                            messageMetadata.getUncompressedSize());
                 }
                 readEntry = ledgerEntry.getEntryId();
-                System.out.println("read entry is " + readEntry);
             }
         }
 
@@ -1088,13 +1084,13 @@ public class PulsarRecordCursor implements RecordCursor {
 
             SingleMessageMetadata smm = new SingleMessageMetadata();
             for (int i = 0; i < batchSize; i++) {
-                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(uncompressedPayload,
-                        smm,
-                        0, batchSize);
-                BatchMessageIdImpl id = new BatchMessageIdImpl(ledgerId, entryId, partition, i);
-                if (!smm.isCompactedOut()) {
-                    compactMessage(smm.getPartitionKey(), id);
+                ByteBuf singleMessagePayload = Commands.deSerializeSingleMessageInBatch(
+                        uncompressedPayload, smm, 0, batchSize);
+                if (!smm.hasPartitionKey()) {
+                    continue;
                 }
+                BatchMessageIdImpl id = new BatchMessageIdImpl(ledgerId, entryId, partition, i);
+                compactMessage(smm.getPartitionKey(), id, smm.getPayloadSize());
                 singleMessagePayload.release();
             }
             uncompressedPayload.release();
@@ -1143,22 +1139,29 @@ public class PulsarRecordCursor implements RecordCursor {
                     isCompactedLedger = true;
                 } else {
                     try {
-                        if (readLedgerHandle == null || readLedgerId != messageId.getLedgerId()) {
+                        if (readLedgerId != messageId.getLedgerId()) {
                             if (readLedgerHandle != null) {
                                 readLedgerHandle.close();
                             }
                             readLedgerId = messageId.getLedgerId();
                             isCompactedLedger = false;
-                            readLedgerHandle = bookKeeper.openLedger(readLedgerId,
-                                    BookKeeper.DigestType.CRC32C, "".getBytes());
+                            readLedgerHandle = bookKeeper.openLedger(
+                                    readLedgerId, BookKeeper.DigestType.CRC32C, "".getBytes());
                         }
                     } catch (Exception e) {
-                        log.error("Failed to read entry ");
+                        log.error(e, "Failed to open ledger handle.");
                         throw new RuntimeException(e);
                     }
                 }
                 readEntries(readLedgerHandle, messageId.getLedgerId(), messageId.getEntryId(),
                         messageId.getBatchIndex(), isCompactedLedger);
+            }
+            if (readLedgerHandle != null) {
+                try {
+                    readLedgerHandle.close();
+                } catch (Exception e) {
+                    log.warn("Failed to close ledger handle.");
+                }
             }
         }
 
@@ -1183,6 +1186,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     parseAndAddMessageToQueue(ledgerId, entryId, batchIndex, buffer);
                 }
             } catch (Exception e) {
+                log.error(e, "Failed to read original entries.");
                 throw new RuntimeException(e);
             }
         }
@@ -1191,13 +1195,13 @@ public class PulsarRecordCursor implements RecordCursor {
                 long ledgerId, long entryId, int batchIndex, ByteBuf entryBuffer) throws IOException {
             MessageParser.parseMessage(topicName, ledgerId,
                     entryId, entryBuffer, message -> {
-                        if (((RawMessageIdImpl) message.getMessageId()).getBatchIndex() == batchIndex) {
-                            messageQueue.offer(message);
-                            if (message.getKey().isPresent()) {
-                                compactedMessage.remove(message.getKey().get());
-                            }
-                        }
-                    }, pulsarConnectorConfig.getMaxMessageSize());
+                if (((RawMessageIdImpl) message.getMessageId()).getBatchIndex() == batchIndex) {
+                    messageQueue.offer(message);
+                    if (message.getKey().isPresent()) {
+                        compactedMessage.remove(message.getKey().get());
+                    }
+                }
+            }, pulsarConnectorConfig.getMaxMessageSize());
         }
 
     }
