@@ -1185,7 +1185,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         remoteAddress, topicName, subscriptionName);
                                 commandSender.sendSuccessResponse(requestId);
                                 if (brokerInterceptor != null) {
-                                    brokerInterceptor.consumerCreated(this, consumer, metadata);
+                                    try {
+                                        brokerInterceptor.consumerCreated(this, consumer, metadata);
+                                    } catch (Throwable t) {
+                                        log.error("Exception occur when intercept consumer created.", t);
+                                    }
                                 }
                             } else {
                                 // The consumer future was completed before by a close command
@@ -1223,8 +1227,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
 
                             // If client timed out, the future would have been completed by subsequent close.
-                            // Send error
-                            // back to client, only if not completed already.
+                            // Send error back to client, only if not completed already.
                             if (consumerFuture.completeExceptionally(exception)) {
                                 commandSender.sendErrorResponse(requestId,
                                         BrokerServiceException.getClientErrorCode(exception),
@@ -1521,8 +1524,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
                     if (brokerInterceptor != null) {
-                        brokerInterceptor.
-                                producerCreated(this, producer, metadata);
+                        try {
+                            brokerInterceptor.producerCreated(this, producer, metadata);
+                        } catch (Throwable t) {
+                            log.error("Exception occur when intercept producer created.", t);
+                        }
                     }
                     return;
                 } else {
@@ -1689,7 +1695,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             requestId, null, null, consumerId));
                 }
                 if (brokerInterceptor != null) {
-                    brokerInterceptor.messageAcked(this, consumer, copyOfAckForInterceptor);
+                    try {
+                        brokerInterceptor.messageAcked(this, consumer, copyOfAckForInterceptor);
+                    } catch (Throwable t) {
+                        log.error("Exception occur when intercept message acked.", t);
+                    }
                 }
             }).exceptionally(e -> {
                 if (hasRequestId) {
