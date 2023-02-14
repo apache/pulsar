@@ -29,6 +29,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -73,6 +74,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -387,6 +389,42 @@ public class ServerCnxTest {
 
         assertEquals(serverCnx.getState(), State.Connected);
         assertTrue(getResponse() instanceof CommandConnected);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectCommandWithInvalidRoleCombinations() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(false);
+        svcConfig.setAuthorizationEnabled(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        // Invalid combinations where authData is proxy role
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "pass.proxy");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", null);
+    }
+
+    private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
+                                                            String originalPrincipal) throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, authData, 1,null,
+                null, originalPrincipal, null, null);
+        channel.writeInbound(clientCommand);
+
+        Object response = getResponse();
+        assertTrue(response instanceof CommandError);
+        assertEquals(((CommandError) response).getError(), ServerError.AuthorizationError);
+        assertEquals(serverCnx.getState(), State.Failed);
         channel.finish();
     }
 
