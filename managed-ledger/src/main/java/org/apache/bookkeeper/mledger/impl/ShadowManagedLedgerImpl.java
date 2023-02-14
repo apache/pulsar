@@ -162,11 +162,6 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    protected boolean isLedgersReadonly() {
-        return true;
-    }
-
-    @Override
     protected synchronized void initializeBookKeeper(ManagedLedgerInitializeLedgerCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing bookkeeper for shadowManagedLedger; ledgers {}", name, ledgers);
