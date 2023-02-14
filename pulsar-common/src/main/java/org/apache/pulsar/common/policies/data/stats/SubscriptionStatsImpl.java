@@ -212,9 +212,15 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         this.delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
         if (this.earliestMsgPublishTimeInBacklog != 0 && stats.earliestMsgPublishTimeInBacklog != 0) {
-            this.earliestMsgPublishTimeInBacklog = Math.min(this.earliestMsgPublishTimeInBacklog, stats.earliestMsgPublishTimeInBacklog);
+            this.earliestMsgPublishTimeInBacklog = Math.min(
+                    this.earliestMsgPublishTimeInBacklog,
+                    stats.earliestMsgPublishTimeInBacklog
+            );
         } else {
-            this.earliestMsgPublishTimeInBacklog = Math.max(this.earliestMsgPublishTimeInBacklog, stats.earliestMsgPublishTimeInBacklog);
+            this.earliestMsgPublishTimeInBacklog = Math.max(
+                    this.earliestMsgPublishTimeInBacklog,
+                    stats.earliestMsgPublishTimeInBacklog
+            );
         }
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;
