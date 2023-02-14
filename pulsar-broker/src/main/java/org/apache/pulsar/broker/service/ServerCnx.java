@@ -2437,10 +2437,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
         final long requestId = command.getRequestId();
+        final List<String> partitionsList = command.getPartitionsList();
         if (log.isDebugEnabled()) {
-            command.getPartitionsList().forEach(partion ->
+            partitionsList.forEach(partition ->
                     log.debug("Receive add published partition to txn request {} "
-                            + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partion));
+                            + "from {} with txnId {}, topic: [{}]", requestId, remoteAddress, txnID, partition));
         }
 
         if (!checkTransactionEnableAndSendError(requestId)) {
@@ -2455,7 +2456,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         return failedFutureTxnNotOwned(txnID);
                     }
                     return transactionMetadataStoreService
-                            .addProducedPartitionToTxn(txnID, command.getPartitionsList());
+                            .addProducedPartitionToTxn(txnID, partitionsList);
                 })
                 .whenComplete((v, ex) -> {
                     if (ex == null) {
@@ -2544,7 +2545,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String checkOwner = getPrincipal();
         return service.pulsar().getTransactionMetadataStoreService()
                 .verifyTxnOwnership(txnID, checkOwner)
-                .thenCompose(isOwner -> {
+                .thenComposeAsync(isOwner -> {
                     if (isOwner) {
                         return CompletableFuture.completedFuture(true);
                     }
@@ -2555,7 +2556,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         return CompletableFuture.completedFuture(false);
                     }
-                });
+                }, ctx.executor());
     }
 
     @Override
