@@ -37,6 +37,7 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
+import io.netty.util.concurrent.ScheduledFuture;
 import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -177,6 +178,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private AuthenticationState originalAuthState;
     private volatile AuthenticationDataSource originalAuthData;
     private boolean pendingAuthChallengeResponse = false;
+    private ScheduledFuture<?> authRefreshTask;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -306,6 +308,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         cnxsPerThread.get().remove(this);
+        if (authRefreshTask != null) {
+            authRefreshTask.cancel(false);
+        }
 
         // Connection is gone, close the producers immediately
         producers.forEach((__, producerFuture) -> {
@@ -656,15 +661,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             if (state != State.Connected) {
                 // First time authentication is done
-                if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
-                    if (!service.getAuthorizationService()
-                            .isValidOriginalPrincipal(this.authRole, originalPrincipal, remoteAddress)) {
-                        state = State.Failed;
-                        service.getPulsarStats().recordConnectionCreateFail();
-                        final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError, "Invalid roles.");
-                        ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE);
-                        return;
+                if (service.isAuthenticationEnabled()) {
+                    if (service.isAuthorizationEnabled()) {
+                        if (!service.getAuthorizationService()
+                                .isValidOriginalPrincipal(this.authRole, originalPrincipal, remoteAddress)) {
+                            state = State.Failed;
+                            service.getPulsarStats().recordConnectionCreateFail();
+                            final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError,
+                                    "Invalid roles.");
+                            ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE);
+                            return;
+                        }
                     }
+                    maybeScheduleAuthenticationCredentialsRefresh();
                 }
                 completeConnect(clientProtocolVersion, clientVersion);
             } else {
@@ -691,61 +700,75 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    public void refreshAuthenticationCredentials() {
-        AuthenticationState authState = this.originalAuthState != null ? originalAuthState : this.authState;
-
+    /**
+     * Method to initialize the {@link #authRefreshTask} task.
+     */
+    private void maybeScheduleAuthenticationCredentialsRefresh() {
+        assert ctx.executor().inEventLoop();
+        assert authRefreshTask == null;
         if (authState == null) {
             // Authentication is disabled or there's no local state to refresh
             return;
-        } else if (getState() != State.Connected || !isActive) {
-            // Connection is either still being established or already closed.
+        }
+        authRefreshTask = ctx.executor().scheduleAtFixedRate(this::refreshAuthenticationCredentials,
+                service.getPulsar().getConfig().getAuthenticationRefreshCheckSeconds(),
+                service.getPulsar().getConfig().getAuthenticationRefreshCheckSeconds(),
+                TimeUnit.SECONDS);
+    }
+
+    private void refreshAuthenticationCredentials() {
+        assert ctx.executor().inEventLoop();
+        AuthenticationState authState = this.originalAuthState != null ? originalAuthState : this.authState;
+        if (getState() == State.Failed) {
+            // Happens when an exception is thrown that causes this connection to close.
             return;
         } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
             return;
         } else if (originalPrincipal != null && originalAuthState == null) {
+            // This case is only checked when the authState is expired because we've reached a point where
+            // authentication needs to be refreshed, but the protocol does not support it unless the proxy forwards
+            // the originalAuthData.
             log.info(
                     "[{}] Cannot revalidate user credential when using proxy and"
                             + " not forwarding the credentials. Closing connection",
                     remoteAddress);
+            ctx.close();
             return;
         }
 
-        ctx.executor().execute(SafeRun.safeRun(() -> {
-            log.info("[{}] Refreshing authentication credentials for originalPrincipal {} and authRole {}",
-                    remoteAddress, originalPrincipal, this.authRole);
+        if (!supportsAuthenticationRefresh()) {
+            log.warn("[{}] Closing connection because client doesn't support auth credentials refresh",
+                    remoteAddress);
+            ctx.close();
+            return;
+        }
 
-            if (!supportsAuthenticationRefresh()) {
-                log.warn("[{}] Closing connection because client doesn't support auth credentials refresh",
-                        remoteAddress);
-                ctx.close();
-                return;
+        if (pendingAuthChallengeResponse) {
+            log.warn("[{}] Closing connection after timeout on refreshing auth credentials",
+                    remoteAddress);
+            ctx.close();
+            return;
+        }
+
+        log.info("[{}] Refreshing authentication credentials for originalPrincipal {} and authRole {}",
+                remoteAddress, originalPrincipal, this.authRole);
+        try {
+            AuthData brokerData = authState.refreshAuthentication();
+
+            ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData,
+                    getRemoteEndpointProtocolVersion()));
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
+                    remoteAddress, authMethod);
             }
 
-            if (pendingAuthChallengeResponse) {
-                log.warn("[{}] Closing connection after timeout on refreshing auth credentials",
-                        remoteAddress);
-                ctx.close();
-                return;
-            }
+            pendingAuthChallengeResponse = true;
 
-            try {
-                AuthData brokerData = authState.refreshAuthentication();
-
-                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData,
-                        getRemoteEndpointProtocolVersion()));
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
-                        remoteAddress, authMethod);
-                }
-
-                pendingAuthChallengeResponse = true;
-
-            } catch (AuthenticationException e) {
-                log.warn("[{}] Failed to refresh authentication: {}", remoteAddress, e);
-                ctx.close();
-            }
-        }));
+        } catch (AuthenticationException e) {
+            log.warn("[{}] Failed to refresh authentication: {}", remoteAddress, e);
+            ctx.close();
+        }
     }
 
     private static final byte[] emptyArray = new byte[0];
