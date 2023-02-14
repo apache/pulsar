@@ -1948,8 +1948,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             ch.pipeline().remove("handler");
             PersistentTopicE2ETest.ServerCnxForTest serverCnxForTest = new PersistentTopicE2ETest.ServerCnxForTest(this.pulsar, this.opts.getListenerName());
             ch.pipeline().addAfter("flowController", "testHandler", serverCnxForTest);
-            //override parent
-            connections.put(ch.remoteAddress(), serverCnxForTest);
         }
 
     }
