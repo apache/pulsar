@@ -24,38 +24,13 @@ import java.util.Set;
 /**
  * Defines the possible states for service units.
  *
- * The following diagram defines the valid state changes
- *
- *                  ┌───────────┐
- *       ┌──────────┤ released  │◄────────┐
- *       │own       └───────────┘         │release
- *       │                                │
- *       │                                │
- *       ▼                                │
- *    ┌────────┐  assign(transfer)  ┌─────┴────┐
- *    │        ├───────────────────►│          │
- *    │ owned  │                    │ assigned │
- *    │        │◄───────────────────┤          │
- *    └──┬─────┤      own           └──────────┘
- *       │  ▲  │                         ▲
- *       │  │  │                         │
- *       │  │  └──────────────┐          │
- *       │  │                 │          │
- *       │  │        unload   │          │ assign(assignment)
- * split │  │                 │          │
- *       │  │                 │          │
- *       │  │ create(child)   │          │
- *       │  │                 │          │
- *       ▼  │                 │          │
- *    ┌─────┴─────┐           └─────►┌───┴──────┐
- *    │           │                  │          │
- *    │ splitting ├────────────────► │   free   │
- *    │           │   discard(parent)│          │
- *    └───────────┘                  └──────────┘
+ * Refer to Service Unit State Channel in https://github.com/apache/pulsar/issues/16691 for additional details.
  */
 public enum ServiceUnitState {
 
-    Free, // not owned by any broker (terminal state)
+    Init, // initializing the state. no previous state(terminal state)
+
+    Free, // not owned by any broker (semi-terminal state)
 
     Owned, // owned by a broker (terminal state)
 
@@ -63,16 +38,20 @@ public enum ServiceUnitState {
 
     Released, // the source broker's ownership has been released (e.g. the topic connections are closed)
 
-    Splitting; // the service unit(e.g. bundle) is in the process of splitting.
+    Splitting, // the service unit(e.g. bundle) is in the process of splitting.
+
+    Disabled; // disabled in the system (semi-terminal state)
 
     private static Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
-            // (Free -> Released | Splitting) transitions are required
-            // when the topic is compacted in the middle of transfer or split.
-            Free, Set.of(Owned, Assigned, Released, Splitting),
-            Owned, Set.of(Assigned, Splitting, Free),
-            Assigned, Set.of(Owned, Released, Free),
-            Released, Set.of(Owned, Free),
-            Splitting, Set.of(Free)
+            // (Init -> all states) transitions are required
+            // when the topic is compacted in the middle of assign, transfer or split.
+            Init, Set.of(Free, Owned, Assigned, Released, Splitting, Disabled, Init),
+            Free, Set.of(Assigned, Init),
+            Owned, Set.of(Assigned, Splitting, Free, Init),
+            Assigned, Set.of(Owned, Released, Init),
+            Released, Set.of(Owned, Init),
+            Splitting, Set.of(Disabled, Init),
+            Disabled, Set.of(Init)
     );
 
     public static boolean isValidTransition(ServiceUnitState from, ServiceUnitState to) {
