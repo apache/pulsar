@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Sets;
 import io.airlift.slice.Slice;
@@ -35,7 +36,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -59,7 +60,6 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testcontainers.shaded.com.fasterxml.jackson.databind.ObjectMapper;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -135,34 +135,12 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
                 .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
                 .create();
 
-        AtomicInteger sendReceiptsCount = new AtomicInteger(0);
         Map<String, Double> latestPrice = new HashMap<>();
         AtomicReference<MessageIdImpl> firstMessageId = new AtomicReference<>((MessageIdImpl) MessageId.earliest);
         AtomicReference<MessageIdImpl> lastMessageId = new AtomicReference<>((MessageIdImpl) MessageId.latest);
-        AtomicBoolean setValueForKey7 = new AtomicBoolean(false);
-        for (int i = 0; i < compactedMsgNum; i++) {
-            String name = "stock-" + i % 10;
-            Double price = BigDecimal.valueOf(
-                    RandomUtils.nextDouble(10, 100)).setScale(4, RoundingMode.HALF_UP).doubleValue();
-            final int index = i;
-            final Stock stock = getStock(name, price, name, setValueForKey7);
-            producer.newMessage().key(name).value(stock).sendAsync()
-                    .thenAccept(messageId -> {
-                        if (index == 0) {
-                            firstMessageId.set((MessageIdImpl) messageId);
-                        }
-                        if (index == compactedMsgNum - 1) {
-                            lastMessageId.set(getNextMessageId(messageId));
-                        }
-                        if (stock == null) {
-                            latestPrice.remove(name);
-                        } else {
-                            latestPrice.put(name, price);
-                        }
-                        sendReceiptsCount.incrementAndGet();
-                        System.out.println("xxxx send message, id: " + messageId + ", name: " + name + ", price: " + price);
-                    });
-        }
+        int divisor = 8;
+
+        prepareData(producer, compactedMsgNum, divisor, latestPrice, firstMessageId, lastMessageId);
 
         admin.topics().triggerCompaction(topicName.toString());
         Awaitility.await().until(() -> {
@@ -170,38 +148,11 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
             return Objects.equals(LongRunningProcessStatus.Status.SUCCESS, status.status);
         });
 
-        setValueForKey7 = new AtomicBoolean(false);
-        Set<String> entrySet = new HashSet<>();
-        for (int i = 0; i < unCompactedMsgNum; i++) {
-            String name = "stock-" + i % 10;
-            Double price = BigDecimal.valueOf(
-                    RandomUtils.nextDouble(10, 100)).setScale(4, RoundingMode.HALF_UP).doubleValue();
-            final int index = i;
-            final Stock stock = getStock(name, price, name, setValueForKey7);
-            producer.newMessage().key(name).value(stock).sendAsync()
-                    .thenAccept(messageId -> {
-                        if (index == 0 && firstMessageId.get() == null) {
-                            firstMessageId.set((MessageIdImpl) messageId);
-                        }
-                        if (index == unCompactedMsgNum - 1) {
-                            lastMessageId.set(getNextMessageId(messageId));
-                        }
-
-                        if (stock == null) {
-                            latestPrice.remove(name);
-                        } else {
-                            latestPrice.put(name, price);
-                        }
-                        entrySet.add(((MessageIdImpl) messageId).getLedgerId() + ":"
-                                + ((MessageIdImpl) messageId).getEntryId());
-                        sendReceiptsCount.incrementAndGet();
-                        System.out.println("xxxx 2 send message with id " + messageId);
-                    });
+        Set<String> entrySet =
+                prepareData(producer, unCompactedMsgNum, divisor, latestPrice, firstMessageId, lastMessageId);
+        if (compactedMsgNum > 0 || unCompactedMsgNum > 0) {
+            assertEquals(divisor, latestPrice.size());
         }
-
-        Awaitility.await()
-                .atMost(5, TimeUnit.SECONDS)
-                .until(() -> sendReceiptsCount.get() == (compactedMsgNum + unCompactedMsgNum));
         log.info("finish to prepare compaction data");
 
         ObjectMapper objectMapper = new ObjectMapper();
@@ -252,37 +203,55 @@ public class TestCompactedQuery extends MockedPulsarServiceBaseTest {
                     key = slice == null ? null : new String(slice.getBytes());
                 }
             }
-            Assert.assertNotNull(key);
-            if (key.equals("stock-7")) {
-                Assert.assertNull(name);
-                Assert.assertNull(price);
-                continue;
-            }
-            Assert.assertNotNull(name);
-            Assert.assertNotNull(price);
+            assertNotNull(key);
+            assertNotNull(name);
+            assertNotNull(price);
             assertTrue(latestPrice.containsKey(key));
-            assertEquals(name, key);
-            assertEquals(latestPrice.remove(key), price);
+            assertEquals(key, name);
+            assertEquals(price, latestPrice.remove(key));
         }
-        Assert.assertTrue(latestPrice.isEmpty());
+        if (compactedMsgNum > 0 || unCompactedMsgNum > 0) {
+            assertEquals(latestPrice.size(), 1);
+            assertNotNull(latestPrice.remove("stock-7"));
+        } else {
+            assertEquals(latestPrice.size(), 0);
+        }
     }
 
-    private MessageIdImpl getNextMessageId(MessageId messageId) {
-        MessageIdImpl id = (MessageIdImpl) messageId;
-        return new MessageIdImpl(id.getLedgerId(), id.getEntryId() + 1, id.getPartitionIndex());
-    }
-
-    private Stock getStock(String name, Double price, String key, AtomicBoolean setValueForKey7) {
-        Stock stock = new Stock(name, price);
-        // If the key is 7, set a value first, then delete the value for the key
-        if (key.equals("stock-7")) {
-            if (!setValueForKey7.get()) {
-                setValueForKey7.set(true);
-            } else {
-                stock = null;
-            }
+    private Set<String> prepareData(Producer<Stock> producer, int messageCount, int divisor,
+                                    Map<String, Double> latestPrice,
+                                    AtomicReference<MessageIdImpl> firstMessageId,
+                                    AtomicReference<MessageIdImpl> lastMessageId) throws PulsarClientException {
+        Set<String> entrySet = new HashSet<>();
+        AtomicInteger sendCount = new AtomicInteger();
+        for (int i = 0; i < messageCount; i++) {
+            String name = "stock-" + i % divisor;
+            Double price = BigDecimal.valueOf(
+                    RandomUtils.nextDouble(10, 100)).setScale(4, RoundingMode.HALF_UP).doubleValue();
+            final int index = i;
+            final Stock stock = new Stock(name, price);
+            producer.newMessage().key(name).value(stock).sendAsync()
+                    .thenAccept(messageId -> {
+                        MessageIdImpl idImpl = (MessageIdImpl) messageId;
+                        if (index == 0) {
+                            firstMessageId.set(idImpl);
+                        }
+                        entrySet.add(idImpl.getLedgerId() + ":" + idImpl.getEntryId());
+                        latestPrice.put(name, price);
+                        sendCount.incrementAndGet();
+                    });
         }
-        return stock;
+        if (messageCount > 0) {
+            MessageIdImpl idImpl = (MessageIdImpl) producer.newMessage().key("stock-" + 7).send();
+            entrySet.add(idImpl.getLedgerId() + ":" + idImpl.getEntryId() + 1);
+            lastMessageId.set(new MessageIdImpl(
+                    idImpl.getLedgerId(), idImpl.getEntryId() + 1, idImpl.getPartitionIndex()));
+        }
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> sendCount.get() == messageCount);
+        return entrySet;
     }
 
 }

@@ -19,7 +19,9 @@
 package org.apache.pulsar.tests.integration.presto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 import java.nio.ByteBuffer;
@@ -418,16 +420,28 @@ public class TestBasicPresto extends TestPulsarSQLBase {
 
         Assert.assertEquals(selectCount("public/default", tableName), divisor);
         ContainerExecResult result = execQuery(
-                "select * from pulsar.\"public/default\".\"" + tableName + "\" where __compacted_query__=true");
+                "select __key__,symbol,sharePrice from pulsar.\"public/default\".\"" + tableName
+                        + "\" where __compacted_query__=true");
         assertThat(result.getExitCode()).isEqualTo(0);
         log.info("select sql query output \n{}", result.getStdout());
-        String[] split = result.getStdout().split("\n");
-        assertThat(split.length).isEqualTo(divisor);
-        String[] contentArr = result.getStdout().split("\n|,");
+        String[] dataArray = result.getStdout().split("\n");
+        for (String data : dataArray) {
+            String[] columns = data.split(",");
+            Stock expectedStock = latestStocks.remove(columns[0].trim());
+            assertNotNull(expectedStock);
+            assertEquals(columns[1], expectedStock.getSymbol());
+            assertEquals(columns[2], "" + expectedStock.getSharePrice());
+        }
+        if (compactedCount > 0 || noCompactedCount > 0) {
+            assertEquals(1, latestStocks.size());
+            assertNotNull(latestStocks.remove("4"));
+        } else {
+            assertTrue(latestStocks.isEmpty());
+        }
     }
 
     private void prepareDataForCompactedQuery(Producer<Stock> producer, Map<String, Stock> latestStocks,
-                                              int messageCount, int divisor) {
+                                              int messageCount, int divisor) throws PulsarClientException {
         AtomicInteger sendCount = new AtomicInteger();
         for (int i = 0; i < messageCount; i++) {
             int entryId = i % divisor;
@@ -439,6 +453,9 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 sendCount.incrementAndGet();
                 return null;
             });
+        }
+        if (messageCount > 0) {
+            producer.newMessage().key("4").send();
         }
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)

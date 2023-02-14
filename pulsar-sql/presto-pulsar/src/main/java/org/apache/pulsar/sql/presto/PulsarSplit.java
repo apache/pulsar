@@ -197,7 +197,7 @@ public class PulsarSplit implements ConnectorSplit {
     }
 
     @JsonProperty
-    public Boolean getCompactedQuery() {
+    public Boolean isCompactedQuery() {
         return compactedQuery;
     }
 
