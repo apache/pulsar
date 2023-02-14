@@ -340,14 +340,14 @@ class PythonInstance(object):
       if output_object is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
         if self.effectively_once:
-          self.producer.send_async(output_bytes,
+          self.producer.send_async(output_object,
                                    partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
                                    properties=props,
                                    sequence_id=self.contextimpl.get_message_sequence_id())
           Log.debug("Send message with sequence ID [%s] using the producer [%s] in effectively_once mode." %
                     (self.contextimpl.get_message_sequence_id(), self.producer.producer_name()))
         else:
-          self.producer.send_async(output_bytes,
+          self.producer.send_async(output_object,
                                    partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
                                    properties=props)
     elif self.auto_ack and self.atleast_once:

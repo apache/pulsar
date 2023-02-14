@@ -98,6 +98,7 @@ class TestContextImpl(unittest.TestCase):
     # fill out function_details
     function_details = Function_pb2.FunctionDetails()
     function_details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE')
+    function_details.source.inputSpecs["persistent://public/default/input"].CopyFrom(Function_pb2.ConsumerSpec())
     function_details.sink.topic = "persistent://public/default/output"
     max_buffered_tuples = 100
     pulsar_client = Mock()
@@ -115,5 +116,6 @@ class TestContextImpl(unittest.TestCase):
       config_file=None,
       user_code=user_code,
       pulsar_client=pulsar_client)
+    py_instance_impl.effectively_once = py_instance_impl.can_enable_effectively_once()
 
     self.assertEqual(py_instance_impl.effectively_once, True)
