@@ -367,17 +367,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         ctx.close();
     }
 
-    /*
-     * If authentication and authorization is enabled(and not sasl) and
-     *  if the authRole is one of proxyRoles we want to enforce
+    /**
+     * When transitioning from Connecting to Connected, this method validates the roles.
+     * If the authRole is one of proxyRoles, the following must be true:
      * - the originalPrincipal is given while connecting
      * - originalPrincipal is not blank
-     * - originalPrincipal is not a proxy principal
+     * - originalPrincipal is not a proxy principal.
+     * @return true when roles are valid and false when roles are invalid
      */
-    private boolean invalidOriginalPrincipal(String originalPrincipal) {
-        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()
-                && proxyRoles.contains(authRole) && (StringUtils.isBlank(originalPrincipal)
-                || proxyRoles.contains(originalPrincipal)));
+    private boolean isValidRoleAndOriginalPrincipal() {
+        String errorMsg = null;
+        if (proxyRoles.contains(authRole)) {
+            if (StringUtils.isBlank(originalPrincipal)) {
+                errorMsg = "originalPrincipal must be provided when connecting with a proxy role.";
+            } else if (proxyRoles.contains(originalPrincipal)) {
+                errorMsg = "originalPrincipal cannot be a proxy role.";
+            }
+        }
+        if (errorMsg != null) {
+            log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress, authRole,
+                    originalPrincipal, errorMsg);
+            return false;
+        } else {
+            return true;
+        }
     }
 
     // ////
@@ -448,14 +461,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for lookup ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                        originalPrincipal, topicName);
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
-                lookupSemaphore.release();
-                return;
-            }
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
@@ -512,14 +517,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for getPartitionMetadataRequest ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                        originalPrincipal, topicName);
-                commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId);
-                lookupSemaphore.release();
-                return;
-            }
             isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
                     isAuthorized -> {
                 if (isAuthorized) {
@@ -629,6 +626,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
+        if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
+            if (!isValidRoleAndOriginalPrincipal()) {
+                state = State.Failed;
+                service.getPulsarStats().recordConnectionCreateFail();
+                final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError, "Invalid roles.");
+                ctx.writeAndFlush(msg).addListener(ChannelFutureListener.CLOSE);
+                return;
+            }
+        }
         ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
@@ -942,14 +948,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 remoteAddress, authRole, originalPrincipal);
         }
 
-        if (invalidOriginalPrincipal(originalPrincipal)) {
-            final String msg = "Valid Proxy Client role should be provided while subscribing ";
-            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                    originalPrincipal, topicName);
-            commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
-            return;
-        }
-
         final String subscriptionName = subscribe.getSubscription();
         final SubType subType = subscribe.getSubType();
         final String consumerName = subscribe.hasConsumerName() ? subscribe.getConsumerName() : "";
@@ -1187,14 +1185,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
-            return;
-        }
-
-        if (invalidOriginalPrincipal(originalPrincipal)) {
-            final String msg = "Valid Proxy Client role should be provided while creating producer ";
-            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                    originalPrincipal, topicName);
-            commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
             return;
         }
 
@@ -2012,14 +2002,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            if (invalidOriginalPrincipal(originalPrincipal)) {
-                final String msg = "Valid Proxy Client role should be provided for getTopicsOfNamespaceRequest ";
-                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on namespace {}", remoteAddress, msg,
-                        authRole, originalPrincipal, namespaceName);
-                commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
-                lookupSemaphore.release();
-                return;
-            }
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
