@@ -166,7 +166,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // In case of proxy, if the authentication credentials are forwardable,
     // it will hold the credentials of the original client
     AuthenticationState originalAuthState;
-    AuthenticationDataSource originalAuthData;
+    volatile AuthenticationDataSource originalAuthData;
     private boolean pendingAuthChallengeResponse = false;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
