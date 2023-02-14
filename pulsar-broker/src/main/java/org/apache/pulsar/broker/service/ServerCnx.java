@@ -195,7 +195,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // In case of proxy, if the authentication credentials are forwardable,
     // it will hold the credentials of the original client
     private AuthenticationState originalAuthState;
-    private AuthenticationDataSource originalAuthData;
+    private volatile AuthenticationDataSource originalAuthData;
     // Keep temporarily in order to verify after verifying proxy's authData
     private AuthData originalAuthDataCopy;
     private boolean pendingAuthChallengeResponse = false;
