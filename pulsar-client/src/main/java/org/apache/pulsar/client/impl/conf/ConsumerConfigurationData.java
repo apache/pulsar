@@ -400,6 +400,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
 
+    private long seekCompleteCheckTicketMs = 1;
+
     public TopicConsumerConfigurationData getMatchingTopicConfiguration(String topicName) {
         return topicConfigurations.stream()
                 .filter(topicConf -> topicConf.getTopicNameMatcher().matches(topicName))

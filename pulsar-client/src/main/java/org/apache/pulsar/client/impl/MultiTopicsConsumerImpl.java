@@ -57,6 +57,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotSupportedException;
+import org.apache.pulsar.client.api.PulsarClientException.SeekConflictException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
@@ -101,6 +102,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
+    private final AtomicBoolean duringSeek;
+    private final long seekCompleteCheckTicketMs;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -149,6 +152,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 ? new MultiTopicConsumerStatsRecorderImpl(this)
                 : null;
 
+        this.duringSeek = new AtomicBoolean(false);
+        this.seekCompleteCheckTicketMs = conf.getSeekCompleteCheckTicketMs();
         // start track and auto subscribe partition increment
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
@@ -234,7 +239,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
+    private void waitForSeekComplete() {
+        while (duringSeek.get()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] is during seek processing", topic, subscription);
+            }
+            try {
+                Thread.sleep(seekCompleteCheckTicketMs);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
+
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+        waitForSeekComplete();
         CompletableFuture<List<Message<T>>> messagesFuture;
         if (batchReceive) {
             messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
@@ -716,31 +735,46 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
+    private void setDuringSeek() throws PulsarClientException {
+        if (!duringSeek.compareAndSet(false, true)) {
+            throw new SeekConflictException("Another seek is on going");
+        }
+    }
+
     @Override
     public void seek(MessageId messageId) throws PulsarClientException {
+        setDuringSeek();
         try {
             seekAsync(messageId).get();
         } catch (Exception e) {
+            duringSeek.set(false);
             throw PulsarClientException.unwrap(e);
         }
+        duringSeek.set(false);
     }
 
     @Override
     public void seek(long timestamp) throws PulsarClientException {
+        setDuringSeek();
         try {
             seekAsync(timestamp).get();
         } catch (Exception e) {
+            duringSeek.set(false);
             throw PulsarClientException.unwrap(e);
         }
+        duringSeek.set(false);
     }
 
     @Override
     public void seek(Function<String, Object> function) throws PulsarClientException {
+        setDuringSeek();
         try {
             seekAsync(function).get();
         } catch (Exception e) {
+            duringSeek.set(false);
             throw PulsarClientException.unwrap(e);
         }
+        duringSeek.set(false);
     }
 
     @Override

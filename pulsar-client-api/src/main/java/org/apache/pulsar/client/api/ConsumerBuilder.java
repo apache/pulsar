@@ -629,6 +629,15 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
 
     /**
+     * Sets the interval of checking whether seek is complete interval.
+     *
+     * @param interval
+     *            the interval of check ticket.
+     * @return the consumer builder instance
+     */
+    ConsumerBuilder<T> seekCompleteCheckTicketMs(int interval);
+
+    /**
      * Sets KeyShared subscription policy for consumer.
      *
      * <p>By default, KeyShared subscriptions use auto split hash ranges to maintain consumers. If you want to

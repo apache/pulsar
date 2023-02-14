@@ -495,6 +495,22 @@ public class PulsarClientException extends IOException {
     }
 
     /**
+     * Seek conflict exception thrown by Pulsar client.
+     */
+    public static class SeekConflictException extends PulsarClientException {
+        /**
+         * Constructs a {@code SeekConflictException} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public SeekConflictException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
      * Authentication exception thrown by Pulsar client.
      */
     public static class AuthenticationException extends PulsarClientException {

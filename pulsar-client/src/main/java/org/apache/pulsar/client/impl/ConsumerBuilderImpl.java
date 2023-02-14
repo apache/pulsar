@@ -462,7 +462,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> seekCompleteCheckTicketMs(int interval) {
+       conf.setSeekCompleteCheckTicketMs(interval);
+        return this;
+    }
 
+    @Override
     public ConsumerBuilder<T> startMessageIdInclusive() {
         conf.setResetIncludeHead(true);
         return this;
