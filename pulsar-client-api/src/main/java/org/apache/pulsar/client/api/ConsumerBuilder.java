@@ -633,9 +633,11 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param interval
      *            the interval of check ticket.
+     * @param unit
+     *            the time unit of the interval.
      * @return the consumer builder instance
      */
-    ConsumerBuilder<T> seekCompleteCheckTicketMs(int interval);
+    ConsumerBuilder<T> receiveTaskIntervalMsDuringSeek(int interval, TimeUnit unit);
 
     /**
      * Sets KeyShared subscription policy for consumer.

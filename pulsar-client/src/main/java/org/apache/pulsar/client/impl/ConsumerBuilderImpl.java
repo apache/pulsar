@@ -462,8 +462,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> seekCompleteCheckTicketMs(int interval) {
-       conf.setSeekCompleteCheckTicketMs(interval);
+    public ConsumerBuilder<T> receiveTaskIntervalMsDuringSeek(int interval, TimeUnit unit) {
+       conf.setReceiveTaskIntervalMsDuringSeek(interval, unit);
         return this;
     }
 

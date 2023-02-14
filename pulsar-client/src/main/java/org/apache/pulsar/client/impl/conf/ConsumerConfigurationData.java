@@ -400,7 +400,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private List<TopicConsumerConfigurationData> topicConfigurations = new ArrayList<>();
 
-    private long seekCompleteCheckTicketMs = 1;
+    private long receiveTaskIntervalMsDuringSeek = 10;
 
     public TopicConsumerConfigurationData getMatchingTopicConfiguration(String topicName) {
         return topicConfigurations.stream()
@@ -417,6 +417,11 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
         this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);
+    }
+
+    public void setReceiveTaskIntervalMsDuringSeek(int interval, TimeUnit timeUnit) {
+        checkArgument(interval > 0, "interval needs to be > 0");
+        this.receiveTaskIntervalMsDuringSeek = timeUnit.toMillis(interval);
     }
 
     @JsonIgnore

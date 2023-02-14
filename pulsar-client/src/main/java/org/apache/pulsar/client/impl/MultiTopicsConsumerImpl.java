@@ -103,7 +103,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile BatchMessageIdImpl startMessageId = null;
     private final long startMessageRollbackDurationInSec;
     private final AtomicBoolean duringSeek;
-    private final long seekCompleteCheckTicketMs;
+    private final long receiveTaskIntervalMsDuringSeek;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -153,7 +153,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 : null;
 
         this.duringSeek = new AtomicBoolean(false);
-        this.seekCompleteCheckTicketMs = conf.getSeekCompleteCheckTicketMs();
+        this.receiveTaskIntervalMsDuringSeek = conf.getReceiveTaskIntervalMsDuringSeek();
         // start track and auto subscribe partition increment
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
@@ -239,21 +239,16 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private void waitForSeekComplete() {
-        while (duringSeek.get()) {
+    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+        if (duringSeek.get()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] is during seek processing", topic, subscription);
             }
-            try {
-                Thread.sleep(seekCompleteCheckTicketMs);
-            } catch (InterruptedException e) {
-                // ignore
-            }
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
+                    .schedule(() -> receiveMessageFromConsumer(consumer, true),
+                            receiveTaskIntervalMsDuringSeek, TimeUnit.MILLISECONDS);
+            return;
         }
-    }
-
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
-        waitForSeekComplete();
         CompletableFuture<List<Message<T>>> messagesFuture;
         if (batchReceive) {
             messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
@@ -747,10 +742,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             seekAsync(messageId).get();
         } catch (Exception e) {
-            duringSeek.set(false);
             throw PulsarClientException.unwrap(e);
+        } finally {
+            duringSeek.set(false);
         }
-        duringSeek.set(false);
     }
 
     @Override
@@ -759,10 +754,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             seekAsync(timestamp).get();
         } catch (Exception e) {
-            duringSeek.set(false);
             throw PulsarClientException.unwrap(e);
+        } finally {
+            duringSeek.set(false);
         }
-        duringSeek.set(false);
     }
 
     @Override
@@ -771,10 +766,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             seekAsync(function).get();
         } catch (Exception e) {
-            duringSeek.set(false);
             throw PulsarClientException.unwrap(e);
+        } finally {
+            duringSeek.set(false);
         }
-        duringSeek.set(false);
     }
 
     @Override
