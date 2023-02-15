@@ -866,6 +866,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             doAuthentication(clientData, false, clientProtocolVersion, clientVersion);
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
+            state = State.Failed;
             logAuthException(remoteAddress, "connect", getPrincipal(), Optional.empty(), e);
             String msg = "Unable to authenticate";
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, msg));
@@ -891,11 +892,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     authResponse.hasClientVersion() ? authResponse.getClientVersion() : EMPTY);
         } catch (AuthenticationException e) {
             service.getPulsarStats().recordConnectionCreateFail();
+            state = State.Failed;
             log.warn("[{}] Authentication failed: {} ", remoteAddress, e.getMessage());
             ctx.writeAndFlush(Commands.newError(-1, ServerError.AuthenticationError, e.getMessage()));
             close();
         } catch (Exception e) {
             service.getPulsarStats().recordConnectionCreateFail();
+            state = State.Failed;
             String msg = "Unable to handleAuthResponse";
             log.warn("[{}] {} ", remoteAddress, msg, e);
             ctx.writeAndFlush(Commands.newError(-1, ServerError.UnknownError, msg));
