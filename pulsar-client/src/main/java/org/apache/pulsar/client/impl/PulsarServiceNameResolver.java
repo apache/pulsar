@@ -52,9 +52,8 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
         if (list.size() == 1) {
             return list.get(0);
         } else {
-            CURRENT_INDEX_UPDATER.getAndUpdate(this, last -> (last + 1) % list.size());
-            return list.get(currentIndex);
-
+            int originalIndex = CURRENT_INDEX_UPDATER.getAndUpdate(this, last -> (last + 1) % list.size());
+            return list.get((originalIndex + 1) % list.size());
         }
     }
 
