@@ -167,7 +167,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
-    <kafka-client.version>2.8.2</kafka-client.version>
+    <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
