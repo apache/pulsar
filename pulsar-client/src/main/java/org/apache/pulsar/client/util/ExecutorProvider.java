@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.client.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
-
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 
 @Slf4j
 public class ExecutorProvider {
@@ -42,10 +40,12 @@ public class ExecutorProvider {
     private final String poolName;
     private volatile boolean isShutdown;
 
-    protected static class ExtendedThreadFactory extends DefaultThreadFactory {
-
+    public static class ExtendedThreadFactory extends DefaultThreadFactory {
         @Getter
         private Thread thread;
+        public ExtendedThreadFactory(String poolName) {
+            super(poolName, false);
+        }
         public ExtendedThreadFactory(String poolName, boolean daemon) {
             super(poolName, daemon);
         }
@@ -53,6 +53,8 @@ public class ExecutorProvider {
         @Override
         public Thread newThread(Runnable r) {
             thread = super.newThread(r);
+            thread.setUncaughtExceptionHandler((t, e) ->
+                    log.error("Thread {} got uncaught Exception", t.getName(), e));
             return thread;
         }
     }
