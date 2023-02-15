@@ -322,7 +322,7 @@ public abstract class NamespacesBase extends AdminResource {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
                                 log.info("[{}] There are in-flight topics created during the namespace deletion, "
                                         + "retry to delete the namespace again.", namespaceName);
-                                internalRetryableDeleteNamespaceAsync0(force, retryTimes, callback);
+                                internalRetryableDeleteNamespaceAsync0(force, retryTimes - 1, callback);
                                 return;
                             }
                         }
