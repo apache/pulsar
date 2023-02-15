@@ -118,6 +118,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.zookeeper.KeeperException;
 
 @Slf4j
 public abstract class NamespacesBase extends AdminResource {
@@ -213,18 +214,16 @@ public abstract class NamespacesBase extends AdminResource {
      */
     protected @Nonnull CompletableFuture<Void> internalDeleteNamespaceAsync(boolean force) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        RetryUtil.retryAsynchronously(() -> internalDeleteNamespaceAsync0(force),
-                new BackoffBuilder()
-                        .setInitialTime(200, TimeUnit.MILLISECONDS)
-                        .setMandatoryStop(15, TimeUnit.SECONDS)
-                        .setMax(15, TimeUnit.SECONDS)
-                        .create(),
-                pulsar().getExecutor(), future);
+        internalRetryableDeleteNamespaceAsync0(force, 5, future);
         return future;
     }
-    private @Nonnull CompletableFuture<Void> internalDeleteNamespaceAsync0(boolean force) {
-        CompletableFuture<Policies> preconditionCheck = precheckWhenDeleteNamespace(namespaceName, force);
-        return preconditionCheck
+    private void internalRetryableDeleteNamespaceAsync0(boolean force, int retryTimes,
+                                                        @Nonnull CompletableFuture<Void> callback) {
+        if (retryTimes == 0) {
+            // drop out recursive
+            return;
+        }
+        precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
                     final CompletableFuture<Void> markDeleteFuture;
                     if (policies != null && policies.deleted) {
@@ -317,7 +316,21 @@ public abstract class NamespacesBase extends AdminResource {
                                     return CompletableFuture.completedFuture(null);
                                 })
                         ).collect(Collectors.toList())))
-                .thenCompose(ignore -> internalClearZkSources());
+                .thenCompose(ignore -> internalClearZkSources())
+                .whenComplete((result, error) -> {
+                    if (error != null) {
+                        final Throwable rc = FutureUtil.unwrapCompletionException(error);
+                        if (rc instanceof MetadataStoreException) {
+                            if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
+                                internalRetryableDeleteNamespaceAsync0(force, retryTimes, callback);
+                                return;
+                            }
+                        }
+                        callback.completeExceptionally(error);
+                        return;
+                    }
+                    callback.complete(result);
+                });
     }
 
     private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
