@@ -320,6 +320,8 @@ public abstract class NamespacesBase extends AdminResource {
                         final Throwable rc = FutureUtil.unwrapCompletionException(error);
                         if (rc instanceof MetadataStoreException) {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
+                                log.info("[{}] There are in-flight topics created during the namespace deletion, "
+                                        + "retry to delete the namespace again.", namespaceName);
                                 internalRetryableDeleteNamespaceAsync0(force, retryTimes, callback);
                                 return;
                             }
