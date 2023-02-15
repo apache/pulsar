@@ -217,10 +217,6 @@ public abstract class NamespacesBase extends AdminResource {
     }
     private void internalRetryableDeleteNamespaceAsync0(boolean force, int retryTimes,
                                                         @Nonnull CompletableFuture<Void> callback) {
-        if (retryTimes == 0) {
-            // drop out recursive
-            return;
-        }
         precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
                     final CompletableFuture<Void> markDeleteFuture;
@@ -322,7 +318,14 @@ public abstract class NamespacesBase extends AdminResource {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
                                 log.info("[{}] There are in-flight topics created during the namespace deletion, "
                                         + "retry to delete the namespace again.", namespaceName);
-                                internalRetryableDeleteNamespaceAsync0(force, retryTimes - 1, callback);
+                                if (retryTimes != 0) {
+                                    internalRetryableDeleteNamespaceAsync0(force, retryTimes - 1, callback);
+                                } else {
+                                    callback.completeExceptionally(
+                                            new RestException(Status.CONFLICT, "The broker still have in-flight topics"
+                                                    + " created during namespace deletion, please try again."));
+                                    // drop out recursive
+                                }
                                 return;
                             }
                         }
