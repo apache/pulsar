@@ -318,8 +318,10 @@ public abstract class NamespacesBase extends AdminResource {
                             if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
                                 log.info("[{}] There are in-flight topics created during the namespace deletion, "
                                         + "retry to delete the namespace again.", namespaceName);
-                                if (retryTimes != 0) {
-                                    internalRetryableDeleteNamespaceAsync0(force, retryTimes - 1, callback);
+                                final int next = retryTimes - 1;
+                                if (next > 0) {
+                                    // async recursive
+                                    internalRetryableDeleteNamespaceAsync0(force, next, callback);
                                 } else {
                                     callback.completeExceptionally(
                                             new RestException(Status.CONFLICT, "The broker still have in-flight topics"
