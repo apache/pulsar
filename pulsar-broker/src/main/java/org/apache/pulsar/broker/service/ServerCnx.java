@@ -739,29 +739,30 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 String newAuthRole = authState.getAuthRole();
                 AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
 
-                // Refresh the auth data and role.
-                if (!useOriginalAuthState) {
-                    this.authRole = newAuthRole;
-                    this.authenticationData = newAuthDataSource;
-                } else {
-                    this.originalAuthData = newAuthDataSource;
-                    this.originalPrincipal = newAuthRole;
-                }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                            remoteAddress, authMethod, this.authRole, originalPrincipal);
-                }
-
                 if (state != State.Connected) {
+                    // Set the auth data and auth role
+                    if (!useOriginalAuthState) {
+                        this.authRole = newAuthRole;
+                        this.authenticationData = newAuthDataSource;
+                    }
                     // First time authentication is done
                     if (originalAuthState != null) {
                         // We only set originalAuthState when we are going to use it.
                         authenticateOriginalData(clientProtocolVersion, clientVersion);
                     } else {
                         completeConnect(clientProtocolVersion, clientVersion);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                                    remoteAddress, authMethod, this.authRole, originalPrincipal);
+                        }
                     }
                 } else {
+                    // Refresh the auth data
+                    if (!useOriginalAuthState) {
+                        this.authenticationData = newAuthDataSource;
+                    } else {
+                        this.originalAuthData = newAuthDataSource;
+                    }
                     // If the connection was already ready, it means we're doing a refresh
                     if (!StringUtils.isEmpty(authRole)) {
                         if (!authRole.equals(newAuthRole)) {

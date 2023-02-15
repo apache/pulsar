@@ -75,6 +75,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -1033,7 +1034,7 @@ public class ServerCnxTest {
     @Test
     public void testRefreshOriginalPrincipalWithAuthDataForwardedFromProxy() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
-        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        AuthenticationProvider authenticationProvider = new MockMutableAuthenticationProvider();
         String authMethodName = authenticationProvider.getAuthMethodName();
         when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
         when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
@@ -1059,11 +1060,11 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getAuthRole(), proxyRole);
         assertEquals(serverCnx.getAuthState().getAuthRole(), proxyRole);
 
-        String newClientRole = "pass.RefreshOriginAuthData";
         // Request refreshing the original auth.
         // Expected:
         // 1. Original role and original data equals to "pass.RefreshOriginAuthData".
         // 2. The broker disconnects the client, because the new role doesn't equal the old role.
+        String newClientRole = "pass.RefreshOriginAuthData";
         ByteBuf refreshAuth = Commands.newAuthResponse(authMethodName,
                 AuthData.of(newClientRole.getBytes(StandardCharsets.UTF_8)), 0, "test");
         channel.writeInbound(refreshAuth);
