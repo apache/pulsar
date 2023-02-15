@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.utils;
 
 import java.util.Queue;
-
+import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
@@ -74,6 +74,11 @@ public class ClientChannelHelper {
         @Override
         protected void handleConnected(CommandConnected connected) {
             queue.offer(new CommandConnected().copyFrom(connected));
+        }
+
+        @Override
+        protected void handleAuthChallenge(CommandAuthChallenge challenge) {
+            queue.offer(new CommandAuthChallenge().copyFrom(challenge));
         }
 
         @Override
