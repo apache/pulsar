@@ -613,9 +613,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // According to auth result, send newConnected or newAuthChallenge command.
     private void doAuthentication(AuthData clientData,
-                                   boolean useOriginalAuthState,
-                                   int clientProtocolVersion,
-                                   String clientVersion) throws Exception {
+                                  boolean useOriginalAuthState,
+                                  int clientProtocolVersion,
+                                  String clientVersion) throws Exception {
 
         // The original auth state can only be set on subsequent auth attempts (and only
         // in presence of a proxy and if the proxy is forwarding the credentials).
