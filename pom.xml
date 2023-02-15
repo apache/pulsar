@@ -891,6 +891,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-cert-refresher</artifactId>
+        <version>${athenz.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.github.zafarkhaja</groupId>
         <artifactId>java-semver</artifactId>
         <version>${java-semver.version}</version>
