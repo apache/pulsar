@@ -22,12 +22,15 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -92,6 +95,14 @@ import org.slf4j.LoggerFactory;
 public abstract class PulsarWebResource {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarWebResource.class);
+
+    private static final LoadingCache<String, PulsarServiceNameResolver> SERVICE_NAME_RESOLVER_CACHE =
+            Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).build(
+                    serviceUrl -> {
+                        PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
+                        serviceNameResolver.updateServiceUrl(serviceUrl);
+                        return serviceNameResolver;
+                    });
 
     static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
 
@@ -433,17 +444,21 @@ public abstract class PulsarWebResource {
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
         try {
-            PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
+            PulsarServiceNameResolver serviceNameResolver;
             if (isRequestHttps() && pulsar.getConfiguration().getWebServicePortTls().isPresent()
                     && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
-                serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrlTls());
+                serviceNameResolver = SERVICE_NAME_RESOLVER_CACHE.get(differentClusterData.getServiceUrlTls());
             } else {
-                serviceNameResolver.updateServiceUrl(differentClusterData.getServiceUrl());
+                serviceNameResolver = SERVICE_NAME_RESOLVER_CACHE.get(differentClusterData.getServiceUrl());
             }
             URL webUrl = new URL(serviceNameResolver.resolveHostUri().toString());
             return UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.getHost()).port(webUrl.getPort()).build();
-        } catch (PulsarClientException.InvalidServiceURL exception) {
-            throw new MalformedURLException(exception.getMessage());
+        } catch (Exception exception) {
+            if (exception.getCause() != null
+                    && exception.getCause() instanceof PulsarClientException.InvalidServiceURL) {
+                throw new MalformedURLException(exception.getMessage());
+            }
+            throw exception;
         }
     }
 
