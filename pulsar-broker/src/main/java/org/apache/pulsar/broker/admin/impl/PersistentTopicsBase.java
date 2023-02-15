@@ -4982,20 +4982,24 @@ public class PersistentTopicsBase extends AdminResource {
                                 pulsar().getNamespaceService().isServiceUnitOwnedAsync(partition)
                                         .thenCompose(owned -> {
                                             if (owned) {
-                                                return getReplicatedSubscriptionStatusFromLocalBroker(partition, subName);
+                                                return getReplicatedSubscriptionStatusFromLocalBroker(partition,
+                                                        subName);
                                             } else {
                                                 try {
                                                     return pulsar().getAdminClient().topics()
-                                                            .getReplicatedSubscriptionStatusAsync(partition.toString(), subName)
+                                                            .getReplicatedSubscriptionStatusAsync(partition.toString(),
+                                                                    subName)
                                                             .whenComplete((__, throwable) -> {
                                                                 if (throwable != null) {
-                                                                    log.error("[{}] Failed to get replicated subscriptions on"
-                                                                                    + " {} {}",
-                                                                            clientAppId(), partition, subName, throwable);
+                                                                    log.error("[{}] Failed to get replicated "
+                                                                                    + "subscriptions on {} {}",
+                                                                            clientAppId(), partition, subName,
+                                                                            throwable);
                                                                 }
                                                             });
                                                 } catch (Exception e) {
-                                                    log.warn("[{}] Failed to get replicated subscription status on {} {}",
+                                                    log.warn("[{}] Failed to get replicated subscription status"
+                                                                    + " on {} {}",
                                                             clientAppId(), partition, subName, e);
                                                     return FutureUtil.failedFuture(e);
                                                 }
