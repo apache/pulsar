@@ -26,7 +26,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.L
 
 public class InMemoryRedeliveryTracker implements RedeliveryTracker {
 
-    private ConcurrentLongLongPairHashMap trackerCache = new ConcurrentLongLongPairHashMap.newBuilder()
+    private ConcurrentLongLongPairHashMap trackerCache = ConcurrentLongLongPairHashMap.newBuilder()
             .concurrencyLevel(2)
             .expectedItems(128)
             .autoShrink(true)
