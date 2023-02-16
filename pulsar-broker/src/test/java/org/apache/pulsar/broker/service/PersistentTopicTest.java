@@ -60,6 +60,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -264,7 +265,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testLastEntryReadErrorWhenInitWithManagedLedgerInterceptor() throws Exception {
-        final String ledgerName  = "testLastEntryReadErrorWhenInitWithManagedLedgerInterceptor";
+        final String ledgerName  = "testLastEntryReadErrorWhenInitWithManagedLedgerInterceptor" + UUID.randomUUID();
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
         conf.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null));
