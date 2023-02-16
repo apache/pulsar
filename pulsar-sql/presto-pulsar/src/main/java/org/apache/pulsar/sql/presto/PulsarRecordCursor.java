@@ -147,14 +147,15 @@ public class PulsarRecordCursor implements RecordCursor {
 
     private OffloadPoliciesImpl offloadPolicies;
 
+    private BookKeeper bookKeeper;
+    private ManagedLedgerFactory managedLedgerFactory;
+    private ManagedLedgerConfig managedLedgerConfig;
+
     private CompactedLedgerReader compactedLedgerReader;
     private volatile Throwable compactedHandleError;
     private final boolean isCompactedQuery;
     protected ConcurrentOpenHashMap<String, BatchMessageIdImpl> compactedMessageIds =
             ConcurrentOpenHashMap.<String, BatchMessageIdImpl>newBuilder().build();
-    private BookKeeper bookKeeper;
-    private ManagedLedgerFactory managedLedgerFactory;
-    private ManagedLedgerConfig managedLedgerConfig;
 
     private static final Logger log = Logger.get(PulsarRecordCursor.class);
 
@@ -173,7 +174,7 @@ public class PulsarRecordCursor implements RecordCursor {
             throw new RuntimeException(e);
         }
 
-        bookKeeper = pulsarConnectorCache.getBookKeeper();
+        bookKeeper = pulsarConnectorCache.getBookKeeperFactory().get();
         managedLedgerFactory = pulsarConnectorCache.getManagedLedgerFactory();
         managedLedgerConfig = pulsarConnectorCache.getManagedLedgerConfig(
                 TopicName.get("persistent", NamespaceName.get(pulsarSplit.getSchemaName()),
@@ -1034,7 +1035,7 @@ public class PulsarRecordCursor implements RecordCursor {
         public void run() {
             readCompactedData();
             readUnCompactedData();
-            readEntireData();
+            readCompleteData();
         }
 
         private void readCompactedData() {
@@ -1133,7 +1134,7 @@ public class PulsarRecordCursor implements RecordCursor {
             }
         }
 
-        private void readEntireData() {
+        private void readCompleteData() {
             Iterator<BatchMessageIdImpl> messageIdIterator = compactedMessageIds.values().stream().sorted().iterator();
             LedgerHandle readLedgerHandle = null;
             AtomicBoolean isCompactedLedger = new AtomicBoolean(false);

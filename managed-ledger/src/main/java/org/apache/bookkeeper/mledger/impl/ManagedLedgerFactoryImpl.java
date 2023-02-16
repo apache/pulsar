@@ -215,7 +215,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
     }
 
-    static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
+    public static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
 
         private final BookKeeper bkClient;
 
