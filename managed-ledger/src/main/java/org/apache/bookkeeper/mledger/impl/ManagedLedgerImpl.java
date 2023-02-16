@@ -465,10 +465,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         scheduleTimeoutTask();
     }
 
-    protected boolean isLedgersReadonly() {
-        return false;
-    }
-
     protected synchronized void initializeBookKeeper(final ManagedLedgerInitializeLedgerCallback callback) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] initializing bookkeeper; ledgers {}", name, ledgers);
