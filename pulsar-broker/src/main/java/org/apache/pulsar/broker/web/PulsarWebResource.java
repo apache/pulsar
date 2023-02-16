@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
@@ -626,15 +627,19 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(NamespaceName fqnn,
-              BundlesData bundles, String bundleRange, boolean authoritative, boolean readOnly) {
+    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(
+            NamespaceName fqnn, BundlesData bundles, String bundleRange,
+            boolean authoritative, boolean readOnly, String destinationBroker) {
         NamespaceBundle nsBundle;
         try {
             nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         } catch (WebApplicationException wae) {
             return CompletableFuture.failedFuture(wae);
         }
-        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+            return CompletableFuture.completedFuture(nsBundle);
+        }
+        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly, destinationBroker)
                 .thenApply(__ -> nsBundle);
     }
 
@@ -699,7 +704,7 @@ public abstract class PulsarWebResource {
     }
 
     public CompletableFuture<Void> validateBundleOwnershipAsync(NamespaceBundle bundle, boolean authoritative,
-                                                                boolean readOnly) {
+                                                                boolean readOnly, String destinationBroker) {
         NamespaceService nsService = pulsar().getNamespaceService();
         LookupOptions options = LookupOptions.builder()
                 .authoritative(authoritative)
@@ -718,10 +723,17 @@ public abstract class PulsarWebResource {
                                 if (!owned) {
                                     boolean newAuthoritative = this.isLeaderBroker();
                                     // Replace the host and port of the current request and redirect
-                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
-                                                    newAuthoritative).replaceQueryParam("destinationBroker",
-                                                    null).build();
+                                    UriBuilder builder = UriBuilder.fromUri(uri.getRequestUri())
+                                            .host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort())
+                                            .replaceQueryParam("authoritative", newAuthoritative);
+                                    if (destinationBroker != null
+                                            && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                                        builder.replaceQueryParam("destinationBroker", destinationBroker);
+                                    } else {
+                                        builder.replaceQueryParam("destinationBroker", null);
+                                    }
+                                    URI redirect = builder.build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
@@ -992,6 +1004,10 @@ public abstract class PulsarWebResource {
     }
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
+        // For extensible load manager, it doesn't have leader election service on pulsar broker.
+        if (pulsar.getLeaderElectionService() == null) {
+            return false;
+        }
         return  pulsar.getLeaderElectionService().isLeader();
     }
 

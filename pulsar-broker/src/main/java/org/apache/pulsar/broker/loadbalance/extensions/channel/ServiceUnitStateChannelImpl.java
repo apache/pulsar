@@ -67,6 +67,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -118,6 +119,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final LeaderElectionService leaderElectionService;
     private BrokerSelectionStrategy brokerSelector;
     private BrokerRegistry brokerRegistry;
+    private UnloadManager unloadManager;
     private TableView<ServiceUnitStateData> tableview;
     private Producer<ServiceUnitStateData> producer;
     private ScheduledFuture<?> monitorTask;
@@ -238,6 +240,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         ownerLookUpCounters = Map.copyOf(tmpOwnerLookUpCounters);
         handlerCounters = Map.copyOf(tmpHandlerCounters);
         eventCounters = Map.copyOf(tmpEventCounters);
+        this.unloadManager = new UnloadManager(pulsar);
         this.channelState = Constructed;
     }
 
@@ -355,6 +358,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.info("Successfully cancelled the cleanup tasks");
             }
 
+            if (unloadManager != null) {
+                unloadManager.close();
+                unloadManager = null;
+                log.info("Successfully closed the unload manager.");
+            }
+
             log.info("Successfully closed the channel.");
 
         } catch (Exception e) {
@@ -466,6 +475,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     }
                 });
         return getOwnerRequest;
+    }
+
+    public CompletableFuture<Void> publishUnloadEventAndWaitUnloadComplete(
+            Unload unload, long timeout, TimeUnit timeoutUnit) {
+        return publishUnloadEventAsync(unload)
+                .thenCompose(__ -> unloadManager.handleUnload(unload.serviceUnit(), timeout, timeoutUnit));
     }
 
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
@@ -591,6 +606,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.broker());
         }
+        // If transfer to another broker,
+        // then the unload-manager can't receive the transfer complete event in same broker,
+        // so we need complete here when own the bundle.
+        unloadManager.completeUnload(serviceUnit);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -636,6 +655,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
+        unloadManager.completeUnload(serviceUnit);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }

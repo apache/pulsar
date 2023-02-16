@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -531,7 +532,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .thenCompose(__ ->
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
                                             bundleRange,
-                                            authoritative, true))
+                                            authoritative, true, null))
                             .thenCompose(bundle -> {
                                 return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
                                         .thenCompose(topics -> {
@@ -983,8 +984,17 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     return CompletableFuture.completedFuture(null);
                 })
-                .thenCompose(__ -> validateLeaderBrokerAsync())
+                .thenCompose(__ -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return validateLeaderBrokerAsync();
+                })
                 .thenAccept(__ -> {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                        return;
+                    }
+                    // For ExtensibleLoadManager, this operation will be ignored.
                     pulsar().getLoadManager().get().setNamespaceBundleAffinity(bundleRange, destinationBroker);
                 });
     }
@@ -1037,9 +1047,9 @@ public abstract class NamespacesBase extends AdminResource {
                                 return CompletableFuture.completedFuture(null);
                             }
                             return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                    authoritative, true)
-                                    .thenCompose(nsBundle ->
-                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
+                                    authoritative, true, destinationBroker)
+                                    .thenCompose(nsBundle -> pulsar().getNamespaceService()
+                                            .unloadNamespaceBundle(nsBundle, destinationBroker));
                         }));
     }
 
@@ -1085,7 +1095,7 @@ public abstract class NamespacesBase extends AdminResource {
                     return getNamespacePoliciesAsync(namespaceName)
                             .thenCompose(policies ->
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                        authoritative, false))
+                                        authoritative, false, null))
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                                     pulsar().getNamespaceService()
                                             .getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName),
@@ -1102,7 +1112,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> {
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                            false, true)
+                            false, true, null)
                             .thenCompose(nsBundle ->
                                     pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(nsBundle))
                             .thenApply(allTopicsInThisBundle -> {

@@ -83,6 +83,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private BrokerRegistry brokerRegistry;
 
+    @Getter
     private ServiceUnitStateChannel serviceUnitStateChannel;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
@@ -298,6 +299,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Override
     public CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundleUnit) {
+        return getOwnershipAsync(topic, bundleUnit)
+                .thenApply(broker -> brokerRegistry.getBrokerId().equals(broker.orElse(null)));
+    }
+
+    @Override
+    public CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
+                                                                 ServiceUnitId bundleUnit) {
         final String bundle = bundleUnit.toString();
         CompletableFuture<Optional<String>> owner;
         if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
@@ -305,8 +313,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } else {
             owner = serviceUnitStateChannel.getOwnerAsync(bundle);
         }
-
-        return owner.thenApply(broker -> brokerRegistry.getBrokerId().equals(broker.orElse(null)));
+        return owner;
     }
 
     @Override

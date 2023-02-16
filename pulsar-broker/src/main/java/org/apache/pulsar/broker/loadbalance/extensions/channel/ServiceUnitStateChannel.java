@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
@@ -149,6 +150,18 @@ public interface ServiceUnitStateChannel extends Closeable {
      * @return the completable future object staged from the event message sendAsync.
      */
     CompletableFuture<Void> publishSplitEventAsync(Split split);
+
+    /**
+     * Asynchronously publishes the service unit unload event to the system topic in this channel,
+     * and wait to unload operation complete.
+     *
+     * @param unload (unload specification object)
+     * @param timeout The unload operation timeout.
+     * @param timeoutUnit The unload operation timeout unit.
+     * @return the completable future object staged from the event message sendAsync.
+     */
+    CompletableFuture<Void> publishUnloadEventAndWaitUnloadComplete(
+            Unload unload, long timeout, TimeUnit timeoutUnit);
 
     /**
      * Generates the metrics to monitor.
