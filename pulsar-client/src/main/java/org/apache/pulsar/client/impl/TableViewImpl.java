@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -75,6 +76,14 @@ public class TableViewImpl<T> implements TableView<T> {
         if (isPersistentTopic) {
             readerBuilder.readCompacted(true);
         }
+
+        CryptoKeyReader cryptoKeyReader = conf.getCryptoKeyReader();
+        if (cryptoKeyReader != null) {
+            readerBuilder.cryptoKeyReader(cryptoKeyReader);
+        }
+
+        readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
+
         this.reader = readerBuilder.createAsync();
     }
 
@@ -179,9 +188,9 @@ public class TableViewImpl<T> implements TableView<T> {
                             cur);
                 }
 
-                T prev = data.get(key);
                 boolean update = true;
                 if (compactionStrategy != null) {
+                    T prev = data.get(key);
                     update = !compactionStrategy.shouldKeepLeft(prev, cur);
                 }
 

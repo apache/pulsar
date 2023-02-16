@@ -34,12 +34,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreLifecycle;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -69,6 +71,7 @@ import org.apache.zookeeper.client.ConnectStringParser;
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
         implements MetadataStoreExtended, MetadataStoreLifecycle {
 
+    public static final String ZK_SCHEME = "zk";
     public static final String ZK_SCHEME_IDENTIFIER = "zk:";
 
     private final String zkConnectString;
@@ -161,6 +164,24 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         } else {
             super.receivedSessionEvent(event);
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> sync(String path) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        zkc.sync(path, new AsyncCallback.VoidCallback() {
+            @Override
+            public void processResult(int rc, String s, Object o) {
+                Code code = Code.get(rc);
+                if (code == Code.OK) {
+                    result.complete(null);
+                } else {
+                    MetadataStoreException e = getException(code, path);
+                    result.completeExceptionally(e);
+                }
+            }
+        }, null);
+        return result;
     }
 
     @Override
@@ -424,13 +445,15 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     public void close() throws Exception {
-        if (isZkManaged) {
-            zkc.close();
+        if (isClosed.compareAndSet(false, true)) {
+            if (isZkManaged) {
+                zkc.close();
+            }
+            if (sessionWatcher != null) {
+                sessionWatcher.close();
+            }
+            super.close();
         }
-        if (sessionWatcher != null) {
-            sessionWatcher.close();
-        }
-        super.close();
     }
 
     private Stat getStat(String path, org.apache.zookeeper.data.Stat zkStat) {
@@ -592,5 +615,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     public String getRootPath() {
         return rootPath;
+    }
+}
+
+class ZkMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return ZKMetadataStore.ZK_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        if (metadataURL.startsWith(ZKMetadataStore.ZK_SCHEME_IDENTIFIER)) {
+            metadataURL = metadataURL.substring(ZKMetadataStore.ZK_SCHEME_IDENTIFIER.length());
+        }
+        return new ZKMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
     }
 }

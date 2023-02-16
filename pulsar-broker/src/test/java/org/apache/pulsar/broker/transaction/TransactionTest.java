@@ -920,11 +920,11 @@ public class TransactionTest extends TransactionTestBase {
         field.set(abortTxn, TransactionImpl.State.ABORTING);
 
 
-        assertEquals(((CounterBrokerInterceptor)listener).getTxnCount(),2);
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getTxnCount(),2));
         abortTxn.abort().get();
-        assertEquals(((CounterBrokerInterceptor)listener).getAbortedTxnCount(),1);
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getAbortedTxnCount(),1));
         commitTxn.commit().get();
-        assertEquals(((CounterBrokerInterceptor)listener).getCommittedTxnCount(),1);
+        Awaitility.await().untilAsserted(() -> assertEquals(listener.getCommittedTxnCount(),1));
     }
 
     @Test

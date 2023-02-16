@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
-import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
-import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 
 /**
  * The namespace unload strategy.
@@ -34,12 +33,13 @@ public interface NamespaceUnloadStrategy {
     /**
      * Recommend that all the returned bundles be unloaded.
      *
-     * @param context The context used for decisions.
-     * @param recentlyUnloadedBundles
-     *           The recently unloaded bundles.
-     * @return A list of the bundles that should be unloaded.
+     * @param context                 The context used for decisions.
+     * @param recentlyUnloadedBundles The recently unloaded bundles.
+     * @param recentlyUnloadedBrokers The recently unloaded brokers.
+     * @return unloadDecision containing a list of the bundles that should be unloaded.
      */
-    List<Unload> findBundlesForUnloading(LoadManagerContext context,
-                                         Map<String, Long> recentlyUnloadedBundles);
+    UnloadDecision findBundlesForUnloading(LoadManagerContext context,
+                                           Map<String, Long> recentlyUnloadedBundles,
+                                           Map<String, Long> recentlyUnloadedBrokers);
 
 }

@@ -29,19 +29,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
@@ -87,13 +87,19 @@ public class AbstractBaseDispatcherTest {
         Topic mockTopic = mock(Topic.class);
         when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
+        final EntryFilterProvider entryFilterProvider = mock(EntryFilterProvider.class);
+        final ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+        when(serviceConfiguration.isAllowOverrideEntryFilters()).thenReturn(true);
+        final PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
         BrokerService mockBrokerService = mock(BrokerService.class);
+        when(mockBrokerService.pulsar()).thenReturn(pulsar);
+        when(mockBrokerService.getEntryFilterProvider()).thenReturn(entryFilterProvider);
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
-        EntryFilterWithClassLoader mockFilter = mock(EntryFilterWithClassLoader.class);
+        EntryFilter mockFilter = mock(EntryFilter.class);
         when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
                 EntryFilter.FilterResult.REJECT);
-        Map<String, EntryFilterWithClassLoader> entryFilters = Map.of("key", mockFilter);
-        when(mockTopic.getEntryFilters()).thenReturn(entryFilters);
+        when(mockTopic.getEntryFilters()).thenReturn(List.of(mockFilter));
         DispatchRateLimiter subscriptionDispatchRateLimiter = mock(DispatchRateLimiter.class);
 
         this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig,

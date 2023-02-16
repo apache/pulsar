@@ -41,6 +41,13 @@ public interface LoadDataStore<T> extends Closeable {
     CompletableFuture<Void> pushAsync(String key, T loadData);
 
     /**
+     * Async remove load data from store.
+     *
+     * @param key The load data key to remove.
+     */
+    CompletableFuture<Void> removeAsync(String key);
+
+    /**
      * Get load data by key.
      *
      * @param key The load data key.
@@ -61,5 +68,10 @@ public interface LoadDataStore<T> extends Closeable {
      * @return a set view of the mappings contained in this map
      */
     Set<Map.Entry<String, T>> entrySet();
+
+    /**
+     * The load data key count.
+     */
+    int size();
 
 }

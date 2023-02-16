@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -152,16 +153,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         }
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
         String message = "[" +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
                 "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
-                new TypeReference<List<ProducerMessage>>() {
-                }));
+        producerMessages.setMessages(createMessages(message));
 
         WebTarget root = buildWebClient();
         String requestPath = null;
@@ -177,6 +176,12 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                 .header("Authorization", "Bearer " + token)
                 .post(Entity.json(producerMessages));
         Assert.assertEquals(response.getStatus(), status);
+    }
+
+    private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
+        return ObjectMapperFactory.getMapper().reader()
+                .forType(new TypeReference<List<ProducerMessage>>() {
+                }).readValue(message);
     }
 
     WebTarget buildWebClient() throws Exception {

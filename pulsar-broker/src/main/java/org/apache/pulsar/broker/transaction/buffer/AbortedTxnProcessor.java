@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 
@@ -30,9 +29,9 @@ public interface AbortedTxnProcessor {
      * After the transaction buffer writes a transaction aborted marker to the topic,
      * the transaction buffer will put the aborted txnID and the aborted marker position to AbortedTxnProcessor.
      * @param txnID aborted transaction ID.
-     * @param position the position of the abort txnID
+     * @param abortedMarkerPersistentPosition the position of the abort txn marker.
      */
-    void putAbortedTxnAndPosition(TxnID txnID, PositionImpl position);
+    void putAbortedTxnAndPosition(TxnID txnID, PositionImpl abortedMarkerPersistentPosition);
 
     /**
      * Clean up invalid aborted transactions.
@@ -42,10 +41,9 @@ public interface AbortedTxnProcessor {
     /**
      * Check whether the transaction ID is an aborted transaction ID.
      * @param txnID the transaction ID that needs to be checked.
-     * @param readPosition the read position of the transaction message, can be used to find the segment.
      * @return a boolean, whether the transaction ID is an aborted transaction ID.
      */
-    boolean checkAbortedTransaction(TxnID txnID, Position readPosition);
+    boolean checkAbortedTransaction(TxnID txnID);
 
     /**
      * Recover transaction buffer by transaction buffer snapshot.
@@ -58,7 +56,7 @@ public interface AbortedTxnProcessor {
      * Delete the transaction buffer aborted transaction snapshot.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> deleteAbortedTxnSnapshot();
+    CompletableFuture<Void> clearAbortedTxnSnapshot();
 
     /**
      * Take aborted transactions snapshot.

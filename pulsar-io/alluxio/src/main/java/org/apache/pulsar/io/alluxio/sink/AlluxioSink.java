@@ -32,6 +32,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -44,15 +52,6 @@ import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Alluxio sink that treats incoming messages on the input topic as Strings
@@ -68,7 +67,7 @@ public class AlluxioSink implements Sink<GenericObject> {
 
     private FileSystem fileSystem;
     private FileOutStream fileOutStream;
-    private CreateFilePOptions.Builder optionsBuilder;
+
     private long recordsNum;
     private String tmpFilePath;
     private String fileDirPath;
@@ -93,7 +92,7 @@ public class AlluxioSink implements Sink<GenericObject> {
         // initialize FileSystem
         String alluxioMasterHost = alluxioSinkConfig.getAlluxioMasterHost();
         int alluxioMasterPort = alluxioSinkConfig.getAlluxioMasterPort();
-        InstancedConfiguration.defaults().set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
+        configuration.set(PropertyKey.MASTER_HOSTNAME, alluxioMasterHost);
         configuration.set(PropertyKey.MASTER_RPC_PORT, alluxioMasterPort);
         if (alluxioSinkConfig.getSecurityLoginUser() != null) {
             configuration.set(PropertyKey.SECURITY_LOGIN_USERNAME, alluxioSinkConfig.getSecurityLoginUser());
@@ -115,8 +114,6 @@ public class AlluxioSink implements Sink<GenericObject> {
             fileSystem.createDirectory(tmpAlluxioDirPath);
         }
 
-        optionsBuilder = FileSystemOptions.createFileDefaults(configuration).toBuilder();
-
         recordsNum = 0;
         recordsToAck = Lists.newArrayList();
         tmpFilePath = "";
@@ -127,6 +124,7 @@ public class AlluxioSink implements Sink<GenericObject> {
         rotationInterval =  alluxioSinkConfig.getRotationInterval();
     }
 
+    @SuppressWarnings("checkstyle:fallthrough")
     @Override
     public void write(Record<GenericObject> record) {
         long now = System.currentTimeMillis();
@@ -206,6 +204,8 @@ public class AlluxioSink implements Sink<GenericObject> {
     }
 
     private void createTmpFile() throws AlluxioException, IOException {
+        CreateFilePOptions.Builder optionsBuilder =
+                FileSystemOptions.createFileDefaults(configuration).toBuilder();
         UUID id = UUID.randomUUID();
         String fileExtension = alluxioSinkConfig.getFileExtension();
         tmpFilePath = tmpFileDirPath + "/" + id.toString() + "_tmp" + fileExtension;
@@ -293,7 +293,8 @@ public class AlluxioSink implements Sink<GenericObject> {
                 KeyValueSchema<GenericObject, GenericObject> keyValueSchema = (KeyValueSchema) record.getSchema();
                 valueSchema = keyValueSchema.getValueSchema();
                 org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject> keyValue =
-                        (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) record.getValue().getNativeObject();
+                        (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>)
+                                record.getValue().getNativeObject();
                 recordValue = keyValue.getValue();
             } else {
                 valueSchema = record.getSchema();
@@ -315,8 +316,8 @@ public class AlluxioSink implements Sink<GenericObject> {
             return new KeyValue<>(null, value);
         } else {
             return new KeyValue<>(null, new String(record.getMessage()
-                            .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
-                            .getData(), StandardCharsets.UTF_8));
+                    .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
+                    .getData(), StandardCharsets.UTF_8));
         }
     }
 

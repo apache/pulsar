@@ -110,7 +110,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
-        this.snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
+        if (topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()) {
+            snapshotAbortedTxnProcessor = new SnapshotSegmentAbortedTxnProcessorImpl(topic);
+        } else {
+            snapshotAbortedTxnProcessor = new SingleSnapshotAbortedTxnProcessorImpl(topic);
+        }
         this.recover();
     }
 
@@ -275,7 +279,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private void handleTransactionMessage(TxnID txnId, Position position) {
         if (!ongoingTxns.containsKey(txnId) && !this.snapshotAbortedTxnProcessor
-                .checkAbortedTransaction(txnId, position)) {
+                .checkAbortedTransaction(txnId)) {
             ongoingTxns.put(txnId, (PositionImpl) position);
             PositionImpl firstPosition = ongoingTxns.get(ongoingTxns.firstKey());
             //max read position is less than first ongoing transaction message position, so entryId -1
@@ -349,8 +353,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
+                            snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, (PositionImpl) position);
                             updateMaxReadPosition(txnID);
-                            snapshotAbortedTxnProcessor.putAbortedTxnAndPosition(txnID, maxReadPosition);
                             snapshotAbortedTxnProcessor.trimExpiredAbortedTxns();
                             takeSnapshotByChangeTimes();
                         }
@@ -455,7 +459,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> clearSnapshot() {
-        return snapshotAbortedTxnProcessor.deleteAbortedTxnSnapshot();
+        return snapshotAbortedTxnProcessor.clearAbortedTxnSnapshot();
     }
 
     @Override
@@ -466,7 +470,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
-        return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID, readPosition);
+        return snapshotAbortedTxnProcessor.checkAbortedTransaction(txnID);
     }
 
     @Override
