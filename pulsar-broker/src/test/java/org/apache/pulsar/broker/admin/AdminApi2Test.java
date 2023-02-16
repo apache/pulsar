@@ -661,6 +661,22 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         setup();
     }
 
+    @Test
+    public void shouldNotSupportResetOnPartitionedTopic() throws PulsarAdminException, PulsarClientException {
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + BrokerTestUtil.newUniqueName("parttopic");
+        admin.topics().createPartitionedTopic(partitionedTopicName, 4);
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        try {
+            admin.topics().resetCursor(partitionedTopicName, "my-sub", MessageId.earliest);
+            fail();
+        } catch (PulsarAdminException.NotAllowedException e) {
+            assertTrue(e.getMessage().contains("Reset-cursor at position is not allowed for partitioned-topic"),
+                    "Condition doesn't match. Actual message:" + e.getMessage());
+        }
+    }
+
     private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topicName)
