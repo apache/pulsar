@@ -22,11 +22,15 @@ import static org.mockito.Mockito.spy;
 
 import com.google.common.collect.Sets;
 
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.crypto.SecretKey;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -49,7 +53,7 @@ import org.testng.annotations.Test;
 import javax.crypto.SecretKey;
 
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
+    private static final Logger log = LoggerFactory.getLogger(ProxyWithJwtAuthorizationTest.class);
 
     private final String ADMIN_ROLE = "admin";
     private final String PROXY_ROLE = "proxy";
@@ -78,6 +82,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         superUserRoles.add(PROXY_ROLE);
         superUserRoles.add(BROKER_ROLE);
         conf.setSuperUserRoles(superUserRoles);
+        conf.setProxyRoles(Collections.singleton(PROXY_ROLE));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters(BROKER_TOKEN);

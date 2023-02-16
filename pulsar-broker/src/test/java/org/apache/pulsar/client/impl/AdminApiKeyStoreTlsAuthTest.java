@@ -47,7 +47,6 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationKeyStoreTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.glassfish.jersey.client.ClientConfig;
@@ -74,8 +73,14 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
             "./src/test/resources/authentication/keystoretls/client.keystore.jks";
     protected final String CLIENT_TRUSTSTORE_FILE_PATH =
             "./src/test/resources/authentication/keystoretls/client.truststore.jks";
+    protected final String PROXY_KEYSTORE_FILE_PATH =
+            "./src/test/resources/authentication/keystoretls/proxy.keystore.jks";
+    protected final String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
+            "./src/test/resources/authentication/keystoretls/proxy-and-client.truststore.jks";
     protected final String CLIENT_KEYSTORE_PW = "111111";
     protected final String CLIENT_TRUSTSTORE_PW = "111111";
+    protected final String PROXY_KEYSTORE_PW = "111111";
+    protected final String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
 
     protected final String CLIENT_KEYSTORE_CN = "clientuser";
     protected final String KEYSTORE_TYPE = "JKS";
@@ -96,8 +101,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         conf.setTlsKeyStorePassword(BROKER_KEYSTORE_PW);
 
         conf.setTlsTrustStoreType(KEYSTORE_TYPE);
-        conf.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
-        conf.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
+        conf.setTlsTrustStore(PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH);
+        conf.setTlsTrustStorePassword(PROXY_AND_CLIENT_TRUSTSTORE_PW);
 
         conf.setClusterName(clusterName);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
@@ -107,6 +112,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         // config for authentication and authorization.
         conf.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
+        conf.setProxyRoles(Sets.newHashSet("proxy"));
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         Set<String> providers = new HashSet<>();
@@ -147,13 +153,13 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
         SSLContext sslCtx = KeyStoreSSLContext.createClientSslContext(
                 KEYSTORE_TYPE,
-                CLIENT_KEYSTORE_FILE_PATH,
-                CLIENT_KEYSTORE_PW,
+                PROXY_KEYSTORE_FILE_PATH,
+                PROXY_KEYSTORE_PW,
                 KEYSTORE_TYPE,
                 BROKER_TRUSTSTORE_FILE_PATH,
                 BROKER_TRUSTSTORE_PW);
 
-        clientBuilder.sslContext(sslCtx).hostnameVerifier(NoopHostnameVerifier.INSTANCE);
+        clientBuilder.sslContext(sslCtx);
         Client client = clientBuilder.build();
 
         return client.target(brokerUrlTls.toString());
@@ -186,11 +192,11 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testSuperUserCantListNamespaces() throws Exception {
+    public void testSuperUserCanListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
             admin.tenants().createTenant("tenant1",
-                                         new TenantInfoImpl(ImmutableSet.of("proxy"),
+                                         new TenantInfoImpl(ImmutableSet.of(""),
                                                         ImmutableSet.of("test")));
             admin.namespaces().createNamespace("tenant1/ns1");
             Assert.assertTrue(admin.namespaces().getNamespaces("tenant1").contains("tenant1/ns1"));
