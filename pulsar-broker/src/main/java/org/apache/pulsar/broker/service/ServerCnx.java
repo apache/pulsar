@@ -737,31 +737,32 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 // 2. an authentication refresh, in which case we need to refresh authenticationData
                 AuthenticationState authState = useOriginalAuthState ? originalAuthState : this.authState;
                 String newAuthRole = authState.getAuthRole();
-
-                // Refresh the auth data.
-                this.authenticationData = authState.getAuthDataSource();
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
-                }
-
-                if (!useOriginalAuthState) {
-                    this.authRole = newAuthRole;
-                }
-
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
-                            remoteAddress, authMethod, this.authRole, originalPrincipal);
-                }
+                AuthenticationDataSource newAuthDataSource = authState.getAuthDataSource();
 
                 if (state != State.Connected) {
+                    // Set the auth data and auth role
+                    if (!useOriginalAuthState) {
+                        this.authRole = newAuthRole;
+                        this.authenticationData = newAuthDataSource;
+                    }
                     // First time authentication is done
                     if (originalAuthState != null) {
                         // We only set originalAuthState when we are going to use it.
                         authenticateOriginalData(clientProtocolVersion, clientVersion);
                     } else {
                         completeConnect(clientProtocolVersion, clientVersion);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}",
+                                    remoteAddress, authMethod, this.authRole, originalPrincipal);
+                        }
                     }
                 } else {
+                    // Refresh the auth data
+                    if (!useOriginalAuthState) {
+                        this.authenticationData = newAuthDataSource;
+                    } else {
+                        this.originalAuthData = newAuthDataSource;
+                    }
                     // If the connection was already ready, it means we're doing a refresh
                     if (!StringUtils.isEmpty(authRole)) {
                         if (!authRole.equals(newAuthRole)) {
