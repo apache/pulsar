@@ -20,8 +20,9 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
@@ -56,7 +57,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private static final double LOWER_BOUNDARY_THRESHOLD_MARGIN = 0.5;
 
     private static final double MB = 1024 * 1024;
-    private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
+    private final Map<String, Double> brokerAvgResourceUsage = new ConcurrentHashMap<>();
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
@@ -232,6 +233,14 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             }
         }
         return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
+    }
+    @Override
+    public void onBrokerChange(Set<String> activeBrokers) {
+        for (String broker : brokerAvgResourceUsage.keySet()) {
+            if (!activeBrokers.contains(broker)) {
+                brokerAvgResourceUsage.remove(broker);
+            }
+        }
     }
 
 }

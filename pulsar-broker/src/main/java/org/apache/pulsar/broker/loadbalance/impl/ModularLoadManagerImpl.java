@@ -489,6 +489,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (pulsar.getLeaderElectionService() != null
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
+            for (LoadSheddingStrategy loadSheddingStrategy : loadSheddingPipeline) {
+                loadSheddingStrategy.onBrokerChange(activeBrokers);
+            }
         }
     }
 
