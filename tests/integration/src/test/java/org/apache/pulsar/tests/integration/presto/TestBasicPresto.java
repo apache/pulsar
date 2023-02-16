@@ -407,8 +407,9 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 .create();
 
         int divisor = 8;
+        String removeKey = "4";
         Map<String, Stock> latestStocks = new HashMap<>();
-        prepareDataForCompactedQuery(producer, latestStocks, compactedCount, divisor);
+        prepareDataForCompactedQuery(producer, latestStocks, compactedCount, divisor, removeKey);
         if (compactedCount > 0) {
             pulsarAdmin.topics().triggerCompaction(topic);
             Awaitility.await().until(() -> {
@@ -416,7 +417,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                 return Objects.equals(LongRunningProcessStatus.Status.SUCCESS, status.status);
             });
         }
-        prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor);
+        prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor, removeKey);
 
         Assert.assertEquals(selectCount("public/default", tableName),
                 compactedCount > 0 || noCompactedCount > 0 ? divisor : 0);
@@ -425,6 +426,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
                         + "\" where __compacted_query__=true");
         assertThat(result.getExitCode()).isEqualTo(0);
         log.info("select sql query output \n{}", result.getStdout());
+        if (compactedCount == 0 && noCompactedCount == 0) {
+            assertTrue(latestStocks.isEmpty());
+            assertTrue(result.getStdout().trim().isEmpty());
+            return;
+        }
         String[] dataArray = result.getStdout().split("\n");
         for (String data : dataArray) {
             String[] columns = data.split(",");
@@ -433,16 +439,14 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             assertEquals(columns[1], expectedStock.getSymbol());
             assertEquals(columns[2], "" + expectedStock.getSharePrice());
         }
-        if (compactedCount > 0 || noCompactedCount > 0) {
-            assertEquals(1, latestStocks.size());
-            assertNotNull(latestStocks.remove("4"));
-        } else {
-            assertTrue(latestStocks.isEmpty());
-        }
+        assertEquals(1, latestStocks.size());
+        assertNotNull(latestStocks.remove(removeKey));
     }
 
     private void prepareDataForCompactedQuery(Producer<Stock> producer, Map<String, Stock> latestStocks,
-                                              int messageCount, int divisor) throws PulsarClientException {
+                                              int messageCount, int divisor, String removeKey)
+            throws PulsarClientException {
+
         AtomicInteger sendCount = new AtomicInteger();
         for (int i = 0; i < messageCount; i++) {
             int entryId = i % divisor;
@@ -456,7 +460,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             });
         }
         if (messageCount > 0) {
-            producer.newMessage().key("4").send();
+            producer.newMessage().key(removeKey).send();
         }
         Awaitility.await()
                 .atMost(5, TimeUnit.SECONDS)
