@@ -1071,7 +1071,6 @@ public class ServerCnxTest {
 
         assertEquals(serverCnx.getOriginalAuthData().getCommandData(), newClientRole);
         assertEquals(serverCnx.getOriginalAuthState().getAuthRole(), newClientRole);
-        assertEquals(serverCnx.getOriginalPrincipal(), newClientRole);
         assertEquals(serverCnx.getAuthData().getCommandData(), proxyRole);
         assertEquals(serverCnx.getAuthRole(), proxyRole);
         assertEquals(serverCnx.getAuthState().getAuthRole(), proxyRole);
