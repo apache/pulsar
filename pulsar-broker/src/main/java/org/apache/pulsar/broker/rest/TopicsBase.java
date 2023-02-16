@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.rest;
 
+import com.fasterxml.jackson.databind.ObjectReader;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
@@ -41,6 +42,7 @@ import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
@@ -378,10 +380,14 @@ public class TopicsBase extends PersistentTopicsBase {
                         log.debug("Redirect rest produce request for topic {} from {} to {}.",
                                 topicName, pulsar().getWebServiceAddress(), redirectAddresses.get(0));
                     }
-                    URI redirectURI = new URI(String.format("%s%s", redirectAddresses.get(0), uri.getPath(false)));
+                    URL redirectAddress = new URL(redirectAddresses.get(0));
+                    URI redirectURI = UriBuilder.fromUri(uri.getRequestUri())
+                            .host(redirectAddress.getHost())
+                            .port(redirectAddress.getPort())
+                            .build();
                     asyncResponse.resume(Response.temporaryRedirect(redirectURI).build());
                     future.complete(true);
-                } catch (URISyntaxException | NullPointerException e) {
+                } catch (Exception e) {
                     if (log.isDebugEnabled()) {
                         log.error("Error in preparing redirect url with rest produce message request for topic  {}: {}",
                                 topicName, e.getMessage(), e);
@@ -541,13 +547,15 @@ public class TopicsBase extends PersistentTopicsBase {
         return result;
     }
 
+    private static final ObjectReader SCHEMA_INFO_READER =
+            ObjectMapperFactory.getMapper().reader().forType(SchemaInfoImpl.class);
+
     // Build schemaData from passed in schema string.
     private SchemaData getSchemaData(String keySchema, String valueSchema) {
         try {
             SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
                     ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() :
-                    ObjectMapperFactory.getThreadLocal()
-                            .readValue(valueSchema, SchemaInfoImpl.class);
+                    SCHEMA_INFO_READER.readValue(valueSchema);
             if (null == valueSchemaInfo.getName()) {
                 valueSchemaInfo.setName(valueSchemaInfo.getType().toString());
             }
@@ -563,8 +571,7 @@ public class TopicsBase extends PersistentTopicsBase {
                         .build();
             } else {
                 // Key_Value schema
-                SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getThreadLocal()
-                        .readValue(keySchema, SchemaInfoImpl.class);
+                SchemaInfoImpl keySchemaInfo = SCHEMA_INFO_READER.readValue(keySchema);
                 if (null == keySchemaInfo.getName()) {
                     keySchemaInfo.setName(keySchemaInfo.getType().toString());
                 }
@@ -707,7 +714,7 @@ public class TopicsBase extends PersistentTopicsBase {
                 case JSON:
                     GenericJsonWriter jsonWriter = new GenericJsonWriter();
                     return jsonWriter.write(new GenericJsonRecord(null, null,
-                          ObjectMapperFactory.getThreadLocal().readTree(input), schema.getSchemaInfo()));
+                          ObjectMapperFactory.getMapper().reader().readTree(input), schema.getSchemaInfo()));
                 case AVRO:
                     AvroBaseStructSchema avroSchema = ((AvroBaseStructSchema) schema);
                     Decoder decoder = DecoderFactory.get().jsonDecoder(avroSchema.getAvroSchema(), input);

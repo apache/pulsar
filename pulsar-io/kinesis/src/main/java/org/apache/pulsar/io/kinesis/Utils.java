@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Base64.getEncoder;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.wnameless.json.base.JacksonJsonValue;
+import com.github.wnameless.json.flattener.JsonFlattener;
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.gson.JsonObject;
 import java.nio.ByteBuffer;
@@ -214,7 +216,8 @@ public class Utils {
         return result.toString();
     }
 
-    public static String serializeRecordToJsonExpandingValue(ObjectMapper mapper, Record<GenericObject> record)
+    public static String serializeRecordToJsonExpandingValue(ObjectMapper mapper, Record<GenericObject> record,
+                                                             boolean flatten)
             throws JsonProcessingException {
         JsonRecord jsonRecord = new JsonRecord();
         GenericObject value = record.getValue();
@@ -226,7 +229,12 @@ public class Utils {
         record.getEventTime().ifPresent(jsonRecord::setEventTime);
         record.getProperties().forEach(jsonRecord::addProperty);
 
-        return mapper.writeValueAsString(jsonRecord);
+        if (flatten) {
+            JsonNode jsonNode = mapper.convertValue(jsonRecord, JsonNode.class);
+            return JsonFlattener.flatten(new JacksonJsonValue(jsonNode));
+        } else {
+            return mapper.writeValueAsString(jsonRecord);
+        }
     }
 
     public static org.apache.pulsar.client.api.Message<GenericObject> getMessage(Record<GenericObject> record) {
@@ -244,10 +252,14 @@ public class Utils {
                 org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject> keyValue =
                         (org.apache.pulsar.common.schema.KeyValue<GenericObject, GenericObject>) val;
                 Map<String, Object> jsonKeyValue = new HashMap<>();
-                jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
-                        keyValue.getKey().getNativeObject()));
-                jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
-                        keyValue.getValue().getNativeObject()));
+                if (keyValue.getKey() != null) {
+                    jsonKeyValue.put("key", toJsonSerializable(keyValueSchema.getKeySchema(),
+                            keyValue.getKey().getNativeObject()));
+                }
+                if (keyValue.getValue() != null) {
+                    jsonKeyValue.put("value", toJsonSerializable(keyValueSchema.getValueSchema(),
+                            keyValue.getValue().getNativeObject()));
+                }
                 return jsonKeyValue;
             case AVRO:
                 return JsonConverter.toJson((org.apache.avro.generic.GenericRecord) val);

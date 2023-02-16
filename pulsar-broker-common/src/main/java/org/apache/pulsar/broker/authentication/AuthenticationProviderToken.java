@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.authentication;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
 import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -39,6 +41,7 @@ import java.util.List;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
@@ -74,7 +77,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     static final String TOKEN = "token";
 
     private static final Counter expiredTokenMetrics = Counter.build()
-            .name("pulsar_expired_token_count")
+            .name("pulsar_expired_token_total")
             .help("Pulsar expired token")
             .register();
 
@@ -161,6 +164,20 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
+    public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
+        HttpServletRequestWrapper wrappedRequest = new HttpServletRequestWrapper(request);
+        String httpHeaderValue = wrappedRequest.getHeader(HTTP_HEADER_NAME);
+        if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
+            throw new AuthenticationException("Invalid HTTP Authorization header");
+        }
+        AuthenticationDataSource authenticationDataSource = new AuthenticationDataHttps(wrappedRequest);
+        String role = authenticate(authenticationDataSource);
+        request.setAttribute(AuthenticatedRoleAttributeName, role);
+        request.setAttribute(AuthenticatedDataAttributeName, authenticationDataSource);
+        return true;
+    }
+
+    @Override
     public AuthenticationState newAuthState(AuthData authData, SocketAddress remoteAddress, SSLSession sslSession)
             throws AuthenticationException {
         return new TokenAuthenticationState(this, authData, remoteAddress, sslSession);
@@ -168,7 +185,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
-        return new TokenAuthenticationState(this, request);
+        return new TokenAuthenticationState(this, new HttpServletRequestWrapper(request));
     }
 
     public static String getToken(AuthenticationDataSource authData) throws AuthenticationException {
@@ -314,6 +331,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     private static final class TokenAuthenticationState implements AuthenticationState {
         private final AuthenticationProviderToken provider;
+        private final SocketAddress remoteAddress;
+        private final SSLSession sslSession;
         private AuthenticationDataSource authenticationDataSource;
         private Jwt<?, Claims> jwt;
         private long expiration;
@@ -324,28 +343,28 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 SocketAddress remoteAddress,
                 SSLSession sslSession) throws AuthenticationException {
             this.provider = provider;
-            String token = new String(authData.getBytes(), UTF_8);
-            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
-            this.checkExpiration(token);
+            this.remoteAddress = remoteAddress;
+            this.sslSession = sslSession;
         }
 
         TokenAuthenticationState(
                 AuthenticationProviderToken provider,
                 HttpServletRequest request) throws AuthenticationException {
             this.provider = provider;
-            String httpHeaderValue = request.getHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
-            }
 
-            // Remove prefix
-            String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
+            // Set this for backwards compatibility with AuthenticationProvider#newHttpAuthState
             this.authenticationDataSource = new AuthenticationDataHttps(request);
-            this.checkExpiration(token);
+
+            // These are not used when this constructor is invoked, set them to null.
+            this.sslSession = null;
+            this.remoteAddress = null;
         }
 
         @Override
         public String getAuthRole() throws AuthenticationException {
+            if (jwt == null) {
+                throw new AuthenticationException("Must authenticate before calling getAuthRole");
+            }
             return provider.getPrincipal(jwt);
         }
 
@@ -356,7 +375,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
          */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            // There's no additional auth stage required
+            String token = new String(authData.getBytes(), UTF_8);
+            checkExpiration(token);
+            this.authenticationDataSource = new AuthenticationDataCommand(token, remoteAddress, sslSession);
             return null;
         }
 
@@ -377,13 +398,35 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         @Override
         public boolean isComplete() {
-            // The authentication of tokens is always done in one single stage
-            return true;
+            // The authentication of tokens is always done in one single stage, so once jwt is set, it is "complete"
+            return jwt != null;
         }
 
         @Override
         public boolean isExpired() {
             return expiration < System.currentTimeMillis();
+        }
+    }
+
+    private static final class HttpServletRequestWrapper extends javax.servlet.http.HttpServletRequestWrapper {
+        private final HttpServletRequest request;
+
+        public HttpServletRequestWrapper(HttpServletRequest request) {
+            super(request);
+            this.request = request;
+        }
+
+        @Override
+        public String getHeader(String name) {
+            // The browser javascript WebSocket client couldn't add the auth param to the request header, use the
+            // query param `token` to transport the auth token for the browser javascript WebSocket client.
+            if (name.equals(HTTP_HEADER_NAME) && request.getHeader(HTTP_HEADER_NAME) == null) {
+                String token = request.getParameter(TOKEN);
+                if (token != null) {
+                    return !token.startsWith(HTTP_HEADER_VALUE_PREFIX) ? HTTP_HEADER_VALUE_PREFIX + token : token;
+                }
+            }
+            return super.getHeader(name);
         }
     }
 }

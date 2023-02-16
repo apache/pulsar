@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,11 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -77,6 +80,9 @@ public abstract class MockedBookKeeperTestCase {
             throw e;
         }
 
+        ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
+        // increase default cache eviction interval so that caching could be tested with less flakyness
+        managedLedgerFactoryConfig.setCacheEvictionIntervalMs(200);
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         setUpTestCase();
@@ -87,6 +93,7 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SneakyThrows
     public final void tearDown(Method method) {
         try {
             cleanUpTestCase();
@@ -95,9 +102,10 @@ public abstract class MockedBookKeeperTestCase {
         }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
-            factory.shutdown();
+            factory.shutdownAsync().get(10, TimeUnit.SECONDS);
             factory = null;
             stopBookKeeper();
+            metadataStore.close();
             LOG.info("--------- stopped {}", method);
         } catch (Exception e) {
             LOG.error("tearDown Error", e);

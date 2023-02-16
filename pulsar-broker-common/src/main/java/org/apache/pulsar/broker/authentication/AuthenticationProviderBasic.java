@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -32,13 +34,16 @@ import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.commons.codec.digest.Crypt;
 import org.apache.commons.codec.digest.Md5Crypt;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.client.api.url.URL;
 
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
+    private static final String CONF_PULSAR_PROPERTY_KEY = "basicAuthConf";
     private Map<String, String> users;
 
     @Override
@@ -46,16 +51,38 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         // noop
     }
 
+    public static byte[] readData(String data)
+            throws IOException, URISyntaxException, InstantiationException, IllegalAccessException {
+        if (data.startsWith("data:") || data.startsWith("file:")) {
+            return IOUtils.toByteArray(URL.createURL(data));
+        } else if (Files.exists(Paths.get(data))) {
+            return Files.readAllBytes(Paths.get(data));
+        } else if (org.apache.commons.codec.binary.Base64.isBase64(data)) {
+            return Base64.getDecoder().decode(data);
+        } else {
+            String msg = "Not supported config";
+            throw new IllegalArgumentException(msg);
+        }
+    }
+
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        File confFile = new File(System.getProperty(CONF_SYSTEM_PROPERTY_KEY));
-        if (!confFile.exists()) {
-            throw new IOException("The password auth conf file does not exist");
-        } else if (!confFile.isFile()) {
-            throw new IOException("The path is not a file");
+        String data = config.getProperties().getProperty(CONF_PULSAR_PROPERTY_KEY);
+        if (StringUtils.isEmpty(data)) {
+            data = System.getProperty(CONF_SYSTEM_PROPERTY_KEY);
+        }
+        if (StringUtils.isEmpty(data)) {
+            throw new IOException("No basic authentication config provided");
         }
 
-        @Cleanup BufferedReader reader = new BufferedReader(new FileReader(confFile));
+        @Cleanup BufferedReader reader = null;
+        try {
+            byte[] bytes = readData(data);
+            reader = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(bytes)));
+        } catch (Exception e) {
+            throw new IllegalArgumentException(e);
+        }
+
         users = new HashMap<>();
         for (String line : reader.lines().toArray(s -> new String[s])) {
             List<String> splitLine = Arrays.asList(line.split(":"));

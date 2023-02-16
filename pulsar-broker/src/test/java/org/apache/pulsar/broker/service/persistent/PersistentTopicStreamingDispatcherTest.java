@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
 import org.testng.annotations.BeforeMethod;
@@ -29,9 +30,12 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
-        pulsar.getConfiguration().setStreamingDispatch(true);
+        ServiceConfiguration config = pulsarTestContext.getConfig();
+        config.setTopicLevelPoliciesEnabled(false);
+        config.setSystemTopicEnabled(false);
+        config.setStreamingDispatch(true);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -56,9 +55,9 @@ public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
 
     @Override
     public CompletableFuture<Reader<T>> newReaderAsync() {
-        return newReaderAsyncInternal().thenCompose(reader -> {
+        return newReaderAsyncInternal().thenApply(reader -> {
             readers.add(reader);
-            return CompletableFuture.completedFuture(reader);
+            return reader;
         });
     }
 
@@ -73,9 +72,9 @@ public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
 
     @Override
     public CompletableFuture<Writer<T>> newWriterAsync() {
-        return newWriterAsyncInternal().thenCompose(writer -> {
+        return newWriterAsyncInternal().thenApply(writer -> {
             writers.add(writer);
-            return CompletableFuture.completedFuture(writer);
+            return writer;
         });
     }
 
@@ -86,9 +85,9 @@ public abstract class SystemTopicClientBase<T> implements SystemTopicClient<T> {
     @Override
     public CompletableFuture<Void> closeAsync() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        List<Writer<T>> tempWriters = Lists.newArrayList(writers);
+        List<Writer<T>> tempWriters = new ArrayList<>(writers);
         tempWriters.forEach(writer -> futures.add(writer.closeAsync()));
-        List<Reader<T>> tempReaders = Lists.newArrayList(readers);
+        List<Reader<T>> tempReaders = new ArrayList<>(readers);
         tempReaders.forEach(reader -> futures.add(reader.closeAsync()));
         writers.clear();
         readers.clear();

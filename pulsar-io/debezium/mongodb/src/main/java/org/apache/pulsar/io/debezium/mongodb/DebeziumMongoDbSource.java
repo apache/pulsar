@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.io.debezium.mongodb;
 
 import java.util.Map;
 import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.debezium.DebeziumSource;
 
 /**
@@ -31,5 +32,12 @@ public class DebeziumMongoDbSource extends DebeziumSource {
     @Override
     public void setDbConnectorTask(Map<String, Object> config) throws Exception {
         throwExceptionIfConfigNotMatch(config, TaskConfig.TASK_CLASS_CONFIG, DEFAULT_TASK);
+    }
+
+    @Override
+    public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
+        tryLoadingConfigSecret("mongodb.user", config, sourceContext);
+        tryLoadingConfigSecret("mongodb.password", config, sourceContext);
+        super.open(config, sourceContext);
     }
 }

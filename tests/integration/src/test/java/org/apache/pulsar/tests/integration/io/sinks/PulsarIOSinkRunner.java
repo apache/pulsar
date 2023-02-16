@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -55,7 +55,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 		super(cluster, functionRuntimeType);
 	}
 
-	@SuppressWarnings({ "rawtypes", "unchecked" })
+	@SuppressWarnings({ "rawtypes" })
 	public <T extends GenericContainer> void runSinkTester(SinkTester<T> tester, boolean builtin) throws Exception {
         final String tenant = TopicName.PUBLIC_TENANT;
         final String namespace = TopicName.DEFAULT_NAMESPACE;
@@ -85,7 +85,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
             // produce messages
             Map<String, String> kvs;
-            if (tester instanceof JdbcPostgresSinkTester) {
+            if (tester instanceof JdbcPostgresSinkTester && !((JdbcPostgresSinkTester)tester).isKeyValueSchema()) {
                 kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
                 // wait for sink to process messages
                 Failsafe.with(statusRetryPolicy).run(() ->
@@ -201,7 +201,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
         } else {
             commands = new String[] {
                     PulsarCluster.ADMIN_SCRIPT,
-                    "sink", "create",
+                    "sink", "update",
                     "--tenant", tenant,
                     "--namespace", namespace,
                     "--name", sinkName,

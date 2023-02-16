@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,14 @@ package org.apache.pulsar.sql.presto.decoder.protobufnative;
 
 import static com.google.common.base.Functions.identity;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 import com.google.protobuf.DynamicMessage;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.PrestoException;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.TrinoException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -69,7 +69,7 @@ public class PulsarProtobufNativeRowDecoder implements PulsarRowDecoder {
             dynamicMessage = record.getProtobufRecord();
         } catch (Exception e) {
             log.error(e);
-            throw new PrestoException(GENERIC_INTERNAL_ERROR, "Decoding protobuf record failed.", e);
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Decoding protobuf record failed.", e);
         }
         return Optional.of(columnDecoders.entrySet().stream()
                 .collect(toImmutableMap(

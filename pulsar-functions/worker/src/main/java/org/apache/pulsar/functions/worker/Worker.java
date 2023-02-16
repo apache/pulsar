@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,7 +56,7 @@ public class Worker {
         workerService.start(getAuthenticationService(), getAuthorizationService(), errorNotifier);
         server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
-        log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
+        log.info("/** Started worker server **/");
 
         try {
             errorNotifier.waitForError();
@@ -74,9 +74,10 @@ public class Worker {
 
             log.info("starting configuration cache service");
             try {
-                configMetadataStore = PulsarResources.createMetadataStore(
+                configMetadataStore = PulsarResources.createConfigMetadataStore(
                         workerConfig.getConfigurationMetadataStoreUrl(),
-                        (int) workerConfig.getMetadataStoreSessionTimeoutMillis());
+                        (int) workerConfig.getMetadataStoreSessionTimeoutMillis(),
+                        workerConfig.isMetadataStoreAllowReadOnlyOperations());
             } catch (IOException e) {
                 throw new PulsarServerException(e);
             }

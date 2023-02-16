@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,29 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
@@ -39,16 +50,6 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertFalse;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class TransactionClientConnectTest extends TransactionTestBase {
@@ -97,7 +98,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             completableFuture.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException ignore) {
         } catch (ExecutionException e) {
-            Assert.assertFalse(e.getCause()
+            assertFalse(e.getCause()
                     instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
         }
 
@@ -160,6 +161,28 @@ public class TransactionClientConnectTest extends TransactionTestBase {
                         instanceof TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException);
             }
         }
+    }
+
+    @Test
+    public void testHandlerStateChangeToReady() throws Exception {
+        TransactionCoordinatorClientImpl transactionCoordinatorClient =
+                ((PulsarClientImpl) pulsarClient).getTcClient();
+        Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");
+        field.setAccessible(true);
+        TransactionMetaStoreHandler[] handlers =
+                (TransactionMetaStoreHandler[]) field.get(transactionCoordinatorClient);
+        TransactionMetaStoreHandler transactionMetaStoreHandler = handlers[0];
+        Assert.assertEquals(transactionMetaStoreHandler.getConnectHandleState(), HandlerState.State.Ready);
+        Assert.assertTrue(transactionMetaStoreHandler.changeToReadyState());
+    }
+
+
+    @Test(expectedExceptions = PulsarClientException.class)
+    public void testNotEnableTransactionInBroker() throws Exception {
+        getPulsarServiceList().get(0).getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .deletePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
+        PulsarClient.builder().enableTransaction(true)
+                .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl()).build();
     }
 
     public void start() throws Exception {

@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-all-docker-image</artifactId>
@@ -68,13 +68,24 @@
   <profiles>
     <profile>
       <id>docker</id>
+      <properties>
+        <docker.buildArg.PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</docker.buildArg.PULSAR_IO_DIR>
+        <docker.buildArg.PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_OFFLOADER_TARBALL>
+      </properties>
       <!-- include the docker image only when docker profile is active -->
       <dependencies>
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>pulsar-docker-image</artifactId>
           <version>${project.version}</version>
-          <classifier>docker-info</classifier>
+          <type>pom</type>
+          <scope>provided</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
       <build>
@@ -119,57 +130,33 @@
             </executions>
           </plugin>
           <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>default</id>
+                <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-version</id>
-                <goals>
                   <goal>tag</goal>
                 </goals>
                 <configuration>
-                  <repository>pulsar-all</repository>
-                  <tag>${project.version}</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>pulsar-all</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>tag-and-push-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <repository>${docker.organization}/pulsar-all</repository>
-                  <tag>latest</tag>
+                  <images>
+                    <image>
+                      <name>pulsar-all</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                        </tags>
+                      </build>
+                    </image>
+                  </images>
+                  <tagName>latest</tagName>
+                  <repo>${docker.organization}</repo>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar-all</repository>
-              <pullNewerImage>false</pullNewerImage>
-              <tag>${project.version}</tag>
-              <buildArgs>
-                <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
-                <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
-              </buildArgs>
-            </configuration>
           </plugin>
         </plugins>
       </build>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -39,11 +40,13 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractReplicator {
 
     protected final BrokerService brokerService;
-    protected final String topicName;
+    protected final String localTopicName;
     protected final String localCluster;
+    protected final String remoteTopicName;
     protected final String remoteCluster;
     protected final PulsarClientImpl replicationClient;
     protected final PulsarClientImpl client;
+    protected String replicatorId;
 
     protected volatile ProducerImpl producer;
     public static final String REPL_PRODUCER_NAME_DELIMITER = "-->";
@@ -64,29 +67,35 @@ public abstract class AbstractReplicator {
         Stopped, Starting, Started, Stopping
     }
 
-    public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
-                              BrokerService brokerService, PulsarClientImpl replicationClient)
+    public AbstractReplicator(String localCluster, String localTopicName, String remoteCluster, String remoteTopicName,
+                              String replicatorPrefix, BrokerService brokerService, PulsarClientImpl replicationClient)
             throws PulsarServerException {
         this.brokerService = brokerService;
-        this.topicName = topicName;
+        this.localTopicName = localTopicName;
         this.replicatorPrefix = replicatorPrefix;
         this.localCluster = localCluster.intern();
+        this.remoteTopicName = remoteTopicName;
         this.remoteCluster = remoteCluster.intern();
         this.replicationClient = replicationClient;
         this.client = (PulsarClientImpl) brokerService.pulsar().getClient();
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
-
+        this.replicatorId = String.format("%s | %s",
+                StringUtils.equals(localTopicName, remoteTopicName) ? localTopicName :
+                        localTopicName + "-->" + remoteTopicName,
+                StringUtils.equals(localCluster, remoteCluster) ? localCluster : localCluster + "-->" + remoteCluster
+        );
         this.producerBuilder = replicationClient.newProducer(Schema.AUTO_PRODUCE_BYTES()) //
-                .topic(topicName)
+                .topic(remoteTopicName)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(producerQueueSize) //
-                .producerName(String.format("%s%s%s", getReplicatorName(replicatorPrefix, localCluster),
-                        REPL_PRODUCER_NAME_DELIMITER, remoteCluster));
+                .producerName(getProducerName());
         STATE_UPDATER.set(this, State.Stopped);
     }
+
+    protected abstract String getProducerName();
 
     protected abstract void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer);
 
@@ -107,8 +116,8 @@ public abstract class AbstractReplicator {
             long waitTimeMs = backOff.next();
             if (log.isDebugEnabled()) {
                 log.debug(
-                        "[{}][{} -> {}] waiting for producer to close before attempting to reconnect, retrying in {} s",
-                        topicName, localCluster, remoteCluster, waitTimeMs / 1000.0);
+                        "[{}] waiting for producer to close before attempting to reconnect, retrying in {} s",
+                        replicatorId, waitTimeMs / 1000.0);
             }
             // BackOff before retrying
             brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
@@ -119,30 +128,29 @@ public abstract class AbstractReplicator {
             if (state == State.Started) {
                 // Already running
                 if (log.isDebugEnabled()) {
-                    log.debug("[{}][{} -> {}] Replicator was already running", topicName, localCluster, remoteCluster);
+                    log.debug("[{}] Replicator was already running", replicatorId);
                 }
             } else {
-                log.info("[{}][{} -> {}] Replicator already being started. Replicator state: {}", topicName,
-                        localCluster, remoteCluster, state);
+                log.info("[{}] Replicator already being started. Replicator state: {}", replicatorId, state);
             }
 
             return;
         }
 
-        log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
+        log.info("[{}] Starting replicator", replicatorId);
         producerBuilder.createAsync().thenAccept(producer -> {
             readEntries(producer);
         }).exceptionally(ex -> {
             if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
                 long waitTimeMs = backOff.next();
-                log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
-                        localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
+                log.warn("[{}] Failed to create remote producer ({}), retrying in {} s",
+                        replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
 
                 // BackOff before retrying
                 brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
             } else {
-                log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
-                        localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
+                log.warn("[{}] Failed to create remote producer. Replicator state: {}", replicatorId,
+                        STATE_UPDATER.get(this), ex);
             }
             return null;
         });
@@ -163,9 +171,9 @@ public abstract class AbstractReplicator {
         }).exceptionally(ex -> {
             long waitTimeMs = backOff.next();
             log.warn(
-                    "[{}][{} -> {}] Exception: '{}' occurred while trying to close the producer."
+                    "[{}] Exception: '{}' occurred while trying to close the producer."
                             + " retrying again in {} s",
-                    topicName, localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
+                    replicatorId, ex.getMessage(), waitTimeMs / 1000.0);
             // BackOff before retrying
             brokerService.executor().schedule(this::closeProducerAsync, waitTimeMs, TimeUnit.MILLISECONDS);
             return null;
@@ -183,8 +191,7 @@ public abstract class AbstractReplicator {
             CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
             disconnectFuture.completeExceptionally(new TopicBusyException("Cannot close a replicator with backlog"));
             if (log.isDebugEnabled()) {
-                log.debug("[{}][{} -> {}] Replicator disconnect failed since topic has backlog", topicName, localCluster
-                        , remoteCluster);
+                log.debug("[{}] Replicator disconnect failed since topic has backlog", replicatorId);
             }
             return disconnectFuture;
         }
@@ -198,8 +205,8 @@ public abstract class AbstractReplicator {
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopping)
                 || STATE_UPDATER.compareAndSet(this, State.Started, State.Stopping)) {
-            log.info("[{}][{} -> {}] Disconnect replicator at position {} with backlog {}", topicName, localCluster,
-                    remoteCluster, getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
+            log.info("[{}] Disconnect replicator at position {} with backlog {}", replicatorId,
+                    getReplicatorReadPosition(), getNumberOfEntriesInBacklog());
         }
 
         return closeProducerAsync();

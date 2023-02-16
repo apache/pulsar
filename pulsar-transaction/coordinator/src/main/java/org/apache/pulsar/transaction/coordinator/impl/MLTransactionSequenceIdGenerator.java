@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
@@ -26,6 +26,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,10 +72,13 @@ public class MLTransactionSequenceIdGenerator implements ManagedLedgerIntercepto
                         try {
                             LedgerEntry ledgerEntry = entries.getEntry(lh.getLastAddConfirmed());
                             if (ledgerEntry != null) {
-                                TransactionMetadataEntry lastConfirmEntry = new TransactionMetadataEntry();
-                                ByteBuf buffer = ledgerEntry.getEntryBuffer();
-                                lastConfirmEntry.parseFrom(buffer, buffer.readableBytes());
-                                this.sequenceId.set(lastConfirmEntry.getMaxLocalTxnId());
+                                List<TransactionMetadataEntry> transactionLogs =
+                                        MLTransactionLogImpl.deserializeEntry(ledgerEntry.getEntryBuffer());
+                                if (!CollectionUtils.isEmpty(transactionLogs)){
+                                    TransactionMetadataEntry lastConfirmEntry =
+                                            transactionLogs.get(transactionLogs.size() - 1);
+                                    this.sequenceId.set(lastConfirmEntry.getMaxLocalTxnId());
+                                }
                             }
                             entries.close();
                             promise.complete(null);

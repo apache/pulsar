@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.source;
 
 
+import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -41,6 +42,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 
@@ -53,10 +55,10 @@ public class KafkaAbstractSourceTest {
         public KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord) {
             KafkaRecord record = new KafkaRecord(consumerRecord,
                     new String((byte[]) consumerRecord.value(), StandardCharsets.UTF_8),
-                    Schema.STRING);
+                    Schema.STRING,
+                    Collections.emptyMap());
             return record;
         }
-
     }
 
     @Test
@@ -98,6 +100,23 @@ public class KafkaAbstractSourceTest {
         config.put("autoOffsetReset", "earliest");
         source.open(config, ctx);
         source.close();
+    }
+
+    @Test
+    public void loadConsumerConfigPropertiesFromMapTest() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put("consumerConfigProperties", "");
+        KafkaSourceConfig kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertNotNull(kafkaSourceConfig);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+
+        config.put("consumerConfigProperties", null);
+        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertNull(kafkaSourceConfig.getConsumerConfigProperties());
+
+        config.put("consumerConfigProperties", ImmutableMap.of("foo", "bar"));
+        kafkaSourceConfig = KafkaSourceConfig.load(config);
+        assertEquals(kafkaSourceConfig.getConsumerConfigProperties(), ImmutableMap.of("foo", "bar"));
     }
 
     @Test

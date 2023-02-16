@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -210,18 +210,28 @@ public class BacklogQuotaManager {
             Long currentMillis = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getClock().millis();
             ManagedLedgerImpl mLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
             try {
-                for (;;) {
+                for (; ; ) {
                     ManagedCursor slowestConsumer = mLedger.getSlowestConsumer();
                     Position oldestPosition = slowestConsumer.getMarkDeletedPosition();
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] slowest consumer mark delete position is [{}], read position is [{}]",
+                                slowestConsumer.getName(), oldestPosition, slowestConsumer.getReadPosition());
+                    }
                     ManagedLedgerInfo.LedgerInfo ledgerInfo = mLedger.getLedgerInfo(oldestPosition.getLedgerId()).get();
+                    if (ledgerInfo == null) {
+                        PositionImpl nextPosition =
+                                PositionImpl.get(mLedger.getNextValidLedger(oldestPosition.getLedgerId()), -1);
+                        slowestConsumer.markDelete(nextPosition);
+                        continue;
+                    }
                     // Timestamp only > 0 if ledger has been closed
                     if (ledgerInfo.getTimestamp() > 0
-                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime()) {
+                            && currentMillis - ledgerInfo.getTimestamp() > quota.getLimitTime() * 1000) {
                         // skip whole ledger for the slowest cursor
-                        PositionImpl nextPosition = mLedger.getNextValidPosition(
-                                PositionImpl.get(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1));
+                        PositionImpl nextPosition =
+                                PositionImpl.get(mLedger.getNextValidLedger(ledgerInfo.getLedgerId()), -1);
                         if (!nextPosition.equals(oldestPosition)) {
-                            slowestConsumer.resetCursor(nextPosition);
+                            slowestConsumer.markDelete(nextPosition);
                             continue;
                         }
                     }
@@ -241,7 +251,7 @@ public class BacklogQuotaManager {
      *            The topic on which all producers should be disconnected
      */
     private void disconnectProducers(PersistentTopic persistentTopic) {
-        List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         Map<String, Producer> producers = persistentTopic.getProducers();
 
         producers.values().forEach(producer -> {

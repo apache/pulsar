@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,8 @@ import static org.testng.AssertJUnit.assertEquals;
  */
 public class MultipleListenerValidatorTest {
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetAppliedAdvertised() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -59,12 +60,6 @@ public class TopicName implements ServiceUnitId {
                     return new TopicName(name);
                 }
             });
-
-    public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
-
-    public static final TopicName TRANSACTION_COORDINATOR_LOG = TopicName.get(TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
 
     public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
         String name = domain + "://" + namespaceName.toString() + '/' + topic;
@@ -107,6 +102,7 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
     private TopicName(String completeTopicName) {
         try {
             // The topic name can be in two different forms, one is fully qualified topic name,
@@ -294,6 +290,14 @@ public class TopicName implements ServiceUnitId {
         }
 
         return partitionIndex;
+    }
+
+    /**
+     * A helper method to get a partition name of a topic in String.
+     * @return topic + "-partition-" + partition.
+     */
+    public static String getTopicPartitionNameString(String topic, int partitionIndex) {
+        return topic + PARTITIONED_TOPIC_SUFFIX + partitionIndex;
     }
 
     /**

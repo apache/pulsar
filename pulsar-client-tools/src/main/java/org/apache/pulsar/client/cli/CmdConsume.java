@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,35 +19,21 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.RateLimiter;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
-import org.apache.commons.io.HexDump;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -57,33 +43,17 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
-import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * pulsar-client consume command implementation.
  *
  */
 @Parameters(commandDescription = "Consume messages from a specified topic")
-public class CmdConsume {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
-    private static final String MESSAGE_BOUNDARY = "----- got message -----";
+public class CmdConsume extends AbstractCmdConsume {
 
     @Parameter(description = "TopicName", required = true)
     private List<String> mainOptions = new ArrayList<String>();
@@ -134,132 +104,14 @@ public class CmdConsume {
 
     @Parameter(names = { "-st", "--schema-type"},
             description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
-    private String schematype = "bytes";
+    private String schemaType = "bytes";
 
     @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
     private boolean poolMessages = true;
 
-    private ClientBuilder clientBuilder;
-    private Authentication authentication;
-    private String serviceURL;
-
     public CmdConsume() {
         // Do nothing
-    }
-
-    /**
-     * Set client configuration.
-     *
-     */
-    public void updateConfig(ClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
-        this.clientBuilder = clientBuilder;
-        this.authentication = authentication;
-        this.serviceURL = serviceURL;
-    }
-
-    /**
-     * Interprets the message to create a string representation.
-     *
-     * @param message
-     *            The message to interpret
-     * @param displayHex
-     *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
-     * @return String representation of the message
-     */
-    private String interpretMessage(Message<?> message, boolean displayHex) throws IOException {
-        StringBuilder sb = new StringBuilder();
-
-        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
-
-        String data;
-        Object value = message.getValue();
-        if (value == null) {
-            data = "null";
-        } else if (value instanceof byte[]) {
-            byte[] msgData = (byte[]) value;
-            data = interpretByteArray(displayHex, msgData);
-        } else if (value instanceof GenericObject) {
-            Map<String, Object> asMap = genericObjectToMap((GenericObject) value, displayHex);
-            data = asMap.toString();
-        } else if (value instanceof ByteBuffer) {
-            data = new String(getBytes((ByteBuffer) value));
-        } else {
-            data = value.toString();
-        }
-
-        String key = null;
-        if (message.hasKey()) {
-            key = message.getKey();
-        }
-
-        sb.append("key:[").append(key).append("], ");
-        if (!properties.isEmpty()) {
-            sb.append("properties:").append(properties).append(", ");
-        }
-        sb.append("content:").append(data);
-
-        return sb.toString();
-    }
-
-    private static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
-        String data;
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        if (!displayHex) {
-            return new String(msgData);
-        } else {
-            HexDump.dump(msgData, 0, out, 0);
-            return out.toString();
-        }
-    }
-
-    private static Map<String, Object> genericObjectToMap(GenericObject value, boolean displayHex) throws IOException {
-        switch (value.getSchemaType()) {
-            case AVRO:
-            case JSON:
-            case PROTOBUF_NATIVE:
-                    return genericRecordToMap((GenericRecord) value, displayHex);
-            case KEY_VALUE:
-                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
-            default:
-                return primitiveValueToMap(value.getNativeObject(), displayHex);
-        }
-    }
-
-    private static Map<String, Object> keyValueToMap(KeyValue value, boolean displayHex) throws IOException {
-        if (value == null) {
-            return ImmutableMap.of("value", "NULL");
-        }
-        return ImmutableMap.of("key", primitiveValueToMap(value.getKey(), displayHex),
-                "value", primitiveValueToMap(value.getValue(), displayHex));
-    }
-
-    private static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
-        if (value == null) {
-            return ImmutableMap.of("value", "NULL");
-        }
-        if (value instanceof GenericObject) {
-            return genericObjectToMap((GenericObject) value, displayHex);
-        }
-        if (value instanceof byte[]) {
-            value = interpretByteArray(displayHex, (byte[]) value);
-        }
-        return ImmutableMap.of("value", value.toString(), "type", value.getClass());
-    }
-
-    private static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex) throws IOException {
-        Map<String, Object> res = new HashMap<>();
-        for (Field f : value.getFields()) {
-            Object fieldValue = value.getField(f);
-            if (fieldValue instanceof GenericRecord) {
-                fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
-            } else if (fieldValue == null) {
-                fieldValue =  "NULL";
-            } else if (fieldValue instanceof byte[]) {
-                fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
-            }
-            res.put(f.getName(), fieldValue);
-        }
-        return res;
+        super();
     }
 
     /**
@@ -291,14 +143,13 @@ public class CmdConsume {
         int numMessagesConsumed = 0;
         int returnCode = 0;
 
-        try {
+        try (PulsarClient client = clientBuilder.build()){
             ConsumerBuilder<?> builder;
-            PulsarClient client = clientBuilder.build();
             Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
-            if ("auto_consume".equals(schematype)) {
+            if ("auto_consume".equals(schemaType)) {
                 schema = Schema.AUTO_CONSUME();
-            } else if (!"bytes".equals(schematype)) {
-                throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume");
+            } else if (!"bytes".equals(schemaType)) {
+                throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
             }
             builder = client.newConsumer(schema)
                     .subscriptionName(this.subscriptionName)
@@ -326,33 +177,33 @@ public class CmdConsume {
                 builder.defaultCryptoKeyReader(this.encKeyValue);
             }
 
-            Consumer<?> consumer = builder.subscribe();
-            RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
-            while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
-                if (limiter != null) {
-                    limiter.acquire();
-                }
+            try (Consumer<?> consumer = builder.subscribe();) {
+                RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
+                while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
+                    if (limiter != null) {
+                        limiter.acquire();
+                    }
 
-                Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
-                if (msg == null) {
-                    LOG.debug("No message to consume after waiting for 5 seconds.");
-                } else {
-                    try {
-                        numMessagesConsumed += 1;
-                        if (!hideContent) {
-                            System.out.println(MESSAGE_BOUNDARY);
-                            String output = this.interpretMessage(msg, displayHex);
-                            System.out.println(output);
-                        } else if (numMessagesConsumed % 1000 == 0) {
-                            System.out.println("Received " + numMessagesConsumed + " messages");
+                    Message<?> msg = consumer.receive(5, TimeUnit.SECONDS);
+                    if (msg == null) {
+                        LOG.debug("No message to consume after waiting for 5 seconds.");
+                    } else {
+                        try {
+                            numMessagesConsumed += 1;
+                            if (!hideContent) {
+                                System.out.println(MESSAGE_BOUNDARY);
+                                String output = this.interpretMessage(msg, displayHex);
+                                System.out.println(output);
+                            } else if (numMessagesConsumed % 1000 == 0) {
+                                System.out.println("Received " + numMessagesConsumed + " messages");
+                            }
+                            consumer.acknowledge(msg);
+                        } finally {
+                            msg.release();
                         }
-                        consumer.acknowledge(msg);
-                    } finally {
-                        msg.release();
                     }
                 }
             }
-            client.close();
         } catch (Exception e) {
             LOG.error("Error while consuming messages");
             LOG.error(e.getMessage(), e);
@@ -459,66 +310,4 @@ public class CmdConsume {
         return returnCode;
     }
 
-    @WebSocket(maxTextMessageSize = 64 * 1024)
-    public static class ConsumerSocket {
-        private static final String X_PULSAR_MESSAGE_ID = "messageId";
-        private final CountDownLatch closeLatch;
-        private Session session;
-        private CompletableFuture<Void> connected;
-        final BlockingQueue<String> incomingMessages;
-
-        public ConsumerSocket(CompletableFuture<Void> connected) {
-            this.closeLatch = new CountDownLatch(1);
-            this.connected = connected;
-            this.incomingMessages = new GrowableArrayBlockingQueue<>();
-        }
-
-        public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
-            return this.closeLatch.await(duration, unit);
-        }
-
-        @OnWebSocketClose
-        public void onClose(int statusCode, String reason) {
-            log.info("Connection closed: {} - {}", statusCode, reason);
-            this.session = null;
-            this.closeLatch.countDown();
-        }
-
-        @OnWebSocketConnect
-        public void onConnect(Session session) throws InterruptedException {
-            log.info("Got connect: {}", session);
-            this.session = session;
-            this.connected.complete(null);
-        }
-
-        @OnWebSocketMessage
-        public synchronized void onMessage(String msg) throws Exception {
-            JsonObject message = new Gson().fromJson(msg, JsonObject.class);
-            JsonObject ack = new JsonObject();
-            String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
-            ack.add("messageId", new JsonPrimitive(messageId));
-            // Acking the proxy
-            this.getRemote().sendString(ack.toString());
-            this.incomingMessages.put(msg);
-        }
-
-        public String receive(long timeout, TimeUnit unit) throws Exception {
-            return incomingMessages.poll(timeout, unit);
-        }
-
-        public RemoteEndpoint getRemote() {
-            return this.session.getRemote();
-        }
-
-        public Session getSession() {
-            return this.session;
-        }
-
-        public void close() {
-            this.session.close();
-        }
-
-        private static final Logger log = LoggerFactory.getLogger(ConsumerSocket.class);
-
-    }
 }

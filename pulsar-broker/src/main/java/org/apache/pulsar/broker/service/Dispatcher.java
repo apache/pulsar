@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -127,6 +127,23 @@ public interface Dispatcher {
      */
     default boolean checkAndUnblockIfStuck() {
         return false;
+    }
+
+
+    default long getFilterProcessedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterAcceptedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterRejectedMsgCount() {
+        return 0;
+    }
+
+    default long getFilterRescheduledMsgCount() {
+        return 0;
     }
 
 }

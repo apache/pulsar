@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,12 @@ package org.apache.pulsar.sql.presto.decoder.avro;
 
 import static com.google.common.base.Functions.identity;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
-import static io.prestosql.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
+import static io.trino.spi.StandardErrorCode.GENERIC_INTERNAL_ERROR;
 import static java.util.Objects.requireNonNull;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.PrestoException;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.TrinoException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -35,7 +35,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.sql.presto.PulsarRowDecoder;
 
 /**
- * Refer to {@link io.prestosql.decoder.avro.AvroRowDecoder}.
+ * Refer to {@link io.trino.decoder.avro.AvroRowDecoderFactory}.
  */
 public class PulsarAvroRowDecoder implements PulsarRowDecoder {
 
@@ -65,7 +65,7 @@ public class PulsarAvroRowDecoder implements PulsarRowDecoder {
             avroRecord = record.getAvroRecord();
         } catch (Exception e) {
             e.printStackTrace();
-            throw new PrestoException(GENERIC_INTERNAL_ERROR, "Decoding avro record failed.", e);
+            throw new TrinoException(GENERIC_INTERNAL_ERROR, "Decoding avro record failed.", e);
         }
         return Optional.of(columnDecoders.entrySet().stream()
                 .collect(toImmutableMap(

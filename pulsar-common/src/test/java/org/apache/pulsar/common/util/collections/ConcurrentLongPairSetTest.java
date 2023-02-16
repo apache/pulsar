@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -175,6 +175,40 @@ public class ConcurrentLongPairSetTest {
         assertTrue(map.add(6, 6));
         assertTrue(map.remove(6, 6));
         assertTrue(map.capacity() == 8);
+    }
+
+    @Test
+    public void testExpandShrinkAndClear() {
+        ConcurrentLongPairSet map = ConcurrentLongPairSet.newBuilder()
+                .expectedItems(2)
+                .concurrencyLevel(1)
+                .autoShrink(true)
+                .mapIdleFactor(0.25f)
+                .build();
+        final long initCapacity = map.capacity();
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.add(1, 1));
+        assertTrue(map.add(2, 2));
+        assertTrue(map.add(3, 3));
+
+        // expand hashmap
+        assertTrue(map.capacity() == 8);
+
+        assertTrue(map.remove(1, 1));
+        // not shrink
+        assertTrue(map.capacity() == 8);
+        assertTrue(map.remove(2, 2));
+        // shrink hashmap
+        assertTrue(map.capacity() == 4);
+
+        assertTrue(map.remove(3, 3));
+        // Will not shrink the hashmap again because shrink capacity is less than initCapacity
+        // current capacity is equal than the initial capacity
+        assertTrue(map.capacity() == initCapacity);
+        map.clear();
+        // after clear, because current capacity is equal than the initial capacity, so not shrinkToInitCapacity
+        assertTrue(map.capacity() == initCapacity);
     }
 
 

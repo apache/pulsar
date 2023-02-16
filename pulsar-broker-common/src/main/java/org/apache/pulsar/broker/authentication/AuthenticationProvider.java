@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
+import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.AuthData;
-import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -103,7 +105,16 @@ public interface AuthenticationProvider extends Closeable {
 
     /**
      * Create an http authentication data State use passed in AuthenticationDataSource.
+     * @deprecated implementations that previously relied on this should update their implementation of
+     * {@link #authenticateHttpRequest(HttpServletRequest, HttpServletResponse)} or of
+     * {@link #authenticateHttpRequestAsync(HttpServletRequest, HttpServletResponse)} so that the desired attributes
+     * are added in those methods.
+     *
+     * <p>Note: this method was only ever used to generate an {@link AuthenticationState} object in order to generate
+     * an {@link AuthenticationDataSource} that was added as the {@link AuthenticatedDataAttributeName} attribute to
+     * the http request. Removing this method removes an unnecessary step in the authentication flow.</p>
      */
+    @Deprecated(since = "2.12.0")
     default AuthenticationState newHttpAuthState(HttpServletRequest request)
             throws AuthenticationException {
         return new OneStageAuthenticationState(request, this);
@@ -112,20 +123,17 @@ public interface AuthenticationProvider extends Closeable {
     /**
      * Validate the authentication for the given credentials with the specified authentication data.
      *
+     * <p>Implementations of this method MUST modify the request by adding the {@link AuthenticatedRoleAttributeName}
+     * and the {@link AuthenticatedDataAttributeName} attributes.</p>
+     *
      * <p>Warning: the calling thread is an IO thread. Any implementations that rely on blocking behavior
      * must ensure that the execution is completed on using a separate thread pool to ensure IO threads
      * are never blocked.</p>
      *
-     * <p>Note: this method is marked as unstable because the Pulsar code base only calls it for the
-     * Pulsar Broker Auth SASL plugin. All non SASL HTTP requests are authenticated using the
-     * {@link AuthenticationProvider#authenticateAsync(AuthenticationDataSource)} method. As such,
-     * this method might be removed in favor of the SASL provider implementing the
-     * {@link AuthenticationProvider#authenticateAsync(AuthenticationDataSource)} method.</p>
-     *
-     * @return Set response, according to passed in request.
+     * @return Set response, according to passed in request, and return whether we should do following chain.doFilter.
+     * @throws Exception when authentication failed
      * and return whether we should do following chain.doFilter or not.
      */
-    @InterfaceStability.Unstable
     default CompletableFuture<Boolean> authenticateHttpRequestAsync(HttpServletRequest request,
                                                                     HttpServletResponse response) {
         try {
@@ -138,10 +146,30 @@ public interface AuthenticationProvider extends Closeable {
     /**
      * Set response, according to passed in request.
      * and return whether we should do following chain.doFilter or not.
+     *
+     * <p>Implementations of this method MUST modify the request by adding the {@link AuthenticatedRoleAttributeName}
+     * and the {@link AuthenticatedDataAttributeName} attributes.</p>
+     *
+     * @return Set response, according to passed in request, and return whether we should do following chain.doFilter.
+     * @throws Exception when authentication failed
      * @deprecated use and implement {@link AuthenticationProvider#authenticateHttpRequestAsync} instead.
      */
     @Deprecated
     default boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) throws Exception {
-        throw new AuthenticationException("Not supported");
+        try {
+            AuthenticationState authenticationState = newHttpAuthState(request);
+            String role = authenticateAsync(authenticationState.getAuthDataSource()).get();
+            request.setAttribute(AuthenticatedRoleAttributeName, role);
+            request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
+            return true;
+        } catch (AuthenticationException e) {
+            throw e;
+        } catch (Exception e) {
+            if (e instanceof ExecutionException && e.getCause() instanceof AuthenticationException) {
+                throw (AuthenticationException) e.getCause();
+            } else {
+                throw new AuthenticationException("Failed to authentication http request");
+            }
+        }
     }
 }

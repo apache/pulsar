@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>tests-parent</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>integration</artifactId>
@@ -34,6 +34,7 @@
 
   <properties>
     <integrationTestSuiteFile>pulsar.xml</integrationTestSuiteFile>
+    <mongo-reactivestreams.version>4.1.2</mongo-reactivestreams.version>
   </properties>
 
   <dependencies>
@@ -62,13 +63,13 @@
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-admin</artifactId>
+      <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
@@ -178,9 +179,9 @@
     </dependency>
 
     <dependency>
-      <groupId>io.prestosql</groupId>
-      <artifactId>presto-jdbc</artifactId>
-      <version>${presto.version}</version>
+      <groupId>io.trino</groupId>
+      <artifactId>trino-jdbc</artifactId>
+      <version>${trino.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -205,6 +206,19 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- mongodb -->
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>mongodb</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mongodb</groupId>
+      <artifactId>mongodb-driver-reactivestreams</artifactId>
+      <version>${mongo-reactivestreams.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -266,7 +280,8 @@
             <artifactId>maven-surefire-plugin</artifactId>
             <configuration>
               <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:MaxDirectMemorySize=1G
-              -Dio.netty.leakDetectionLevel=advanced
+              -Dio.netty.leakDetectionLevel=advanced -Dconfluent.version=${confluent.version} -Djacoco.version=${jacoco-maven-plugin.version}
+              -Dintegrationtest.coverage.enabled=${integrationtest.coverage.enabled} -Dintegrationtest.coverage.dir=${integrationtest.coverage.dir}
               ${test.additional.args}
               </argLine>
               <skipTests>false</skipTests>
@@ -275,6 +290,27 @@
               </suiteXmlFiles>
               <forkCount>1</forkCount>
             </configuration>
+          </plugin>
+          <plugin>
+            <artifactId>maven-resources-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>copy-pulsar-certificate-authority-resources</id>
+                <phase>generate-test-resources</phase>
+                <goals>
+                  <goal>copy-resources</goal>
+                </goals>
+                <configuration>
+                  <outputDirectory>${project.build.testOutputDirectory}/certificate-authority</outputDirectory>
+                  <resources>
+                    <resource>
+                      <directory>${project.parent.basedir}/certificate-authority</directory>
+                      <filtering>false</filtering>
+                    </resource>
+                  </resources>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>

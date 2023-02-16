@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,8 @@ public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarService
         try {
             internalSetup();
             fail("An exception should have been thrown");
-        } catch (Exception e) {
+        } catch (Exception rte) {
+            Throwable e = rte.getCause();
             assertEquals(e.getClass(), PulsarServerException.class);
             assertEquals(e.getCause().getClass(), IllegalStateException.class);
             assertEquals(e.getCause().getMessage(), "Invalid broker configuration. Authentication must be "

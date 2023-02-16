@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -89,6 +89,9 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
                                              String trustStoreTypeString,
                                              String trustStore,
                                              String trustStorePassword,
+                                             String keyStoreTypeString,
+                                             String keyStore,
+                                             String keyStorePassword,
                                              Set<String> ciphers,
                                              Set<String> protocols,
                                              long certRefreshInSec,
@@ -99,6 +102,10 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
         this.tlsProvider = sslProviderString;
 
         this.authData = authData;
+
+        this.tlsKeyStoreType = keyStoreTypeString;
+        this.tlsKeyStore = new FileModifiedTimeUpdater(keyStore);
+        this.tlsKeyStorePassword = keyStorePassword;
 
         this.tlsTrustStoreType = trustStoreTypeString;
         this.tlsTrustStore = new FileModifiedTimeUpdater(trustStore);
@@ -121,9 +128,9 @@ public class NettySSLContextAutoRefreshBuilder extends SslContextAutoRefreshBuil
         } else {
             KeyStoreParams authParams = authData.getTlsKeyStoreParams();
             this.keyStoreSSLContext = KeyStoreSSLContext.createClientKeyStoreSslContext(tlsProvider,
-                    authParams != null ? authParams.getKeyStoreType() : null,
-                    authParams != null ? authParams.getKeyStorePath() : null,
-                    authParams != null ? authParams.getKeyStorePassword() : null,
+                    authParams != null ? authParams.getKeyStoreType() : tlsKeyStoreType,
+                    authParams != null ? authParams.getKeyStorePath() : tlsKeyStore.getFileName(),
+                    authParams != null ? authParams.getKeyStorePassword() : tlsKeyStorePassword,
                     tlsAllowInsecureConnection,
                     tlsTrustStoreType, tlsTrustStore.getFileName(), tlsTrustStorePassword,
                     tlsCiphers, tlsProtocols);

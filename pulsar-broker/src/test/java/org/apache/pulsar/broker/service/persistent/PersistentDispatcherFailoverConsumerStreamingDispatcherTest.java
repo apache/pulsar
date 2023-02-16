@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,12 +26,12 @@ import org.testng.annotations.Test;
 /**
  * PersistentDispatcherFailoverConsumerTest with {@link StreamingDispatcher}
  */
-@Test(groups = "broker")
+@Test(groups = "quarantine")
 public class PersistentDispatcherFailoverConsumerStreamingDispatcherTest extends PersistentDispatcherFailoverConsumerTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         super.setup();
-        pulsar.getConfiguration().setStreamingDispatch(true);
+        pulsarTestContext.getConfig().setStreamingDispatch(true);
     }
 }

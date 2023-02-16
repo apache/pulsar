@@ -24,6 +24,7 @@
         <classes>
             <class name="org.apache.pulsar.tests.integration.presto.TestBasicPresto" />
             <class name="org.apache.pulsar.tests.integration.presto.TestPrestoQueryTieredStorage" />
+            <class name="org.apache.pulsar.tests.integration.presto.TestPulsarSQLAuth" />
         </classes>
     </test>
 </suite>

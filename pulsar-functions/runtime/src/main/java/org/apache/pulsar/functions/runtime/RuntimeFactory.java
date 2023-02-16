@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 /**
@@ -37,6 +38,7 @@ public interface RuntimeFactory extends AutoCloseable {
                     AuthenticationConfig authenticationConfig,
                     SecretsProviderConfigurator secretsProviderConfigurator,
                     ConnectorsManager connectorsManager,
+                    FunctionsManager functionsManager,
                     Optional<FunctionAuthProvider> authProvider,
                     Optional<RuntimeCustomizer> runtimeCustomizer) throws Exception;
 
@@ -50,6 +52,7 @@ public interface RuntimeFactory extends AutoCloseable {
      */
     Runtime createContainer(
             InstanceConfig instanceConfig, String codeFile, String originalCodeFileName,
+            String transformFunctionFile, String originalTransformFunctionFileName,
             Long expectedHealthCheckInterval) throws Exception;
 
     default boolean externallyManaged() {

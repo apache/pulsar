@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
-
+import com.google.common.collect.Multimap;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -37,19 +40,17 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import com.google.common.collect.Multimap;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -91,7 +92,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -103,38 +104,40 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSchemaRegistryMetrics() throws Exception {
-        putSchema(schemaId1, schemaData1, version(0));
-        getSchema(schemaId1, version(0));
-        deleteSchema(schemaId1, version(1));
+        String schemaId = "tenant/ns/topic" + UUID.randomUUID();
+        String namespace = TopicName.get(schemaId).getNamespace();
+        putSchema(schemaId, schemaData1, version(0));
+        getSchema(schemaId, version(0));
+        deleteSchema(schemaId, version(1));
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, output);
         output.flush();
-        String metricsStr = new String(output.toByteArray(), StandardCharsets.UTF_8);
+        String metricsStr = output.toString(StandardCharsets.UTF_8);
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
 
-        Collection<PrometheusMetricsTest.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_count");
+        Collection<PrometheusMetricsTest.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_total");
         Assert.assertEquals(delMetrics.size(), 0);
-        Collection<PrometheusMetricsTest.Metric> getMetrics = metrics.get("pulsar_schema_get_ops_failed_count");
+        Collection<PrometheusMetricsTest.Metric> getMetrics = metrics.get("pulsar_schema_get_ops_failed_total");
         Assert.assertEquals(getMetrics.size(), 0);
-        Collection<PrometheusMetricsTest.Metric> putMetrics = metrics.get("pulsar_schema_put_ops_failed_count");
+        Collection<PrometheusMetricsTest.Metric> putMetrics = metrics.get("pulsar_schema_put_ops_failed_total");
         Assert.assertEquals(putMetrics.size(), 0);
 
         Collection<PrometheusMetricsTest.Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
         for (PrometheusMetricsTest.Metric metric : deleteLatency) {
-            Assert.assertEquals(metric.tags.get("schema"), schemaId1);
+            Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
 
         Collection<PrometheusMetricsTest.Metric> getLatency = metrics.get("pulsar_schema_get_ops_latency_count");
         for (PrometheusMetricsTest.Metric metric : getLatency) {
-            Assert.assertEquals(metric.tags.get("schema"), schemaId1);
+            Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
 
         Collection<PrometheusMetricsTest.Metric> putLatency = metrics.get("pulsar_schema_put_ops_latency_count");
         for (PrometheusMetricsTest.Metric metric : putLatency) {
-            Assert.assertEquals(metric.tags.get("schema"), schemaId1);
+            Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
     }
@@ -310,10 +313,17 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schemaData3, version(2), SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
     }
 
-    @Test(expectedExceptions = PulsarServerException.class)
+    @Test
     public void testSchemaStorageFailed() throws Exception {
         conf.setSchemaRegistryStorageClassName("Unknown class name");
-        restartBroker();
+        try {
+            restartBroker();
+            fail("An exception should have been thrown");
+        } catch (Exception rte) {
+            Throwable e = rte.getCause();
+            Assert.assertEquals(e.getClass(), PulsarServerException.class);
+            Assert.assertTrue(e.getMessage().contains("User class must be in class path"));
+        }
     }
 
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {

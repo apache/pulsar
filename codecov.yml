@@ -1,0 +1,58 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+codecov:
+  # the state in Codecov for a PR status in GitHub is often wrong. Just ignore this condition and
+  # rely on after_n_builds for notifying about the coverage
+  require_ci_to_pass: no
+  notify:
+    # should match the number of coverage report uploads
+    # pulsar-ci.yaml contains 3 uploads (unittests, inttests, systests)
+    # pulsar-ci-flaky.yaml contains 1 upload
+    after_n_builds: 4
+    wait_for_ci: no
+
+comment:
+  # should match the number of builds sending coverage reports
+  after_n_builds: 4
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+  require_base: no
+  require_head: yes
+
+coverage:
+  status:
+    patch:
+      default:
+        target: auto
+        informational: true
+    project:
+      default:
+        target: auto
+        informational: true
+
+# ignore test code
+ignore:
+  - tests
+  - testmocks
+  - buildtools
+  - pulsar-testclient
+  - pulsar-client-tools-customcommand-example
+  - pulsar-functions/java-examples

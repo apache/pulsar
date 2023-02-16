@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,10 +43,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
@@ -166,25 +166,28 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
-                            @Override
-                            public void writeFailed(Throwable th) {
-                                log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(), subscription,
-                                        getRemote().getInetSocketAddress().toString(), th.getMessage());
-                                pendingMessages.decrementAndGet();
-                                // schedule receive as one of the delivery failed
-                                service.getExecutor().execute(() -> receiveMessage());
-                            }
+                        .sendString(objectWriter().writeValueAsString(dm),
+                                new WriteCallback() {
+                                    @Override
+                                    public void writeFailed(Throwable th) {
+                                        log.warn("[{}/{}] Failed to deliver msg to {} {}", consumer.getTopic(),
+                                                subscription,
+                                                getRemote().getInetSocketAddress().toString(), th.getMessage());
+                                        pendingMessages.decrementAndGet();
+                                        // schedule receive as one of the delivery failed
+                                        service.getExecutor().execute(() -> receiveMessage());
+                                    }
 
-                            @Override
-                            public void writeSuccess() {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}/{}] message is delivered successfully to {} ", consumer.getTopic(),
-                                            subscription, getRemote().getInetSocketAddress().toString());
-                                }
-                                updateDeliverMsgStat(msgSize);
-                            }
-                        });
+                                    @Override
+                                    public void writeSuccess() {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}/{}] message is delivered successfully to {} ",
+                                                    consumer.getTopic(),
+                                                    subscription, getRemote().getInetSocketAddress().toString());
+                                        }
+                                        updateDeliverMsgStat(msgSize);
+                                    }
+                                });
             } catch (JsonProcessingException e) {
                 close(WebSocketError.FailedToSerializeToJSON);
             }
@@ -220,7 +223,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = consumerCommandReader.readValue(message);
             if ("permit".equals(command.type)) {
                 handlePermit(command);
             } else if ("unsubscribe".equals(command.type)) {
@@ -245,7 +248,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     subscription, getRemote().getInetSocketAddress().toString());
         }
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            String msg = objectWriter().writeValueAsString(
                     new EndOfTopicResponse(consumer.hasReachedEndOfTopic()));
             getSession().getRemote()
             .sendString(msg, new WriteCallback() {
@@ -290,8 +293,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void handleAck(ConsumerCommand command) throws IOException {
         // We should have received an ack
-        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                topic.toString());
+        TopicMessageId msgId = TopicMessageId.create(topic.toString(),
+                MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId)));
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());
@@ -454,6 +457,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
         }
 
+        if (service.getCryptoKeyReader().isPresent()) {
+            builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+        }
         return builder;
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -73,12 +74,17 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     }
 
     @Override
-    public CompletableFuture<TxnID> newTransaction(long timeoutInMills) {
+    public CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner) {
+        if (owner != null) {
+            if (StringUtils.isBlank(owner)) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException("Owner can't be blank"));
+            }
+        }
         TxnID txnID = new TxnID(
             tcID.getId(),
             localID.getAndIncrement()
         );
-        TxnMetaImpl txn = new TxnMetaImpl(txnID, System.currentTimeMillis(), timeoutInMills);
+        TxnMetaImpl txn = new TxnMetaImpl(txnID, System.currentTimeMillis(), timeoutInMills, owner);
         transactions.put(txnID, txn);
         return CompletableFuture.completedFuture(txnID);
     }

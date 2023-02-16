@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.api.examples.window;
 
 import java.util.Collection;
-import java.util.Optional;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
@@ -30,11 +29,6 @@ import org.apache.pulsar.functions.api.WindowFunction;
 public class UserConfigWindowFunction implements WindowFunction<String, String> {
     @Override
     public String process(Collection<Record<String>> input, WindowContext context) throws Exception {
-        Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
-        if (whatToWrite.get() != null) {
-            return (String) whatToWrite.get();
-        } else {
-            return "Not a nice way";
-        }
+        return (String) context.getUserConfigValue("WhatToWrite").orElse("Not a nice way");
     }
 }

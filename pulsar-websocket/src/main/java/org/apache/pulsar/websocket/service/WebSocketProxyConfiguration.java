@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -60,7 +61,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
             deprecated = true,
-            doc = "Connection string of configuration store servers")
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
+    )
     private String configurationStoreServers;
 
     @FieldContext(doc = "Connection string of configuration metadata store servers")
@@ -158,6 +161,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
+    @FieldContext(doc = "Interval of time to sending the ping to keep alive. This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
@@ -186,6 +192,66 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
+
+    /**** --- KeyStore TLS config variables. --- ****/
+    @FieldContext(
+            doc = "Enable TLS with KeyStore type configuration for WebSocket"
+    )
+    private boolean tlsEnabledWithKeyStore = false;
+
+    @FieldContext(
+            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
+    )
+    private String tlsProvider = "Conscrypt";
+
+    @FieldContext(
+            doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @FieldContext(
+            doc = "TLS KeyStore path in WebSocket"
+    )
+    private String tlsKeyStore = null;
+
+    @FieldContext(
+            doc = "TLS KeyStore password for WebSocket"
+    )
+    @ToString.Exclude
+    private String tlsKeyStorePassword = null;
+
+    @FieldContext(
+            doc = "TLS TrustStore type configuration in WebSocket: JKS, PKCS12"
+    )
+    private String tlsTrustStoreType = "JKS";
+
+    @FieldContext(
+            doc = "TLS TrustStore path in WebSocket"
+    )
+    private String tlsTrustStore = null;
+
+    @FieldContext(
+            doc = "TLS TrustStore password for WebSocket, null means empty password."
+    )
+    @ToString.Exclude
+    private String tlsTrustStorePassword = null;
+
+    @FieldContext(
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(
+            doc = "CryptoKeyReader factory classname to support encryption at websocket."
+    )
+    private String cryptoKeyReaderFactoryClassName;
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();

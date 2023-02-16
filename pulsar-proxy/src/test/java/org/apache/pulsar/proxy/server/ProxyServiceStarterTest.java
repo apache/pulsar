@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,16 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.Base64;
+import java.util.Optional;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -36,22 +43,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.Base64;
-import java.util.Optional;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
     static final String[] ARGS = new String[]{"-c", "./src/test/resources/proxy.conf"};
 
-    private ProxyServiceStarter serviceStarter;
-    private String serviceUrl;
+    protected ProxyServiceStarter serviceStarter;
+    protected String serviceUrl;
 
     @Override
     @BeforeClass
@@ -128,9 +125,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         String consumeUri = computeWsBasePath() + "/consumer/persistent/sample/test/local/websocket-topic/my-sub";
         Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
         consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        producerSession.get().getRemote().sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(produceRequest));
+        producerSession.get().getRemote().sendString(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
         assertTrue(consumerSocket.getResponse().contains("ping"));
-        ProducerMessage message = ObjectMapperFactory.getThreadLocal().readValue(consumerSocket.getResponse(), ProducerMessage.class);
+        ProducerMessage message = ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
     }
 

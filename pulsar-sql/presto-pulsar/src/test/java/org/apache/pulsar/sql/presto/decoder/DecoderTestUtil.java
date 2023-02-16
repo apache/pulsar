@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,21 @@
 package org.apache.pulsar.sql.presto.decoder;
 
 import io.airlift.slice.Slice;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.block.Block;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.MapType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.Type;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.block.Block;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.Decimals;
+import io.trino.spi.type.MapType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.Type;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Map;
 
-import static io.prestosql.testing.TestingConnectorSession.SESSION;
+import static io.trino.spi.type.UnscaledDecimal128Arithmetic.UNSCALED_DECIMAL_128_SLICE_LENGTH;
+import static io.trino.testing.TestingConnectorSession.SESSION;
 import static org.testng.Assert.*;
 
 /**
@@ -111,6 +116,21 @@ public abstract class DecoderTestUtil {
         FieldValueProvider provider = decodedRow.get(handle);
         assertNotNull(provider);
         assertEquals(provider.getBoolean(), value);
+    }
+
+    public void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
+        FieldValueProvider provider = decodedRow.get(handle);
+        DecimalType decimalType = (DecimalType) handle.getType();
+        BigDecimal actualDecimal;
+        if (decimalType.getFixedSize() == UNSCALED_DECIMAL_128_SLICE_LENGTH) {
+            Slice slice = provider.getSlice();
+            BigInteger bigInteger = Decimals.decodeUnscaledValue(slice);
+            actualDecimal = new BigDecimal(bigInteger, decimalType.getScale());
+        } else {
+            actualDecimal = BigDecimal.valueOf(provider.getLong(), decimalType.getScale());
+        }
+        assertNotNull(provider);
+        assertEquals(actualDecimal, value);
     }
 
     public void checkIsNull(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle) {

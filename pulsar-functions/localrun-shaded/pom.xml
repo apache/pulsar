@@ -26,7 +26,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-functions</artifactId>
-        <version>2.11.0-SNAPSHOT</version>
+        <version>2.12.0-SNAPSHOT</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -83,7 +83,7 @@
                             <target>
                                 <!-- shade the AsyncHttpClient ahc-default.properties files -->
                                 <replace token= "org.asynchttpclient."
-                                         value="org.apache.pulsar.shade.org.asynchttpclient."
+                                         value="org.apache.pulsar.functions.runtime.shaded.org.asynchttpclient."
                                          file="${project.build.directory}/classes/org/asynchttpclient/config/ahc-default.properties"/>
                             </target>
                         </configuration>
@@ -106,6 +106,40 @@
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
                             </transformers>
+                            <artifactSet>
+                                <includes>
+                                    <include>org.apache.pulsar:*</include>
+                                    <include>org.apache.bookkeeper:*</include>
+                                    <include>commons-*:*</include>
+                                    <include>org.apache.commons:*</include>
+                                    <include>com.fasterxml.jackson.*:*</include>
+                                    <include>io.netty:*</include>
+                                    <include>com.google.*:*</include>
+                                    <include>javax.servlet:*</include>
+                                    <include>org.reactivestreams:reactive-streams</include>
+                                    <include>org.apache.commons:*</include>
+                                    <include>io.swagger:*</include>
+                                    <include>org.yaml:snakeyaml</include>
+                                    <include>io.perfmark:*</include>
+                                    <include>io.prometheus:*</include>
+                                    <include>io.prometheus.jmx:*</include>
+                                    <include>javax.ws.rs:*</include>
+                                    <include>org.tukaani:xz</include>
+                                    <include>com.github.zafarkhaja:java-semver</include>
+                                    <include>net.java.dev.jna:*</include>
+                                    <include>org.apache.zookeeper:*</include>
+                                    <include>com.thoughtworks.paranamer:paranamer</include>
+                                    <include>jline:*</include>
+                                    <include>org.rocksdb:*</include>
+                                    <include>org.eclipse.jetty*:*</include>
+                                    <include>org.apache.avro:avro</include>
+                                    <include>com.beust:*</include>
+                                    <include>net.jodah:*</include>
+                                    <include>io.airlift:*</include>
+                                    <include>com.yahoo.datasketches:*</include>
+                                    <include>io.netty.resolver:*</include>
+                                </includes>
+                            </artifactSet>
                             <filters>
                                 <filter>
                                     <artifact>org.apache.pulsar:pulsar-client-original</artifact>
@@ -135,14 +169,6 @@
                                 <relocation>
                                     <pattern>javax.servlet</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.servlet</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>org.junit</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.junit</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>junit</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.junit</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>net.jodah</pattern>
@@ -225,10 +251,10 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.apache.distributedlog</shadedPattern>
                                 </relocation>
                                 <!-- Jackson cannot be shaded, this is causing java.lang.NoSuchMethodError when calling getThreadLocalYaml-->
-                                <!-- <relocation>
+                                <relocation>
                                     <pattern>com.fasterxml</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.fasterxml</shadedPattern>
-                                </relocation> -->
+                                </relocation>
                                 <relocation>
                                     <pattern>org.inferred</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.inferred</shadedPattern>
@@ -246,10 +272,10 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.dlshade</shadedPattern>
                                 </relocation>
                                 <!-- This refers to an older version of Jackson -->
-                                <!-- <relocation>
+                                <relocation>
                                     <pattern>org.codehaus.jackson</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.codehaus.jackson</shadedPattern>
-                                </relocation> -->
+                                </relocation>
                                 <relocation>
                                     <pattern>net.java.dev.jna</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.java.dev.jna</shadedPattern>
@@ -269,6 +295,10 @@
                                 <relocation>
                                     <pattern>io.prometheus</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.prometheus</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.prometheus.jmx</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.prometheus.jmx</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.apache.zookeeper</pattern>
@@ -347,18 +377,22 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.avo.shaded</shadedPattern>
                                 </relocation>
                                 <relocation>
-                                    <pattern>com.yahoo</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.yahoo</shadedPattern>
+                                    <pattern>com.yahoo.datasketches</pattern>
+                                    <shadedPattern>org.apache.pulsar.shaded.com.yahoo.datasketches</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.yahoo.sketches</pattern>
+                                    <shadedPattern>org.apache.pulsar.shaded.com.yahoo.sketches</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>com.beust</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.com.beust</shadedPattern>
                                 </relocation>
                                 <!-- Netty cannot be shaded, this is causing java.lang.NoSuchMethodError -->
-                                <!-- <relocation>
+                                <relocation>
                                     <pattern>io.netty</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.netty</shadedPattern>
-                                </relocation> -->
+                                </relocation>
                                 <relocation>
                                     <pattern>org.hamcrest</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.hamcrest</shadedPattern>
@@ -382,7 +416,11 @@
                                 -->
                                 <relocation>
                                     <pattern>org.asynchttpclient</pattern>
-                                    <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.asynchttpclient</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>io.airlift</pattern>
+                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.io.airlift</shadedPattern>
                                 </relocation>
                                 <!-- DONT ever shade log4j, otherwise logging won't work anymore in running functions in process mode
                                 <relocation>

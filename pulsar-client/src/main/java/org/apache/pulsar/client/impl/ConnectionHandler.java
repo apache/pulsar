@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -69,8 +71,17 @@ public class ConnectionHandler {
         }
 
         try {
-            state.client.getConnection(state.topic) //
-                    .thenAccept(cnx -> connection.connectionOpened(cnx)) //
+            CompletableFuture<ClientCnx> cnxFuture;
+            if (state.redirectedClusterURI != null) {
+                InetSocketAddress address = InetSocketAddress.createUnresolved(state.redirectedClusterURI.getHost(),
+                        state.redirectedClusterURI.getPort());
+                cnxFuture = state.client.getConnection(address, address);
+            } else if (state.topic == null) {
+                cnxFuture = state.client.getConnectionToServiceUrl();
+            } else {
+                cnxFuture = state.client.getConnection(state.topic); //
+            }
+            cnxFuture.thenAccept(cnx -> connection.connectionOpened(cnx)) //
                     .exceptionally(this::handleConnectionError);
         } catch (Throwable t) {
             log.warn("[{}] [{}] Exception thrown while getting connection: ", state.topic, state.getHandlerName(), t);

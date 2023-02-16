@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.ShutdownUtil;
 
 /**
  * A starter to start function worker.
@@ -53,7 +54,6 @@ public class FunctionWorkerStarter {
 
         if (workerArguments.help) {
             commander.usage();
-            System.exit(1);
             return;
         }
 
@@ -77,7 +77,7 @@ public class FunctionWorkerStarter {
         } catch (Throwable th) {
             log.error("Encountered error in function worker.", th);
             worker.stop();
-            Runtime.getRuntime().halt(1);
+            ShutdownUtil.triggerImmediateForcefulShutdown();
         }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Stopping function worker service...");

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -230,6 +230,50 @@ public interface PulsarClient extends Closeable {
      *
      * <p>Example:
      * <pre>{@code
+     *  TableView<byte[]> tableView = client.newTableViewBuilder(Schema.BYTES)
+     *            .topic("my-topic")
+     *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+     *            .create();
+     *
+     *  tableView.forEach((k, v) -> System.out.println(k + ":" + v));
+     * }</pre>
+     *
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
+     * @deprecated Use {@link PulsarClient#newTableView(Schema)} to build and configure a {@link TableViewBuilder}
+     * instance
+     */
+    @Deprecated
+    <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema);
+
+    /**
+     * Create a table view builder for subscribing on a specific topic.
+     *
+     * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+     * be ignored.
+     *
+     * <p>Example:
+     * <pre>{@code
+     *  TableView<byte[]> tableView = client.newTableView()
+     *            .topic("my-topic")
+     *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
+     *            .create();
+     *
+     *  tableView.forEach((k, v) -> System.out.println(k + ":" + v));
+     * }</pre>
+     *
+     * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
+     */
+    TableViewBuilder<byte[]> newTableView();
+
+    /**
+     * Create a table view builder with a specific schema for subscribing on a specific topic.
+     *
+     * <p>The TableView provides a key-value map view of a compacted topic. Messages without keys will
+     * be ignored.
+     *
+     * <p>Example:
+     * <pre>{@code
      *  TableView<byte[]> tableView = client.newTableView(Schema.BYTES)
      *            .topic("my-topic")
      *            .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
@@ -241,7 +285,7 @@ public interface PulsarClient extends Closeable {
      * @param schema provide a way to convert between serialized data and domain objects
      * @return a {@link TableViewBuilder} object to configure and construct the {@link TableView} instance
      */
-    <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema);
+    <T> TableViewBuilder<T> newTableView(Schema<T> schema);
 
     /**
      * Update the service URL this client is using.
@@ -336,5 +380,5 @@ public interface PulsarClient extends Closeable {
      *             if transactions are not enabled
      * @since 2.7.0
      */
-    TransactionBuilder newTransaction() throws PulsarClientException;
+    TransactionBuilder newTransaction();
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -146,7 +146,7 @@ abstract class AbstractHierarchicalLedgerManager {
                     }
                     final T dataToProcess = data.get(next);
                     final AsyncCallback.VoidCallback stub = this;
-                    scheduler.submit(() -> processor.process(dataToProcess, stub));
+                    scheduler.execute(() -> processor.process(dataToProcess, stub));
                 }
             });
         }

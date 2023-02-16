@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -31,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.http.HttpServletRequest;
@@ -49,6 +51,10 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.mockito.Mock;
 import org.testng.annotations.AfterClass;
@@ -379,5 +385,56 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(conf.getReceiverQueueSize(), 1000);
         assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(), "dead-letter-topic");
         assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 3);
+    }
+
+    @Test
+    public void testPingFuture() {
+        WebSocketProxyConfiguration webSocketProxyConfiguration = new WebSocketProxyConfiguration();
+        webSocketProxyConfiguration.setWebSocketPingDurationSeconds(5);
+
+        WebSocketService webSocketService = new WebSocketService(webSocketProxyConfiguration);
+
+        HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
+        String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
+        Map<String, String[]> queryParams = new HashMap<String, String>(){{
+            put("ackTimeoutMillis", "1001");
+            put("subscriptionType", "Key_Shared");
+            put("subscriptionMode", "NonDurable");
+            put("receiverQueueSize", "999");
+            put("consumerName", "my-consumer");
+            put("priorityLevel", "1");
+            put("maxRedeliverCount", "5");
+        }}.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> new String[]{ entry.getValue() }));
+
+        when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
+        when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
+
+        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+        AbstractWebSocketHandler webSocketHandler = new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
+
+        Session session = mock(Session.class);
+        RemoteEndpoint remoteEndpoint = mock(RemoteEndpoint.class);
+        when(session.getRemote()).thenReturn(remoteEndpoint);
+
+        // onWebSocketClose
+        webSocketHandler.onWebSocketConnect(session);
+
+        ScheduledFuture<?> pingFuture = webSocketHandler.getPingFuture();
+        assertNotNull(pingFuture);
+        assertFalse(pingFuture.isDone());
+
+        webSocketHandler.onWebSocketClose(HttpStatus.INTERNAL_SERVER_ERROR_500, "INTERNAL_SERVER_ERROR_500");
+        assertTrue(pingFuture.isDone());
+
+
+        // onWebSocketError
+        webSocketHandler.onWebSocketConnect(session);
+
+        pingFuture = webSocketHandler.getPingFuture();
+        assertNotNull(pingFuture);
+        assertFalse(pingFuture.isDone());
+
+        webSocketHandler.onWebSocketError(new RuntimeException("INTERNAL_SERVER_ERROR_500"));
+        assertTrue(pingFuture.isDone());
     }
 }

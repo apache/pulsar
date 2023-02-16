@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.KeyStoreParams;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.WithSNISslEngineFactory;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
@@ -72,6 +73,7 @@ public class HttpClient implements Closeable {
         this.serviceNameResolver.updateServiceUrl(conf.getServiceUrl());
 
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(conf.getMaxLookupRedirects());
         confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
@@ -94,13 +96,15 @@ public class HttpClient implements Closeable {
 
                 if (conf.isUseKeyStoreTls()) {
                     SSLContext sslCtx = null;
-                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() : null;
+                    KeyStoreParams params = authData.hasDataForTls() ? authData.getTlsKeyStoreParams() :
+                            new KeyStoreParams(conf.getTlsKeyStoreType(), conf.getTlsKeyStorePath(),
+                                    conf.getTlsKeyStorePassword());
 
                     sslCtx = KeyStoreSSLContext.createClientSslContext(
                             conf.getSslProvider(),
-                            params != null ? params.getKeyStoreType() : null,
-                            params != null ? params.getKeyStorePath() : null,
-                            params != null ? params.getKeyStorePassword() : null,
+                            params.getKeyStoreType(),
+                            params.getKeyStorePath(),
+                            params.getKeyStorePassword(),
                             conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
@@ -130,12 +134,21 @@ public class HttpClient implements Closeable {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
                                 conf.isTlsAllowInsecureConnection(),
-                                conf.getTlsTrustCertsFilePath(), conf.getTlsCiphers(), conf.getTlsProtocols());
+                                conf.getTlsTrustCertsFilePath(),
+                                conf.getTlsCertificateFilePath(),
+                                conf.getTlsKeyFilePath(),
+                                conf.getTlsCiphers(),
+                                conf.getTlsProtocols());
                     }
                     confBuilder.setSslContext(sslCtx);
+                    if (!conf.isTlsHostnameVerificationEnable()) {
+                        confBuilder.setSslEngineFactory(new WithSNISslEngineFactory(serviceNameResolver
+                                .resolveHostUri().getHost()));
+                    }
                 }
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
+                confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
             } catch (GeneralSecurityException e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             } catch (Exception e) {
@@ -151,6 +164,10 @@ public class HttpClient implements Closeable {
 
     String getServiceUrl() {
         return this.serviceNameResolver.getServiceUrl();
+    }
+
+    public InetSocketAddress resolveHost() {
+        return serviceNameResolver.resolveHost();
     }
 
     void setServiceUrl(String serviceUrl) throws PulsarClientException {
@@ -227,7 +244,7 @@ public class HttpClient implements Closeable {
                     }
 
                     try {
-                        T data = ObjectMapperFactory.getThreadLocal().readValue(
+                        T data = ObjectMapperFactory.getMapper().reader().readValue(
                                 response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {

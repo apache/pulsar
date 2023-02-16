@@ -69,7 +69,7 @@
         <Class name="org.apache.pulsar.client.impl.schema.BooleanSchema"/>
         <Bug pattern="NP_BOOLEAN_RETURN_NULL"/>
     </Match>
-    
+
     <Match>
         <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl"/>
         <Bug pattern="EI_EXPOSE_REP"/>
@@ -84,11 +84,16 @@
       <Class name="org.apache.pulsar.client.impl.schema.SchemaInfoImpl$SchemaInfoImplBuilder"/>
       <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
-    
+
 
     <Match>
         <Class name="~org.apache.pulsar.client.impl.ConsumerImpl.*"/>
         <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
+    </Match>
+
+    <Match>
+        <Class name="~org.apache.pulsar.client.impl.ConsumerImpl.*"/>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
     </Match>
 
     <Match>
@@ -114,5 +119,892 @@
     <Match>
         <Class name="org.apache.pulsar.client.impl.Hash"/>
         <Bug pattern="NM_SAME_SIMPLE_NAME_AS_INTERFACE"/>
+    </Match>
+
+    <!-- Allow existing EI_EXPOSE_REP and EI_EXPOSE_REP2 warnings -->
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AbstractBatchMessageContainer"/>
+        <Method name="setProducer"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.auth.AuthenticationDataKeyStoreTls"/>
+        <Method name="getTlsKeyStoreParams"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.auth.AuthenticationDataKeyStoreTls"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException"/>
+        <Method name="getError"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="getPulsarClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="getSecondary"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="getSecondaryAuthentications"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="getSecondaryTlsTrustCertsFilePaths"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="getSecondaryTlsTrustStorePasswords"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="getSecondaryTlsTrustStorePaths"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="initialize"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="setPulsarClient"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="setSecondaryTlsTrustStorePasswords"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover"/>
+        <Method name="setSecondaryTlsTrustStorePaths"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover$AutoClusterFailoverBuilderImpl"/>
+        <Method name="secondary"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover$AutoClusterFailoverBuilderImpl"/>
+        <Method name="secondaryAuthentication"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover$AutoClusterFailoverBuilderImpl"/>
+        <Method name="secondaryTlsTrustCertsFilePath"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover$AutoClusterFailoverBuilderImpl"/>
+        <Method name="secondaryTlsTrustStorePassword"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.AutoClusterFailover$AutoClusterFailoverBuilderImpl"/>
+        <Method name="secondaryTlsTrustStorePath"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.BatchMessageIdImpl"/>
+        <Method name="getAcker"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.BatchMessageIdImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.BinaryProtoLookupService"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ChunkMessageIdImpl"/>
+        <Method name="getFirstChunkMessageId"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ChunkMessageIdImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ClientBuilderImpl"/>
+        <Method name="getClientConfigurationData"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ClientBuilderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ClientCnx"/>
+        <Method name="getPendingRequests"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ClientCnxIdleState"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="getAuthParamMap"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="getTlsCiphers"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="getTlsProtocols"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="setAuthParamMap"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="setTlsCiphers"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ClientConfigurationData"/>
+        <Method name="setTlsProtocols"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="getDeadLetterPolicy"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="getMessageCrypto"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="getSubscriptionProperties"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="getTopicConfigurations"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="getTopicNames"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="setDeadLetterPolicy"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="setMessageCrypto"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="setSubscriptionProperties"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="setTopicConfigurations"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ConsumerConfigurationData"/>
+        <Method name="setTopicNames"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
+        <Method name="getPrivateKeys"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
+        <Method name="getPublicKeys"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
+        <Method name="setPrivateKeys"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData"/>
+        <Method name="setPublicKeys"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="getEncryptionKeys"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="getMessageCrypto"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="setEncryptionKeys"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ProducerConfigurationData"/>
+        <Method name="setMessageCrypto"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="getKeyHashRanges"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="getReaderInterceptorList"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="getTopicNames"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="setKeyHashRanges"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="setReaderInterceptorList"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="setTopicNames"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.conf.ReaderConfigurationData"/>
+        <Method name="clone"/>
+        <Bug pattern="MC_OVERRIDABLE_METHOD_CALL_IN_CLONE"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConnectionPool"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerBase"/>
+        <Method name="subscribeFuture"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerBuilderImpl"/>
+        <Method name="getClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerBuilderImpl"/>
+        <Method name="getConf"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerBuilderImpl"/>
+        <Method name="getInterceptorList"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerBuilderImpl"/>
+        <Method name="getSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
+        <Method name="getConnectionHandler"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
+        <Method name="getPossibleSendToDeadLetterTopicMessages"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
+        <Method name="getUnAckedMessageTracker"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerInterceptors"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerStatsRecorderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ControlledClusterFailover"/>
+        <Method name="initialize"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ControlledClusterFailover$ControlledClusterFailoverBuilderImpl"/>
+        <Method name="urlProviderHeader"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="getBrokerEntryMetadata"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="getCnx"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="getDataBuffer"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="getMessageBuilder"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="getProperties"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="getSchemaInternal"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessageImpl"/>
+        <Method name="setBrokerEntryMetadata"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MessagePayloadImpl"/>
+        <Method name="getByteBuf"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiMessageIdImpl"/>
+        <Method name="getMap"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiTopicConsumerStatsRecorderImpl"/>
+        <Method name="getPartitionStats"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiTopicsConsumerImpl"/>
+        <Method name="getUnAckedMessageTracker"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiTopicsReaderImpl"/>
+        <Method name="getMultiTopicsConsumer"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.NonPersistentAcknowledgmentGroupingTracker"/>
+        <Method name="of"/>
+        <Bug pattern="MS_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PartitionedProducerImpl"/>
+        <Method name="getPartitionsAutoUpdateFuture"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PartitionedTopicProducerStatsRecorderImpl"/>
+        <Method name="getPartitionStats"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PersistentAcknowledgmentsGroupingTracker"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBase"/>
+        <Method name="getConfiguration"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBase"/>
+        <Method name="producerCreatedFuture"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBuilderImpl"/>
+        <Method name="getClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBuilderImpl"/>
+        <Method name="getConf"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBuilderImpl"/>
+        <Method name="getInterceptorList"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBuilderImpl"/>
+        <Method name="getSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerBuilderImpl"/>
+        <Method name="schema"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerImpl"/>
+        <Method name="getConnectionHandler"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerInterceptors"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerStatsRecorderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ProducerStatsRecorderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PulsarClientImpl"/>
+        <Method name="getConfiguration"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PulsarClientImpl"/>
+        <Method name="getState"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PulsarClientImpl"/>
+        <Method name="getTcClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PulsarClientImpl$PulsarClientImplBuilder"/>
+        <Method name="conf"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ReaderBuilderImpl"/>
+        <Method name="getClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ReaderBuilderImpl"/>
+        <Method name="getConf"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ReaderBuilderImpl"/>
+        <Method name="getSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ReaderImpl"/>
+        <Method name="getConsumer"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ResetCursorData"/>
+        <Method name="getProperties"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ResetCursorData"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ResetCursorData"/>
+        <Method name="setProperties"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema"/>
+        <Method name="setSchema"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.AvroBaseStructSchema"/>
+        <Method name="getAvroSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord"/>
+        <Method name="getAvroRecord"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord"/>
+        <Method name="getNativeObject"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeRecord"/>
+        <Method name="getNativeObject"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeRecord"/>
+        <Method name="getProtobufRecord"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema"/>
+        <Method name="getProtobufNativeSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl"/>
+        <Method name="getFields"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvider"/>
+        <Method name="getPulsarClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl"/>
+        <Method name="getKeySchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl"/>
+        <Method name="getValueSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl"/>
+        <Method name="kvBytes"/>
+        <Bug pattern="MS_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema"/>
+        <Method name="setSchema"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.ProtobufNativeSchema$ProtoBufParsingInfo"/>
+        <Method name="getDefinition"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.ProtobufNativeSchema$ProtoBufParsingInfo"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.ProtobufSchema$ProtoBufParsingInfo"/>
+        <Method name="getDefinition"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.ProtobufSchema$ProtoBufParsingInfo"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionAvroBaseReader"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionReader"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.reader.AvroReader"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.reader.AvroReader"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.reader.AvroReader"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.reader.MultiVersionAvroReader"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl"/>
+        <Method name="withClassLoader"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl"/>
+        <Method name="withProperties"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl"/>
+        <Method name="withSchemaReader"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl"/>
+        <Method name="withSchemaWriter"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionImpl"/>
+        <Method name="getClassLoader"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.SchemaDefinitionImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.StructSchema"/>
+        <Method name="getAvroSchema"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.writer.AvroWriter"/>
+        <Method name="getEncoder"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.writer.JacksonJsonWriter"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.schema.writer.JsonWriter"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TopicListWatcher"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionImpl"/>
+        <Method name="getClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionImpl"/>
+        <Method name="getOpFuture"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionImpl"/>
+        <Method name="getRegisterPartitionMap"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionImpl"/>
+        <Method name="getRegisterSubscriptionMap"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.transaction.TransactionImpl"/>
+        <Method name="getTcClient"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TransactionMetaStoreHandler"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TypedMessageBuilderImpl"/>
+        <Method name="getContent"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TypedMessageBuilderImpl"/>
+        <Method name="getMetadataBuilder"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TypedMessageBuilderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TypedMessageBuilderImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.util.ExecutorProvider$ExtendedThreadFactory"/>
+        <Method name="getThread"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
 </FindBugsFilter>

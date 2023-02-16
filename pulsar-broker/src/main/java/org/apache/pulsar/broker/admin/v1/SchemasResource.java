@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,14 +38,20 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.SchemasResourceBase;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
+import org.apache.pulsar.common.protocol.schema.LongSchemaVersionResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.protocol.schema.PostSchemaResponse;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Path("/schemas")
 @Api(
@@ -53,6 +59,7 @@ import org.apache.pulsar.common.schema.LongSchemaVersion;
     description = "Schemas related admin APIs",
     tags = "schemas"
 )
+@Slf4j
 public class SchemasResource extends SchemasResourceBase {
 
     public SchemasResource() {
@@ -81,7 +88,16 @@ public class SchemasResource extends SchemasResourceBase {
         @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        getSchema(authoritative, response);
+        getSchemaAsync(authoritative)
+                .thenApply(this::convertToSchemaResponse)
+                .thenApply(response::resume)
+                .exceptionally(ex -> {
+                    if (shouldPrintErrorLog(ex)) {
+                        log.error("[{}] Failed to get schema for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -107,7 +123,17 @@ public class SchemasResource extends SchemasResourceBase {
         @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        getSchema(authoritative, version, response);
+        getSchemaAsync(authoritative, version)
+                .thenApply(this::convertToSchemaResponse)
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    if (shouldPrintErrorLog(ex)) {
+                        log.error("[{}] Failed to get schema for topic {} with version {}",
+                                clientAppId(), topicName, version, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -132,7 +158,16 @@ public class SchemasResource extends SchemasResourceBase {
             @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        getAllSchemas(authoritative, response);
+        getAllSchemasAsync(authoritative)
+                .thenApply(this::convertToAllVersionsSchemaResponse)
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    if (shouldPrintErrorLog(ex)) {
+                        log.error("[{}] Failed to get all schemas for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -157,7 +192,17 @@ public class SchemasResource extends SchemasResourceBase {
         @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        deleteSchema(authoritative, response, force);
+        deleteSchemaAsync(authoritative, force)
+                .thenAccept(version -> {
+                    response.resume(DeleteSchemaResponse.builder().version(getLongSchemaVersion(version)).build());
+                })
+                .exceptionally(ex -> {
+                    if (shouldPrintErrorLog(ex)) {
+                        log.error("[{}] Failed to delete schemas for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -195,7 +240,25 @@ public class SchemasResource extends SchemasResourceBase {
         @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        postSchema(payload, authoritative, response);
+        postSchemaAsync(payload, authoritative)
+                .thenAccept(version -> response.resume(PostSchemaResponse.builder().version(version).build()))
+                .exceptionally(ex -> {
+                    Throwable root = FutureUtil.unwrapCompletionException(ex);
+                    if (root instanceof IncompatibleSchemaException) {
+                        response.resume(Response
+                                .status(Response.Status.CONFLICT.getStatusCode(), root.getMessage())
+                                .build());
+                    } else if (root instanceof InvalidSchemaDataException) {
+                        response.resume(Response.status(422, /* Unprocessable Entity */
+                                root.getMessage()).build());
+                    } else {
+                        if (shouldPrintErrorLog(ex)) {
+                            log.error("[{}] Failed to post schemas for topic {}", clientAppId(), topicName, root);
+                        }
+                        resumeAsyncResponseExceptionally(response, ex);
+                    }
+                    return null;
+                });
     }
 
     @POST
@@ -232,7 +295,18 @@ public class SchemasResource extends SchemasResourceBase {
             @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        testCompatibility(payload, authoritative, response);
+        testCompatibilityAsync(payload, authoritative)
+                .thenAccept(pair -> response.resume(Response.accepted()
+                        .entity(IsCompatibilityResponse.builder().isCompatibility(pair.getLeft())
+                                .schemaCompatibilityStrategy(pair.getRight().name()).build())
+                        .build()))
+                .exceptionally(ex -> {
+                    if (shouldPrintErrorLog(ex)) {
+                        log.error("[{}] Failed to test compatibility for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -270,6 +344,14 @@ public class SchemasResource extends SchemasResourceBase {
             @Suspended final AsyncResponse response
     ) {
         validateTopicName(tenant, cluster, namespace, topic);
-        getVersionBySchema(payload, authoritative, response);
+        getVersionBySchemaAsync(payload, authoritative)
+                .thenAccept(version -> response.resume(LongSchemaVersionResponse.builder().version(version).build()))
+                .exceptionally(ex -> {
+                    if (shouldPrintErrorLog(ex)) {
+                        log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 }

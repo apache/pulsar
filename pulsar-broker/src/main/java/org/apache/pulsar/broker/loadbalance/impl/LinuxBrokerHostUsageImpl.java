@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUnit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.UsageUnit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForCGroup;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForEntireHost;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getPhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalCpuLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicUsage;
+import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getUsablePhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.isCGroupEnabled;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.List;
@@ -36,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BitRateUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
@@ -88,10 +88,10 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = getPhysicalNICs();
+        List<String> nics = getUsablePhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
-        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, UsageUnit.Kbps);
-        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, UsageUnit.Kbps);
+        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
+        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);
         double totalCpuLimit = getTotalCpuLimit(isCGroupsEnabled);
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
@@ -114,19 +114,21 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             usage.setBandwidthIn(new ResourceUsage(nicUsageRx, totalNicLimit));
             usage.setBandwidthOut(new ResourceUsage(nicUsageTx, totalNicLimit));
         }
+        usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
 
         lastTotalNicUsageTx = totalNicUsageTx;
         lastTotalNicUsageRx = totalNicUsageRx;
         lastCollection = System.currentTimeMillis();
         this.usage = usage;
-        usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
     }
 
-    private double getTotalNicLimitWithConfiguration(List<String> nics) {
+    @VisibleForTesting
+    double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
-        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1024 * 1024)
-                .orElseGet(() -> getTotalNicLimit(nics, NICUnit.Kbps));
+        return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
+                .map(speed -> speed * nics.size())
+                .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
 
     private double getTotalCpuUsage(double elapsedTimeSeconds) {

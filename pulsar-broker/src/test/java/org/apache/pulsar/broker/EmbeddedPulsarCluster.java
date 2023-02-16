@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.metadata.bookkeeper.BKCluster;
+import org.junit.platform.commons.util.StringUtils;
 
 
 public class EmbeddedPulsarCluster implements AutoCloseable {
@@ -52,11 +53,17 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
     private final PulsarAdmin admin;
 
     @Builder
-    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl) throws Exception {
+    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl,
+                                  String dataDir, boolean clearOldData) throws Exception {
         this.numBrokers = numBrokers;
         this.numBookies = numBookies;
         this.metadataStoreUrl = metadataStoreUrl;
-        this.bkCluster = new BKCluster(metadataStoreUrl, numBookies);
+        this.bkCluster = BKCluster.builder()
+                .metadataServiceUri(metadataStoreUrl)
+                .numBookies(numBookies)
+                .dataDir(StringUtils.isNotBlank(dataDir) ? dataDir : null)
+                .clearOldData(clearOldData)
+                .build();
 
         for (int i = 0; i < numBrokers; i++) {
             PulsarService s = new PulsarService(getConf());
@@ -71,7 +78,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
                 .serviceHttpUrl(adminUrl)
                 .build();
 
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(serviceUrl).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().brokerServiceUrl(serviceUrl).build());
         admin.tenants().createTenant("public",
                 TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER_NAME)).build());
         admin.namespaces().createNamespace("public/default", Collections.singleton(CLUSTER_NAME));
@@ -100,6 +107,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setDefaultNumberOfNamespaceBundles(1);
         conf.setMetadataStoreUrl(metadataStoreUrl);
         conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf.setBrokerServicePort(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         conf.setNumExecutorThreadPoolSize(1);

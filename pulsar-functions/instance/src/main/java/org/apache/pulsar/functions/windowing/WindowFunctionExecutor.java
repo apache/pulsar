@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -203,9 +203,6 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
         return new WindowLifecycleListener<Event<Record<T>>>() {
             @Override
             public void onExpiry(List<Event<Record<T>>> events) {
-                for (Event<Record<T>> event : events) {
-                    event.getRecord().ack();
-                }
             }
 
             @Override
@@ -234,7 +231,13 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             throw new RuntimeException(e);
         }
         if (output != null) {
-            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType());
+            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType()).thenAccept(__ -> {
+                if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                    for (Record<T> record : tuples) {
+                        record.ack();
+                    }
+                }
+            });
         }
     }
 
@@ -275,7 +278,13 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             initialize(context);
         }
 
+        // record must be PulsarFunctionRecord.
         Record<T> record = (Record<T>) context.getCurrentRecord();
+
+        // windows function processing semantics requires separate processing
+        if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATMOST_ONCE) {
+            record.ack();
+        }
 
         if (isEventTime()) {
             long ts = this.timestampExtractor.extractTimestamp(record.getValue());
@@ -289,7 +298,6 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
                             "Received a late tuple %s with ts %d. This will not be " + "processed"
                                     + ".", input, ts));
                 }
-                record.ack();
             }
         } else {
             this.windowManager.add(record, System.currentTimeMillis(), record);

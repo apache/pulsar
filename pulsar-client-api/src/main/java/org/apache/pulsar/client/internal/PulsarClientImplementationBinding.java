@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -131,8 +131,6 @@ public interface PulsarClientImplementationBinding {
 
     Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema();
 
-    <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema);
-
     <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                            KeyValueEncodingType keyValueEncodingType);
 
@@ -252,5 +250,6 @@ public interface PulsarClientImplementationBinding {
         return array;
     }
 
-    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue);
+    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                 Map<String, String> propertiesValue);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -153,6 +153,7 @@ public interface Reader<T> extends Closeable {
      * the seek() on the individual partitions.
      *
      * @param timestamp the message publish time where to reposition the reader
+     *                  The timestamp format should be Unix time in milliseconds.
      */
     void seek(long timestamp) throws PulsarClientException;
 
@@ -212,6 +213,7 @@ public interface Reader<T> extends Closeable {
      *
      * @param timestamp
      *            the message publish time where to position the reader
+     *            The timestamp format should be Unix time in milliseconds.
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);

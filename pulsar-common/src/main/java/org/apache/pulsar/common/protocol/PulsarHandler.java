@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,13 +31,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
  */
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;
     private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
-    private volatile boolean waitingForPingResponse = false;
+    private boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
 
     public int getRemoteEndpointProtocolVersion() {
@@ -83,7 +86,14 @@ public abstract class PulsarHandler extends PulsarDecoder {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Replying back to ping message", ctx.channel());
         }
-        ctx.writeAndFlush(Commands.newPong());
+        ctx.writeAndFlush(Commands.newPong())
+                .addListener(future -> {
+                    if (!future.isSuccess()) {
+                        log.warn("[{}] Forcing connection to close since cannot send a pong message.",
+                                ctx.channel(), future.cause());
+                        ctx.close();
+                    }
+                });
     }
 
     @Override
@@ -110,7 +120,14 @@ public abstract class PulsarHandler extends PulsarDecoder {
                 log.debug("[{}] Sending ping message", ctx.channel());
             }
             waitingForPingResponse = true;
-            ctx.writeAndFlush(Commands.newPing());
+            ctx.writeAndFlush(Commands.newPing())
+                    .addListener(future -> {
+                        if (!future.isSuccess()) {
+                            log.warn("[{}] Forcing connection to close since cannot send a ping message.",
+                                    ctx.channel(), future.cause());
+                            ctx.close();
+                        }
+                    });
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Peer doesn't support keep-alive", ctx.channel());

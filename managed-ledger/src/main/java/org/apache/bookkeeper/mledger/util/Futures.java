@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.util;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 
@@ -67,5 +68,30 @@ public class Futures {
         }
 
         return compositeFuture;
+    }
+
+    public static <T> CompletableFuture<T> executeWithRetry(Supplier<CompletableFuture<T>> op,
+                                                            Class<? extends Exception> needRetryExceptionClass,
+                                                            int maxRetryTimes) {
+        CompletableFuture<T> resultFuture = new CompletableFuture<>();
+        op.get().whenComplete((res, ex) -> {
+            if (ex == null) {
+                resultFuture.complete(res);
+            } else {
+                if (needRetryExceptionClass.isAssignableFrom(ex.getClass()) && maxRetryTimes > 0) {
+                    executeWithRetry(op, needRetryExceptionClass, maxRetryTimes - 1).whenComplete((res2, ex2) -> {
+                        if (ex2 == null) {
+                            resultFuture.complete(res2);
+                        } else {
+                            resultFuture.completeExceptionally(ex2);
+                        }
+                    });
+                    return;
+                }
+                resultFuture.completeExceptionally(ex);
+            }
+        });
+
+        return resultFuture;
     }
 }

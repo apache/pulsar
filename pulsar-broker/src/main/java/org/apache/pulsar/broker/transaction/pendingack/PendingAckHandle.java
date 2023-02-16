@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
@@ -143,14 +144,14 @@ public interface PendingAckHandle {
      *
      * @return the stats of this pending ack handle.
      */
-    TransactionPendingAckStats getStats();
+    TransactionPendingAckStats getStats(boolean lowWaterMarks);
 
     /**
      * Close the pending ack handle.
      *
      * @return the future of this operation.
      */
-    CompletableFuture<Void> close();
+    CompletableFuture<Void> closeAsync();
 
     /**
      * Check if the PendingAckStore is init.
@@ -168,4 +169,12 @@ public interface PendingAckHandle {
      * @return {@link Position} return the position in pendingAck
      */
     PositionImpl getPositionInPendingAck(PositionImpl position);
+
+    /**
+     * Get the stats of this message position is in pending ack.
+     * @param position message position.
+     * @param batchIndex the batch index of ths position.
+     * @return the stats of the message position.
+     */
+    PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex);
 }

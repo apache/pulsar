@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import com.google.common.base.Preconditions;
+import java.util.Map;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -26,18 +28,14 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.junit.Assert;
-import org.testcontainers.shaded.com.google.common.base.Preconditions;
+import org.testng.Assert;
 import org.testng.util.Strings;
-
-import java.io.Closeable;
-import java.util.Map;
 
 /**
  * A tester for testing Debezium Microsoft SQl Server source.
  */
 @Slf4j
-public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContainer> implements Closeable {
+public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContainer> {
 
     private static final String NAME = "debezium-mssql";
 
@@ -158,7 +156,10 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            PulsarCluster.stopService(DebeziumMsSqlContainer.NAME, debeziumMsSqlContainer);
+            if (debeziumMsSqlContainer != null) {
+                PulsarCluster.stopService(DebeziumMsSqlContainer.NAME, debeziumMsSqlContainer);
+                debeziumMsSqlContainer = null;
+            }
         }
     }
 

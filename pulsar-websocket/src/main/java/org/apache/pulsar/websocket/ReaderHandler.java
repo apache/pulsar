@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,7 +39,6 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerCommand;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.apache.pulsar.websocket.data.EndOfTopicResponse;
@@ -102,15 +101,16 @@ public class ReaderHandler extends AbstractWebSocketHandler {
                     log.warn("Failed to configure cryptoFailureAction {}, {}", action, e.getMessage());
                 }
             }
+            if (service.getCryptoKeyReader().isPresent()) {
+                builder.cryptoKeyReader(service.getCryptoKeyReader().get());
+            }
 
             this.reader = builder.create();
-            if (reader instanceof MultiTopicsReaderImpl) {
-                this.subscription = ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer().getSubscription();
-            } else if (reader instanceof ReaderImpl) {
-                this.subscription = ((ReaderImpl<?>) reader).getConsumer().getSubscription();
-            } else {
+            Consumer<?> consumer = getConsumer();
+            if (consumer == null) {
                 throw new IllegalArgumentException(String.format("Illegal Reader Type %s", reader.getClass()));
             }
+            this.subscription = consumer.getSubscription();
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -156,7 +156,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
             try {
                 getSession().getRemote()
-                        .sendString(ObjectMapperFactory.getThreadLocal().writeValueAsString(dm), new WriteCallback() {
+                        .sendString(objectWriter().writeValueAsString(dm),
+                                new WriteCallback() {
                             @Override
                             public void writeFailed(Throwable th) {
                                 log.warn("[{}/{}] Failed to deliver msg to {} {}", reader.getTopic(), subscription,
@@ -206,7 +207,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         super.onWebSocketText(message);
 
         try {
-            ConsumerCommand command = ObjectMapperFactory.getThreadLocal().readValue(message, ConsumerCommand.class);
+            ConsumerCommand command = consumerCommandReader.readValue(message);
             if ("isEndOfTopic".equals(command.type)) {
                 handleEndOfTopic();
                 return;
@@ -229,7 +230,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     // Check and notify reader if reached end of topic.
     private void handleEndOfTopic() {
         try {
-            String msg = ObjectMapperFactory.getThreadLocal().writeValueAsString(
+            String msg = objectWriter().writeValueAsString(
                     new EndOfTopicResponse(reader.hasReachedEndOfTopic()));
             getSession().getRemote()
                     .sendString(msg, new WriteCallback() {
@@ -272,7 +273,13 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     public Consumer<?> getConsumer() {
-        return reader != null ? ((ReaderImpl<?>) reader).getConsumer() : null;
+        if (reader instanceof MultiTopicsReaderImpl) {
+            return ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+        } else if (reader instanceof ReaderImpl) {
+            return ((ReaderImpl<?>) reader).getConsumer();
+        } else {
+            return null;
+        }
     }
 
     public String getSubscription() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.functions.worker.service.api;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.List;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData;
@@ -160,4 +163,9 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                                          String clientRole,
                                                          AuthenticationDataSource clientAuthenticationDataHttps);
 
+    void reloadBuiltinFunctions(String clientRole, AuthenticationDataSource clientAuthenticationDataHttps)
+        throws IOException;
+
+    List<FunctionDefinition> getBuiltinFunctions(String clientRole,
+                                                 AuthenticationDataSource clientAuthenticationDataHttps);
 }

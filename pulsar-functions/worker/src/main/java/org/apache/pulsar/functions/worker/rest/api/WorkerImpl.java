@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 import java.io.IOException;
 import java.net.URI;
@@ -27,6 +26,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Supplier;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -61,7 +61,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
     private PulsarWorkerService worker() {
         try {
-            return checkNotNull(workerServiceSupplier.get());
+            return Objects.requireNonNull(workerServiceSupplier.get());
         } catch (Throwable t) {
             log.info("Failed to get worker service", t);
             throw t;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,9 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -43,7 +41,6 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     @Test
@@ -57,7 +54,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
                 .create();
          assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
 
-         mockBookKeeper.addEntryDelay(1, TimeUnit.SECONDS);
+        pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
 
         // Make sure the producer can publish successfully
         byte[] payload = new byte[1024 * 1024];
@@ -83,7 +80,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
 
-        mockBookKeeper.addEntryDelay(1, TimeUnit.SECONDS);
+        pulsarTestContext.getMockBookKeeper().addEntryDelay(1, TimeUnit.SECONDS);
 
         byte[] payload = new byte[1024 * 1024];
         for (int i = 0; i < 10; i++) {
@@ -116,7 +113,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         Assert.assertNotNull(topicRef);
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
 
-        mockBookKeeper.addEntryDelay(5, TimeUnit.SECONDS);
+        pulsarTestContext.getMockBookKeeper().addEntryDelay(5, TimeUnit.SECONDS);
 
         // Block by publish buffer.
         byte[] payload = new byte[1024 * 1024];

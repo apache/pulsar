@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,14 +94,11 @@ public class DefaultMessageFormatter implements IMessageFormatter {
     }
 
     private String getIntValue(float size) {
-        int i = 0;
-        if (size != 0) {
-            i = (int) get_FloatValue(size);
+        if (size == 0) {
+            return String.valueOf(r.nextInt());
         }
-        if (i == 0) {
-            i = r.nextInt() + 1;
-        }
-        return String.valueOf(i);
+
+        return String.valueOf((int) get_FloatValue(size));
     }
     private String getLongValue(float size) {
         if (size == 0) {

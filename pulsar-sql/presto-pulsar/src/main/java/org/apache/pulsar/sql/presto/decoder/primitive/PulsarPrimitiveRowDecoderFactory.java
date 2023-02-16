@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,21 +19,21 @@
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
 import io.airlift.log.Logger;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DateType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.SmallintType;
-import io.prestosql.spi.type.TimeType;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.TinyintType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -104,9 +104,9 @@ public class PulsarPrimitiveRowDecoderFactory implements PulsarRowDecoderFactory
             case DATE:
                 return DateType.DATE;
             case TIME:
-                return TimeType.TIME;
+                return TimeType.TIME_MILLIS;
             case TIMESTAMP:
-                return TimestampType.TIMESTAMP;
+                return TimestampType.TIMESTAMP_MILLIS;
             default:
                 log.error("Can't convert type: %s for %s", pulsarType, fieldName);
                 return null;

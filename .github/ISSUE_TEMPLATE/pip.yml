@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: PIP
+title: "PIP-XYZ: "
+description: Submit a Pulsar Improvement Proposal (PIP)
+labels: [ "PIP" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you very much for submitting a Pulsar Improvement Proposal (PIP)! Here are instructions for creating a PIP using this issue template.
+
+        Please send a note to the dev@pulsar.apache.org mailing list to start the discussion, using subject prefix `[DISCUSS] PIP-XYZ`. To determine the appropriate PIP number XYZ, inspect the [mailing list](https://lists.apache.org/list.html?dev@pulsar.apache.org) for the most recent PIP. Add 1 to that PIP's number to get your PIP's number.
+
+        Based on the discussion and feedback, some changes might be applied by the author(s) to the text of the proposal.
+
+        Once some consensus is reached, there will be a vote to formally approve the proposal. The vote will be held on the dev@pulsar.apache.org mailing list. Everyone is welcome to vote on the proposal, though it will considered to be binding only the vote of PMC members. It will be required to have a lazy majority of at least 3 binding +1s votes. The vote should stay open for at least 48 hours.
+
+        When the vote is closed, if the outcome is positive, the state of the proposal is updated and the Pull Requests associated with this proposal can start to get merged into the master branch.
+  - type: textarea
+    attributes:
+      label: Motivation
+      description: |
+        Explain why this change is needed, what benefits it would bring to Apache Pulsar and what problem it's trying to solve.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Goal
+      description: |
+        Define the scope of this proposal. Given the motivation stated above, what are the problems that this proposal is addressing and what other items will be considering out of scope, perhaps to be left to a different PIP.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: API Changes
+      description: |
+        Illustrate all the proposed changes to the API or wire protocol, with examples of all the newly added classes/methods, including Javadoc.
+  - type: textarea
+    attributes:
+      label: Implementation
+      description: |
+        This should be a detailed description of all the changes that are expected to be made. It should be detailed enough that any developer that is familiar with Pulsar internals would be able to understand all the parts of the code changes for this proposal.
+
+        This should also serve as documentation for any person that is trying to understand or debug the behavior of a certain feature.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives
+      description: |
+        If there are alternatives that were already considered by the authors or, after the discussion, by the community, and were rejected, please list them here along with the reason why they were rejected.
+  - type: textarea
+    attributes:
+      label: Anything else?
+  - type: markdown
+    attributes:
+      value: "Thanks for completing our form!"

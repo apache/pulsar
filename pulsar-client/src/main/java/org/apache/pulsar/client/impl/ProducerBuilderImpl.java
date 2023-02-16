@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -351,10 +351,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         } else if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
             messageRoutingMode(MessageRoutingMode.CustomPartition);
-        } else if ((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() == null)
-                || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() != null)) {
+        } else if (conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() == null) {
+            throw new PulsarClientException("When 'messageRoutingMode' is " + MessageRoutingMode.CustomPartition
+                + ", 'messageRouter' should be set");
+        } else if (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() != null) {
             throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
                     + "should be set as " + MessageRoutingMode.CustomPartition);
         }

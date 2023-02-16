@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -57,24 +56,8 @@ public class LookupImpl extends BaseResource implements Lookup {
         String prefix = topicName.isV2() ? "/topic" : "/destination";
         WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName());
 
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<LookupData>() {
-                    @Override
-                    public void completed(LookupData lookupData) {
-                        if (useTls) {
-                            future.complete(lookupData.getBrokerUrlTls());
-                        } else {
-                            future.complete(lookupData.getBrokerUrl());
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<LookupData>() {})
+                .thenApply(lookupData -> useTls ? lookupData.getBrokerUrlTls() : lookupData.getBrokerUrl());
     }
 
     @Override
@@ -134,20 +117,7 @@ public class LookupImpl extends BaseResource implements Lookup {
         TopicName topicName = TopicName.get(topic);
         String prefix = topicName.isV2() ? "/topic" : "/destination";
         WebTarget path = v2lookup.path(prefix).path(topicName.getLookupName()).path("bundle");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String bundleRange) {
-                        future.complete(bundleRange);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,8 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
-import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Enumeration;
 import org.apache.bookkeeper.stats.Counter;
 
 /**
@@ -139,32 +134,5 @@ public class PrometheusTextFormatUtil {
         w.append(name).append("_sum{cluster=\"").append(cluster).append("\", success=\"")
                 .append(success.toString()).append("\"} ")
                 .append(Double.toString(opStat.getSum(success))).append('\n');
-    }
-
-    public static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry)
-            throws IOException {
-        Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
-        while (metricFamilySamples.hasMoreElements()) {
-            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
-
-            for (int i = 0; i < metricFamily.samples.size(); i++) {
-                Sample sample = metricFamily.samples.get(i);
-                w.write(sample.name);
-                w.write('{');
-                for (int j = 0; j < sample.labelNames.size(); j++) {
-                    if (j != 0) {
-                        w.write(", ");
-                    }
-                    w.write(sample.labelNames.get(j));
-                    w.write("=\"");
-                    w.write(sample.labelValues.get(j));
-                    w.write('"');
-                }
-
-                w.write("} ");
-                w.write(Collector.doubleToGoString(sample.value));
-                w.write('\n');
-            }
-        }
     }
 }

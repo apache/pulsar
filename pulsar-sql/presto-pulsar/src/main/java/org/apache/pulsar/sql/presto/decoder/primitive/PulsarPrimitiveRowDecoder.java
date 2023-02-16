@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,28 @@
  */
 package org.apache.pulsar.sql.presto.decoder.primitive;
 
-import static io.prestosql.decoder.FieldValueProviders.booleanValueProvider;
-import static io.prestosql.decoder.FieldValueProviders.bytesValueProvider;
-import static io.prestosql.decoder.FieldValueProviders.longValueProvider;
+import static io.trino.decoder.FieldValueProviders.booleanValueProvider;
+import static io.trino.decoder.FieldValueProviders.bytesValueProvider;
+import static io.trino.decoder.FieldValueProviders.longValueProvider;
 import static org.apache.pulsar.sql.presto.PulsarFieldValueProviders.doubleValueProvider;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.decoder.FieldValueProviders;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DateType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.SmallintType;
-import io.prestosql.spi.type.TimeType;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.TinyintType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.decoder.FieldValueProviders;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.SmallintType;
+import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Timestamps;
+import io.trino.spi.type.TinyintType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
@@ -89,9 +90,13 @@ public class PulsarPrimitiveRowDecoder implements PulsarRowDecoder {
             } else if (type instanceof DateType) {
                 primitiveColumn.put(columnHandle, longValueProvider(((Date) value).getTime()));
             } else if (type instanceof TimeType) {
-                primitiveColumn.put(columnHandle, longValueProvider(((Time) value).getTime()));
+                final long millis = ((Time) value).getTime();
+                final long picos = millis * Timestamps.PICOSECONDS_PER_MILLISECOND;
+                primitiveColumn.put(columnHandle, longValueProvider(picos));
             } else if (type instanceof TimestampType) {
-                primitiveColumn.put(columnHandle, longValueProvider(((Timestamp) value).getTime()));
+                final long millis = ((Timestamp) value).getTime();
+                final long micros = millis * Timestamps.MICROSECONDS_PER_MILLISECOND;
+                primitiveColumn.put(columnHandle, longValueProvider(micros));
             } else {
                 primitiveColumn.put(columnHandle, bytesValueProvider(value.toString().getBytes()));
             }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,7 +62,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder(toBuilder = true)
+    @Builder()
     public static class RuntimeOpts {
         private String jobNamespace;
         private String jobName;
@@ -71,6 +71,21 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         private Map<String, String> nodeSelectorLabels;
         private V1ResourceRequirements resourceRequirements;
         private List<V1Toleration> tolerations;
+
+        /**
+         * A clone where the maps and lists are properly cloned. The k8s resources themselves are shallow clones.
+         */
+        public RuntimeOpts partialDeepClone() {
+            return new RuntimeOpts(
+                    jobNamespace,
+                    jobName,
+                    extraLabels != null ? new HashMap<>(extraLabels) : null,
+                    extraAnnotations != null ? new HashMap<>(extraAnnotations) : null,
+                    nodeSelectorLabels != null ? new HashMap<>(nodeSelectorLabels) : null,
+                    resourceRequirements,
+                    tolerations != null ? new ArrayList<>(tolerations) : null
+            );
+        }
     }
 
     @Getter
@@ -79,9 +94,10 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     @Override
     public void initialize(Map<String, Object> config) {
         if (config != null) {
-            RuntimeOpts opts = ObjectMapperFactory.getThreadLocal().convertValue(config, RuntimeOpts.class);
+            RuntimeOpts opts =
+                    ObjectMapperFactory.getMapper().getObjectMapper().convertValue(config, RuntimeOpts.class);
             if (opts != null) {
-                runtimeOpts = opts.toBuilder().build();
+                runtimeOpts = opts;
             }
         } else {
             log.warn("initialize with null config");
@@ -175,7 +191,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     public static RuntimeOpts mergeRuntimeOpts(RuntimeOpts oriOpts, RuntimeOpts newOpts) {
-        RuntimeOpts mergedOpts = oriOpts.toBuilder().build();
+        RuntimeOpts mergedOpts = oriOpts.partialDeepClone();
         if (mergedOpts.getExtraLabels() == null) {
             mergedOpts.setExtraLabels(new HashMap<>());
         }

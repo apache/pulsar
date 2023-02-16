@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-
-import com.google.common.collect.Sets;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.fail;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -41,7 +42,6 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         admin.clusters()
                 .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -51,6 +51,18 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testCreateClusterBadRequest() {
+        try {
+            admin.clusters()
+                    .createCluster("bad_request", ClusterData.builder()
+                            .serviceUrl("pulsar://example.com").build());
+            fail("Unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            assertEquals(ex.getStatusCode(), 400);
+        }
     }
 
     @Test
@@ -88,7 +100,7 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void testDeleteExistFailureDomain() throws PulsarAdminException {
         String domainName = CLUSTER + "-failure-domain";
         FailureDomain domain = FailureDomain.builder()
-                .brokers(Sets.newHashSet("b1", "b2", "b3"))
+                .brokers(Set.of("b1", "b2", "b3"))
                 .build();
         admin.clusters().createFailureDomain(CLUSTER, domainName, domain);
         Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));

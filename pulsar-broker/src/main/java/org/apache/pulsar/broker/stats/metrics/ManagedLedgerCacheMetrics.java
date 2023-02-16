@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -34,7 +34,7 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
     private List<Metrics> metrics;
     public ManagedLedgerCacheMetrics(PulsarService pulsar) {
         super(pulsar);
-        this.metrics = Lists.newArrayList();
+        this.metrics = new ArrayList<>();
     }
 
     @Override
@@ -48,13 +48,16 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
 
         m.put("brk_ml_count", mlCacheStats.getNumberOfManagedLedgers());
         m.put("brk_ml_cache_used_size", mlCacheStats.getCacheUsedSize());
+        m.put("brk_ml_cache_inserted_entries_total", mlCacheStats.getCacheInsertedEntriesCount());
+        m.put("brk_ml_cache_evicted_entries_total", mlCacheStats.getCacheEvictedEntriesCount());
+        m.put("brk_ml_cache_entries", mlCacheStats.getCacheEntriesCount());
         m.put("brk_ml_cache_evictions", mlCacheStats.getNumberOfCacheEvictions());
         m.put("brk_ml_cache_hits_rate", mlCacheStats.getCacheHitsRate());
         m.put("brk_ml_cache_misses_rate", mlCacheStats.getCacheMissesRate());
         m.put("brk_ml_cache_hits_throughput", mlCacheStats.getCacheHitsThroughput());
         m.put("brk_ml_cache_misses_throughput", mlCacheStats.getCacheMissesThroughput());
 
-        PooledByteBufAllocator allocator = EntryCacheImpl.ALLOCATOR;
+        PooledByteBufAllocator allocator = RangeEntryCacheImpl.ALLOCATOR;
         long activeAllocations = 0;
         long activeAllocationsSmall = 0;
         long activeAllocationsNormal = 0;

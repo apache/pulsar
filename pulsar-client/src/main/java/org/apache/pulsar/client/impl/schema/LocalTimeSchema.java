@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,10 +32,10 @@ public class LocalTimeSchema extends AbstractSchema<LocalTime> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("LocalTime")
-             .setType(SchemaType.LOCAL_TIME)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("LocalTime")
+             .type(SchemaType.LOCAL_TIME)
+             .schema(new byte[0]).build();
        INSTANCE = new LocalTimeSchema();
    }
 

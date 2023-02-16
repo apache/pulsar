@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,12 @@ package org.apache.pulsar.testclient;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -31,6 +34,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -162,6 +167,27 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
+    public void testBatchingDisabled() throws Exception {
+        PerformanceProducer.Arguments arguments = new PerformanceProducer.Arguments();
+        
+        int producerId = 0;
+        
+        String topic = testTopic + UUID.randomUUID();
+        arguments.topics = List.of(topic);
+        arguments.msgRate = 10;
+        arguments.serviceURL = pulsar.getBrokerServiceUrl();
+        arguments.numMessages = 500;
+        arguments.disableBatching = true;
+
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .enableTransaction(arguments.isEnableTransaction);
+        PulsarClient client = clientBuilder.build();
+        
+        ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) PerformanceProducer.createProducerBuilder(client, arguments, producerId);
+        Assert.assertFalse(builder.getConf().isBatchingEnabled());
+    }
+
+    @Test(timeOut = 20000)
     public void testCreatePartitions() throws Exception {
         String argString = "%s -r 10 -u %s -au %s -m 5 -np 10";
         String topic = testTopic + UUID.randomUUID().toString();
@@ -190,4 +216,25 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
     }
 
+    @Test
+    public void testMaxOutstanding() throws Exception {
+        String argString = "%s -r 10 -u %s -au %s -m 5 -o 10000";
+        String topic = testTopic + UUID.randomUUID().toString();
+        String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        new Thread(() -> {
+            try {
+                PerformanceProducer.main(args.split(" "));
+            } catch (Exception e) {
+                log.error("Failed to start perf producer");
+            }
+        }).start();
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
+                    assertNotNull(message);
+                });
+        consumer.close();
+    }
 }

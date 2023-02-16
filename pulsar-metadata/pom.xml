@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -99,10 +99,33 @@
       <artifactId>caffeine</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient</artifactId>
+    </dependency>
+
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.gaul</groupId>
+        <artifactId>modernizer-maven-plugin</artifactId>
+        <configuration>
+          <failOnViolations>true</failOnViolations>
+          <javaVersion>17</javaVersion>
+        </configuration>
+        <executions>
+          <execution>
+            <id>modernizer</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>modernizer</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -133,6 +156,7 @@
         <version>${spotbugs-maven-plugin.version}</version>
         <configuration>
           <excludeFilterFile>${basedir}/src/test/resources/findbugsExclude.xml</excludeFilterFile>
+          <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
         </configuration>
         <executions>
           <execution>
@@ -140,23 +164,6 @@
             <phase>verify</phase>
             <goals>
               <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.gaul</groupId>
-        <artifactId>modernizer-maven-plugin</artifactId>
-        <configuration>
-          <failOnViolations>true</failOnViolations>
-          <javaVersion>8</javaVersion>
-        </configuration>
-        <executions>
-          <execution>
-            <id>modernizer</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>modernizer</goal>
             </goals>
           </execution>
         </executions>

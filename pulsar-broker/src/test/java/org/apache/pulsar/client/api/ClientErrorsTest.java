@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -240,13 +240,58 @@ public class ClientErrorsTest {
         });
 
         // Create producer should succeed then upon closure, it should reattempt creation. The first request will
-        // timeout, which triggers CloseProducer. The client might send send the third Producer command before the
+        // time out, which triggers CloseProducer. The client might send the third Producer command before the
         // below assertion, so we pass with 2 or 3.
         client.newProducer().topic(topic).create();
         Awaitility.await().until(() -> closeProducerCounter.get() == 1);
         Awaitility.await().until(() -> producerCounter.get() == 2 || producerCounter.get() == 3);
         mockBrokerService.resetHandleProducer();
         mockBrokerService.resetHandleCloseProducer();
+    }
+
+    @Test
+    public void testCreatedConsumerSendsCloseConsumerAfterTimeout() throws Exception {
+        consumerCreatedThenFailsRetryTimeout("persistent://prop/use/ns/t1");
+    }
+
+    @Test
+    public void testCreatedPartitionedConsumerSendsCloseConsumerAfterTimeout() throws Exception {
+        consumerCreatedThenFailsRetryTimeout("persistent://prop/use/ns/part-t1");
+    }
+
+    private void consumerCreatedThenFailsRetryTimeout(String topic) throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress())
+                .operationTimeout(1, TimeUnit.SECONDS).build();
+        final AtomicInteger subscribeCounter = new AtomicInteger(0);
+        final AtomicInteger closeConsumerCounter = new AtomicInteger(0);
+
+        mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
+            int subscribeCount = subscribeCounter.incrementAndGet();
+            if (subscribeCount == 1) {
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+                // Trigger reconnect
+                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1));
+            } else if (subscribeCount != 2) {
+                // Respond to subsequent requests to prevent timeouts
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+            }
+            // Don't respond to the second Subscribe command to ensure timeout
+        });
+
+        mockBrokerService.setHandleCloseConsumer((ctx, closeConsumer) -> {
+            closeConsumerCounter.incrementAndGet();
+            ctx.writeAndFlush(Commands.newSuccess(closeConsumer.getRequestId()));
+        });
+
+        // Create consumer (subscribe) should succeed then upon closure, it should reattempt creation. The first
+        // request will time out, which triggers CloseConsumer. The client might send the third Subscribe command before
+        // the below assertion, so we pass with 2 or 3.
+        client.newConsumer().topic(topic).subscriptionName("test").subscribe();
+        Awaitility.await().until(() -> closeConsumerCounter.get() == 1);
+        Awaitility.await().until(() -> subscribeCounter.get() == 2 || subscribeCounter.get() == 3);
+        mockBrokerService.resetHandleSubscribe();
+        mockBrokerService.resetHandleCloseConsumer();
     }
 
     @Test
@@ -719,7 +764,7 @@ public class ClientErrorsTest {
         AtomicBoolean msgSent = new AtomicBoolean();
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
@@ -759,7 +804,7 @@ public class ClientErrorsTest {
         CountDownLatch latch = new CountDownLatch(1);
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();

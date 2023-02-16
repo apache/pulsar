@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -36,9 +35,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
@@ -47,6 +48,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
@@ -74,6 +76,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     @Category
     private static final String CATEGORY_SECURITY = "Common Security Settings (applied for both worker and client)";
     @Category
+    private static final String CATEGORY_KEYSTORE_TLS = "KeyStoreTLS";
+    @Category
     private static final String CATEGORY_WORKER_SECURITY = "Worker Security Settings";
     @Category
     private static final String CATEGORY_CLIENT_SECURITY = "Security settings for clients talking to brokers";
@@ -96,7 +100,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String workerHostname;
     @FieldContext(
         category = CATEGORY_WORKER,
-        doc = "The port for serving worker http requests"
+        doc = "The port for serving worker http requests. Set to null to disable serving on the http port."
     )
     private Integer workerPort;
     @FieldContext(
@@ -163,7 +167,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             category = CATEGORY_WORKER,
             required = false,
             deprecated = true,
-            doc = "Configuration store connection string (as a comma-separated list)"
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;
@@ -192,6 +197,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            doc = "Is metadata store read-only operations."
+    )
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @Deprecated
     @FieldContext(
             category = CATEGORY_WORKER,
@@ -219,6 +230,14 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int zooKeeperCacheExpirySeconds = -1;
 
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_WORKER,
+            deprecated = true,
+            doc = "Is zooKeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
+
     @FieldContext(
         category = CATEGORY_CONNECTORS,
         doc = "The path to the location to locate builtin connectors"
@@ -236,7 +255,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Boolean validateConnectorConfig = false;
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
-        doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+        doc = "Should the builtin sources/sinks/functions be uploaded for the externally managed runtimes?"
     )
     private Boolean uploadBuiltinSinksSources = true;
     @FieldContext(
@@ -289,6 +308,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The number of replicas for storing functions"
     )
     private int numFunctionPackageReplicas;
+    @FieldContext(
+            category = CATEGORY_FUNC_PKG,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean  functionsWorkerEnablePackageManagement = false;
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The directory to download functions by runtime manager"
@@ -445,6 +469,74 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             doc = "Tls cert refresh duration in seconds (set 0 to check on every new connection)"
         )
         private long tlsCertRefreshCheckDurationSec = 300;
+
+    /**** --- KeyStore TLS config variables. --- ****/
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Enable TLS with KeyStore type configuration in function worker"
+    )
+    private boolean tlsEnabledWithKeyStore = false;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Specify the TLS provider for the function worker service: \n"
+                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+    )
+    private String tlsProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration in function worker: JKS, PKCS12"
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path in function worker"
+    )
+    private String tlsKeyStore = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for function worker"
+    )
+    @ToString.Exclude
+    private String tlsKeyStorePassword = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore type configuration in function worker: JKS, PKCS12"
+    )
+    private String tlsTrustStoreType = "JKS";
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore path in function worker"
+    )
+    private String tlsTrustStore = null;
+
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS TrustStore password for function worker, null means empty password."
+    )
+    @ToString.Exclude
+    private String tlsTrustStorePassword = null;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enforce authentication"
@@ -454,7 +546,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER_SECURITY,
         doc = "Authentication provider name list, which is a list of class names"
     )
-    private Set<String> authenticationProviders = Sets.newTreeSet();
+    private Set<String> authenticationProviders = new TreeSet<>();
     @FieldContext(
         category = CATEGORY_WORKER_SECURITY,
         doc = "Enforce authorization on accessing functions admin-api"
@@ -469,7 +561,35 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         category = CATEGORY_WORKER_SECURITY,
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
     )
-    private Set<String> superUserRoles = Sets.newTreeSet();
+    private Set<String> superUserRoles = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL."
+                    + "\n Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to"
+                    + " connect."
+    )
+    private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Service Principal, for login context name. Default value is \"PulsarFunction\"."
+    )
+    private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_FUNCTION_SECTION_NAME;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "kerberos kinit command."
+    )
+    private String kinitCommand = "/usr/bin/kinit";
 
     private Properties properties = new Properties();
 
@@ -652,7 +772,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerId() {
         if (isBlank(this.workerId)) {
-            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
+            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort() != null
+                    ? this.getWorkerPort() : this.getWorkerPortTls());
         }
         return this.workerId;
     }
@@ -797,5 +918,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public boolean isMetadataStoreAllowReadOnlyOperations() {
+        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 }

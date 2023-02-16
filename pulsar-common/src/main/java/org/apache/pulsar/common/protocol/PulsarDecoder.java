@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -76,14 +77,26 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.intercept.InterceptException;
+import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Basic implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please be aware that the decoded protocol command instance passed to a handle* method is cleared and reused for the
+ * next protocol command after the method completes. This is done in order to minimize object allocations for
+ * performance reasons. <b>It is not allowed to retain a reference to the handle* method parameter command instance
+ * after the method returns.</b> If you need to pass an instance of the command instance to another thread or retain a
+ * reference to it after the handle* method completes, you must make a deep copy of the command instance.
  */
 public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
 
@@ -120,7 +133,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handlePartitionMetadataRequest(cmd.getPartitionMetadata());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(getServerError(e.getErrorCode()),
+                    writeAndFlush(ctx,
+                            Commands.newPartitionMetadataResponse(getServerError(e.getErrorCode()),
                             e.getMessage(), cmd.getPartitionMetadata().getRequestId()));
                 }
                 break;
@@ -194,7 +208,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleProducer(cmd.getProducer());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getProducer().getRequestId(),
+                    writeAndFlush(ctx, Commands.newError(cmd.getProducer().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -207,7 +221,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     ByteBuf headersAndPayload = buffer.markReaderIndex();
                     handleSend(cmd.getSend(), headersAndPayload);
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newSendError(cmd.getSend().getProducerId(),
+                    writeAndFlush(ctx, Commands.newSendError(cmd.getSend().getProducerId(),
                             cmd.getSend().getSequenceId(), getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -228,7 +242,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleSubscribe(cmd.getSubscribe());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getSubscribe().getRequestId(),
+                    writeAndFlush(ctx, Commands.newError(cmd.getSubscribe().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -255,8 +269,13 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleSeek(cmd.getSeek());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getSeek().getRequestId(), getServerError(e.getErrorCode()),
-                            e.getMessage()));
+                    writeAndFlush(ctx,
+                            Commands.newError(
+                                    cmd.getSeek().getRequestId(),
+                                    getServerError(e.getErrorCode()),
+                                    e.getMessage()
+                            )
+                    );
                 }
                 break;
 
@@ -290,6 +309,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
                 break;
 
+            case TOPIC_MIGRATED:
+                checkArgument(cmd.hasTopicMigrated());
+                handleTopicMigrated(cmd.getTopicMigrated());
+                break;
+
             case GET_LAST_MESSAGE_ID:
                 checkArgument(cmd.hasGetLastMessageId());
                 handleGetLastMessageId(cmd.getGetLastMessageId());
@@ -310,7 +334,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetTopicsOfNamespace(cmd.getGetTopicsOfNamespace());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(),
+                    writeAndFlush(ctx, Commands.newError(cmd.getGetTopicsOfNamespace().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -326,7 +350,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetSchema(cmd.getGetSchema());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newGetSchemaResponseError(cmd.getGetSchema().getRequestId(),
+                    writeAndFlush(ctx, Commands.newGetSchemaResponseError(cmd.getGetSchema().getRequestId(),
                             getServerError(e.getErrorCode()), e.getMessage()));
                 }
                 break;
@@ -342,7 +366,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                     interceptCommand(cmd);
                     handleGetOrCreateSchema(cmd.getGetOrCreateSchema());
                 } catch (InterceptException e) {
-                    ctx.writeAndFlush(Commands.newGetOrCreateSchemaResponseError(
+                    writeAndFlush(ctx, Commands.newGetOrCreateSchemaResponseError(
                             cmd.getGetOrCreateSchema().getRequestId(), getServerError(e.getErrorCode()),
                             e.getMessage()));
                 }
@@ -432,6 +456,27 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 checkArgument(cmd.hasEndTxnOnSubscriptionResponse());
                 handleEndTxnOnSubscriptionResponse(cmd.getEndTxnOnSubscriptionResponse());
                 break;
+
+            case WATCH_TOPIC_LIST:
+                checkArgument(cmd.hasWatchTopicList());
+                handleCommandWatchTopicList(cmd.getWatchTopicList());
+                break;
+
+            case WATCH_TOPIC_LIST_SUCCESS:
+                checkArgument(cmd.hasWatchTopicListSuccess());
+                handleCommandWatchTopicListSuccess(cmd.getWatchTopicListSuccess());
+                break;
+
+            case WATCH_TOPIC_UPDATE:
+                checkArgument(cmd.hasWatchTopicUpdate());
+                handleCommandWatchTopicUpdate(cmd.getWatchTopicUpdate());
+                break;
+
+            case WATCH_TOPIC_LIST_CLOSE:
+                checkArgument(cmd.hasWatchTopicListClose());
+                handleCommandWatchTopicListClose(cmd.getWatchTopicListClose());
+                break;
+
             default:
                 break;
             }
@@ -575,6 +620,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
+    protected void handleTopicMigrated(CommandTopicMigrated commandMigratedTopic) {
+        throw new UnsupportedOperationException();
+    }
+
     protected void handleGetLastMessageId(CommandGetLastMessageId getLastMessageId) {
         throw new UnsupportedOperationException();
     }
@@ -672,5 +721,26 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
+    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicList) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicListSuccess(
+            CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
+        throw new UnsupportedOperationException();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PulsarDecoder.class);
+
+    private void writeAndFlush(ChannelOutboundInvoker ctx, ByteBuf cmd) {
+        NettyChannelUtil.writeAndFlushWithVoidPromise(ctx, cmd);
+    }
 }

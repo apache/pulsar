@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -83,6 +83,7 @@ public class CLITest extends PulsarTestSuite {
         final String namespace = "public/" + namespaceLocalName;
         assertEquals(0, result.getExitCode());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
         final String persistentTopicName = TopicName.get(
@@ -169,6 +170,80 @@ public class CLITest extends PulsarTestSuite {
                 "" + subscriptionPrefix + i
             );
             result.assertNoOutput();
+            i++;
+        }
+    }
+
+    @Test
+    public void testCreateUpdateSubscriptionWithPropertiesCommand() throws Exception {
+        String topic = "testCreateSubscriptionCommmand";
+
+        String subscriptionPrefix = "subscription-";
+
+        int i = 0;
+        for (BrokerContainer container : pulsarCluster.getBrokers()) {
+            ContainerExecResult result = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "create-subscription",
+                    "-p",
+                    "a=b",
+                    "-p",
+                    "c=d",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            result.assertNoOutput();
+
+            ContainerExecResult resultUpdate = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-p",
+                    "a=e",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultUpdate.assertNoOutput();
+
+            ContainerExecResult resultGet = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "get-subscription-properties",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            assertEquals(
+                    resultGet.getStdout().trim(), "{\"a\":\"e\"}",
+                    "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
+
+            ContainerExecResult resultClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-c",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultClear.assertNoOutput();
+
+            ContainerExecResult resultGetAfterClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "get-subscription-properties",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            assertEquals(
+                    resultGetAfterClear.getStdout().trim(), "{}",
+                    "unexpected output " + resultGetAfterClear.getStdout()
+                            + " - error " + resultGetAfterClear.getStderr());
+
             i++;
         }
     }
@@ -452,7 +527,7 @@ public class CLITest extends PulsarTestSuite {
         testPublishAndConsume("persistent://public/default/pojo-json", "json", Schema.JSON(Tick.class));
     }
 
-    private void testPublishAndConsume(String topic, String sub, Schema type) throws PulsarClientException {
+    private void testPublishAndConsume(String topic, String sub, Schema<Tick> type) throws PulsarClientException {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
@@ -516,7 +591,7 @@ public class CLITest extends PulsarTestSuite {
             ContainerExecResult result = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
                     "documents", "generate", moduleNames[i]);
-            Assert.assertTrue(result.getStdout().contains("------------\n\n# " + moduleNames[i]));
+            Assert.assertTrue(result.getStdout().contains("# " + moduleNames[i]));
         }
     }
 

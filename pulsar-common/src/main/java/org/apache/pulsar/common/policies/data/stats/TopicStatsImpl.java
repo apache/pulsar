@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -39,6 +41,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Statistics for a Pulsar topic.
+ * This class is not thread-safe.
  */
 @Data
 public class TopicStatsImpl implements TopicStats {
@@ -99,6 +102,10 @@ public class TopicStatsImpl implements TopicStats {
     /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
     public long lastOffloadFailureTimeStamp;
 
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -129,12 +136,20 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    public int delayedMessageIndexSizeInBytes;
+
     /** The compaction stats. */
     public CompactionStatsImpl compaction;
 
+    /** The broker that owns this topic. */
+    public String ownerBroker;
+
     public List<? extends PublisherStats> getPublishers() {
-        return Stream.concat(publishers.stream().sorted(Comparator.comparing(PublisherStatsImpl::getProducerName)),
-                publishersMap.values().stream().sorted(Comparator.comparing(PublisherStatsImpl::getProducerName)))
+        return Stream.concat(publishers.stream().sorted(
+                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))),
+                        publishersMap.values().stream().sorted(
+                                Comparator.comparing(PublisherStatsImpl::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -145,9 +160,10 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     public void addPublisher(PublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer()) {
+        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
             publishersMap.put(stats.getProducerName(), stats);
         } else {
+            stats.setSupportsPartialProducer(false); // setter method with side effect
             publishers.add(stats);
         }
     }
@@ -195,11 +211,13 @@ public class TopicStatsImpl implements TopicStats {
         this.lastOffloadFailureTimeStamp = 0;
         this.lastOffloadSuccessTimeStamp = 0;
         this.publishRateLimitedTimes = 0L;
+        this.delayedMessageIndexSizeInBytes = 0;
         this.compaction.reset();
+        this.ownerBroker = null;
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
+    // stats. This stat addition is not thread-safe.
     public TopicStatsImpl add(TopicStats ts) {
         TopicStatsImpl stats = (TopicStatsImpl) ts;
 
@@ -221,9 +239,14 @@ public class TopicStatsImpl implements TopicStats {
         this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
+        this.ongoingTxnCount = stats.ongoingTxnCount;
+        this.abortedTxnCount = stats.abortedTxnCount;
+        this.committedTxnCount = stats.committedTxnCount;
 
-        stats.getPublishers().forEach(s -> {
-           if (s.isSupportsPartialProducer()) {
+        for (int index = 0; index < stats.getPublishers().size(); index++) {
+           PublisherStats s = stats.getPublishers().get(index);
+           if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
                    newStats.setSupportsPartialProducer(true);
@@ -231,19 +254,20 @@ public class TopicStatsImpl implements TopicStats {
                    return newStats;
                }).add((PublisherStatsImpl) s);
            } else {
-               if (this.publishers.size() != stats.publishers.size()) {
-                   for (int i = 0; i < stats.publishers.size(); i++) {
-                       PublisherStatsImpl newStats = new PublisherStatsImpl();
-                       newStats.setSupportsPartialProducer(false);
-                       this.publishers.add(newStats.add(stats.publishers.get(i)));
-                   }
-               } else {
-                   for (int i = 0; i < stats.publishers.size(); i++) {
-                       this.publishers.get(i).add(stats.publishers.get(i));
-                   }
+               // Add a publisher stat entry to this.publishers
+               // if this.publishers.size() is smaller than
+               // the input stats.publishers.size().
+               // Here, index == this.publishers.size() means
+               // this.publishers.size() is smaller than the input stats.publishers.size()
+               if (index == this.publishers.size()) {
+                   PublisherStatsImpl newStats = new PublisherStatsImpl();
+                   newStats.setSupportsPartialProducer(false);
+                   this.publishers.add(newStats);
                }
+               this.publishers.get(index)
+                       .add((PublisherStatsImpl) s);
            }
-        });
+        }
 
         if (this.subscriptions.size() != stats.subscriptions.size()) {
             for (String subscription : stats.subscriptions.keySet()) {

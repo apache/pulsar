@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -57,6 +57,8 @@ public class RuntimeSpawner implements AutoCloseable {
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
                           String originalCodeFileName,
+                          String transformFunctionFile,
+                          String originalTransformFunctionFileName,
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
@@ -65,6 +67,7 @@ public class RuntimeSpawner implements AutoCloseable {
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
         try {
             this.runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
+                    transformFunctionFile, originalTransformFunctionFileName,
                     instanceLivenessCheckFreqMs / 1000);
         } catch (Exception e) {
             throw new RuntimeException(e);

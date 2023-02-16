@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.cassandra;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,6 +67,6 @@ public class CassandraSinkConfig implements Serializable {
 
     public static CassandraSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), CassandraSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), CassandraSinkConfig.class);
     }
 }

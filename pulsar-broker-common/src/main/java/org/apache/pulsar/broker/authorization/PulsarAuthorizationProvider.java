@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,6 @@ import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -54,7 +53,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     private static final Logger log = LoggerFactory.getLogger(PulsarAuthorizationProvider.class);
 
     public ServiceConfiguration conf;
-    private PulsarResources pulsarResources;
+
+    protected PulsarResources pulsarResources;
 
 
     public PulsarAuthorizationProvider() {
@@ -71,9 +71,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         requireNonNull(pulsarResources, "PulsarResources can't be null");
         this.conf = conf;
         this.pulsarResources = pulsarResources;
-
-        // For compatibility, call the old deprecated initialize
-        initialize(conf, (ConfigurationCacheService) null);
     }
 
     /**
@@ -140,10 +137,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     }
                     return checkAuthorization(topicName, role, AuthAction.consume);
-                }).exceptionally(ex -> {
-                    log.warn("Client with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
-                            ex.getMessage());
-                    return null;
                 });
     }
 
@@ -166,13 +159,6 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         return CompletableFuture.completedFuture(true);
                     }
                     return canConsumeAsync(topicName, role, authenticationData, null);
-                }).exceptionally(ex -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Topic [{}] Role [{}] exception occurred while trying to check produce/consume"
-                                + " permissions. {}", topicName.toString(), role, ex.getMessage());
-
-                    }
-                    throw FutureUtil.wrapToCompletionException(ex);
                 });
     }
 
@@ -480,15 +466,16 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                         namespaceName, role, authData, AuthAction.packages);
                             case GET_TOPIC:
                             case GET_TOPICS:
+                            case GET_BUNDLE:
                                 return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
                             case UNSUBSCRIBE:
+                            case TRIM_TOPIC:
                             case CLEAR_BACKLOG:
                                 return allowTheSpecifiedActionOpsAsync(
                                         namespaceName, role, authData, AuthAction.consume);
                             case CREATE_TOPIC:
                             case DELETE_TOPIC:
                             case ADD_BUNDLE:
-                            case GET_BUNDLE:
                             case DELETE_BUNDLE:
                             case GRANT_PERMISSION:
                             case GET_PERMISSION:
@@ -552,6 +539,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             case COMPACT:
                             case OFFLOAD:
                             case UNLOAD:
+                            case DELETE_METADATA:
+                            case UPDATE_METADATA:
                             case ADD_BUNDLE_RANGE:
                             case GET_BUNDLE_RANGE:
                             case DELETE_BUNDLE_RANGE:

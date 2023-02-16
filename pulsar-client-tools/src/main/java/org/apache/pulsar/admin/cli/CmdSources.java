@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -297,7 +297,11 @@ public class CmdSources extends CmdBase {
                 description = "The processing guarantees (aka delivery semantics) applied to the Source", hidden = true)
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
         @Parameter(names = "--processing-guarantees",
-                description = "The processing guarantees (aka delivery semantics) applied to the source")
+                description = "The processing guarantees (as known as delivery semantics) applied to the source."
+                    + " A source connector receives messages from external system and writes messages to a Pulsar"
+                    + " topic. The '--processing-guarantees' is used to ensure the processing guarantees for writing"
+                    + " messages to the Pulsar topic. The available values are `ATLEAST_ONCE`, `ATMOST_ONCE`,"
+                    + " `EFFECTIVELY_ONCE`. If it is not specified, `ATLEAST_ONCE` delivery guarantee is used.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
 
         @Parameter(names = { "-o", "--destinationTopicName" },
@@ -502,7 +506,7 @@ public class CmdSources extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
             return mapper.readValue(str, typeRef);
@@ -614,10 +618,10 @@ public class CmdSources extends CmdBase {
      */
     @Parameters(commandDescription = "List all running Pulsar IO source connectors")
     protected class ListSources extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The sink's tenant")
+        @Parameter(names = "--tenant", description = "The source's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The sink's namespace")
+        @Parameter(names = "--namespace", description = "The source's namespace")
         protected String namespace;
 
         @Override

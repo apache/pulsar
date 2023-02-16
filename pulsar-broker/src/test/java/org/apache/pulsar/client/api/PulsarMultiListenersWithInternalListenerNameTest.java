@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +47,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -79,16 +82,21 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         this.eventExecutors = new NioEventLoopGroup();
         this.isTcpLookup = true;
         String host = InetAddress.getLocalHost().getHostAddress();
-        int brokerPort = getFreePort();
+        Pair<Integer, Integer> freePorts = getFreePorts();
+        int brokerPort = freePorts.getLeft();
         brokerAddress = InetSocketAddress.createUnresolved(host, brokerPort);
-        int brokerPortSsl = getFreePort();
+        int brokerPortSsl = freePorts.getRight();
         brokerSslAddress = InetSocketAddress.createUnresolved(host, brokerPortSsl);
         super.internalSetup();
     }
 
-    private static int getFreePort() {
-        try (ServerSocket serverSocket = new ServerSocket(0)) {
-            return serverSocket.getLocalPort();
+    private static Pair<Integer, Integer> getFreePorts() {
+        try (ServerSocket serverSocket = new ServerSocket(); ServerSocket serverSocket2 = new ServerSocket()) {
+            serverSocket.setReuseAddress(true);
+            serverSocket.bind(new InetSocketAddress(0));
+            serverSocket2.setReuseAddress(true);
+            serverSocket2.bind(new InetSocketAddress(0));
+            return Pair.of(serverSocket.getLocalPort(), serverSocket2.getLocalPort());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -190,12 +198,12 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (this.executorService != null) {
-            this.executorService.shutdownNow();
-        }
-        if (eventExecutors != null) {
-            eventExecutors.shutdownGracefully();
-        }
+        pulsar.close();
+        GracefulExecutorServicesShutdown.initiate()
+                .timeout(Duration.ZERO)
+                .shutdown(executorService)
+                .handle().get();
+        EventLoopUtil.shutdownGracefully(eventExecutors).get();
         super.internalCleanup();
     }
 }

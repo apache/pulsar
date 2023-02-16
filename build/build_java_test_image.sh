@@ -24,7 +24,7 @@ SQUASH_PARAM=""
 # check if docker experimental mode is enabled which is required for
 # using "docker build --squash" for squashing all intermediate layers of the build to a single layer
 if [[ "$(docker version -f '{{.Server.Experimental}}' 2>/dev/null)" == "true" ]]; then
-  SQUASH_PARAM="-Ddockerfile.build.squash=true"
+  SQUASH_PARAM="-Ddocker.squash=true"
 fi
 mvn -am -pl tests/docker-images/java-test-image -Pcore-modules,-main,integrationTests,docker \
   -Dmaven.test.skip=true -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true $SQUASH_PARAM \

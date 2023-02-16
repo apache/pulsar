@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 
@@ -207,6 +208,42 @@ public interface Clusters {
      *
      */
     CompletableFuture<Void> updatePeerClusterNamesAsync(String cluster, LinkedHashSet<String> peerClusterNames);
+
+    /**
+     * Update the configuration for a cluster migration.
+     * <p/>
+     * This operation requires Pulsar super-user privileges.
+     *
+     * @param cluster
+     *            Cluster name
+     * @param migrated
+     *            is cluster migrated
+     * @param clusterUrl
+     *            the cluster url object
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission to create the cluster
+     * @throws NotFoundException
+     *             Cluster doesn't exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void updateClusterMigration(String cluster, boolean migrated, ClusterUrl clusterUrl) throws PulsarAdminException;
+
+    /**
+     * Update the configuration for a cluster migration asynchronously.
+     * <p/>
+     * This operation requires Pulsar super-user privileges.
+     *
+     * @param cluster
+     *            Cluster name
+     * @param migrated
+     *            is cluster migrated
+     * @param clusterUrl
+     *            the cluster url object
+     *
+     */
+    CompletableFuture<Void> updateClusterMigrationAsync(String cluster, boolean migrated, ClusterUrl clusterUrl);
 
     /**
      * Get peer-cluster names.

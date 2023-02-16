@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
@@ -86,9 +87,15 @@ public class PersistentTopicStatsTest {
         topicStats1.averageMsgSize = 1;
         topicStats1.storageSize = 1;
         final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
+        publisherStats1.setMsgRateIn(1);
         publisherStats1.setSupportsPartialProducer(false);
         publisherStats1.setProducerName("name1");
+        final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
+        publisherStats2.setMsgRateIn(2);
+        publisherStats2.setSupportsPartialProducer(false);
+        publisherStats2.setProducerName("name2");
         topicStats1.addPublisher(publisherStats1);
+        topicStats1.addPublisher(publisherStats2);
         topicStats1.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         topicStats1.replication.put("test_ns", new ReplicatorStatsImpl());
 
@@ -99,10 +106,21 @@ public class PersistentTopicStatsTest {
         topicStats2.msgThroughputOut = 4;
         topicStats2.averageMsgSize = 5;
         topicStats2.storageSize = 6;
-        final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
-        publisherStats2.setSupportsPartialProducer(false);
-        publisherStats2.setProducerName("name1");
-        topicStats2.addPublisher(publisherStats2);
+        final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
+        publisherStats3.setMsgRateIn(3);
+        publisherStats3.setSupportsPartialProducer(false);
+        publisherStats3.setProducerName("name3");
+        final PublisherStatsImpl publisherStats4 = new PublisherStatsImpl();
+        publisherStats4.setMsgRateIn(4);
+        publisherStats4.setSupportsPartialProducer(false);
+        publisherStats4.setProducerName("name4");
+        final PublisherStatsImpl publisherStats5 = new PublisherStatsImpl();
+        publisherStats5.setMsgRateIn(5);
+        publisherStats5.setSupportsPartialProducer(false);
+        publisherStats5.setProducerName("name5");
+        topicStats2.addPublisher(publisherStats3);
+        topicStats2.addPublisher(publisherStats4);
+        topicStats2.addPublisher(publisherStats5);
         topicStats2.subscriptions.put("test_ns", new SubscriptionStatsImpl());
         topicStats2.replication.put("test_ns", new ReplicatorStatsImpl());
 
@@ -116,7 +134,10 @@ public class PersistentTopicStatsTest {
         assertEquals(target.msgThroughputOut, 5.0);
         assertEquals(target.averageMsgSize, 3.0);
         assertEquals(target.storageSize, 7);
-        assertEquals(target.getPublishers().size(), 1);
+        assertEquals(target.getPublishers().size(), 3);
+        assertEquals(target.getPublishers().get(0).getMsgRateIn(), 4);
+        assertEquals(target.getPublishers().get(1).getMsgRateIn(), 6);
+        assertEquals(target.getPublishers().get(2).getMsgRateIn(), 5);
         assertEquals(target.subscriptions.size(), 1);
         assertEquals(target.replication.size(), 1);
     }
@@ -235,4 +256,41 @@ public class PersistentTopicStatsTest {
         assertEquals(target.replication.size(), 1);
     }
 
+    @Test
+    public void testPersistentTopicStatsByNullProducerName() {
+        final TopicStatsImpl topicStats1 = new TopicStatsImpl();
+        final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
+        publisherStats1.setSupportsPartialProducer(false);
+        publisherStats1.setProducerName(null);
+        final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
+        publisherStats2.setSupportsPartialProducer(false);
+        publisherStats2.setProducerName(null);
+        topicStats1.addPublisher(publisherStats1);
+        topicStats1.addPublisher(publisherStats2);
+
+        assertEquals(topicStats1.getPublishers().size(), 2);
+        assertFalse(topicStats1.getPublishers().get(0).isSupportsPartialProducer());
+        assertFalse(topicStats1.getPublishers().get(1).isSupportsPartialProducer());
+
+        final TopicStatsImpl topicStats2 = new TopicStatsImpl();
+        final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
+        publisherStats3.setSupportsPartialProducer(true);
+        publisherStats3.setProducerName(null);
+        final PublisherStatsImpl publisherStats4 = new PublisherStatsImpl();
+        publisherStats4.setSupportsPartialProducer(true);
+        publisherStats4.setProducerName(null);
+        topicStats2.addPublisher(publisherStats3);
+        topicStats2.addPublisher(publisherStats4);
+
+        assertEquals(topicStats2.getPublishers().size(), 2);
+        // when the producerName is null, fall back to false
+        assertFalse(topicStats2.getPublishers().get(0).isSupportsPartialProducer());
+        assertFalse(topicStats2.getPublishers().get(1).isSupportsPartialProducer());
+
+        final TopicStatsImpl target = new TopicStatsImpl();
+        target.add(topicStats1);
+        target.add(topicStats2);
+
+        assertEquals(target.getPublishers().size(), 2);
+    }
 }

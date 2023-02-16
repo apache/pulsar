@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,7 +38,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.ImmutableList;
 import io.netty.buffer.Unpooled;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -92,7 +91,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -184,7 +183,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -286,7 +285,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -424,7 +423,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -537,7 +536,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -685,7 +684,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal()
+                ObjectMapperFactory.getMapper().getObjectMapper()
                         .convertValue(new KubernetesRuntimeFactoryConfig()
                                 .setSubmittingInsidePod(false), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
@@ -710,13 +709,14 @@ public class FunctionRuntimeManagerTest {
             any(SecretsProviderConfigurator.class),
             any(),
             any(),
+            any(),
             any()
         );
         doNothing().when(kubernetesRuntimeFactory).setupClient();
         doReturn(true).when(kubernetesRuntimeFactory).externallyManaged();
 
         KubernetesRuntime kubernetesRuntime = mock(KubernetesRuntime.class);
-        doReturn(kubernetesRuntime).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any());
+        doReturn(kubernetesRuntime).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any(), any(), any());
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
@@ -742,7 +742,9 @@ public class FunctionRuntimeManagerTest {
             functionRuntimeManager.setFunctionActioner(functionActioner);
 
             Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path").build())
+                    .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("path"))
+                    .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
+                            .setPackagePath("function-path"))
                     .setFunctionDetails(
                             Function.FunctionDetails.newBuilder()
                                     .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
@@ -771,7 +773,8 @@ public class FunctionRuntimeManagerTest {
             FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()
                     .setFunctionInstance(instance)
                     .setRuntimeSpawner(functionActioner
-                            .getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath()));
+                            .getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath(),
+                                    function1.getTransformFunctionPackageLocation().getPackagePath()));
             functionRuntimeManager.functionRuntimeInfos.put(
                     "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 
@@ -865,7 +868,8 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setWorkerId("worker-1");
             workerConfig.setFunctionRuntimeFactoryClassName("foo");
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                    ObjectMapperFactory.getThreadLocal().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+                    ObjectMapperFactory.getMapper().getObjectMapper()
+                            .convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
             workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -891,7 +895,8 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setWorkerId("worker-1");
             workerConfig.setFunctionRuntimeFactoryClassName(FunctionRuntimeManagerTest.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                    ObjectMapperFactory.getThreadLocal().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+                    ObjectMapperFactory.getMapper().getObjectMapper()
+                            .convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
             workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -918,7 +923,8 @@ public class FunctionRuntimeManagerTest {
             workerConfig.setWorkerId("worker-1");
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                    ObjectMapperFactory.getThreadLocal().convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
+                    ObjectMapperFactory.getMapper().getObjectMapper()
+                            .convertValue(new KubernetesRuntimeFactoryConfig(), Map.class));
             workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
             workerConfig.setStateStorageServiceUrl("foo");
             workerConfig.setFunctionAssignmentTopicName("assignments");
@@ -968,6 +974,7 @@ public class FunctionRuntimeManagerTest {
                             any(WorkerConfig.class),
                             any(AuthenticationConfig.class),
                             any(SecretsProviderConfigurator.class),
+                            any(),
                             any(),
                             any(),
                             any()
@@ -1059,7 +1066,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl(PULSAR_SERVICE_URL);
         workerConfig.setStateStorageServiceUrl("foo");
@@ -1145,6 +1152,7 @@ public class FunctionRuntimeManagerTest {
                             any(SecretsProviderConfigurator.class),
                             any(),
                             any(),
+                            any(),
                             any()
                     );
                     doNothing().when(mockedKubernetesRuntimeFactory).setupClient();
@@ -1222,7 +1230,7 @@ public class FunctionRuntimeManagerTest {
                 .setInstance(Function.Instance.newBuilder()
                         .setFunctionMetaData(function).setInstanceId(0).build())
                 .build();
-        doReturn(ImmutableList.of(assignment)).when(functionRuntimeManager)
+        doReturn(List.of(assignment)).when(functionRuntimeManager)
                 .findFunctionAssignments("test-tenant", "test-namespace", "function");
         functionRuntimeManager.restartFunctionInstances("test-tenant", "test-namespace", "function");
         if (expectRestartByPulsarAdmin) {

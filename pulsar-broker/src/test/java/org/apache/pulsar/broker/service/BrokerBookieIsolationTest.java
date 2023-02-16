@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,27 +18,28 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-import org.apache.bookkeeper.bookie.Bookie;
+import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.bookie.GarbageCollectorThread;
+import org.apache.bookkeeper.bookie.ScanAndCompareGarbageCollector;
+import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
+import org.apache.bookkeeper.bookie.storage.ldb.SingleDirectoryDbLedgerStorage;
 import org.apache.bookkeeper.client.BookKeeper;
-import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
@@ -47,6 +48,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.broker.ManagedLedgerClientFactory;
 import org.apache.pulsar.broker.PulsarService;
@@ -66,6 +68,7 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.zookeeper.CreateMode;
@@ -147,8 +150,9 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -157,7 +161,7 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
 
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
@@ -219,10 +223,8 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        Bookie bookie1 = bookies[0].getBookie();
-        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
-        ledgerManagerField.setAccessible(true);
-        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
@@ -266,6 +268,21 @@ public class BrokerBookieIsolationTest {
         assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
+    private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
+        DbLedgerStorage ledgerStorage =
+                (DbLedgerStorage)FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
+        SingleDirectoryDbLedgerStorage singleDirectoryDbLedgerStorage =
+                ((List<SingleDirectoryDbLedgerStorage>)FieldUtils
+                        .readDeclaredField(ledgerStorage, "ledgerStorageList", true)).get(0);
+        GarbageCollectorThread gcThread =
+                (GarbageCollectorThread)FieldUtils.readDeclaredField(singleDirectoryDbLedgerStorage, "gcThread", true);
+        ScanAndCompareGarbageCollector garbageCollector =
+                (ScanAndCompareGarbageCollector)FieldUtils.readDeclaredField(gcThread, "garbageCollector", true);
+        LedgerManager ledgerManager =
+                (LedgerManager)FieldUtils.readDeclaredField(garbageCollector, "ledgerManager", true);
+        return ledgerManager;
+    }
+
     @Test
     public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
         final String tenant1 = "tenant1";
@@ -286,8 +303,9 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setStrictBookieAffinityEnabled(true);
@@ -297,7 +315,7 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
 
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
@@ -360,10 +378,8 @@ public class BrokerBookieIsolationTest {
         }
         producer.close();
 
-        Bookie bookie1 = bookies[0].getBookie();
-        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
-        ledgerManagerField.setAccessible(true);
-        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         ManagedLedgerImpl ml2 = (ManagedLedgerImpl) topic2.getManagedLedger();
         // namespace: ns2
@@ -376,7 +392,7 @@ public class BrokerBookieIsolationTest {
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
-            Set<BookieId> ledgerBookies = Sets.newHashSet();
+            Set<BookieId> ledgerBookies = new HashSet<>();
             ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), isolatedBookies.size());
             ledgerBookies.removeAll(isolatedBookies);
@@ -428,18 +444,21 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setStrictBookieAffinityEnabled(true);
+        config.setTopicLevelPoliciesEnabled(false);
+        config.setSystemTopicEnabled(false);
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
 
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
@@ -501,10 +520,8 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
         PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", totalPublish);
 
-        Bookie bookie1 = bookies[0].getBookie();
-        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
-        ledgerManagerField.setAccessible(true);
-        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
@@ -587,8 +604,9 @@ public class BrokerBookieIsolationTest {
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -596,7 +614,7 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
@@ -660,10 +678,8 @@ public class BrokerBookieIsolationTest {
         PersistentTopic topic2 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", totalPublish);
         PersistentTopic topic3 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns3, "topic1", totalPublish);
 
-        Bookie bookie1 = bookies[0].getBookie();
-        Field ledgerManagerField = Bookie.class.getDeclaredField("ledgerManager");
-        ledgerManagerField.setAccessible(true);
-        LedgerManager ledgerManager = (LedgerManager) ledgerManagerField.get(bookie1);
+        BookieImpl bookie1 = (BookieImpl)bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
 
         // namespace: ns1
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
@@ -722,15 +738,16 @@ public class BrokerBookieIsolationTest {
 
         setDefaultIsolationGroup(brokerBookkeeperClientIsolationGroups, zkClient, defaultBookies);
         // primary group empty
-        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, Sets.newHashSet());
+        setDefaultIsolationGroup(tenantNamespaceIsolationGroupsPrimary, zkClient, new HashSet<>());
         setDefaultIsolationGroup(tenantNamespaceIsolationGroupsSecondary, zkClient, isolatedBookies);
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName(cluster);
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
@@ -738,7 +755,7 @@ public class BrokerBookieIsolationTest {
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
         config.setManagedLedgerDefaultAckQuorum(2);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
@@ -796,7 +813,7 @@ public class BrokerBookieIsolationTest {
             long ledgerId = lInfo.getLedgerId();
             CompletableFuture<Versioned<LedgerMetadata>> ledgerMetaFuture = ledgerManager.readLedgerMetadata(ledgerId);
             LedgerMetadata ledgerMetadata = ledgerMetaFuture.get().getValue();
-            Set<BookieId> ledgerBookies = Sets.newHashSet();
+            Set<BookieId> ledgerBookies = new HashSet<>();
             ledgerBookies.addAll(ledgerMetadata.getAllEnsembles().values().iterator().next());
             assertEquals(ledgerBookies.size(), defaultBookies.size());
             ledgerBookies.removeAll(defaultBookies);
@@ -839,7 +856,7 @@ public class BrokerBookieIsolationTest {
             bookies = new BookiesRackConfiguration();
         }
 
-        Map<String, BookieInfo> bookieInfoMap = Maps.newHashMap();
+        Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
         for (BookieId bkSocket : bookieAddresses) {
             BookieInfo info = BookieInfo.builder().rack("use").hostname(bkSocket.toString()).build();
             bookieInfoMap.put(bkSocket.toString(), info);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
+import io.jsonwebtoken.io.Encoders;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -38,6 +39,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.header.Header;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -52,6 +54,9 @@ import org.slf4j.LoggerFactory;
  * Simple Kafka Source to transfer messages from a Kafka topic.
  */
 public abstract class KafkaAbstractSource<V> extends PushSource<V> {
+    public static final String HEADER_KAFKA_TOPIC_KEY = "__kafka_topic";
+    public static final String HEADER_KAFKA_PTN_KEY = "__kafka_partition";
+    public static final String HEADER_KAFKA_OFFSET_KEY = "__kafka_offset";
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAbstractSource.class);
 
@@ -112,6 +117,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                String.valueOf(kafkaSourceConfig.isAutoCommitEnabled()));
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
                 String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));
@@ -189,19 +196,36 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
 
     public abstract KafkaRecord buildRecord(ConsumerRecord<Object, Object> consumerRecord);
 
+    protected Map<String, String> copyKafkaHeaders(ConsumerRecord<Object, Object> consumerRecord) {
+        if (!kafkaSourceConfig.isCopyHeadersEnabled()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> properties = new HashMap<>();
+        properties.put(HEADER_KAFKA_TOPIC_KEY, consumerRecord.topic());
+        properties.put(HEADER_KAFKA_PTN_KEY, Integer.toString(consumerRecord.partition()));
+        properties.put(HEADER_KAFKA_OFFSET_KEY, Long.toString(consumerRecord.offset()));
+        for (Header header: consumerRecord.headers()) {
+            properties.put(header.key(), Encoders.BASE64.encode(header.value()));
+        }
+        return properties;
+    }
+
     @Slf4j
     protected static class KafkaRecord<V> implements Record<V> {
         private final ConsumerRecord<String, ?> record;
         private final V value;
         private final Schema<V> schema;
+        private final Map<String, String> properties;
 
         @Getter
         private final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
 
-        public KafkaRecord(ConsumerRecord<String, ?> record, V value, Schema<V> schema) {
+        public KafkaRecord(ConsumerRecord<String, ?> record, V value, Schema<V> schema,
+                           Map<String, String> properties) {
             this.record = record;
             this.value = value;
             this.schema = schema;
+            this.properties = properties;
         }
         @Override
         public Optional<String> getPartitionId() {
@@ -237,6 +261,11 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         public Schema<V> getSchema() {
             return schema;
         }
+
+        @Override
+        public Map<String, String> getProperties(){
+            return properties;
+        }
     }
     protected static class KeyValueKafkaRecord<V> extends KafkaRecord implements KVRecord<Object, Object> {
 
@@ -244,8 +273,9 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         private final Schema<Object> valueSchema;
 
         public KeyValueKafkaRecord(ConsumerRecord record, KeyValue value,
-                                   Schema<Object> keySchema, Schema<Object> valueSchema) {
-            super(record, value, null);
+                                   Schema<Object> keySchema, Schema<Object> valueSchema,
+                                   Map<String, String> properties) {
+            super(record, value, null, properties);
             this.keySchema = keySchema;
             this.valueSchema = valueSchema;
         }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -145,8 +145,6 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
     @Test
     public void testBrokerLevelPublishRateDynamicUpdate() throws Exception{
         conf.setPreciseTopicPublishRateLimiterEnable(true);
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setSystemTopicEnabled(true);
         conf.setMaxPendingPublishRequestsPerConnection(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testMultiLevelPublishRate";

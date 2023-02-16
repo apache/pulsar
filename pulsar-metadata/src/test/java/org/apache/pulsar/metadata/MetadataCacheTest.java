@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -245,7 +245,8 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void insertionDeletion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
         MetadataCache<MyClass> objCache = store.getMetadataCache(MyClass.class);
 
         String key1 = newKey();
@@ -289,7 +290,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.get(key1).join(), Optional.empty());
 
         MyClass value1 = new MyClass("a", 1);
-        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L)).join();
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(objCache.getIfCached(key1), Optional.of(value1));
@@ -297,7 +298,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
 
         MyClass value2 = new MyClass("a", 2);
-        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value2), Optional.of(0L)).join();
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value2), Optional.of(0L)).join();
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(objCache.getIfCached(key1), Optional.of(value2));
@@ -317,7 +318,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.get(key1).join(), Optional.empty());
 
         MyClass value1 = new MyClass("a", 1);
-        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L)).join();
 
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
         assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
@@ -336,7 +337,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         Map<String, String> v = new TreeMap<>();
         v.put("a", "1");
         v.put("b", "2");
-        store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(v), Optional.of(-1L)).join();
+        store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(v), Optional.of(-1L)).join();
 
         Awaitility.await().untilAsserted(() -> {
             assertEquals(objCache.getIfCached(key1), Optional.of(v));
@@ -491,15 +492,21 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         MyClass value1 = new MyClass("a", 1);
         objCache1.create(key1, value1).join();
-        objCache1.get(key1).join();
+        assertEquals(objCache1.get(key1).join().get().b, 1);
 
-        objCache2.readModifyUpdate(key1, v -> {
+        CompletableFuture<MyClass> future1 = objCache1.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
-        }).join();
+        });
 
-        objCache1.readModifyUpdate(key1, v -> {
+        CompletableFuture<MyClass> future2 = objCache2.readModifyUpdate(key1, v -> {
             return new MyClass(v.a, v.b + 1);
-        }).join();
+        });
+
+        MyClass myClass1 = future1.join();
+        assertEquals(myClass1.b, 2);
+
+        MyClass myClass2 = future2.join();
+        assertEquals(myClass2.b, 3);
     }
 
     @Test(dataProvider = "impl")
@@ -511,7 +518,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         String key1 = newKey();
 
         MyClass value1 = new MyClass("a", 1);
-        Stat stat1 = store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L))
+        Stat stat1 = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L))
                 .join();
 
         CacheGetResult<MyClass> res = objCache.getWithStats(key1).join().get();
@@ -561,12 +568,12 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         MetadataCache<CustomClass> objCache = store.getMetadataCache(new MetadataSerde<CustomClass>() {
             @Override
             public byte[] serialize(String path, CustomClass value) throws IOException {
-                return ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value);
+                return ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value);
             }
 
             @Override
             public CustomClass deserialize(String path, byte[] content, Stat stat) throws IOException {
-                CustomClass cc = ObjectMapperFactory.getThreadLocal().readValue(content, CustomClass.class);
+                CustomClass cc = ObjectMapperFactory.getMapper().reader().readValue(content, CustomClass.class);
                 cc.path = path;
                 return cc;
             }
@@ -577,7 +584,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         CustomClass value1 = new CustomClass();
         value1.a = 1;
         value1.b = 2;
-        Stat stat = store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L))
+        Stat stat = store.put(key1, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value1), Optional.of(-1L))
                 .join();
 
         CacheGetResult<CustomClass> res = objCache.getWithStats(key1).join().get();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,20 +18,28 @@
  */
 package org.apache.pulsar.io.common;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 @Slf4j
 public class IOConfigUtils {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     public static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz, SourceContext sourceContext) {
         return loadWithSecrets(map, clazz, secretName -> sourceContext.getSecret(secretName));
     }
@@ -40,17 +48,24 @@ public class IOConfigUtils {
         return loadWithSecrets(map, clazz, secretName -> sinkContext.getSecret(secretName));
     }
 
+    public static Map<String, Object> loadConfigFromJsonString(String config) throws JsonProcessingException {
+        if (config == null || config.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return MAPPER.readValue(config, new TypeReference<>() {});
+    }
 
     private static <T> T loadWithSecrets(Map<String, Object> map, Class<T> clazz,
                                          Function<String, String> secretsGetter) {
         Map<String, Object> configs = new HashMap<>(map);
 
-        for (Field field : Reflections.getAllFields(clazz)) {
+        for (Field field : getAllFields(clazz)) {
             field.setAccessible(true);
             for (Annotation annotation : field.getAnnotations()) {
                 if (annotation.annotationType().equals(FieldDoc.class)) {
-                    if (((FieldDoc) annotation).sensitive()) {
-                        String secret = null;
+                    FieldDoc fieldDoc = (FieldDoc) annotation;
+                    if (fieldDoc.sensitive()) {
+                        String secret;
                         try {
                             secret = secretsGetter.apply(field.getName());
                         } catch (Exception e) {
@@ -61,10 +76,28 @@ public class IOConfigUtils {
                             configs.put(field.getName(), secret);
                         }
                     }
+                    configs.computeIfAbsent(field.getName(), key -> {
+                        if (fieldDoc.required()) {
+                            throw new IllegalArgumentException(field.getName() + " cannot be null");
+                        }
+                        String value = fieldDoc.defaultValue();
+                        if (value != null && !value.isEmpty()) {
+                            return value;
+                        }
+                        return null;
+                    });
                 }
-
             }
         }
-        return new ObjectMapper().convertValue(configs, clazz);
+        return MAPPER.convertValue(configs, clazz);
+    }
+
+    private static List<Field> getAllFields(Class<?> type) {
+        List<Field> fields = new LinkedList<>();
+        fields.addAll(Arrays.asList(type.getDeclaredFields()));
+        if (type.getSuperclass() != null) {
+            fields.addAll(getAllFields(type.getSuperclass()));
+        }
+        return fields;
     }
 }

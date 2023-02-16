@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -123,7 +123,7 @@ public class FileSourceConfig implements Serializable {
 
     public static FileSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), FileSourceConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), FileSourceConfig.class);
     }
 
     public void validate() {
@@ -133,7 +133,7 @@ public class FileSourceConfig implements Serializable {
             throw new IllegalArgumentException("Specified input directory does not exist");
         } else if (!Files.isReadable(Paths.get(inputDirectory))) {
             throw new IllegalArgumentException("Specified input directory is not readable");
-        } else if (Optional.ofNullable(keepFile).orElse(false) && !Files.isWritable(Paths.get(inputDirectory))) {
+        } else if (!Optional.ofNullable(keepFile).orElse(false) && !Files.isWritable(Paths.get(inputDirectory))) {
             throw new IllegalArgumentException("You have requested the consumed files to be deleted, but the "
                     + "source directory is not writeable.");
         }

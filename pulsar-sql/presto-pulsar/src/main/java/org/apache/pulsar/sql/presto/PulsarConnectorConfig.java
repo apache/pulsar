@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,9 +42,12 @@ import org.apache.pulsar.common.protocol.Commands;
  */
 public class PulsarConnectorConfig implements AutoCloseable {
 
+    private boolean hasMetadataUrl = false;
+
     private String brokerServiceUrl = "http://localhost:8080";
+    private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
-    private String zookeeperUri = "localhost:2181";
+    private String metadataUrl = "zk:localhost:2181";
     private int entryReadBatchSize = 100;
     private int targetNumSplits = 2;
     private int maxSplitMessageQueueSize = 10000;
@@ -62,6 +65,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
+
+    private boolean authorizationEnabled = false;
 
     // --- Ledger Offloading ---
     private String managedLedgerOffloadDriver = null;
@@ -103,6 +108,14 @@ public class PulsarConnectorConfig implements AutoCloseable {
         this.brokerServiceUrl = brokerServiceUrl;
         return this;
     }
+    public String getBrokerBinaryServiceUrl() {
+        return this.brokerBinaryServiceUrl;
+    }
+    @Config("pulsar.broker-binary-service-url")
+    public PulsarConnectorConfig setBrokerBinaryServiceUrl(String brokerBinaryServiceUrl) {
+        this.brokerBinaryServiceUrl = brokerBinaryServiceUrl;
+        return this;
+    }
     @Config("pulsar.web-service-url")
     public PulsarConnectorConfig setWebServiceUrl(String webServiceUrl) {
         this.webServiceUrl = webServiceUrl;
@@ -123,14 +136,37 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this.maxMessageSize;
     }
 
+    /**
+     * @deprecated use {@link #getMetadataUrl()}
+     */
+    @Deprecated
     @NotNull
     public String getZookeeperUri() {
-        return this.zookeeperUri;
+        return getMetadataUrl();
     }
 
+    /**
+     * @deprecated use {@link #setMetadataUrl(String)}
+     */
+    @Deprecated
     @Config("pulsar.zookeeper-uri")
     public PulsarConnectorConfig setZookeeperUri(String zookeeperUri) {
-        this.zookeeperUri = zookeeperUri;
+        if (hasMetadataUrl) {
+            return this;
+        }
+        this.metadataUrl = zookeeperUri;
+        return this;
+    }
+
+    @NotNull
+    public String getMetadataUrl() {
+        return this.metadataUrl;
+    }
+
+    @Config("pulsar.metadata-url")
+    public PulsarConnectorConfig setMetadataUrl(String metadataUrl) {
+        this.hasMetadataUrl = true;
+        this.metadataUrl = metadataUrl;
         return this;
     }
 
@@ -235,6 +271,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.namespace-delimiter-rewrite-enable")
     public PulsarConnectorConfig setNamespaceDelimiterRewriteEnable(boolean namespaceDelimiterRewriteEnable) {
         this.namespaceDelimiterRewriteEnable = namespaceDelimiterRewriteEnable;
+        return this;
+    }
+
+    public boolean getAuthorizationEnabled() {
+        return authorizationEnabled;
+    }
+
+    @Config("pulsar.authorization-enabled")
+    public PulsarConnectorConfig setAuthorizationEnabled(boolean authorizationEnabled) {
+        this.authorizationEnabled = authorizationEnabled;
         return this;
     }
 

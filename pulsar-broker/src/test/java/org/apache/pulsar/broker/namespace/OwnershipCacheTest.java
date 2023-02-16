@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -34,6 +33,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -82,7 +82,7 @@ public class OwnershipCacheTest {
         final int port = 8080;
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
-        config = mock(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
         zookeeperServer = new ZookeeperServerTest(0);
         zookeeperServer.start();
@@ -106,8 +106,8 @@ public class OwnershipCacheTest {
 
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();
-        doReturn(Optional.of(port)).when(config).getBrokerServicePort();
-        doReturn(Optional.empty()).when(config).getWebServicePort();
+        config.setBrokerServicePort(Optional.of(port));
+        config.setWebServicePort(Optional.empty());
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
     }
@@ -115,6 +115,7 @@ public class OwnershipCacheTest {
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
         executor.shutdownNow();
+        coordinationService.close();
         store.close();
         otherStore.close();
         zookeeperServer.close();
@@ -170,7 +171,7 @@ public class OwnershipCacheTest {
         MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         otherStore.put(ServiceUnitUtils.path(testFullBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -205,7 +206,7 @@ public class OwnershipCacheTest {
         MetadataStoreExtended otherStore = MetadataStoreExtended.create(zookeeperServer.getHostPort(),
                 MetadataStoreConfig.builder().sessionTimeoutMillis(5000).build());
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
@@ -249,21 +250,21 @@ public class OwnershipCacheTest {
         assertFalse(cache.getOwnerAsync(testBundle).get().isPresent());
 
         try {
-            checkNotNull(cache.getOwnedBundle(testBundle));
+            Objects.requireNonNull(cache.getOwnedBundle(testBundle));
             fail("Should have failed");
         } catch (NullPointerException npe) {
             // OK for not owned namespace
         }
         // case 2: someone else owns the namespace
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://localhost:8080",
                                 "https://localhost:4443", false)),
                 Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral)).join();
         try {
-            checkNotNull(cache.getOwnedBundle(testBundle));
+            Objects.requireNonNull(cache.getOwnedBundle(testBundle));
             fail("Should have failed");
         } catch (NullPointerException npe) {
             // OK for not owned namespace
@@ -283,7 +284,7 @@ public class OwnershipCacheTest {
         assertEquals(data1.getNativeUrlTls(), "pulsar://otherhost:8884");
         assertFalse(data1.isDisabled());
         try {
-            checkNotNull(cache.getOwnedBundle(testBundle));
+            Objects.requireNonNull(cache.getOwnedBundle(testBundle));
             fail("Should have failed");
         } catch (NullPointerException npe) {
             // OK for not owned namespace
@@ -312,7 +313,7 @@ public class OwnershipCacheTest {
 
         // case 2: someone else owns the namespace
         otherStore.put(ServiceUnitUtils.path(testBundle),
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
                         new NamespaceEphemeralData("pulsar://otherhost:8881",
                                 "pulsar://otherhost:8884",
                                 "http://otherhost:8080",
@@ -366,6 +367,7 @@ public class OwnershipCacheTest {
         Awaitility.await().untilAsserted(() -> {
             assertTrue(cache.getOwnedBundles().isEmpty());
             assertFalse(store.exists(ServiceUnitUtils.path(bundle)).join());
+            assertNull(cache.getLocallyAcquiredLocks().get(bundle));
         });
     }
 

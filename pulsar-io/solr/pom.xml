@@ -25,7 +25,7 @@
     <parent>
         <artifactId>pulsar-io</artifactId>
         <groupId>org.apache.pulsar</groupId>
-        <version>2.11.0-SNAPSHOT</version>
+        <version>2.12.0-SNAPSHOT</version>
     </parent>
 
     <properties>
@@ -65,12 +65,10 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.4</version>
         </dependency>
         <dependency>
-            <groupId>commons-collections</groupId>
-            <artifactId>commons-collections</artifactId>
-            <version>3.2.2</version>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
         </dependency>
     </dependencies>
 

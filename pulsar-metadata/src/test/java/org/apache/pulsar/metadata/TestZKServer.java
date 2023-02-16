@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -162,7 +162,7 @@ public class TestZKServer implements AutoCloseable {
 
     public static boolean waitForServerUp(String hp, long timeout) {
         long start = System.currentTimeMillis();
-        String split[] = hp.split(":");
+        String[] split = hp.split(":");
         String host = split[0];
         int port = Integer.parseInt(split[1]);
         while (true) {

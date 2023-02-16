@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -134,7 +134,6 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-transaction-common</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
@@ -152,10 +151,7 @@
                   <include>com.google.errorprone:*</include>
                   <include>com.google.j2objc:*</include>
                   <include>com.google.code.gson:gson</include>
-                  <include>com.fasterxml.jackson.core</include>
-                  <include>com.fasterxml.jackson.module</include>
-                  <include>com.fasterxml.jackson.core:jackson-core</include>
-                  <include>com.fasterxml.jackson.dataformat</include>
+                  <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>io.netty:netty-tcnative-boringssl-static</include>
@@ -172,11 +168,11 @@
                   <include>javax.ws.rs:*</include>
                   <include>jakarta.annotation:*</include>
                   <include>org.glassfish.hk2*:*</include>
-                  <include>com.fasterxml.jackson.*:*</include>
                   <include>io.grpc:*</include>
                   <include>io.perfmark:*</include>
                   <include>com.yahoo.datasketches:*</include>
                   <include>io.netty:*</include>
+                  <include>io.netty.incubator:*</include>
                   <include>com.squareup.*:*</include>
                   <include>com.google.*:*</include>
                   <include>commons-*:*</include>
@@ -194,6 +190,9 @@
                   <!-- Issue #6834, Since Netty ByteBuf shaded, we need also shade this module -->
                   <include>org.apache.pulsar:pulsar-client-messagecrypto-bc</include>
                 </includes>
+                <excludes>
+                  <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
+                </excludes>
               </artifactSet>
               <filters>
                 <filter>
@@ -230,6 +229,9 @@
                 <relocation>
                   <pattern>com.fasterxml.jackson</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                  <excludes>
+                    <exclude>com.fasterxml.jackson.annotation.*</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>io.netty</pattern>
@@ -397,6 +399,36 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>${maven-enforcer-plugin.version}</version>
+        <executions>
+          <execution>
+            <id>enforce-bytecode-version</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <enforceBytecodeVersion>
+                  <maxJdkVersion>${pulsar.client.compiler.release}</maxJdkVersion>
+                  <ignoredScopes>
+                    <ignoreScope>test</ignoreScope>
+                  </ignoredScopes>
+                </enforceBytecodeVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+        <dependencies>
+          <dependency>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>extra-enforcer-rules</artifactId>
+            <version>${extra-enforcer-rules.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
     </plugins>
   </build>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,7 @@ package org.apache.pulsar.io.hdfs3.sink;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.fs.Syncable;
 import org.apache.pulsar.functions.api.Record;
 

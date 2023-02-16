@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.naming.TopicName;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -120,6 +121,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10_000, dataProvider = "produceConf")
     public void brokerCloseTopicTest(boolean enableBatch, boolean isAsyncSend) throws Exception {
+        @Cleanup
         PulsarClient longBackOffClient = PulsarClient.builder()
                 .startingBackoffInterval(5, TimeUnit.SECONDS)
                 .maxBackoffInterval(5, TimeUnit.SECONDS)
@@ -137,7 +139,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
                 .getTopicReference(TopicName.get(topic).getPartitionedTopicName());
         Assert.assertTrue(topicOptional.isPresent());
         topicOptional.get().close(true).get();
-        Assert.assertEquals(producer.getState(), HandlerState.State.Connecting);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(producer.getState(), HandlerState.State.Connecting));
         if (isAsyncSend) {
             producer.newMessage().value("test".getBytes()).sendAsync().get();
         } else {
@@ -146,9 +148,8 @@ public class ProducerCloseTest extends ProducerConsumerBase {
     }
 
     private void initClient() throws PulsarClientException {
-        pulsarClient = PulsarClient.builder().
-                serviceUrl(lookupUrl.toString())
-                .build();
+        replacePulsarClient(PulsarClient.builder().
+                serviceUrl(lookupUrl.toString()));
     }
 
 }

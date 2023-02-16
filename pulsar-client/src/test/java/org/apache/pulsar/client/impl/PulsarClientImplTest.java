@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,14 +22,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -38,7 +38,6 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -48,13 +47,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
-
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -62,25 +61,14 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  * PulsarClientImpl unit tests.
  */
 public class PulsarClientImplTest {
-    private PulsarClientImpl clientImpl;
     private EventLoopGroup eventLoopGroup;
-
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws PulsarClientException {
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl("pulsar://localhost:6650");
-        initializeEventLoopGroup(conf);
-        clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
-    }
 
     private void initializeEventLoopGroup(ClientConfigurationData conf) {
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
@@ -89,10 +77,6 @@ public class PulsarClientImplTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        if (clientImpl != null) {
-            clientImpl.close();
-            clientImpl = null;
-        }
         if (eventLoopGroup != null) {
             eventLoopGroup.shutdownGracefully().get();
             eventLoopGroup = null;
@@ -101,9 +85,13 @@ public class PulsarClientImplTest {
 
     @Test
     public void testIsClosed() throws Exception {
-        assertFalse(clientImpl.isClosed());
-        clientImpl.close();
-        assertTrue(clientImpl.isClosed());
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup);
+        assertFalse(client.isClosed());
+        client.close();
+        assertTrue(client.isClosed());
     }
 
     @Test
@@ -119,7 +107,7 @@ public class PulsarClientImplTest {
                         new GetTopicsResult(Collections.emptyList(), null, false, true)));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
-        when(lookup.getBroker(any(TopicName.class)))
+        when(lookup.getBroker(any()))
                 .thenReturn(CompletableFuture.completedFuture(
                         Pair.of(mock(InetSocketAddress.class), mock(InetSocketAddress.class))));
         ConnectionPool pool = mock(ConnectionPool.class);
@@ -136,8 +124,11 @@ public class PulsarClientImplTest {
                 .thenReturn(CompletableFuture.completedFuture(mock(ProducerResponse.class)));
         when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class)))
                 .thenReturn(CompletableFuture.completedFuture(cnx));
-        Whitebox.setInternalState(clientImpl, "cnxPool", pool);
-        Whitebox.setInternalState(clientImpl, "lookup", lookup);
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool);
+        client.setLookup(lookup);
 
         List<ConsumerBase<byte[]>> consumers = new ArrayList<>();
         /**
@@ -146,24 +137,24 @@ public class PulsarClientImplTest {
         ConsumerConfigurationData<byte[]> consumerConf0 = new ConsumerConfigurationData<>();
         consumerConf0.setSubscriptionName("test-subscription0");
         consumerConf0.setTopicsPattern(Pattern.compile("test-topic"));
-        consumers.add((ConsumerBase) clientImpl.subscribeAsync(consumerConf0).get());
+        consumers.add((ConsumerBase<byte[]>) client.subscribeAsync(consumerConf0).get());
         /**
          * {@link org.apache.pulsar.client.impl.PulsarClientImpl#singleTopicSubscribeAsync}
          */
         ConsumerConfigurationData<byte[]> consumerConf1 = new ConsumerConfigurationData<>();
         consumerConf1.setSubscriptionName("test-subscription1");
         consumerConf1.setTopicNames(Collections.singleton("test-topic"));
-        consumers.add((ConsumerBase) clientImpl.subscribeAsync(consumerConf1).get());
+        consumers.add((ConsumerBase<byte[]>) client.subscribeAsync(consumerConf1).get());
         /**
          * {@link org.apache.pulsar.client.impl.PulsarClientImpl#multiTopicSubscribeAsync}
          */
         ConsumerConfigurationData<byte[]> consumerConf2 = new ConsumerConfigurationData<>();
         consumerConf2.setSubscriptionName("test-subscription2");
-        consumers.add((ConsumerBase) clientImpl.subscribeAsync(consumerConf2).get());
+        consumers.add((ConsumerBase<byte[]>) client.subscribeAsync(consumerConf2).get());
 
         consumers.forEach(consumer ->
                 assertNotSame(consumer.getState(), HandlerState.State.Closed));
-        clientImpl.close();
+        client.close();
         consumers.forEach(consumer ->
                 assertSame(consumer.getState(), HandlerState.State.Closed));
     }
@@ -197,27 +188,12 @@ public class PulsarClientImplTest {
         client.timer().stop();
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
-    public void testNewTransactionWhenDisable() throws Exception {
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl("pulsar://localhost:6650");
-        conf.setEnableTransaction(false);
-        PulsarClientImpl pulsarClient = null;
-        try {
-            pulsarClient = new PulsarClientImpl(conf);
-        } catch (PulsarClientException e) {
-            e.printStackTrace();
-        }
-        pulsarClient.newTransaction();
-    }
-
     @Test
-    public void testResourceCleanup() throws PulsarClientException {
-        ClientConfigurationData conf = clientImpl.conf;
+    public void testResourceCleanup() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("");
         initializeEventLoopGroup(conf);
-        ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup);
-        try {
+        try (ConnectionPool connectionPool = new ConnectionPool(conf, eventLoopGroup)) {
             assertThrows(() -> new PulsarClientImpl(conf, eventLoopGroup, connectionPool));
         } finally {
             // Externally passed eventLoopGroup should not be shutdown.
@@ -227,30 +203,44 @@ public class PulsarClientImplTest {
 
     @Test
     public void testInitializingWithExecutorProviders() throws PulsarClientException {
-        ClientConfigurationData conf = clientImpl.conf;
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+
         @Cleanup("shutdownNow")
         ExecutorProvider executorProvider = new ExecutorProvider(2, "shared-executor");
+        @Cleanup("shutdownNow")
+        ScheduledExecutorProvider scheduledExecutorProvider =
+                new ScheduledExecutorProvider(2, "scheduled-executor");
         @Cleanup
         PulsarClientImpl client2 = PulsarClientImpl.builder().conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .externalExecutorProvider(executorProvider)
+                .scheduledExecutorProvider(scheduledExecutorProvider)
                 .build();
         @Cleanup
         PulsarClientImpl client3 = PulsarClientImpl.builder().conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .externalExecutorProvider(executorProvider)
+                .scheduledExecutorProvider(scheduledExecutorProvider)
                 .build();
+
+        assertEquals(client2.getScheduledExecutorProvider(), scheduledExecutorProvider);
+        assertEquals(client3.getScheduledExecutorProvider(), scheduledExecutorProvider);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "Both externalExecutorProvider and internalExecutorProvider must be " +
                     "specified or unspecified.")
     public void testBothExecutorProvidersMustBeSpecified() throws PulsarClientException {
-        ClientConfigurationData conf = clientImpl.conf;
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
         @Cleanup("shutdownNow")
         ExecutorProvider executorProvider = new ExecutorProvider(2, "shared-executor");
         @Cleanup
-        PulsarClientImpl client2 = PulsarClientImpl.builder().conf(conf)
+        PulsarClientImpl ignore = PulsarClientImpl.builder()
+                .conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .build();
     }

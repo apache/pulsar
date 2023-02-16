@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,6 +37,7 @@ public class RawMessageImpl implements RawMessage {
 
     private ReferenceCountedMessageMetadata msgMetadata;
     private final SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
+    private volatile boolean setSingleMessageMetadata;
     private ByteBuf payload;
 
     private static final Recycler<RawMessageImpl> RECYCLER = new Recycler<RawMessageImpl>() {
@@ -57,6 +58,7 @@ public class RawMessageImpl implements RawMessage {
         msgMetadata.release();
         msgMetadata = null;
         singleMessageMetadata.clear();
+        setSingleMessageMetadata = false;
 
         payload.release();
         handle.recycle(this);
@@ -72,6 +74,7 @@ public class RawMessageImpl implements RawMessage {
 
         if (singleMessageMetadata != null) {
             msg.singleMessageMetadata.copyFrom(singleMessageMetadata);
+            msg.setSingleMessageMetadata = true;
         }
         msg.messageId.ledgerId = ledgerId;
         msg.messageId.entryId = entryId;
@@ -90,7 +93,7 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public Map<String, String> getProperties() {
-        if (singleMessageMetadata != null && singleMessageMetadata.getPropertiesCount() > 0) {
+        if (setSingleMessageMetadata && singleMessageMetadata.getPropertiesCount() > 0) {
             return singleMessageMetadata.getPropertiesList().stream()
                       .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue,
                               (oldValue, newValue) -> newValue));
@@ -119,7 +122,7 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public long getEventTime() {
-        if (singleMessageMetadata != null && singleMessageMetadata.hasEventTime()) {
+        if (setSingleMessageMetadata && singleMessageMetadata.hasEventTime()) {
             return singleMessageMetadata.getEventTime();
         } else if (msgMetadata.getMetadata().hasEventTime()) {
             return msgMetadata.getMetadata().getEventTime();
@@ -140,7 +143,7 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public Optional<String> getKey() {
-        if (singleMessageMetadata != null && singleMessageMetadata.hasPartitionKey()) {
+        if (setSingleMessageMetadata && singleMessageMetadata.hasPartitionKey()) {
             return Optional.of(singleMessageMetadata.getPartitionKey());
         } else if (msgMetadata.getMetadata().hasPartitionKey()){
             return Optional.of(msgMetadata.getMetadata().getPartitionKey());
@@ -171,7 +174,7 @@ public class RawMessageImpl implements RawMessage {
 
     @Override
     public boolean hasBase64EncodedKey() {
-        if (singleMessageMetadata != null) {
+        if (setSingleMessageMetadata) {
             return singleMessageMetadata.isPartitionKeyB64Encoded();
         }
         return msgMetadata.getMetadata().isPartitionKeyB64Encoded();

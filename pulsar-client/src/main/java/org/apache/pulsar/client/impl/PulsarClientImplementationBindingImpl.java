@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -242,10 +242,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return KeyValueSchemaImpl.kvBytes();
     }
 
-    public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
-        return KeyValueSchemaImpl.of(keySchema, valueSchema);
-    }
-
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                     KeyValueEncodingType keyValueEncodingType) {
         return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
@@ -387,8 +383,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new MessagePayloadFactoryImpl();
     }
 
-    public SchemaInfo newSchemaInfoImpl(
-            String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue) {
-        return new SchemaInfoImpl(name, schema, type, propertiesValue);
+    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                        Map<String, String> propertiesValue) {
+        return new SchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
     }
 }

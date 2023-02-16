@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.broker.web;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
-import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.Closeables;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,6 +35,7 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,10 +49,11 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -61,8 +63,6 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.apache.zookeeper.MockZooKeeper;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -80,6 +80,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class WebServiceTest {
 
+    private PulsarTestContext pulsarTestContext;
     private PulsarService pulsar;
     private String BROKER_LOOKUP_URL;
     private String BROKER_LOOKUP_URL_TLS;
@@ -88,6 +89,43 @@ public class WebServiceTest {
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
+
+    @Test
+    public void testWebExecutorMetrics() throws Exception {
+        setupEnv(true, false, false, false, -1, false);
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> maxThreads = metrics.get("pulsar_web_executor_max_threads");
+        Collection<PrometheusMetricsTest.Metric> minThreads = metrics.get("pulsar_web_executor_min_threads");
+        Collection<PrometheusMetricsTest.Metric> activeThreads = metrics.get("pulsar_web_executor_active_threads");
+        Collection<PrometheusMetricsTest.Metric> idleThreads = metrics.get("pulsar_web_executor_idle_threads");
+        Collection<PrometheusMetricsTest.Metric> currentThreads = metrics.get("pulsar_web_executor_current_threads");
+
+        for (PrometheusMetricsTest.Metric metric : maxThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : minThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : activeThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value >= 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : idleThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value >= 0);
+        }
+        for (PrometheusMetricsTest.Metric metric : currentThreads) {
+            Assert.assertNotNull(metric.tags.get("cluster"));
+            Assert.assertTrue(metric.value > 0);
+        }
+    }
+
     /**
      * Test that the {@WebService} class properly passes the allowUnversionedClients value. We do this by setting
      * allowUnversionedClients to true, then making a request with no version, which should go through.
@@ -95,8 +133,8 @@ public class WebServiceTest {
      */
     @Test
     public void testDefaultClientVersion() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, -1, false);
-      
+        setupEnv(true, false, false, false, -1, false);
+
         try {
             // Make an HTTP request to lookup a namespace. The request should
             // succeed
@@ -113,7 +151,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsEnabled() throws Exception {
-        setupEnv(false, "1.0", false, true, false, false, -1, false);
+        setupEnv(false, true, false, false, -1, false);
 
         // Make requests both HTTP and HTTPS. The requests should succeed
         try {
@@ -135,7 +173,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsDisabled() throws Exception {
-        setupEnv(false, "1.0", false, false, false, false, -1, false);
+        setupEnv(false, false, false, false, -1, false);
 
         // Make requests both HTTP and HTTPS. Only the HTTP request should succeed
         try {
@@ -159,7 +197,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthAllowInsecure() throws Exception {
-        setupEnv(false, "1.0", false, true, true, true, -1, false);
+        setupEnv(false, true, true, true, -1, false);
 
         // Only the request with client certificate should succeed
         try {
@@ -182,7 +220,7 @@ public class WebServiceTest {
      */
     @Test
     public void testTlsAuthDisallowInsecure() throws Exception {
-        setupEnv(false, "1.0", false, true, true, false, -1, false);
+        setupEnv(false, true, true, false, -1, false);
 
         // Only the request with trusted client certificate should succeed
         try {
@@ -200,7 +238,7 @@ public class WebServiceTest {
 
     @Test
     public void testRateLimiting() throws Exception {
-        setupEnv(false, "1.0", false, false, false, false, 10.0, false);
+        setupEnv(false, false, false, false, 10.0, false);
 
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
@@ -227,7 +265,7 @@ public class WebServiceTest {
 
     @Test
     public void testDisableHttpTraceAndTrackMethods() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, -1, true);
+        setupEnv(true, false, false, false, -1, true);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -240,7 +278,7 @@ public class WebServiceTest {
 
         // This should have failed
         assertEquals(res.getStatusCode(), 405);
-        
+
         builder = client.prepare("TRACK", url);
 
         res = builder.execute().get();
@@ -251,7 +289,7 @@ public class WebServiceTest {
 
     @Test
     public void testMaxRequestSize() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, -1, false);
+        setupEnv(true, false, false, false, -1, false);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/tenants/my-tenant" + System.currentTimeMillis();
 
@@ -266,7 +304,7 @@ public class WebServiceTest {
         TenantInfo info1 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 20 * 1024)))
                 .build();
-        builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info1));
+        builder.setBody(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(info1));
         Response res = builder.execute().get();
 
         // This should have failed
@@ -279,7 +317,7 @@ public class WebServiceTest {
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
                 .build();
-        builder.setBody(ObjectMapperFactory.getThreadLocal().writeValueAsBytes(info2));
+        builder.setBody(ObjectMapperFactory.getMapper().writer().writeValueAsBytes(info2));
 
         Response res2 = builder.execute().get();
         assertEquals(res2.getStatusCode(), 204);
@@ -295,7 +333,7 @@ public class WebServiceTest {
 
     @Test
     public void testBrokerReady() throws Exception {
-        setupEnv(true, "1.0", true, false, false, false, -1, false);
+        setupEnv(true, false, false, false, -1, false);
 
         String url = pulsar.getWebServiceAddress() + "/admin/v2/brokers/ready";
 
@@ -340,9 +378,8 @@ public class WebServiceTest {
         }
     }
 
-    private void setupEnv(boolean enableFilter, String minApiVersion, boolean allowUnversionedClients,
-            boolean enableTls, boolean enableAuth, boolean allowInsecure, double rateLimit, 
-            boolean disableTrace) throws Exception {
+    private void setupEnv(boolean enableFilter, boolean enableTls, boolean enableAuth, boolean allowInsecure,
+                          double rateLimit, boolean disableTrace) throws Exception {
         if (pulsar != null) {
             throw new Exception("broker already started");
         }
@@ -355,6 +392,7 @@ public class WebServiceTest {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setAdvertisedAddress("localhost");
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
         if (enableTls) {
@@ -378,19 +416,13 @@ public class WebServiceTest {
             config.setHttpRequestsLimitEnabled(true);
             config.setHttpRequestsMaxPerSecond(rateLimit);
         }
-        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, config);
-     // mock zk
-        MockZooKeeper mockZooKeeper = MockedPulsarServiceBaseTest.createMockZooKeeper();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createConfigurationMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(pulsar).createLocalMetadataStore();
-        doReturn(new MockedBookKeeperClientFactory()).when(pulsar).newBookKeeperClientFactory();
-        pulsar.start();
 
-        try {
-            pulsar.getLocalMetadataStore().delete("/minApiVersion", Optional.empty()).join();
-        } catch (Exception ex) {
-        }
-        pulsar.getLocalMetadataStore().put("/minApiVersion", minApiVersion.getBytes(), Optional.of(-1L)).join();
+        pulsarTestContext = PulsarTestContext.builder()
+                .spyByDefault()
+                .config(config)
+                .build();
+
+        pulsar = pulsarTestContext.getPulsarService();
 
         String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
         String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
@@ -426,14 +458,15 @@ public class WebServiceTest {
 
     @AfterMethod(alwaysRun = true)
     void teardown() {
-        if (pulsar != null) {
+        if (pulsarTestContext != null) {
             try {
-                pulsar.close();
-                pulsar = null;
+                pulsarTestContext.close();
+                pulsarTestContext = null;
             } catch (Exception e) {
                 Assert.fail("Got exception while closing the pulsar instance ", e);
             }
         }
+        pulsar = null;
     }
 
     private static final Logger log = LoggerFactory.getLogger(WebServiceTest.class);

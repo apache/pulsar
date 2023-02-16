@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,8 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -259,7 +257,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .ioThreads(20).connectionsPerBroker(20).build();
         upsertLookupPermits(100);
-        List<Consumer<byte[]>> consumers = Collections.synchronizedList(Lists.newArrayList());
+        List<Consumer<byte[]>> consumers = Collections.synchronizedList(new ArrayList<>());
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(10);
         final int totalConsumers = 8;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -198,17 +198,17 @@ public class FunctionRuntimeManager implements AutoCloseable {
             if (workerConfig.getThreadContainerFactory() != null) {
                 this.runtimeFactory = new ThreadRuntimeFactory();
                 workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getThreadLocal().convertValue(
+                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                                 workerConfig.getThreadContainerFactory(), Map.class));
             } else if (workerConfig.getProcessContainerFactory() != null) {
                 this.runtimeFactory = new ProcessRuntimeFactory();
                 workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getThreadLocal().convertValue(
+                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                                 workerConfig.getProcessContainerFactory(), Map.class));
             } else if (workerConfig.getKubernetesContainerFactory() != null) {
                 this.runtimeFactory = new KubernetesRuntimeFactory();
                 workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getThreadLocal().convertValue(
+                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                                 workerConfig.getKubernetesContainerFactory(), Map.class));
             } else {
                 throw new RuntimeException("A Function Runtime Factory needs to be set");
@@ -216,7 +216,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
         // initialize runtime
         this.runtimeFactory.initialize(workerConfig, authConfig,
-                secretsProviderConfigurator, connectorsManager,
+                secretsProviderConfigurator, connectorsManager, functionsManager,
                 functionAuthProvider, runtimeCustomizer);
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
@@ -447,9 +447,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         }
                     }
                     if (workerInfo == null) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] has not been assigned yet", fullyQualifiedInstanceId);
-                        }
+                        log.warn("[{}] has not been assigned yet, assignment: [{}], workerList: [{}]",
+                                fullyQualifiedInstanceId, assignment, workerInfoList);
                         continue;
                     }
                     restartFunctionUsingPulsarAdmin(assignment, tenant, namespace, functionName, false);
@@ -759,7 +758,12 @@ public class FunctionRuntimeManager implements AutoCloseable {
                         newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
                         RuntimeSpawner runtimeSpawner = functionActioner.getRuntimeSpawner(
                                 assignment.getInstance(),
-                                assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath());
+                                assignment.getInstance().getFunctionMetaData().getPackageLocation().getPackagePath(),
+                                assignment
+                                        .getInstance()
+                                        .getFunctionMetaData()
+                                        .getTransformFunctionPackageLocation()
+                                        .getPackagePath());
                         // re-initialize if necessary
                         runtimeSpawner.getRuntime().reinitialize();
                         newFunctionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);

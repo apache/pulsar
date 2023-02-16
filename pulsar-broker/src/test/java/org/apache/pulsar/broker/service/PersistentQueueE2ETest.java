@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,8 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -48,8 +47,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.util.BlockingArrayQueue;
@@ -58,8 +57,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 @Test(groups = "broker")
 public class PersistentQueueE2ETest extends BrokerTestBase {
@@ -110,7 +107,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertTrue(subRef.getDispatcher().isConsumerConnected());
         assertEquals(subRef.getDispatcher().getType(), SubType.Shared);
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMsgs * 2);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -193,7 +190,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final String subName = "sub3";
         final int numMsgs = 100;
 
-        final List<String> messagesProduced = Lists.newArrayListWithCapacity(numMsgs);
+        final List<String> messagesProduced = new ArrayList<>(numMsgs);
         final List<String> messagesConsumed = new BlockingArrayQueue<>(numMsgs);
 
         Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -213,7 +210,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
                     // do nothing
                 }).subscribe();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMsgs * 2);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "msg-" + i;
@@ -286,7 +283,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             }
         }).subscribe();
 
-        List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMsgs);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs * 3; i++) {
             String message = "msg-" + i;
@@ -302,8 +299,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
          * i.e. each consumer will get 130 messages. In the 14th round, the balance is 411 - 130*3 = 21. Two consumers
          * will get another batch of 10 messages (Total: 140) and the 3rd one will get the last one (Total: 131)
          */
-        assertTrue(CollectionUtils.subtract(Lists.newArrayList(140, 140, 131),
-                Lists.newArrayList(counter1.get(), counter2.get(), counter3.get())).isEmpty());
+        assertTrue(CollectionUtils.subtract(List.of(140, 140, 131),
+                List.of(counter1.get(), counter2.get(), counter3.get())).isEmpty());
 
         consumer1.close();
         consumer2.close();

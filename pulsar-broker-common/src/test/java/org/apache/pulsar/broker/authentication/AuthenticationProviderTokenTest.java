@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,16 @@
 package org.apache.pulsar.broker.authentication;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwt;
@@ -33,26 +37,24 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import java.security.Key;
-import java.util.Arrays;
-import java.util.List;
-import lombok.Cleanup;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.security.Key;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.sql.Date;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
-
+import javax.servlet.http.HttpServletRequest;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
@@ -659,6 +661,8 @@ public class AuthenticationProviderTokenTest {
     }
 
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testExpiringToken() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -679,6 +683,7 @@ public class AuthenticationProviderTokenTest {
                 Optional.of(new Date(System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(3))));
 
         AuthenticationState authState = provider.newAuthState(AuthData.of(expiringToken.getBytes()), null, null);
+        authState.authenticate(AuthData.of(expiringToken.getBytes()));
         assertTrue(authState.isComplete());
         assertFalse(authState.isExpired());
 
@@ -688,6 +693,34 @@ public class AuthenticationProviderTokenTest {
 
         AuthData brokerData = authState.refreshAuthentication();
         assertEquals(brokerData, AuthData.REFRESH_AUTH_DATA);
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testExpiredTokenFailsOnAuthenticate() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        // Create a token that is already expired
+        String expiringToken = AuthTokenUtils.createToken(secretKey, SUBJECT,
+                Optional.of(new Date(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(3))));
+
+        AuthData expiredAuthData = AuthData.of(expiringToken.getBytes());
+
+        // It is important that this call doesn't fail because we no longer authenticate the auth data at construction
+        AuthenticationState authState = provider.newAuthState(expiredAuthData,null, null);
+        // The call to authenticate the token is the call that fails
+        assertThrows(AuthenticationException.class, () -> authState.authenticate(expiredAuthData));
     }
 
     // tests for Token Audience
@@ -835,7 +868,7 @@ public class AuthenticationProviderTokenTest {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setProperties(properties);
 
-        ServiceConfiguration mockConf = Mockito.mock(ServiceConfiguration.class);
+        ServiceConfiguration mockConf = mock(ServiceConfiguration.class);
         String prefix = "test";
 
         Mockito.when(mockConf.getProperty(anyString()))
@@ -860,6 +893,98 @@ public class AuthenticationProviderTokenTest {
                 .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE_CLAIM);
         Mockito.verify(mockConf, Mockito.times(1))
                 .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE);
+    }
+
+    @Test
+    public void testTokenFromHttpParams() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn(token).when(servletRequest).getParameter("token");
+        doReturn(null).when(servletRequest).getHeader("Authorization");
+        doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
+        doReturn(0).when(servletRequest).getRemotePort();
+
+        boolean doFilter = provider.authenticateHttpRequest(servletRequest, null);
+        assertTrue(doFilter, "Authentication should have passed");
+    }
+
+    @Test
+    public void testTokenFromHttpHeaders() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        String token = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn("Bearer " + token).when(servletRequest).getHeader("Authorization");
+        doReturn("127.0.0.1").when(servletRequest).getRemoteAddr();
+        doReturn(0).when(servletRequest).getRemotePort();
+
+        boolean doFilter = provider.authenticateHttpRequest(servletRequest, null);
+        assertTrue(doFilter, "Authentication should have passed");
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testTokenStateUpdatesAuthenticationDataSource() throws Exception {
+        SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+
+        @Cleanup
+        AuthenticationProviderToken provider = new AuthenticationProviderToken();
+
+        Properties properties = new Properties();
+        properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
+                AuthTokenUtils.encodeKeyBase64(secretKey));
+
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setProperties(properties);
+        provider.initialize(conf);
+
+        AuthenticationState authState = provider.newAuthState(null,null, null);
+
+        // Haven't authenticated yet, so cannot get role when using constructor with no auth data
+        assertThrows(AuthenticationException.class, authState::getAuthRole);
+        assertNull(authState.getAuthDataSource(), "Haven't created a source yet.");
+
+        String firstToken = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+
+        AuthData firstChallenge = authState.authenticate(AuthData.of(firstToken.getBytes()));
+        AuthenticationDataSource firstAuthDataSource = authState.getAuthDataSource();
+
+        assertNull(firstChallenge, "TokenAuth doesn't respond with challenges");
+        assertNotNull(firstAuthDataSource, "Created authDataSource");
+
+        String secondToken = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
+
+        AuthData secondChallenge = authState.authenticate(AuthData.of(secondToken.getBytes()));
+        AuthenticationDataSource secondAuthDataSource = authState.getAuthDataSource();
+
+        assertNull(secondChallenge, "TokenAuth doesn't respond with challenges");
+        assertNotNull(secondAuthDataSource, "Created authDataSource");
+
+        assertNotEquals(firstAuthDataSource, secondAuthDataSource);
     }
 
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {

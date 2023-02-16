@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 
-public class TopicMessageIdImpl implements MessageId {
+public class TopicMessageIdImpl implements TopicMessageId {
 
     /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
     private final String topicPartitionName;
@@ -37,6 +38,7 @@ public class TopicMessageIdImpl implements MessageId {
      * Get the topic name without partition part of this message.
      * @return the name of the topic on which this message was published
      */
+    @Deprecated
     public String getTopicName() {
         return this.topicName;
     }
@@ -45,6 +47,7 @@ public class TopicMessageIdImpl implements MessageId {
      * Get the topic name which contains partition part for this message.
      * @return the topic name which contains Partition part
      */
+    @Deprecated
     public String getTopicPartitionName() {
         return this.topicPartitionName;
     }
@@ -76,5 +79,10 @@ public class TopicMessageIdImpl implements MessageId {
     @Override
     public int compareTo(MessageId o) {
         return messageId.compareTo(o);
+    }
+
+    @Override
+    public String getOwnerTopic() {
+        return topicPartitionName;
     }
 }

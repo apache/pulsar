@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,10 +23,8 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -61,12 +59,14 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}
+     * @deprecated - Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}.
+     * Will be removed after 2.12.
      * Check if specified role is a super user
      * @param role the role to check
      * @return a CompletableFuture containing a boolean in which true means the role is a super user
      * and false if it is not
      */
+    @Deprecated
     default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
         return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
@@ -90,31 +90,12 @@ public interface AuthorizationProvider extends Closeable {
      *
      * @param conf
      *            broker config object
-     * @param configCache
-     *            pulsar zk configuration cache service
-     * @throws IOException
-     *             if the initialization fails
-     *
-     * @deprecated ConfigurationCacheService is not supported anymore as a way to get access to metadata.
-     * @see #initialize(ServiceConfiguration, PulsarResources)
-     */
-    @Deprecated
-    default void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
-    }
-
-    /**
-     * Perform initialization for the authorization provider.
-     *
-     * @param conf
-     *            broker config object
      * @param pulsarResources
      *            Resources component for access to metadata
      * @throws IOException
      *             if the initialization fails
      */
     default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        // For compatibility, call the old deprecated initialize
-        initialize(conf, (ConfigurationCacheService) null);
     }
 
     /**
@@ -246,39 +227,6 @@ public interface AuthorizationProvider extends Closeable {
             String authDataJson);
 
     /**
-     * Grant authorization-action permission on a tenant to the given client.
-     * @param tenantName
-     * @param originalRole role not overriden by proxy role if request do pass through proxy
-     * @param role originalRole | proxyRole if the request didn't pass through proxy
-     * @param operation
-     * @param authData
-     * @return CompletableFuture<Boolean>
-     */
-    @Deprecated
-    default CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName, String originalRole, String role,
-                                                            TenantOperation operation,
-                                                            AuthenticationDataSource authData) {
-        return allowTenantOperationAsync(
-            tenantName,
-            StringUtils.isBlank(originalRole) ? role : originalRole,
-            operation,
-            authData
-        );
-    }
-
-    @Deprecated
-    default Boolean allowTenantOperation(String tenantName, String originalRole, String role, TenantOperation operation,
-                                      AuthenticationDataSource authData) {
-        try {
-            return allowTenantOperationAsync(tenantName, originalRole, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
      * Check if a given <tt>role</tt> is allowed to execute a given <tt>operation</tt> on the tenant.
      *
      * @param tenantName tenant name
@@ -296,6 +244,10 @@ public interface AuthorizationProvider extends Closeable {
                 operation.toString(), tenantName)));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowTenantOperation(String tenantName, String role, TenantOperation operation,
                                          AuthenticationDataSource authData) {
         try {
@@ -325,50 +277,16 @@ public interface AuthorizationProvider extends Closeable {
                     + "the Authorization provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowNamespaceOperation(NamespaceName namespaceName,
                                             String role,
                                             NamespaceOperation operation,
                                             AuthenticationDataSource authData) {
         try {
             return allowNamespaceOperationAsync(namespaceName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
-     * Grant authorization-action permission on a namespace to the given client.
-     *
-     * @param namespaceName
-     * @param role
-     * @param operation
-     * @param authData
-     * @return CompletableFuture<Boolean>
-     */
-    @Deprecated
-    default CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
-                                                                    String originalRole,
-                                                                    String role,
-                                                                    NamespaceOperation operation,
-                                                                    AuthenticationDataSource authData) {
-        return allowNamespaceOperationAsync(
-            namespaceName,
-            StringUtils.isBlank(originalRole) ? role : originalRole,
-            operation,
-            authData
-        );
-    }
-
-    @Deprecated
-    default Boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                            String originalRole,
-                                            String role,
-                                            NamespaceOperation operation,
-                                            AuthenticationDataSource authData) {
-        try {
-            return allowNamespaceOperationAsync(namespaceName, originalRole, role, operation, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -396,6 +314,10 @@ public interface AuthorizationProvider extends Closeable {
                         + "is not supported by is not supported by the Authorization provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
                                                   PolicyName policy,
                                                   PolicyOperation operation,
@@ -403,48 +325,6 @@ public interface AuthorizationProvider extends Closeable {
                                                   AuthenticationDataSource authData) {
         try {
             return allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
-     * Grant authorization-action permission on a namespace to the given client.
-     * @param namespaceName
-     * @param originalRole role not overriden by proxy role if request do pass through proxy
-     * @param role originalRole | proxyRole if the request didn't pass through proxy
-     * @param operation
-     * @param authData
-     * @return CompletableFuture<Boolean>
-     */
-    @Deprecated
-    default CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
-                                                                          PolicyName policy,
-                                                                          PolicyOperation operation,
-                                                                          String originalRole,
-                                                                          String role,
-                                                                          AuthenticationDataSource authData) {
-        return allowNamespacePolicyOperationAsync(
-            namespaceName,
-            policy,
-            operation,
-            StringUtils.isBlank(originalRole) ? role : originalRole,
-            authData
-        );
-    }
-
-    @Deprecated
-    default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
-                                                  PolicyName policy,
-                                                  PolicyOperation operation,
-                                                  String originalRole,
-                                                  String role,
-                                                  AuthenticationDataSource authData) {
-        try {
-            return allowNamespacePolicyOperationAsync(
-                namespaceName, policy, operation, originalRole, role, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -470,50 +350,16 @@ public interface AuthorizationProvider extends Closeable {
                     + "provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowTopicOperation(TopicName topicName,
                                         String role,
                                         TopicOperation operation,
                                         AuthenticationDataSource authData) {
         try {
             return allowTopicOperationAsync(topicName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
-     * Grant authorization-action permission on a topic to the given client.
-     * @param topic
-     * @param originalRole role not overriden by proxy role if request do pass through proxy
-     * @param role originalRole | proxyRole if the request didn't pass through proxy
-     * @param operation
-     * @param authData
-     * @return CompletableFuture<Boolean>
-     */
-    @Deprecated
-    default CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic,
-                                                                String originalRole,
-                                                                String role,
-                                                                TopicOperation operation,
-                                                                AuthenticationDataSource authData) {
-        return allowTopicOperationAsync(
-            topic,
-            StringUtils.isBlank(originalRole) ? role : originalRole,
-            operation,
-            authData
-        );
-    }
-
-    @Deprecated
-    default Boolean allowTopicOperation(TopicName topicName,
-                                        String originalRole,
-                                        String role,
-                                        TopicOperation operation,
-                                        AuthenticationDataSource authData) {
-        try {
-            return allowTopicOperationAsync(topicName, originalRole, role, operation, authData).get();
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -540,6 +386,10 @@ public interface AuthorizationProvider extends Closeable {
                         + "is not supported by the Authorization provider you are using."));
     }
 
+    /**
+     * @deprecated - will be removed after 2.12. Use async variant.
+     */
+    @Deprecated
     default Boolean allowTopicPolicyOperation(TopicName topicName,
                                               String role,
                                               PolicyName policy,

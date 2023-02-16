@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,26 +62,39 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
     }
 
-    private void assertStreamsMatch(InputStream a, InputStream b) throws Exception {
+    private void assertStreamsMatch(BackedInputStream a, InputStream b, long initialPosition) throws Exception {
+        assertEquals(initialPosition, a.getCurrentPosition());
         int ret = 0;
+        long expectedPosition = initialPosition;
         while (ret >= 0) {
             ret = a.read();
-            Assert.assertEquals(ret, b.read());
+            assertEquals(ret, b.read());
+            if (ret != -1) {
+                // reached end of the stream, so read() did not advance the position
+                expectedPosition++;
+            }
+            assertEquals(a.getCurrentPosition(), expectedPosition);
         }
-        Assert.assertEquals(-1, a.read());
-        Assert.assertEquals(-1, b.read());
+        assertEquals(-1, a.read());
+        assertEquals(-1, b.read());
     }
 
-    private void assertStreamsMatchByBytes(InputStream a, InputStream b) throws Exception {
+    private void assertStreamsMatchByBytes(BackedInputStream a, InputStream b) throws Exception {
         byte[] bytesA = new byte[100];
         byte[] bytesB = new byte[100];
 
         int retA = 0;
+        long expectedPosition = 0;
         while (retA >= 0) {
             retA = a.read(bytesA, 0, 100);
             int retB = b.read(bytesB, 0, 100);
-            Assert.assertEquals(retA, retB);
-            Assert.assertEquals(bytesA, bytesB);
+            assertEquals(retA, retB);
+            assertEquals(bytesA, bytesB);
+            if (retA != -1) {
+                // reached end of the stream, so read() did not advance the position
+                expectedPosition += retA;
+            }
+            assertEquals(a.getCurrentPosition(), expectedPosition);
         }
     }
 
@@ -103,7 +117,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
-        assertStreamsMatch(toTest, toCompare);
+        assertStreamsMatch(toTest, toCompare, 0);
     }
 
     @Test
@@ -166,7 +180,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
                                                                  objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
             toTest.seek(e.getKey());
-            assertStreamsMatch(toTest, e.getValue());
+            assertStreamsMatch(toTest, e.getValue(), e.getKey().longValue());
         }
     }
 
@@ -197,7 +211,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         toTest.seek(100);
         firstSeek.skip(100);
         for (int i = 0; i < 100; i++) {
-            Assert.assertEquals(firstSeek.read(), toTest.read());
+            assertEquals(firstSeek.read(), toTest.read());
         }
 
         // seek forward a bit more, but in same block
@@ -205,7 +219,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         toTest.seek(600);
         secondSeek.skip(600);
         for (int i = 0; i < 100; i++) {
-            Assert.assertEquals(secondSeek.read(), toTest.read());
+            assertEquals(secondSeek.read(), toTest.read());
         }
 
         // seek back
@@ -213,7 +227,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         toTest.seek(200);
         thirdSeek.skip(200);
         for (int i = 0; i < 100; i++) {
-            Assert.assertEquals(thirdSeek.read(), toTest.read());
+            assertEquals(thirdSeek.read(), toTest.read());
         }
 
         verify(spiedBlobStore, times(1))
@@ -256,7 +270,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         toCompare.skip(after);
 
         toTest.seekForward(after);
-        assertStreamsMatch(toTest, toCompare);
+        assertStreamsMatch(toTest, toCompare, after);
     }
 
     @Test
@@ -273,12 +287,12 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         String ret = blobStore.putBlob(BUCKET, blob);
         BackedInputStream bis = new BlobStoreBackedInputStreamImpl(
             blobStore, BUCKET, objectKey, (k, md) -> {}, objectSize, 512);
-        Assert.assertEquals(bis.available(), objectSize);
+        assertEquals(bis.available(), objectSize);
         bis.seek(500);
-        Assert.assertEquals(bis.available(), objectSize - 500);
+        assertEquals(bis.available(), objectSize - 500);
         bis.seek(1024);
-        Assert.assertEquals(bis.available(), 1024);
+        assertEquals(bis.available(), 1024);
         bis.seek(2048);
-        Assert.assertEquals(bis.available(), 0);
+        assertEquals(bis.available(), 0);
     }
 }

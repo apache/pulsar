@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -44,6 +44,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
@@ -565,5 +566,28 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
         OffloadedLedgerMetadata offloadedLedgerMetadata2 = result.get(1);
         assertEquals(toWrite.getId(), offloadedLedgerMetadata2.getLedgerId());
+    }
+
+    @Test
+    public void testReadWithAClosedLedgerHandler() throws Exception {
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
+        LedgerOffloader offloader = getOffloader();
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        Assert.assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        long lac = toTest.getLastAddConfirmed();
+        toTest.readAsync(0, lac).get();
+        toTest.closeAsync().get();
+        try {
+            toTest.readAsync(0, lac).get();
+        } catch (Exception e) {
+            if (e.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException) {
+                // expected exception
+                return;
+            }
+            throw e;
+        }
     }
 }

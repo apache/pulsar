@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,11 +31,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -99,7 +99,7 @@ public class SchedulerManagerTest {
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
@@ -468,7 +468,7 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments = Sets.newHashSet();
+        Set<Assignment> allAssignments = new HashSet<>();
         invocations.forEach(invocation -> {
             try {
                 allAssignments.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
@@ -543,7 +543,7 @@ public class SchedulerManagerTest {
             Assert.assertEquals(assignment, expectedAssignment);
         }
 
-        Set<Assignment> allAssignments = Sets.newHashSet();
+        Set<Assignment> allAssignments = new HashSet<>();
         invocations.forEach(invocation -> {
             try {
                 allAssignments.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
@@ -610,7 +610,7 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments2 = Sets.newHashSet();
+        Set<Assignment> allAssignments2 = new HashSet<>();
         invocations.forEach(invocation -> {
             try {
                 allAssignments2.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
@@ -755,7 +755,7 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments = Sets.newHashSet();
+        Set<Assignment> allAssignments = new HashSet<>();
         invocations.forEach(invocation -> {
             try {
                 allAssignments.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));
@@ -818,7 +818,7 @@ public class SchedulerManagerTest {
         invocations = getMethodInvocationDetails(message, TypedMessageBuilder.class.getMethod("value",
                 Object.class));
 
-        Set<Assignment> allAssignments2 = Sets.newHashSet();
+        Set<Assignment> allAssignments2 = new HashSet<>();
         invocations.forEach(invocation -> {
             try {
                 allAssignments2.add(Assignment.parseFrom((byte[]) invocation.getRawArguments()[0]));

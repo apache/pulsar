@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -90,9 +90,10 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
                 try {
                     reader.close();
+                    promise.complete(null);
                 } catch (IOException t) {
                     promise.completeExceptionally(t);
                 }
@@ -106,7 +107,7 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
             log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
             if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 @Slf4j
 public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
@@ -104,7 +105,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                 EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
                     // delete the znode for id generation
-                    store.delete(stat.getPath(), Optional.empty()).
+                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
                             exceptionally(ex -> {
                                 log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
@@ -235,7 +236,7 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                 .put(prefix, new byte[0], Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral, CreateOption.Sequential))
                 .thenCompose(stat -> {
                     // delete the znode for id generation
-                    store.delete(stat.getPath(), Optional.empty()).
+                    store.delete(handleTheDeletePath(stat.getPath()), Optional.empty()).
                             exceptionally(ex -> {
                                 log.warn("Exception during deleting node for id generation: ", ex);
                                 return null;
@@ -287,4 +288,16 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         return ledgerIdGenPath + "/" + "ID-";
     }
 
+    //If the config rootPath when use zk metadata store, it will append rootPath as the prefix of the path.
+    //So when we get the path from the stat, we should truncate the rootPath.
+    private String handleTheDeletePath(String path) {
+        if (store instanceof ZKMetadataStore) {
+            String rootPath = ((ZKMetadataStore) store).getRootPath();
+            if (rootPath == null) {
+                return path;
+            }
+            return path.replaceFirst(rootPath, "");
+        }
+        return path;
+    }
 }

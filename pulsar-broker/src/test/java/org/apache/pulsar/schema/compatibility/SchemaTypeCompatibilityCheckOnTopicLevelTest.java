@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -52,9 +52,6 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setSystemTopicEnabled(true);
-
         super.internalSetup();
 
         // Setup namespaces

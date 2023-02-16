@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import javax.naming.AuthenticationException;
 
@@ -136,7 +137,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		}
 
 		@Override
-		public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+		public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
 			String commandData = null;
 			if (authData.hasDataFromCommand()) {
 				commandData = authData.getCommandData();
@@ -150,9 +151,12 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 			long currentTimeInMillis = System.currentTimeMillis();
 			if (expiryTimeInMillis < currentTimeInMillis) {
 				log.warn("Auth failed due to timeout");
-				throw new AuthenticationException("Authentication data has been expired");
+				return CompletableFuture
+						.failedFuture(new AuthenticationException("Authentication data has been expired"));
 			}
-			return element.get("entityType").getAsString();
+			final String result = element.get("entityType").getAsString();
+			// Run in another thread to attempt to test the async logic
+			return CompletableFuture.supplyAsync(() -> result);
 		}
 	}
 

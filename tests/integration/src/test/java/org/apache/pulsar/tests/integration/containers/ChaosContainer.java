@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -63,6 +63,10 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     @Override
     public void stop() {
         beforeStop();
+        doStop();
+    }
+
+    protected void doStop() {
         super.stop();
     }
 
@@ -106,7 +110,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
             return false;
         }
 
-        ChaosContainer another = (ChaosContainer) o;
+        ChaosContainer<?> another = (ChaosContainer<?>) o;
         return clusterName.equals(another.clusterName)
             && super.equals(another);
     }

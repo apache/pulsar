@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
@@ -70,7 +70,7 @@ public class NSQSourceConfig implements Serializable {
 
     public static NSQSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return applyDefaults(mapper.readValue(new ObjectMapper().writeValueAsString(map), NSQSourceConfig.class));
+        return applyDefaults(mapper.readValue(mapper.writeValueAsString(map), NSQSourceConfig.class));
     }
 
     private static NSQSourceConfig applyDefaults(NSQSourceConfig config) {

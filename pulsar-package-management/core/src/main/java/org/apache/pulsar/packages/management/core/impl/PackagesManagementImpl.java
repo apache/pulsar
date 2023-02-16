@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -84,20 +84,20 @@ public class PackagesManagementImpl implements PackagesManagement {
                     future.completeExceptionally(throwable);
                     return;
                 }
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                try (ByteArrayInputStream in = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
                     storage.deleteAsync(metadataPath)
-                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, inputStream))
+                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, in))
                         .whenComplete((aVoid, t) -> {
                             if (t != null) {
                                 future.completeExceptionally(new PackagesManagementException(
-                                    String.format("Update package '%s' metadata failed", packageName.toString()), t));
+                                    String.format("Update package '%s' metadata failed", packageName), t));
                             } else {
                                 future.complete(null);
                             }
                         });
                 } catch (IOException e) {
                     future.completeExceptionally(new PackagesManagementException(
-                        String.format("Read package '%s' metadata failed", packageName.toString()), e));
+                        String.format("Read package '%s' metadata failed", packageName), e));
                 }
             });
         return future;
@@ -143,8 +143,7 @@ public class PackagesManagementImpl implements PackagesManagement {
     public CompletableFuture<Void> delete(PackageName packageName) {
         return CompletableFuture.allOf(
             storage.deleteAsync(metadataPath(packageName)),
-            storage.deleteAsync(packagePath(packageName)),
-            storage.deleteAsync(packageName.toRestPath()));
+            storage.deleteAsync(packagePath(packageName)));
     }
 
     @Override
@@ -244,12 +243,12 @@ public class PackagesManagementImpl implements PackagesManagement {
         return future;
     }
 
-    private String metadataPath(PackageName packageName) {
+    protected String metadataPath(PackageName packageName) {
         return packageName.toRestPath() + "/meta";
     }
 
-    private String packagePath(PackageName packageName) {
-        return packageName.toRestPath() + "/data";
+    protected String packagePath(PackageName packageName) {
+        return packageName.toRestPath() + storage.dataPath();
     }
 
     private String packageWithoutVersionPath(PackageName packageName) {

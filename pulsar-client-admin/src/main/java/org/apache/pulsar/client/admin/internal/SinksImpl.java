@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,6 @@ import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
@@ -41,7 +40,6 @@ import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
@@ -73,23 +71,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             return future;
         }
         WebTarget path = sink.path(tenant).path(namespace);
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(new GenericType<List<String>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<String>>() {});
     }
 
     @Override
@@ -104,23 +86,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             return future;
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName);
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SinkConfig.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, SinkConfig.class);
     }
 
     @Override
@@ -136,23 +102,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             return future;
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path("status");
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(SinkStatus.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, SinkStatus.class);
     }
 
     @Override
@@ -170,24 +120,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             return future;
         }
         WebTarget path = sink.path(tenant).path(namespace).path(sinkName).path(Integer.toString(id)).path("status");
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, SinkStatus.SinkInstanceStatus.SinkInstanceStatusData.class);
     }
 
     @Override
@@ -205,7 +138,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             RequestBuilder builder =
                     post(sink.path(sinkConfig.getTenant())
                             .path(sinkConfig.getNamespace()).path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("sinkConfig", objectWriter()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -287,14 +220,13 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             RequestBuilder builder =
                     put(sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
                             .path(sinkConfig.getName()).getUri().toASCIIString())
-                    .addBodyPart(new StringPart("sinkConfig", ObjectMapperFactory.getThreadLocal()
+                    .addBodyPart(new StringPart("sinkConfig", objectWriter()
                             .writeValueAsString(sinkConfig), MediaType.APPLICATION_JSON));
 
             UpdateOptionsImpl options = (UpdateOptionsImpl) updateOptions;
             if (options != null) {
                 builder.addBodyPart(new StringPart("updateOptions",
-                        ObjectMapperFactory.getThreadLocal()
-                                .writeValueAsString(options), MediaType.APPLICATION_JSON));
+                        objectWriter().writeValueAsString(options), MediaType.APPLICATION_JSON));
             }
 
             if (fileName != null && !fileName.startsWith("builtin://")) {
@@ -357,7 +289,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
             if (options != null) {
                 mp.bodyPart(new FormDataBodyPart(
                         "updateOptions",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(options),
+                        objectWriter().writeValueAsString(options),
                         MediaType.APPLICATION_JSON_TYPE));
             }
             WebTarget path = sink.path(sinkConfig.getTenant()).path(sinkConfig.getNamespace())
@@ -484,25 +416,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
     @Override
     public CompletableFuture<List<ConnectorDefinition>> getBuiltInSinksAsync() {
         WebTarget path = sink.path("builtinsinks");
-        final CompletableFuture<List<ConnectorDefinition>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(getApiException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    new GenericType<List<ConnectorDefinition>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<ConnectorDefinition>>() {});
     }
 
     @Override

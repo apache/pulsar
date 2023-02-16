@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.web;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.ext.Provider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -26,6 +28,15 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 @Provider
 public class JsonMapperProvider implements ContextResolver<ObjectMapper> {
     private final ObjectMapper mapper = ObjectMapperFactory.create();
+
+    public JsonMapperProvider(){
+
+    }
+
+    public JsonMapperProvider(DeserializationProblemHandler handler){
+        mapper.enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        mapper.addHandler(handler);
+    }
 
     @Override
     public ObjectMapper getContext(Class<?> type) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 @Slf4j
 @Data
@@ -57,8 +58,8 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final long failoverDelayNs;
     private final long switchBackDelayNs;
     private final ScheduledExecutorService executor;
-    private long recoverTimestamp;
-    private long failedTimestamp;
+    private volatile long recoverTimestamp;
+    private volatile long failedTimestamp;
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
     private final PulsarServiceNameResolver resolver;
@@ -79,7 +80,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.intervalMs = builder.checkIntervalMs;
         this.resolver = new PulsarServiceNameResolver();
         this.executor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-service-provider"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
     }
 
     @Override
@@ -126,8 +127,9 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     boolean probeAvailable(String url) {
         try {
             resolver.updateServiceUrl(url);
+            InetSocketAddress endpoint = resolver.resolveHost();
             Socket socket = new Socket();
-            socket.connect(resolver.resolveHost(), TIMEOUT);
+            socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
             socket.close();
             return true;
         } catch (Exception e) {
@@ -159,6 +161,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             }
 
             pulsarClient.updateServiceUrl(target);
+            pulsarClient.reloadLookUp();
             currentPulsarServiceUrl = target;
         } catch (IOException e) {
             log.error("Current Pulsar service is {}, "

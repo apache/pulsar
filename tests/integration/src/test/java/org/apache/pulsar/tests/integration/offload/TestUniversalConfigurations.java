@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -72,7 +72,7 @@ public class TestUniversalConfigurations extends TestBaseOffload {
     @Override
     protected Map<String, String> getEnv() {
         Map<String, String> result = new HashMap<>();
-        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
+        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(getNumEntriesPerLedger()));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "aws-s3");
         result.put("managedLedgerOffloadBucket", "pulsar-integtest");

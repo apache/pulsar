@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -38,12 +34,12 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -116,7 +112,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         if (batchEnabled) {
             Entry entry = cursor.readEntriesOrWait(1).get(0);
 
-            List<RawMessage> messages = Lists.newArrayList();
+            List<RawMessage> messages = new ArrayList<>();
             ByteBuf headsAndPayload = entry.getDataBuffer();
 
             try {
@@ -147,8 +143,8 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
             List<Entry> entries = cursor.readEntriesOrWait(n);
             assertEquals(entries.size(), n);
 
-            List<ByteBuf> headsAndPayloadList = Lists.newArrayList();
-            List<RawMessage> messages = Lists.newArrayList();
+            List<ByteBuf> headsAndPayloadList = new ArrayList<>();
+            List<RawMessage> messages = new ArrayList<>();
             for (Entry entry : entries) {
                 ByteBuf headsAndPayload = entry.getDataBuffer();
                 headsAndPayloadList.add(headsAndPayload);

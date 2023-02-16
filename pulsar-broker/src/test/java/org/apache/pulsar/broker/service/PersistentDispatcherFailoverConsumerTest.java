@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.matches;
@@ -31,24 +30,24 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Supplier;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
@@ -58,18 +57,15 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
@@ -78,12 +74,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
-import org.apache.zookeeper.ZooKeeper;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -91,51 +81,33 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "quarantine")
 public class PersistentDispatcherFailoverConsumerTest {
 
-    private BrokerService brokerService;
-    private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
     private ServerCnx serverCnxWithOldVersion;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
-    private MetadataStore store;
     private ChannelHandlerContext channelCtx;
     private LinkedBlockingQueue<CommandActiveConsumerChange> consumerChanges;
-    private ZooKeeper mockZk;
-    protected PulsarService pulsar;
+
+    protected PulsarTestContext pulsarTestContext;
+
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
 
-    private OrderedExecutor executor;
-    private EventLoopGroup eventLoopGroup;
-
     @BeforeMethod
     public void setup() throws Exception {
-        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-failover-test").build();
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+        ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("pulsar-cluster");
-        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        doReturn(svcConfig).when(pulsar).getConfiguration();
-
-        mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
-
-        doReturn(TransactionTestBase.createMockBookKeeper(executor))
-                .when(pulsar).getBookKeeperClient();
-        eventLoopGroup = new NioEventLoopGroup();
-
-        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
-        doReturn(store).when(pulsar).getLocalMetadataStore();
-        doReturn(store).when(pulsar).getConfigurationMetadataStore();
-
-        PulsarResources pulsarResources = new PulsarResources(store, store);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
-
-        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
-        doReturn(brokerService).when(pulsar).getBrokerService();
+        svcConfig.setSystemTopicEnabled(false);
+        svcConfig.setTopicLevelPoliciesEnabled(false);
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
+                .config(svcConfig)
+                .spyByDefault()
+                .build();
 
         consumerChanges = new LinkedBlockingQueue<>();
         this.channelCtx = mock(ChannelHandlerContext.class);
@@ -160,7 +132,7 @@ public class PersistentDispatcherFailoverConsumerTest {
             return null;
         }).when(channelCtx).writeAndFlush(any(), any());
 
-        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        serverCnx = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
@@ -169,7 +141,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
                 .when(serverCnx).getCommandSender();
 
-        serverCnxWithOldVersion = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        serverCnxWithOldVersion = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnxWithOldVersion).isActive();
         doReturn(true).when(serverCnxWithOldVersion).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234))
@@ -181,7 +153,7 @@ public class PersistentDispatcherFailoverConsumerTest {
                 .when(serverCnxWithOldVersion).getCommandSender();
 
         NamespaceService nsSvc = mock(NamespaceService.class);
-        doReturn(nsSvc).when(pulsar).getNamespaceService();
+        doReturn(nsSvc).when(pulsarTestContext.getPulsarService()).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
@@ -192,84 +164,60 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
-        if (brokerService != null) {
-            brokerService.close();
-            brokerService = null;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
-        if (pulsar != null) {
-            pulsar.close();
-            pulsar = null;
-        }
-
-        executor.shutdown();
-        if (eventLoopGroup != null) {
-            eventLoopGroup.shutdownGracefully().get();
-        }
-        store.close();
     }
 
     void setupMLAsyncCallbackMocks() {
         ledgerMock = mock(ManagedLedger.class);
         cursorMock = mock(ManagedCursorImpl.class);
 
-        doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
+        doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
         doReturn("mockCursor").when(cursorMock).getName();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
-                return null;
-            }
-        }).when(mlFactoryMock).asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any(Supplier.class), any());
+        doAnswer(invocationOnMock -> {
+            ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
+            return null;
+        }).when(pulsarTestContext.getManagedLedgerFactory())
+                .asyncOpen(matches(".*success.*"), any(ManagedLedgerConfig.class),
+                        any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call openLedgerFailed on ML factory asyncOpen
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
-                        .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
-                return null;
-            }
-        }).when(mlFactoryMock).asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
-                any(OpenLedgerCallback.class), any(Supplier.class), any());
+        doAnswer(invocationOnMock -> {
+            ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
+                    .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null);
+            return null;
+        }).when(pulsarTestContext.getManagedLedgerFactory())
+                .asyncOpen(matches(".*fail.*"), any(ManagedLedgerConfig.class),
+                        any(OpenLedgerCallback.class), any(Supplier.class), any());
 
         // call addComplete on ledger asyncAddEntry
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
-                        new PositionImpl(1, 1), null, null);
-                return null;
-            }
+        doAnswer(invocationOnMock -> {
+            ((AddEntryCallback) invocationOnMock.getArguments()[1]).addComplete(
+                    new PositionImpl(1, 1), null, null);
+            return null;
         }).when(ledgerMock).asyncAddEntry(any(byte[].class), any(AddEntryCallback.class), any());
 
         // call openCursorComplete on cursor asyncOpen
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
-                return null;
-            }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
+        doAnswer(invocationOnMock -> {
+            ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
+            return null;
+        }).when(ledgerMock)
+                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class),
+                        any());
 
         // call deleteLedgerComplete on ledger asyncDelete
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((DeleteLedgerCallback) invocationOnMock.getArguments()[0]).deleteLedgerComplete(null);
-                return null;
-            }
+        doAnswer(invocationOnMock -> {
+            ((DeleteLedgerCallback) invocationOnMock.getArguments()[0]).deleteLedgerComplete(null);
+            return null;
         }).when(ledgerMock).asyncDelete(any(DeleteLedgerCallback.class), any());
 
-        doAnswer(new Answer<Object>() {
-            @Override
-            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
-                return null;
-            }
+        doAnswer(invocationOnMock -> {
+            ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
+            return null;
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
     }
 
@@ -282,7 +230,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @Test
     public void testConsumerGroupChangesWithOldNewConsumers() throws Exception {
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic =
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         int partitionIndex = 0;
@@ -294,7 +243,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 2. Add old consumer
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0,
-                "Cons1"/* consumer name */, true, serverCnxWithOldVersion, "myrole-1", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                "Cons1"/* consumer name */, true, serverCnxWithOldVersion, "myrole-1", Collections.emptyMap(), false,
+                null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
         assertSame(consumers.get(0).consumerName(), consumer1.consumerName());
@@ -305,7 +255,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 3. Add new consumer
         Consumer consumer2 = new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0,
-                "Cons2"/* consumer name */, true, serverCnx, "myrole-1", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                "Cons2"/* consumer name */, true, serverCnx, "myrole-1", Collections.emptyMap(), false, null,
+                MessageId.latest, DEFAULT_CONSUMER_EPOCH);
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(consumers.get(0).consumerName(), consumer1.consumerName());
@@ -321,7 +272,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         int partitionIndex = 4;
@@ -352,7 +303,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 4. Verify active consumer
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         // get the notified with who is the leader
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, true);
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
 
@@ -364,7 +316,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
         // get notified with who is the leader
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 2, false);
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
@@ -379,13 +332,17 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(4, consumers.size());
 
         // all consumers will receive notifications
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 0, true);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, false);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 1, false);
-        change = consumerChanges.take();
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
         verifyActiveConsumerChange(change, 2, false);
         verify(consumer0, times(1)).notifyActiveConsumerChange(same(consumer0));
         verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
@@ -393,28 +350,33 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
         verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer0));
 
-        // 7. Remove last consumer
+        // 7. Remove last consumer to make active consumer change.
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(3, consumers.size());
-        // not consumer group changes
-        assertNull(consumerChanges.poll());
+
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 0, false);
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 1, true);
+        change = consumerChanges.poll(10, TimeUnit.SECONDS);
+        assertNotNull(change);
+        verifyActiveConsumerChange(change, 1, true);
 
         // 8. Verify if we cannot unsubscribe when more than one consumer is connected
         assertFalse(pdfc.canUnsubscribe(consumer0));
 
-        // 9. Remove active consumer
+        // 9. Remove inactive consumer
         pdfc.removeConsumer(consumer0);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(2, consumers.size());
 
-        // the remaining consumers will receive notifications
-        change = consumerChanges.take();
-        verifyActiveConsumerChange(change, 1, true);
-        change = consumerChanges.take();
-        verifyActiveConsumerChange(change, 1, true);
+        // not consumer group changes
+        assertNull(consumerChanges.poll(10, TimeUnit.SECONDS));
 
         // 10. Attempt to remove already removed consumer
         String cause = "";
@@ -425,13 +387,13 @@ public class PersistentDispatcherFailoverConsumerTest {
         }
         assertEquals(cause, "Consumer was not connected");
 
-        // 11. Remove active consumer
+        // 11. Remove same consumer
         pdfc.removeConsumer(consumer1);
         consumers = pdfc.getConsumers();
         assertSame(pdfc.getActiveConsumer().consumerName(), consumer1.consumerName());
         assertEquals(1, consumers.size());
         // not consumer group changes
-        assertNull(consumerChanges.poll());
+        assertNull(consumerChanges.poll(10, TimeUnit.SECONDS));
 
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
@@ -441,7 +403,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     public void testAddRemoveConsumerNonPartitionedTopic() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic =
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
 
         // Non partitioned topic.
@@ -501,7 +464,8 @@ public class PersistentDispatcherFailoverConsumerTest {
     @Test
     public void testMultipleDispatcherGetNextConsumerWithDifferentPriorityLevel() throws Exception {
 
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic =
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
@@ -545,7 +509,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @Test
     public void testFewBlockedConsumerSamePriority() throws Exception{
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic =
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
@@ -572,7 +537,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @Test
     public void testFewBlockedConsumerDifferentPriority() throws Exception {
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic =
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, false, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, false, 2);
@@ -626,7 +592,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @Test
     public void testFewBlockedConsumerDifferentPriority2() throws Exception {
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentTopic topic =
+                new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
         PersistentDispatcherMultipleConsumers dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursorMock, null);
         Consumer consumer1 = createConsumer(topic, 0, 2, true, 1);
         Consumer consumer2 = createConsumer(topic, 0, 2, true, 2);

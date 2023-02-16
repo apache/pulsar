@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -40,6 +42,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 
 /**
  * Statistics for a non-persistent topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPersistentTopicStats {
@@ -62,10 +65,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @JsonProperty("publishers")
     public List<NonPersistentPublisherStats> getNonPersistentPublishers() {
-        return Stream.concat(nonPersistentPublishers.stream()
-                                .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)),
-                nonPersistentPublishersMap.values().stream()
-                        .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)))
+        return Stream.concat(nonPersistentPublishers.stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                nonPersistentPublishersMap.values().stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -92,10 +95,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public List<NonPersistentPublisherStats> getPublishers() {
-        return Stream.concat(nonPersistentPublishers.stream()
-                                .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)),
-                nonPersistentPublishersMap.values()
-                        .stream().sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)))
+        return Stream.concat(nonPersistentPublishers.stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                nonPersistentPublishersMap.values().stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -106,9 +109,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     public void addPublisher(NonPersistentPublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer()) {
+        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
             nonPersistentPublishersMap.put(stats.getProducerName(), stats);
         } else {
+            stats.setSupportsPartialProducer(false); // setter method with side effect
             nonPersistentPublishers.add(stats);
         }
     }
@@ -145,15 +149,15 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
+    // stats. This stat addition is not thread-safe.
     public NonPersistentTopicStatsImpl add(NonPersistentTopicStats ts) {
         NonPersistentTopicStatsImpl stats = (NonPersistentTopicStatsImpl) ts;
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
-
-        stats.getNonPersistentPublishers().forEach(s -> {
-            if (s.isSupportsPartialProducer()) {
+        for (int index = 0; index < stats.getNonPersistentPublishers().size(); index++) {
+            NonPersistentPublisherStats s = stats.getNonPersistentPublishers().get(index);
+            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
                             final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
@@ -162,20 +166,20 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
                             return newStats;
                         })).add((NonPersistentPublisherStatsImpl) s);
             } else {
-                if (this.nonPersistentPublishers.size() != stats.getNonPersistentPublishers().size()) {
-                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                        NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
-                        newStats.setSupportsPartialProducer(false);
-                        this.nonPersistentPublishers.add(newStats.add((NonPersistentPublisherStatsImpl) s));
-                    }
-                } else {
-                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                        ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(i))
-                                .add((NonPersistentPublisherStatsImpl) s);
-                    }
+                // Add a non-persistent publisher stat entry to this.nonPersistentPublishers
+                // if this.nonPersistentPublishers.size() is smaller than
+                // the input stats.nonPersistentPublishers.size().
+                // Here, index == this.nonPersistentPublishers.size() means
+                // this.nonPersistentPublishers.size() is smaller than the input stats.nonPersistentPublishers.size()
+                if (index == this.nonPersistentPublishers.size()) {
+                    NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                    newStats.setSupportsPartialProducer(false);
+                    this.nonPersistentPublishers.add(newStats);
                 }
+                ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(index))
+                        .add((NonPersistentPublisherStatsImpl) s);
             }
-        });
+        }
 
         if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -149,12 +149,12 @@ public class ManagedLedgerWriter {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.metadataStoreUrl == null && arguments.zookeeperServers == null) {
@@ -193,7 +193,7 @@ public class ManagedLedgerWriter {
 
         @Cleanup
         MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkConf, mlFactoryConf);
 
         ManagedLedgerConfig mlConf = new ManagedLedgerConfig();
@@ -280,7 +280,7 @@ public class ManagedLedgerWriter {
                         @Override
                         public void addFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Write error on message", exception);
-                            PerfClientUtils.exit(-1);
+                            PerfClientUtils.exit(1);
                         }
                     };
 

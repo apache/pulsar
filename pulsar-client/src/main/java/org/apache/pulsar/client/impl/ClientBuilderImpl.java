@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -75,6 +75,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
+        setAuthenticationFromPropsIfAvailable(conf);
         return this;
     }
 
@@ -103,6 +104,16 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        checkArgument(connectionMaxIdleSeconds < 0
+                        || connectionMaxIdleSeconds >= ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN,
+                "Connection idle detect interval seconds at least "
+                        + ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN + ".");
+        conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
+        return this;
+    }
+
+    @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
         return this;
@@ -126,6 +137,24 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
+    }
+
+    private void setAuthenticationFromPropsIfAvailable(ClientConfigurationData clientConfig) {
+        String authPluginClass = clientConfig.getAuthPluginClassName();
+        String authParams = clientConfig.getAuthParams();
+        Map<String, String> authParamMap = clientConfig.getAuthParamMap();
+        if (StringUtils.isBlank(authPluginClass) || (StringUtils.isBlank(authParams) && authParamMap == null)) {
+            return;
+        }
+        try {
+            if (StringUtils.isNotBlank(authParams)) {
+                authentication(authPluginClass, authParams);
+            } else if (authParamMap != null) {
+                authentication(authPluginClass, authParamMap);
+            }
+        } catch (UnsupportedAuthenticationException ex) {
+            throw new RuntimeException("Failed to create authentication: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -175,6 +204,18 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder tlsKeyFilePath(String tlsKeyFilePath) {
+        conf.setTlsKeyFilePath(tlsKeyFilePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath) {
+        conf.setTlsCertificateFilePath(tlsCertificateFilePath);
+        return this;
+    }
+
+    @Override
     public ClientBuilder enableTlsHostnameVerification(boolean enableTlsHostnameVerification) {
         conf.setTlsHostnameVerificationEnable(enableTlsHostnameVerification);
         return this;
@@ -201,6 +242,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder sslProvider(String sslProvider) {
         conf.setSslProvider(sslProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStoreType(String tlsKeyStoreType) {
+        conf.setTlsKeyStoreType(tlsKeyStoreType);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStorePath(String tlsTrustStorePath) {
+        conf.setTlsKeyStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword) {
+        conf.setTlsKeyStorePassword(tlsKeyStorePassword);
         return this;
     }
 

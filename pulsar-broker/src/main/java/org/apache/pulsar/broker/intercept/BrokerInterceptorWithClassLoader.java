@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.Map;
@@ -64,10 +65,39 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
     }
 
     @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata,
+                                  Consumer consumer) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.beforeSendMessage(
+                    subscription, entry, ackSet, msgMetadata, consumer);
+        }
+    }
+
+    @Override
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload,
+                                 Topic.PublishContext publishContext) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.onMessagePublish(producer, headersAndPayload, publishContext);
+        }
+    }
+
+    @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
                                 Map<String, String> metadata){
         try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
             this.interceptor.producerCreated(cnx, producer, metadata);
+        }
+    }
+
+    @Override
+    public void producerClosed(ServerCnx cnx,
+                               Producer producer,
+                               Map<String, String> metadata) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.producerClosed(cnx, producer, metadata);
         }
     }
 
@@ -80,6 +110,16 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
                     cnx, consumer, metadata);
         }
     }
+
+    @Override
+    public void consumerClosed(ServerCnx cnx,
+                               Consumer consumer,
+                               Map<String, String> metadata) {
+        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+            this.interceptor.consumerClosed(cnx, consumer, metadata);
+        }
+    }
+
 
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
@@ -168,5 +208,10 @@ public class BrokerInterceptorWithClassLoader implements BrokerInterceptor {
         } catch (IOException e) {
             log.warn("Failed to close the broker interceptor class loader", e);
         }
+    }
+
+    @VisibleForTesting
+    public BrokerInterceptor getInterceptor() {
+        return interceptor;
     }
 }

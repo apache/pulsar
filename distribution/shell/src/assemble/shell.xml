@@ -1,0 +1,90 @@
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
+  <id>bin</id>
+  <formats>
+    <format>tar.gz</format>
+    <format>zip</format>
+  </formats>
+  <includeBaseDirectory>true</includeBaseDirectory>
+  <files>
+    <file>
+      <source>${basedir}/src/assemble/LICENSE.bin.txt</source>
+      <destName>LICENSE</destName>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/src/assemble/NOTICE.bin.txt</source>
+      <destName>NOTICE</destName>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/src/assemble/README</source>
+      <destName>README</destName>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-admin-common.sh</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-shell</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-admin-common.cmd</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-shell.cmd</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>conf</outputDirectory>
+      <source>${basedir}/../../conf/client.conf</source>
+    </file>
+    <file>
+      <outputDirectory>conf</outputDirectory>
+      <source>${basedir}/../../conf/log4j2.yaml</source>
+    </file>
+  </files>
+
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>lib</outputDirectory>
+      <unpack>false</unpack>
+      <scope>compile</scope>
+      <excludes>
+        <exclude>org.projectlombok:lombok</exclude>
+      </excludes>
+    </dependencySet>
+  </dependencySets>
+</assembly>

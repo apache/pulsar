@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,9 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -219,8 +221,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
@@ -235,15 +236,17 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
      *             operation will trigger the creation of the cursor.
+     * @param cursorProperties
+     *            the properties for the Cursor
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties)
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
+                             Map<String, String> cursorProperties)
             throws InterruptedException, ManagedLedgerException;
 
     /**
@@ -319,8 +322,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param callback
      *            callback object
      * @param ctx
@@ -335,15 +337,16 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
+     * @param cursorProperties
+     *            the properties for the Cursor
      * @param callback
      *            callback object
      * @param ctx
      *            opaque context
      */
     void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
-                         OpenCursorCallback callback, Object ctx);
+                         Map<String, String> cursorProperties, OpenCursorCallback callback, Object ctx);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger.
@@ -436,6 +439,8 @@ public interface ManagedLedger {
 
     void asyncTerminate(TerminateCallback callback, Object ctx);
 
+    CompletableFuture<Position> asyncMigrate();
+
     /**
      * Terminate the managed ledger and return the last committed entry.
      *
@@ -526,6 +531,11 @@ public interface ManagedLedger {
      * Returns whether the managed ledger was terminated.
      */
     boolean isTerminated();
+
+    /**
+     * Returns whether the managed ledger was migrated.
+     */
+    boolean isMigrated();
 
     /**
      * Returns managed-ledger config.
@@ -630,7 +640,7 @@ public interface ManagedLedger {
     /**
      * Find position by sequenceId.
      * */
-    CompletableFuture<Position> asyncFindPosition(com.google.common.base.Predicate<Entry> predicate);
+    CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate);
 
     /**
      * Get the ManagedLedgerInterceptor for ManagedLedger.
@@ -642,6 +652,12 @@ public interface ManagedLedger {
      * will got null if corresponding ledger not exists.
      */
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
+
+    /**
+     * Get basic ledger summary.
+     * will get {@link Optional#empty()} if corresponding ledger not exists.
+     */
+    Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId);
 
     /**
      * Truncate ledgers
@@ -662,4 +678,9 @@ public interface ManagedLedger {
      * roll over that ledger if inactive.
      */
     void checkInactiveLedgerAndRollOver();
+
+    /**
+     * Check if managed ledger should cache backlog reads.
+     */
+    void checkCursorsToCacheEntries();
 }

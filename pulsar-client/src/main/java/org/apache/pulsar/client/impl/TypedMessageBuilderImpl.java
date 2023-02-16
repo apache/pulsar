@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Message;
@@ -32,7 +33,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -105,14 +106,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> key(String key) {
-        if (schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
-            checkArgument(kvSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
-                    "This method is not allowed to set keys when in encoding type is SEPARATED");
-            if (key == null) {
-                msgMetadata.setNullPartitionKey(true);
-                return this;
-            }
+        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
+                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        if (key == null) {
+            msgMetadata.setNullPartitionKey(true);
+            return this;
         }
         msgMetadata.setPartitionKey(key);
         msgMetadata.setPartitionKeyB64Encoded(false);
@@ -121,14 +120,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> keyBytes(byte[] key) {
-        if (schema instanceof KeyValueSchemaImpl && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
-            checkArgument(!(kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED),
-                    "This method is not allowed to set keys when in encoding type is SEPARATED");
-            if (key == null) {
-                msgMetadata.setNullPartitionKey(true);
-                return this;
-            }
+        getKeyValueSchema().ifPresent(keyValueSchema -> checkArgument(
+                keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
+                "This method is not allowed to set keys when in encoding type is SEPARATED"));
+        if (key == null) {
+            msgMetadata.setNullPartitionKey(true);
+            return this;
         }
         msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(key));
         msgMetadata.setPartitionKeyB64Encoded(true);
@@ -147,31 +144,18 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             msgMetadata.setNullValue(true);
             return this;
         }
-        if (value instanceof org.apache.pulsar.common.schema.KeyValue
-                && schema.getSchemaInfo() != null && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
-            KeyValueSchemaImpl kvSchema = (KeyValueSchemaImpl) schema;
-            org.apache.pulsar.common.schema.KeyValue kv = (org.apache.pulsar.common.schema.KeyValue) value;
-            if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-                // set key as the message key
-                if (kv.getKey() != null) {
-                    msgMetadata.setPartitionKey(
-                            Base64.getEncoder().encodeToString(kvSchema.getKeySchema().encode(kv.getKey())));
-                    msgMetadata.setPartitionKeyB64Encoded(true);
-                } else {
-                    this.msgMetadata.setNullPartitionKey(true);
-                }
 
-                // set value as the payload
-                if (kv.getValue() != null) {
-                    this.content = ByteBuffer.wrap(kvSchema.getValueSchema().encode(kv.getValue()));
-                } else {
-                    this.msgMetadata.setNullValue(true);
-                }
+        return getKeyValueSchema().map(keyValueSchema -> {
+            if (keyValueSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
+                setSeparateKeyValue(value, keyValueSchema);
                 return this;
+            } else {
+                return null;
             }
-        }
-        this.content = ByteBuffer.wrap(schema.encode(value));
-        return this;
+        }).orElseGet(() -> {
+            content = ByteBuffer.wrap(schema.encode(value));
+            return this;
+        });
     }
 
     @Override
@@ -299,5 +283,39 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     public ByteBuffer getContent() {
         return content;
+    }
+
+    private Optional<KeyValueSchema<?, ?>> getKeyValueSchema() {
+        if (schema.getSchemaInfo() != null
+                && schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
+                // The schema's class could also be AutoProduceBytesSchema when its type is KEY_VALUE
+                && schema instanceof KeyValueSchema) {
+            return Optional.of((KeyValueSchema<?, ?>) schema);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <K, V> void setSeparateKeyValue(T value, KeyValueSchema<K, V> keyValueSchema) {
+        checkArgument(value instanceof org.apache.pulsar.common.schema.KeyValue);
+        org.apache.pulsar.common.schema.KeyValue<K, V> keyValue =
+                (org.apache.pulsar.common.schema.KeyValue<K, V>) value;
+
+        // set key as the message key
+        if (keyValue.getKey() != null) {
+            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(
+                    keyValueSchema.getKeySchema().encode(keyValue.getKey())));
+            msgMetadata.setPartitionKeyB64Encoded(true);
+        } else {
+            msgMetadata.setNullPartitionKey(true);
+        }
+
+        // set value as the payload
+        if (keyValue.getValue() != null) {
+            content = ByteBuffer.wrap(keyValueSchema.getValueSchema().encode(keyValue.getValue()));
+        } else {
+            msgMetadata.setNullValue(true);
+        }
     }
 }

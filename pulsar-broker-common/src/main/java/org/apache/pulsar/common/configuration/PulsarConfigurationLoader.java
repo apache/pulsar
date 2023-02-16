@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -91,7 +91,7 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         requireNonNull(properties);
-        T configuration = null;
+        T configuration;
         try {
             configuration = (T) clazz.getDeclaredConstructor().newInstance();
             configuration.setProperties(properties);
@@ -182,23 +182,37 @@ public class PulsarConfigurationLoader {
             final ServiceConfiguration convertedConf = ServiceConfiguration.class
                     .getDeclaredConstructor().newInstance();
             Field[] confFields = conf.getClass().getDeclaredFields();
+            Properties sourceProperties = conf.getProperties();
+            Properties targetProperties = convertedConf.getProperties();
             Arrays.stream(confFields).forEach(confField -> {
                 try {
-                    Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
                     confField.setAccessible(true);
-                    if (!Modifier.isStatic(convertedConfField.getModifiers())) {
+                    Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
+                    if (!Modifier.isStatic(convertedConfField.getModifiers())
+                            && convertedConfField.getDeclaredAnnotation(FieldContext.class) != null) {
                         convertedConfField.setAccessible(true);
                         convertedConfField.set(convertedConf, confField.get(conf));
                     }
                 } catch (NoSuchFieldException e) {
                     if (!ignoreNonExistMember) {
-                        throw new IllegalArgumentException("Exception caused while converting configuration: "
-                                + e.getMessage());
+                        throw new IllegalArgumentException(
+                                "Exception caused while converting configuration: " + e.getMessage());
+                    }
+                    // add unknown fields to properties
+                    try {
+                        String propertyName = confField.getName();
+                        if (!sourceProperties.containsKey(propertyName) && confField.get(conf) != null) {
+                            targetProperties.put(propertyName, confField.get(conf));
+                        }
+                    } catch (Exception ignoreException) {
+                        // should not happen
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
                 }
             });
+            // Put the rest of properties to new config
+            targetProperties.putAll(sourceProperties);
             return convertedConf;
         } catch (InstantiationException | IllegalAccessException
                 | InvocationTargetException | NoSuchMethodException e) {

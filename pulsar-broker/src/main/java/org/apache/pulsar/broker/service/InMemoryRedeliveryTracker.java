@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,9 +38,8 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     }
 
     @Override
-    public int getRedeliveryCount(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        LongPair count = trackerCache.get(positionImpl.getLedgerId(), positionImpl.getEntryId());
+    public int getRedeliveryCount(long ledgerId, long entryId) {
+        LongPair count = trackerCache.get(ledgerId, entryId);
         return (int) (count != null ? count.first : 0);
     }
 
@@ -60,17 +59,5 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     @Override
     public void clear() {
         trackerCache.clear();
-    }
-
-    @Override
-    public boolean contains(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        return trackerCache.containsKey(positionImpl.getLedgerId(), positionImpl.getEntryId());
-    }
-
-    @Override
-    public void addIfAbsent(Position position) {
-        PositionImpl positionImpl = (PositionImpl) position;
-        trackerCache.putIfAbsent(positionImpl.getLedgerId(), positionImpl.getEntryId(), 0, 0L);
     }
 }

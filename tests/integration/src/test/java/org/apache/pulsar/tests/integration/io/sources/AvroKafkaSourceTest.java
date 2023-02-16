@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import lombok.Cleanup;
 import lombok.Data;
@@ -44,7 +45,6 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.utility.DockerImageName;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -71,6 +71,7 @@ import static org.testng.Assert.*;
  */
 @Slf4j
 public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
+    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "6.2.8");
 
     private static final String SOURCE_TYPE = "kafka";
 
@@ -93,7 +94,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         try {
             testSource();
         } finally {
-            stopKafkaContainers(pulsarCluster);
+            stopKafkaContainers();
         }
     }
 
@@ -139,19 +140,20 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     protected EnhancedKafkaContainer createKafkaContainer(PulsarCluster cluster) {
-        return (EnhancedKafkaContainer) new EnhancedKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:6.0.1"))
+        return (EnhancedKafkaContainer) new EnhancedKafkaContainer(
+                DockerImageName.parse("confluentinc/cp-kafka:" + CONFLUENT_PLATFORM_VERSION))
                 .withEmbeddedZookeeper()
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
                         .withName(kafkaContainerName)
                 );
     }
 
-    public void stopKafkaContainers(PulsarCluster cluster) {
+    public void stopKafkaContainers() {
         if (null != schemaRegistryContainer) {
-            cluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
+            PulsarCluster.stopService(schemaRegistryContainerName, schemaRegistryContainer);
         }
         if (null != kafkaContainer) {
-            cluster.stopService(kafkaContainerName, kafkaContainer);
+            PulsarCluster.stopService(kafkaContainerName, kafkaContainer);
         }
     }
 
@@ -480,7 +482,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     public class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
-        public static final String CONFLUENT_PLATFORM_VERSION = "6.0.1";
         private static final int SCHEMA_REGISTRY_INTERNAL_PORT = 8081;
 
         public SchemaRegistryContainer(String boostrapServers) throws Exception {

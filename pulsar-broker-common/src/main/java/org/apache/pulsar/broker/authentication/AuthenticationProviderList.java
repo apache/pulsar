@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -58,8 +59,15 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         }
 
         if (null == authenticationException) {
+            AuthenticationMetrics.authenticateFailure(
+                    AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", "Authentication required");
             throw new AuthenticationException("Authentication required");
         } else {
+            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list",
+                    authenticationException.getMessage() != null
+                            ? authenticationException.getMessage() : "Authentication required");
             throw authenticationException;
         }
 
@@ -166,17 +174,17 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
         AuthenticationException authenticationException = null;
-        try {
-            applyAuthProcessor(
-                providers,
-                provider -> {
-                    AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
-                    states.add(state);
-                    return state;
+        for (AuthenticationProvider provider : providers) {
+            try {
+                AuthenticationState state = provider.newAuthState(authData, remoteAddress, sslSession);
+                states.add(state);
+            } catch (AuthenticationException ae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
                 }
-            );
-        } catch (AuthenticationException ae) {
-            authenticationException = ae;
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = ae;
+            }
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new auth state from {}", remoteAddress, authenticationException);
@@ -195,17 +203,17 @@ public class AuthenticationProviderList implements AuthenticationProvider {
         final List<AuthenticationState> states = new ArrayList<>(providers.size());
 
         AuthenticationException authenticationException = null;
-        try {
-            applyAuthProcessor(
-                    providers,
-                    provider -> {
-                        AuthenticationState state = provider.newHttpAuthState(request);
-                        states.add(state);
-                        return state;
-                    }
-            );
-        } catch (AuthenticationException ae) {
-            authenticationException = ae;
+        for (AuthenticationProvider provider : providers) {
+            try {
+                AuthenticationState state = provider.newHttpAuthState(request);
+                states.add(state);
+            } catch (AuthenticationException ae) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ae);
+                }
+                // Store the exception so we can throw it later instead of a generic one
+                authenticationException = ae;
+            }
         }
         if (states.isEmpty()) {
             log.debug("Failed to initialize a new http auth state from {}",

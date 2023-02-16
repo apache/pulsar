@@ -23,17 +23,12 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>pulsar-docker-image</artifactId>
   <name>Apache Pulsar :: Docker Images :: Pulsar Latest Version</name>
   <packaging>pom</packaging>
-
-  <properties>
-    <skipBuildPythonClient>false</skipBuildPythonClient>
-    <skipCopyPythonClients>false</skipCopyPythonClients>
-  </properties>
 
   <dependencies>
     <dependency>
@@ -55,105 +50,42 @@
   <profiles>
     <profile>
       <id>docker</id>
+      <properties>
+        <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
+        <docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>
+        <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
+        <docker.buildArg.UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</docker.buildArg.UBUNTU_SECURITY_MIRROR>
+      </properties>
       <build>
         <plugins>
-          <!-- build Python client, copy the wheel file and then build docker image -->
           <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>exec-maven-plugin</artifactId>
-            <version>${exec-maven-plugin.version}</version>
-            <executions>
-              <execution>
-                <id>build-pulsar-clients-python-35</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>exec</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipBuildPythonClient}</skip>
-                  <workingDirectory>${project.basedir}/target</workingDirectory>
-                  <executable>${project.basedir}/../../pulsar-client-cpp/docker/build-wheels.sh</executable>
-                  <arguments>
-                    <!-- build python 3.8 -->
-                    <argument>3.8 cp38-cp38 manylinux2014 x86_64</argument>
-                  </arguments>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>copy-pulsar-clients-python</id>
-                <phase>compile</phase>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-                <configuration>
-                  <skip>${skipCopyPythonClients}</skip>
-                  <target>
-                    <echo>copy python wheel file</echo>
-                    <mkdir dir="${basedir}/target/python-client"/>
-                    <copydir src="${basedir}/../../pulsar-client-cpp/python/wheelhouse" dest="${basedir}/target/python-client"/>
-                  </target>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>com.spotify</groupId>
-            <artifactId>dockerfile-maven-plugin</artifactId>
-            <version>${dockerfile-maven.version}</version>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
             <executions>
               <execution>
                 <id>default</id>
+                <phase>package</phase>
                 <goals>
                   <goal>build</goal>
-                </goals>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-version</id>
-                <goals>
                   <goal>tag</goal>
                 </goals>
                 <configuration>
-                  <repository>pulsar</repository>
-                  <tag>${project.version}</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>add-no-repo-and-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                </goals>
-                <configuration>
-                  <repository>pulsar</repository>
-                  <tag>latest</tag>
-                </configuration>
-              </execution>
-              <execution>
-                <id>tag-and-push-latest</id>
-                <goals>
-                  <goal>tag</goal>
-                  <goal>push</goal>
-                </goals>
-                <configuration>
-                  <repository>${docker.organization}/pulsar</repository>
-                  <tag>latest</tag>
+                  <images>
+                    <image>
+                      <name>pulsar</name>
+                      <build>
+                        <contextDir>${project.basedir}</contextDir>
+                        <tags>
+                          <tag>latest</tag>
+                        </tags>
+                      </build>
+                    </image>
+                  </images>
+                  <tagName>latest</tagName>
+                  <repo>${docker.organization}</repo>
                 </configuration>
               </execution>
             </executions>
-            <configuration>
-              <repository>${docker.organization}/pulsar</repository>
-              <pullNewerImage>false</pullNewerImage>
-              <tag>${project.version}</tag>
-              <buildArgs>
-                <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
-                <UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</UBUNTU_MIRROR>
-              </buildArgs>
-            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>

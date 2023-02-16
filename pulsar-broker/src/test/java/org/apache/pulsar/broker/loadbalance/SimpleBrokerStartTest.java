@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -43,11 +43,12 @@ public class SimpleBrokerStartTest {
         LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         // Start broker
-        ServiceConfiguration config = spy(ServiceConfiguration.class);
+        ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setBrokerServicePortTls(Optional.of(0));
@@ -70,11 +71,12 @@ public class SimpleBrokerStartTest {
         LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         // Start broker
-        ServiceConfiguration config = spy(ServiceConfiguration.class);
+        ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setBrokerServicePortTls(Optional.of(0));
@@ -86,9 +88,9 @@ public class SimpleBrokerStartTest {
             PulsarService pulsarService = new PulsarService(config);
             try {
                 pulsarService.start();
-                Assert.fail("unexpected behaviour");
+                fail("unexpected behaviour");
             } catch (PulsarServerException ex) {
-                Assert.assertTrue(ex.getCause() instanceof IllegalStateException);
+                assertTrue(ex.getCause() instanceof IllegalStateException);
             }
         }
     }

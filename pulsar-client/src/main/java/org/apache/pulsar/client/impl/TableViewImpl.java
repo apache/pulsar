@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,14 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl;
 
-import io.netty.util.Timeout;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,84 +31,70 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 @Slf4j
 public class TableViewImpl<T> implements TableView<T> {
 
-    private final PulsarClientImpl client;
-    private final Schema<T> schema;
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, T> data;
     private final Map<String, T> immutableData;
 
-    private final ConcurrentMap<String, Reader<T>> readers;
+    private final CompletableFuture<Reader<T>> reader;
 
     private final List<BiConsumer<String, T>> listeners;
     private final ReentrantLock listenersMutex;
+    private final boolean isPersistentTopic;
+    private TopicCompactionStrategy<T> compactionStrategy;
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
-        this.client = client;
-        this.schema = schema;
         this.conf = conf;
+        this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
-        this.readers = new ConcurrentHashMap<>();
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
+        this.compactionStrategy = TopicCompactionStrategy.load(conf.getTopicCompactionStrategyClassName());
+        ReaderBuilder<T> readerBuilder = client.newReader(schema)
+                .topic(conf.getTopicName())
+                .startMessageId(MessageId.earliest)
+                .autoUpdatePartitions(true)
+                .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
+                .poolMessages(true)
+                .subscriptionName(conf.getSubscriptionName());
+        if (isPersistentTopic) {
+            readerBuilder.readCompacted(true);
+        }
+
+        CryptoKeyReader cryptoKeyReader = conf.getCryptoKeyReader();
+        if (cryptoKeyReader != null) {
+            readerBuilder.cryptoKeyReader(cryptoKeyReader);
+        }
+
+        readerBuilder.cryptoFailureAction(conf.getCryptoFailureAction());
+
+        this.reader = readerBuilder.createAsync();
     }
 
     CompletableFuture<TableView<T>> start() {
-        return client.getPartitionsForTopic(conf.getTopicName())
-                .thenCompose(partitions -> {
-                    Set<String> partitionsSet = new HashSet<>(partitions);
-                    List<CompletableFuture<?>> futures = new ArrayList<>();
-
-                    // Add new Partitions
-                    partitions.forEach(partition -> {
-                        if (!readers.containsKey(partition)) {
-                            futures.add(newReader(partition));
-                        }
-                    });
-
-                    // Remove partitions that are not used anymore
-                    readers.forEach((existingPartition, existingReader) -> {
-                        if (!partitionsSet.contains(existingPartition)) {
-                            futures.add(existingReader.closeAsync()
-                                    .thenRun(() -> readers.remove(existingPartition, existingReader)));
-                        }
-                    });
-
-                    return FutureUtil.waitForAll(futures)
-                            .thenRun(() -> schedulePartitionsCheck());
-                }).thenApply(__ -> this);
-    }
-
-    private void schedulePartitionsCheck() {
-        client.timer()
-                .newTimeout(this::checkForPartitionsChanges, conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS);
-    }
-
-    private void checkForPartitionsChanges(Timeout timeout) {
-        if (timeout.isCancelled()) {
-            return;
-        }
-
-        start().whenComplete((tw, ex) -> {
-           if (ex != null) {
-               log.warn("Failed to check for changes in number of partitions:", ex);
-               schedulePartitionsCheck();
-           }
-        });
+        return reader.thenCompose((reader) -> {
+            if (!isPersistentTopic) {
+                readTailMessages(reader);
+                return CompletableFuture.completedFuture(reader);
+            }
+            return this.readAllExistingMessages(reader);
+        }).thenApply(__ -> this);
     }
 
     @Override
@@ -155,6 +138,16 @@ public class TableViewImpl<T> implements TableView<T> {
     }
 
     @Override
+    public void listen(BiConsumer<String, T> action) {
+        try {
+            listenersMutex.lock();
+            listeners.add(action);
+        } finally {
+            listenersMutex.unlock();
+        }
+    }
+
+    @Override
     public void forEachAndListen(BiConsumer<String, T> action) {
         // Ensure we iterate over all the existing entry _and_ start the listening from the exact next message
         try {
@@ -171,11 +164,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return FutureUtil.waitForAll(
-                readers.values().stream()
-                        .map(Reader::closeAsync)
-                        .collect(Collectors.toList())
-        );
+        return reader.thenCompose(Reader::closeAsync);
     }
 
     @Override
@@ -190,41 +179,45 @@ public class TableViewImpl<T> implements TableView<T> {
     private void handleMessage(Message<T> msg) {
         try {
             if (msg.hasKey()) {
+                String key = msg.getKey();
+                T cur = msg.size() > 0 ? msg.getValue() : null;
                 if (log.isDebugEnabled()) {
                     log.debug("Applying message from topic {}. key={} value={}",
                             conf.getTopicName(),
-                            msg.getKey(),
-                            msg.getValue());
+                            key,
+                            cur);
                 }
 
-                try {
-                    listenersMutex.lock();
-                    data.put(msg.getKey(), msg.getValue());
+                boolean update = true;
+                if (compactionStrategy != null) {
+                    T prev = data.get(key);
+                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
+                }
 
-                    for (BiConsumer<String, T> listener : listeners) {
-                        try {
-                            listener.accept(msg.getKey(), msg.getValue());
-                        } catch (Throwable t) {
-                            log.error("Table view listener raised an exception", t);
+                if (update) {
+                    try {
+                        listenersMutex.lock();
+                        if (null == cur) {
+                            data.remove(key);
+                        } else {
+                            data.put(key, cur);
                         }
+
+                        for (BiConsumer<String, T> listener : listeners) {
+                            try {
+                                listener.accept(key, cur);
+                            } catch (Throwable t) {
+                                log.error("Table view listener raised an exception", t);
+                            }
+                        }
+                    } finally {
+                        listenersMutex.unlock();
                     }
-                } finally {
-                    listenersMutex.unlock();
                 }
             }
         } finally {
             msg.release();
         }
-    }
-
-    private CompletableFuture<Reader<T>> newReader(String partition) {
-        return client.newReader(schema)
-                .topic(partition)
-                .startMessageId(MessageId.earliest)
-                .readCompacted(true)
-                .poolMessages(true)
-                .createAsync()
-                .thenCompose(this::readAllExistingMessages);
     }
 
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
@@ -247,6 +240,9 @@ public class TableViewImpl<T> implements TableView<T> {
                                   handleMessage(msg);
                                   readAllExistingMessages(reader, future, startTime, messagesRead);
                                }).exceptionally(ex -> {
+                                   logException(
+                                           String.format("Reader %s was interrupted while reading existing messages",
+                                                   reader.getTopic()), ex);
                                    future.completeExceptionally(ex);
                                    return null;
                                });
@@ -270,8 +266,18 @@ public class TableViewImpl<T> implements TableView<T> {
                     handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
-                    log.info("Reader {} was interrupted", reader.getTopic());
+                    logException(
+                            String.format("Reader %s was interrupted while reading tail messages.",
+                                    reader.getTopic()), ex);
                     return null;
                 });
+    }
+
+    private void logException(String msg, Throwable ex) {
+        if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+            log.warn(msg, ex);
+        } else {
+            log.error(msg, ex);
+        }
     }
 }

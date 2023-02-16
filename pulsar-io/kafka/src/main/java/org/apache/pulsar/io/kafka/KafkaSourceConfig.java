@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -146,6 +146,12 @@ public class KafkaSourceConfig implements Serializable {
             "The consumer config properties to be passed to Consumer. Note that other properties specified "
                 + "in the connector config file take precedence over this config.")
     private Map<String, Object> consumerConfigProperties;
+    @FieldDoc(
+        defaultValue = "false",
+        help =
+            "If true the Kafka message headers will be copied into Pulsar message properties. Since Pulsar properties "
+                + "is a Map<String, String>, byte array values in the Kafka headers will be base64 encoded. ")
+    private boolean copyHeadersEnabled = false;
 
     public static KafkaSourceConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -154,6 +160,7 @@ public class KafkaSourceConfig implements Serializable {
 
     public static KafkaSourceConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), KafkaSourceConfig.class);
+        mapper.enable(DeserializationFeature.ACCEPT_EMPTY_STRING_AS_NULL_OBJECT);
+        return mapper.readValue(mapper.writeValueAsString(map), KafkaSourceConfig.class);
     }
 }
