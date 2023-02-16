@@ -655,13 +655,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             String newAuthRole = authState.getAuthRole();
 
             // Refresh the auth data.
-            this.authenticationData = authState.getAuthDataSource();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Auth data refreshed for role={}", remoteAddress, this.authRole);
             }
 
             if (!useOriginalAuthState) {
                 this.authRole = newAuthRole;
+                this.authenticationData = authState.getAuthDataSource();
+            } else {
+                this.originalAuthData = authState.getAuthDataSource();
             }
 
             if (log.isDebugEnabled()) {
