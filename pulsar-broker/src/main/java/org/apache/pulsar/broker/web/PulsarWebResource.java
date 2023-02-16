@@ -97,7 +97,7 @@ public abstract class PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(PulsarWebResource.class);
 
     private static final LoadingCache<String, PulsarServiceNameResolver> SERVICE_NAME_RESOLVER_CACHE =
-            Caffeine.newBuilder().expireAfterWrite(Duration.ofMinutes(5)).build(
+            Caffeine.newBuilder().expireAfterAccess(Duration.ofMinutes(5)).build(
                     serviceUrl -> {
                         PulsarServiceNameResolver serviceNameResolver = new PulsarServiceNameResolver();
                         serviceNameResolver.updateServiceUrl(serviceUrl);
