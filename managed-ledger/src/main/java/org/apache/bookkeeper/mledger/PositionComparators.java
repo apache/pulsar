@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,28 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.bookkeeper.mledger;
 
-import java.util.List;
-import java.util.function.Supplier;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.Position;
 
-public interface RedeliveryTracker {
+public class PositionComparators {
 
-    int incrementAndGetRedeliveryCount(Position position, Consumer consumer);
-
-    int getRedeliveryCount(long ledgerId, long entryId);
-
-    void remove(Position position, Position markDeletedPosition);
-
-    void removeBatch(List<Position> positions, Position markDeletedPosition);
-
-    void clear();
-
-    default void noticeConsumerClosed(Consumer consumer){}
-
-    default Consumer pickNextConsumer(List<Entry> entries, Supplier<Consumer> nextConsumerFunc, int consumerCount){
-        return nextConsumerFunc.get();
+    public static int compareLedgerIdAndEntryId(Position pos1, Position pos2) {
+        int ledgerCompare = Long.compare(pos1.getLedgerId(), pos2.getLedgerId());
+        if (ledgerCompare != 0) {
+            return ledgerCompare;
+        }
+        return Long.compare(pos1.getEntryId(), pos2.getEntryId());
     }
 }

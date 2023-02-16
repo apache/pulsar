@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
@@ -58,6 +59,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.InMemoryAndPreventCycleFilterRedeliveryTracker;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -137,9 +139,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.topic = topic;
         this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
         this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
-        this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
-                ? new InMemoryRedeliveryTracker()
-                : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
+        if (this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled() && CollectionUtils.isEmpty(entryFilters)){
+            this.redeliveryTracker = new InMemoryAndPreventCycleFilterRedeliveryTracker(
+                    this.serviceConfig.getDispatcherEntryFilterRescheduledMessageDelaySeconds());
+        } else if (this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()){
+            this.redeliveryTracker = new InMemoryRedeliveryTracker();
+        } else {
+            this.redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
+        }
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addMessageToReplay);
@@ -210,6 +217,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
+                redeliveryTracker.noticeConsumerClosed(consumer);
                 totalAvailablePermits -= consumer.getAvailablePermits();
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
@@ -664,7 +672,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (!dispatchMessage) {
                 break;
             }
-            Consumer c = getNextConsumer();
+            Consumer c = getNextConsumer(entries);
+
             if (c == null) {
                 // Do nothing, cursor will be rewind at reconnection
                 log.info("[{}] rewind because no available consumer found from total {}", name, consumerList.size());
@@ -740,6 +749,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             });
         }
         return true;
+    }
+
+    public Consumer getNextConsumer(List<Entry> entries) {
+        return redeliveryTracker.pickNextConsumer(entries, () -> super.getNextConsumer(), consumerSet.size());
     }
 
     private boolean sendChunkedMessagesToConsumers(ReadType readType,
@@ -923,7 +936,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     public synchronized void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {
         consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
             if (addMessageToReplay(ledgerId, entryId, stickyKeyHash)) {
-                redeliveryTracker.incrementAndGetRedeliveryCount((PositionImpl.get(ledgerId, entryId)));
+                redeliveryTracker.incrementAndGetRedeliveryCount(PositionImpl.get(ledgerId, entryId), consumer);
             }
         });
         if (log.isDebugEnabled()) {
@@ -939,7 +952,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             // TODO: We want to pass a sticky key hash as a third argument to guarantee the order of the messages
             // on Key_Shared subscription, but it's difficult to get the sticky key here
             if (addMessageToReplay(position.getLedgerId(), position.getEntryId())) {
-                redeliveryTracker.incrementAndGetRedeliveryCount(position);
+                redeliveryTracker.incrementAndGetRedeliveryCount(position, consumer);
             }
         });
         if (log.isDebugEnabled()) {

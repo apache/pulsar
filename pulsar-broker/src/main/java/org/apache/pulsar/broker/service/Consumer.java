@@ -142,6 +142,9 @@ public class Consumer {
 
     private long negtiveUnackedMsgsTimestamp;
 
+    @Getter
+    private volatile boolean closed = false;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     boolean isDurable, TransportCnx cnx, String appId,
@@ -375,6 +378,7 @@ public class Consumer {
     public void close(boolean isResetCursor) throws BrokerServiceException {
         subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
+        closed = true;
     }
 
     public void disconnect() {

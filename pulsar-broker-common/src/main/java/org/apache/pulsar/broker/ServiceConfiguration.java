@@ -1096,6 +1096,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int dispatcherMaxReadSizeBytes = 5 * 1024 * 1024;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "The max seconds a consumer will be paused because the current message cannot be consumed by a consumer"
+                + " using EntryFilter. By default it is 1."
+    )
+    private int dispatcherEntryFilterRescheduledMessageDelaySeconds = 1;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
         doc = "Min number of entries to read from bookkeeper. By default it is 1 entries."
