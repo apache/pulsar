@@ -264,7 +264,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testLastEntryReadErrorWhenInitWithManagedLedgerInterceptor() throws Exception {
-        final String ledgerName  = "testLastEntryReadErrorWhenInit";
+        final String ledgerName  = "testLastEntryReadErrorWhenInitWithManagedLedgerInterceptor";
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);
         conf.setManagedLedgerInterceptor(new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null));
