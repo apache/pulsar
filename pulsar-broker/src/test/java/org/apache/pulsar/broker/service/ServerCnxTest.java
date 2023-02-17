@@ -32,6 +32,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -79,6 +80,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
@@ -487,6 +489,110 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    public void testAuthChallengePrincipalChangeFails() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
+        channel.writeInbound(clientCommand);
+
+        Object responseConnected = getResponse();
+        assertTrue(responseConnected instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getPrincipal(), "pass.client");
+        assertTrue(serverCnx.isActive());
+
+        // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
+        // and then force channel to run the task
+        serverCnx.refreshAuthenticationCredentials();
+        channel.runPendingTasks();
+        Object responseAuthChallenge1 = getResponse();
+        assertTrue(responseAuthChallenge1 instanceof CommandAuthChallenge);
+
+        // Respond with valid info that will both pass and be the same
+        ByteBuf authResponse1 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client".getBytes()), 1, "");
+        channel.writeInbound(authResponse1);
+
+        // Trigger the ServerCnx to check if authentication is expired again
+        serverCnx.refreshAuthenticationCredentials();
+        channel.runPendingTasks();
+        Object responseAuthChallenge2 = getResponse();
+        assertTrue(responseAuthChallenge2 instanceof CommandAuthChallenge);
+
+        // Respond with invalid info that will pass but have a different authRole
+        ByteBuf authResponse2 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client2".getBytes()), 1, "");
+        channel.writeInbound(authResponse2);
+
+        // Expect the connection to disconnect
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+
+        channel.finish();
+    }
+
+    public void testAuthChallengeOriginalPrincipalChangeFails() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
+                null, "pass.client", "pass.client", authMethodName);
+        channel.writeInbound(clientCommand);
+
+        Object responseConnected = getResponse();
+        assertTrue(responseConnected instanceof CommandConnected);
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertEquals(serverCnx.getAuthRole(), "pass.proxy");
+        // These are all taken without verifying the auth data
+        assertEquals(serverCnx.getPrincipal(), "pass.client");
+        assertEquals(serverCnx.getOriginalPrincipal(), "pass.client");
+        assertTrue(serverCnx.isActive());
+
+        // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
+        // and then force channel to run the task
+        serverCnx.refreshAuthenticationCredentials();
+        channel.runPendingTasks();
+        Object responseAuthChallenge1 = getResponse();
+        assertTrue(responseAuthChallenge1 instanceof CommandAuthChallenge);
+
+        // Respond with valid info that will both pass and be the same
+        ByteBuf authResponse1 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client".getBytes()), 1, "");
+        channel.writeInbound(authResponse1);
+
+        // Trigger the ServerCnx to check if authentication is expired again
+        serverCnx.refreshAuthenticationCredentials();
+        channel.runPendingTasks();
+        Object responseAuthChallenge2 = getResponse();
+        assertTrue(responseAuthChallenge2 instanceof CommandAuthChallenge);
+
+        // Respond with invalid info that will pass but have a different authRole
+        ByteBuf authResponse2 = Commands.newAuthResponse(authMethodName, AuthData.of("pass.client2".getBytes()), 1, "");
+        channel.writeInbound(authResponse2);
+
+        // Expect the connection to disconnect
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
+
+        channel.finish();
+    }
+
     @Test(timeOut = 30000)
     public void testConnectCommandWithInvalidRoleCombinations() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
@@ -708,7 +814,7 @@ public class ServerCnxTest {
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, serverCnx.getOriginalAuthData());
 
         // producer
-        ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
+        ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>());
         channel.writeInbound(producer);
         Object producerResponse = getResponse();
         assertTrue(producerResponse instanceof CommandError);
@@ -804,7 +910,7 @@ public class ServerCnxTest {
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, serverCnx.getAuthData());
 
         // producer
-        ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
+        ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>());
         channel.writeInbound(producer);
         Object producerResponse = getResponse();
         assertTrue(producerResponse instanceof CommandError);
@@ -897,7 +1003,7 @@ public class ServerCnxTest {
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, serverCnx.getAuthData());
 
         // producer
-        ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
+        ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>());
         channel.writeInbound(producer);
         Object producerResponse = getResponse();
         assertTrue(producerResponse instanceof CommandError);
