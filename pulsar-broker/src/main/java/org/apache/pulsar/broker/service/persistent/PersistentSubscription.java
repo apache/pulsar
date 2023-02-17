@@ -1091,6 +1091,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return subscriptionProperties;
     }
 
+    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+        return pendingAckHandle.getPositionInPendingAck(position);
+    }
     @Override
     public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
         Map<String, String> newSubscriptionProperties;
@@ -1104,7 +1107,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     this.subscriptionProperties = newSubscriptionProperties;
                 });
     }
-
     /**
      * Return a merged map that contains the cursor properties specified by used
      * (eg. when using compaction subscription) and the subscription properties.
@@ -1187,4 +1189,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
+
+    @VisibleForTesting
+    public PendingAckHandle getPendingAckHandle() {
+        return pendingAckHandle;
+    }
 }

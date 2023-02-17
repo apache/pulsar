@@ -987,6 +987,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         return this.pendingAckStoreFuture != null && this.pendingAckStoreFuture.isDone();
     }
 
+    @Override
+    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+        if (individualAckPositions != null) {
+            MutablePair<PositionImpl, Integer> positionPair = this.individualAckPositions.get(position);
+            if (positionPair != null) {
+                return positionPair.getLeft();
+            }
+        }
+        return null;
+    }
+
     protected void handleCacheRequest() {
         while (true) {
             Runnable runnable = acceptQueue.poll();
