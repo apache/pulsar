@@ -219,74 +219,81 @@ public abstract class NamespacesBase extends AdminResource {
                                                         @Nonnull CompletableFuture<Void> callback) {
         precheckWhenDeleteNamespace(namespaceName, force)
                 .thenCompose(policies -> {
-                    final CompletableFuture<Void> markDeleteFuture;
-                    if (policies != null && policies.deleted) {
-                        markDeleteFuture = CompletableFuture.completedFuture(null);
-                    } else {
-                        markDeleteFuture = namespaceResources().setPoliciesAsync(namespaceName, old -> {
-                            old.deleted = true;
-                            return old;
-                        });
-                    }
+                    final CompletableFuture<List<String>> topicsFuture;
                     if (policies == null || CollectionUtils.isEmpty(policies.replication_clusters)){
-                        return markDeleteFuture.thenCompose(__ ->
-                                pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName));
+                        topicsFuture = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+                    } else {
+                        topicsFuture = pulsar().getNamespaceService().getFullListOfTopics(namespaceName);
                     }
-                    return markDeleteFuture.thenCompose(__ ->
-                            pulsar().getNamespaceService().getFullListOfTopics(namespaceName));
-                })
-                .thenCompose(allTopics -> pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
-                        .thenCompose(allPartitionedTopics -> {
-                            List<List<String>> topicsSum = new ArrayList<>(2);
-                            topicsSum.add(allTopics);
-                            topicsSum.add(allPartitionedTopics);
-                            return CompletableFuture.completedFuture(topicsSum);
-                        }))
-                .thenCompose(topics -> {
-                    List<String> allTopics = topics.get(0);
-                    ArrayList<String> allUserCreatedTopics = new ArrayList<>();
-                    List<String> allPartitionedTopics = topics.get(1);
-                    ArrayList<String> allUserCreatedPartitionTopics = new ArrayList<>();
-                    boolean hasNonSystemTopic = false;
-                    List<String> allSystemTopics = new ArrayList<>();
-                    List<String> allPartitionedSystemTopics = new ArrayList<>();
-                    List<String> topicPolicy = new ArrayList<>();
-                    List<String> partitionedTopicPolicy = new ArrayList<>();
-                    for (String topic : allTopics) {
-                        if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
-                            hasNonSystemTopic = true;
-                            allUserCreatedTopics.add(topic);
-                        } else {
-                            if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
-                                topicPolicy.add(topic);
-                            } else {
-                                allSystemTopics.add(topic);
-                            }
-                        }
-                    }
-                    for (String topic : allPartitionedTopics) {
-                        if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
-                            hasNonSystemTopic = true;
-                            allUserCreatedPartitionTopics.add(topic);
-                        } else {
-                            if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
-                                partitionedTopicPolicy.add(topic);
-                            } else {
-                                allPartitionedSystemTopics.add(topic);
-                            }
-                        }
-                    }
-                    if (!force) {
-                        if (hasNonSystemTopic) {
-                            throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
-                        }
-                    }
-                    return internalDeleteTopicsAsync(allUserCreatedTopics)
-                            .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
-                            .thenCompose(ignore -> internalDeleteTopicsAsync(allSystemTopics))
-                            .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
-                            .thenCompose(ignore -> internalDeleteTopicsAsync(topicPolicy))
-                            .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
+                    return topicsFuture.thenCompose(allTopics ->
+                            pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
+                                    .thenCompose(allPartitionedTopics -> {
+                                        List<List<String>> topicsSum = new ArrayList<>(2);
+                                        topicsSum.add(allTopics);
+                                        topicsSum.add(allPartitionedTopics);
+                                        return CompletableFuture.completedFuture(topicsSum);
+                                    }))
+                            .thenCompose(topics -> {
+                                List<String> allTopics = topics.get(0);
+                                ArrayList<String> allUserCreatedTopics = new ArrayList<>();
+                                List<String> allPartitionedTopics = topics.get(1);
+                                ArrayList<String> allUserCreatedPartitionTopics = new ArrayList<>();
+                                boolean hasNonSystemTopic = false;
+                                List<String> allSystemTopics = new ArrayList<>();
+                                List<String> allPartitionedSystemTopics = new ArrayList<>();
+                                List<String> topicPolicy = new ArrayList<>();
+                                List<String> partitionedTopicPolicy = new ArrayList<>();
+                                for (String topic : allTopics) {
+                                    if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
+                                        hasNonSystemTopic = true;
+                                        allUserCreatedTopics.add(topic);
+                                    } else {
+                                        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                            topicPolicy.add(topic);
+                                        } else {
+                                            allSystemTopics.add(topic);
+                                        }
+                                    }
+                                }
+                                for (String topic : allPartitionedTopics) {
+                                    if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
+                                        hasNonSystemTopic = true;
+                                        allUserCreatedPartitionTopics.add(topic);
+                                    } else {
+                                        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
+                                            partitionedTopicPolicy.add(topic);
+                                        } else {
+                                            allPartitionedSystemTopics.add(topic);
+                                        }
+                                    }
+                                }
+                                if (!force) {
+                                    if (hasNonSystemTopic) {
+                                        throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
+                                    }
+                                }
+                                final CompletableFuture<Void> markDeleteFuture;
+                                if (policies != null && policies.deleted) {
+                                    markDeleteFuture = CompletableFuture.completedFuture(null);
+                                } else {
+                                    markDeleteFuture = namespaceResources().setPoliciesAsync(namespaceName, old -> {
+                                        old.deleted = true;
+                                        return old;
+                                    });
+                                }
+                                return markDeleteFuture.thenCompose(__ ->
+                                                internalDeleteTopicsAsync(allUserCreatedTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeleteTopicsAsync(allSystemTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
+                                        .thenCompose(ignore ->
+                                                internalDeleteTopicsAsync(topicPolicy))
+                                        .thenCompose(ignore ->
+                                                internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
+                            });
                 })
                 .thenCompose(ignore -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
