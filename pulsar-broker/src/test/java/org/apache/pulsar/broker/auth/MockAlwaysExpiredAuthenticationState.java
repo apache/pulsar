@@ -52,6 +52,8 @@ public class MockAlwaysExpiredAuthenticationState implements AuthenticationState
 
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
+        authenticationDataSource = new AuthenticationDataCommand(new String(authData.getBytes(), UTF_8));
+        authRole = provider.authenticate(authenticationDataSource);
         return null;
     }
 
@@ -76,7 +78,7 @@ public class MockAlwaysExpiredAuthenticationState implements AuthenticationState
 
     @Override
     public boolean isComplete() {
-        return true;
+        return authRole != null;
     }
 
     @Override
