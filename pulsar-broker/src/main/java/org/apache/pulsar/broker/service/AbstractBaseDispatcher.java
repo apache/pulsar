@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
@@ -37,8 +38,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -217,8 +220,28 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             batchSizes.setBatchSize(i, batchSize);
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
+                PositionImpl position = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                 ackSet = cursor
-                        .getDeletedBatchIndexesAsLongArray(PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                        .getDeletedBatchIndexesAsLongArray(position);
+                // some batch messages ack bit sit will be in pendingAck state, so don't send all bit sit to consumer
+                if (subscription instanceof PersistentSubscription
+                        && ((PersistentSubscription) subscription)
+                        .getPendingAckHandle() instanceof PendingAckHandleImpl) {
+                    PositionImpl positionInPendingAck =
+                            ((PersistentSubscription) subscription).getPositionInPendingAck(position);
+                    // if this position not in pendingAck state, don't need to do any op
+                    if (positionInPendingAck != null) {
+                        if (positionInPendingAck.hasAckSet()) {
+                            // need to or ackSet in pendingAck state and cursor ackSet which bit sit has been acked
+                            if (ackSet != null) {
+                                ackSet = andAckSet(ackSet, positionInPendingAck.getAckSet());
+                            } else {
+                                // if actSet is null, use pendingAck ackSet
+                                ackSet = positionInPendingAck.getAckSet();
+                            }
+                        }
+                    }
+                }
                 if (ackSet != null) {
                     indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
                 } else {
