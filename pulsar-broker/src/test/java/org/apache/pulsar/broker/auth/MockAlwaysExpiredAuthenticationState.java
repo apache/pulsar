@@ -63,7 +63,7 @@ public class MockAlwaysExpiredAuthenticationState implements AuthenticationState
 
     @Override
     public boolean isComplete() {
-        return true;
+        return authRole != null;
     }
 
     @Override
