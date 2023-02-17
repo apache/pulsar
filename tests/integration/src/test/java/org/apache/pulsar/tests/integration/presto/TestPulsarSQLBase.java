@@ -264,7 +264,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
         log.info("Executing query: result for topic {} returnedTimestamps size: {}", topic, returnedTimestamps.size());
         assertThat(returnedTimestamps.size()).isEqualTo(0);
 
-        int count = selectCount(namespace, topic);
+        int count = selectCount(namespace, topic, null);
         assertThat(count).isGreaterThan(messageNum - 2);
     }
 
@@ -314,8 +314,13 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
 
     }
 
-    protected int selectCount(String namespace, String tableName) throws SQLException {
-        String query = String.format("select count(*) from pulsar.\"%s\".\"%s\"", namespace, tableName);
+    protected int selectCount(String namespace, String tableName, String condition) throws SQLException {
+        if (condition != null) {
+            condition = " where " + condition;
+        } else {
+            condition = "";
+        }
+        String query = String.format("select count(*) from pulsar.\"%s\".\"%s\"%s", namespace, tableName, condition);
         log.info("Executing count query: {}", query);
         ResultSet res = connection.createStatement().executeQuery(query);
         res.next();

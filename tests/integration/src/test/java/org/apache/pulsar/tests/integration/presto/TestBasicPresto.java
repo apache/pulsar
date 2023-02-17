@@ -371,7 +371,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             producer.newMessage().value(data).send();
         }
 
-        int count = selectCount("public/default", tableName);
+        int count = selectCount("public/default", tableName, null);
         Assert.assertEquals(count, messageCnt);
     }
 
@@ -419,7 +419,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
         prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor, removeKey);
 
-        Assert.assertEquals(selectCount("public/default", tableName),
+        Assert.assertEquals(selectCount("public/default", tableName, "__compacted_query__=true"),
                 compactedCount > 0 || noCompactedCount > 0 ? divisor : 0);
         ContainerExecResult result = execQuery(
                 "select __key__,symbol,sharePrice from pulsar.\"public/default\".\"" + tableName
