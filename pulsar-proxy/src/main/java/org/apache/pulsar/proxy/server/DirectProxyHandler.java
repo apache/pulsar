@@ -325,7 +325,7 @@ public class DirectProxyHandler {
             AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             ByteBuf command = Commands.newConnect(
                     authentication.getAuthMethodName(), authData, protocolVersion,
-                    "Pulsar proxy", null /* target broker */,
+                    proxyConnection.clientVersion, null /* target broker */,
                     originalPrincipal, clientAuthData, clientAuthMethod);
             writeAndFlush(command);
             isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
