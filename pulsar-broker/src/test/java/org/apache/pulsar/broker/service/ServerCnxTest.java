@@ -410,6 +410,10 @@ public class ServerCnxTest {
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "pass.proxy");
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "");
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", null);
+        // Invalid combinations where original principal is set to a pass.proxy role
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.proxy");
+        // Invalid combinations where the original principal is set to a non-proxy role
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client1", "pass.client");
     }
 
     private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
