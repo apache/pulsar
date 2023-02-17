@@ -81,6 +81,16 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
                         case Deleted:
                             return notEquals(from, to);
                     }
+                case Disabled:
+                    switch (state) {
+                        case Free:
+                            return notEquals(from, to);
+                    }
+                case Free:
+                    switch (state) {
+                        case Assigned:
+                            return isNotBlank(to.sourceBroker());
+                    }
             }
         }
         return false;

@@ -32,6 +32,8 @@ public enum ServiceUnitState {
 
     Disabled, // disabled by the owner broker
 
+    Free, // not owned by any broker (semi-terminal state)
+
     Owned, // owned by a broker (terminal state)
 
     Assigned, // the ownership is assigned(but the assigned broker has not been notified the ownership yet)
@@ -46,7 +48,8 @@ public enum ServiceUnitState {
             // (Init -> all states) transitions are required
             // when the topic is compacted in the middle of assign, transfer or split.
             Init, Set.of(Disabled, Owned, Assigned, Released, Splitting, Deleted, Init),
-            Disabled, Set.of(Init),
+            Disabled, Set.of(Free, Init),
+            Free, Set.of(Assigned, Init),
             Owned, Set.of(Assigned, Splitting, Disabled, Init),
             Assigned, Set.of(Owned, Released, Init),
             Released, Set.of(Owned, Init),

@@ -24,6 +24,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
@@ -428,7 +429,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Assigned, Released, Disabled -> {
                 return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
             }
-            case Init -> {
+            case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             case Deleted -> {
@@ -506,7 +507,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 case Released -> handleReleaseEvent(serviceUnit, data);
                 case Splitting -> handleSplitEvent(serviceUnit, data);
                 case Disabled -> handleDisableEvent(serviceUnit, data);
-                case Deleted, Init -> handleInitEvent(serviceUnit);
+                case Deleted, Free, Init -> handleInitEvent(serviceUnit);
                 default -> throw new IllegalStateException("Failed to handle channel data:" + data);
             }
         } catch (Throwable e){
@@ -615,8 +616,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleDisableEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
-            tombstoneAsync(serviceUnit)
-                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+            ServiceUnitStateData next = new ServiceUnitStateData(Free, data.broker());
+            pubAsync(serviceUnit, next)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
     }
 
@@ -788,7 +790,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         });
 
         updateFuture.thenAccept(r -> {
-            // Disable the old bundle
+            // Delete the old bundle
             pubAsync(serviceUnit, new ServiceUnitStateData(Deleted, data.broker())).thenRun(() -> {
                 // Update bundled_topic cache for load-report-generation
                 pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
@@ -987,10 +989,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             } else if (state != Owned
                     && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
                 boolean tombstone = false;
-                if (state == Deleted) {
+                if (state == Deleted || state == Free) {
                     if (now - stateData.timestamp()
                             > semiTerminalStateWaitingTimeInMillis) {
-                        log.info("Found semi-terminal states(free or disabled) to clean"
+                        log.info("Found semi-terminal states to clean"
                                 + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                         tombstone = true;
                     }

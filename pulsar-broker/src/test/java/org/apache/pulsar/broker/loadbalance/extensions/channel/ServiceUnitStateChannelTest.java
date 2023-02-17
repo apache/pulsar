@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
@@ -912,7 +913,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @Test(priority = 12)
     public void unloadTest()
             throws ExecutionException, InterruptedException, IllegalAccessException {
+
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
+
         waitUntilNewOwner(channel1, bundle, lookupServiceAddress1);
         waitUntilNewOwner(channel2, bundle, lookupServiceAddress1);
         var ownerAddr1 = channel1.getOwnerAsync(bundle).get();
@@ -921,15 +924,61 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr1, ownerAddr2);
         assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
         Unload unload = new Unload(lookupServiceAddress1, bundle, Optional.empty());
+
         channel1.publishUnloadEventAsync(unload);
 
-        waitUntilState(channel1, bundle, Init);
-        waitUntilState(channel2, bundle, Init);
+        waitUntilState(channel1, bundle, Free);
+        waitUntilState(channel2, bundle, Free);
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
         assertEquals(Optional.empty(), owner1.get());
         assertEquals(Optional.empty(), owner2.get());
+
+        channel2.publishAssignEventAsync(bundle, lookupServiceAddress2);
+
+        waitUntilNewOwner(channel1, bundle, lookupServiceAddress2);
+        waitUntilNewOwner(channel2, bundle, lookupServiceAddress2);
+
+        ownerAddr1 = channel1.getOwnerAsync(bundle).get();
+        ownerAddr2 = channel2.getOwnerAsync(bundle).get();
+
+        assertEquals(ownerAddr1, ownerAddr2);
+        assertEquals(ownerAddr1, Optional.of(lookupServiceAddress2));
+        Unload unload2 = new Unload(lookupServiceAddress2, bundle, Optional.empty());
+
+        channel2.publishUnloadEventAsync(unload2);
+
+        waitUntilState(channel1, bundle, Free);
+        waitUntilState(channel2, bundle, Free);
+
+        // test monitor if Free -> Init
+        FieldUtils.writeDeclaredField(channel1,
+                "inFlightStateWaitingTimeInMillis", 1 , true);
+        FieldUtils.writeDeclaredField(channel1,
+                "semiTerminalStateWaitingTimeInMillis", 1, true);
+
+        FieldUtils.writeDeclaredField(channel2,
+                "inFlightStateWaitingTimeInMillis", 1 , true);
+        FieldUtils.writeDeclaredField(channel2,
+                "semiTerminalStateWaitingTimeInMillis", 1, true);
+
+        ((ServiceUnitStateChannelImpl) channel1).monitorOwnerships(
+                List.of(lookupServiceAddress1, lookupServiceAddress2));
+        ((ServiceUnitStateChannelImpl) channel2).monitorOwnerships(
+                List.of(lookupServiceAddress1, lookupServiceAddress2));
+        waitUntilState(channel1, bundle, Init);
+        waitUntilState(channel2, bundle, Init);
+
+        FieldUtils.writeDeclaredField(channel1,
+                "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
+        FieldUtils.writeDeclaredField(channel1,
+                "semiTerminalStateWaitingTimeInMillis", 30 * 1000, true);
+
+        FieldUtils.writeDeclaredField(channel2,
+                "inFlightStateWaitingTimeInMillis", 300 * 1000, true);
+        FieldUtils.writeDeclaredField(channel2,
+                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
     }
 
     private static ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
@@ -125,5 +126,14 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Released)));
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Splitting)));
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Deleted)));
+
+        assertFalse(strategy.shouldKeepLeft(data(Free), data(Init)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Disabled)));
+        assertFalse(strategy.shouldKeepLeft(data(Free), data(Assigned)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Assigned, src, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Owned)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Released)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Splitting)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Deleted)));
     }
 }
