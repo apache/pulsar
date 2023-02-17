@@ -22,8 +22,8 @@ import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
@@ -425,14 +425,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Owned, Splitting -> {
                 return CompletableFuture.completedFuture(Optional.of(data.broker()));
             }
-            case Assigned, Released -> {
+            case Assigned, Released, Disabled -> {
                 return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
             }
-            case Free, Init -> {
+            case Init -> {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
-            case Disabled -> {
-                return CompletableFuture.failedFuture(new IllegalArgumentException(serviceUnit + " is disabled"));
+            case Deleted -> {
+                return CompletableFuture.failedFuture(new IllegalArgumentException(serviceUnit + " is deleted."));
             }
             default -> {
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
@@ -469,7 +469,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     Assigned, unload.destBroker().get(), unload.sourceBroker()));
         } else {
             future = pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Free, unload.sourceBroker()));
+                    Disabled, unload.sourceBroker()));
         }
 
         return future.whenComplete((__, ex) -> {
@@ -505,7 +505,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 case Assigned -> handleAssignEvent(serviceUnit, data);
                 case Released -> handleReleaseEvent(serviceUnit, data);
                 case Splitting -> handleSplitEvent(serviceUnit, data);
-                case Free, Disabled, Init -> handleInitEvent(serviceUnit);
+                case Disabled -> handleDisableEvent(serviceUnit, data);
+                case Deleted, Init -> handleInitEvent(serviceUnit);
                 default -> throw new IllegalStateException("Failed to handle channel data:" + data);
             }
         } catch (Throwable e){
@@ -608,6 +609,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleSplitEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
             splitServiceUnit(serviceUnit, data)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+        }
+    }
+
+    private void handleDisableEvent(String serviceUnit, ServiceUnitStateData data) {
+        if (isTargetBroker(data.broker())) {
+            tombstoneAsync(serviceUnit)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         }
     }
@@ -781,7 +789,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         updateFuture.thenAccept(r -> {
             // Disable the old bundle
-            pubAsync(serviceUnit, new ServiceUnitStateData(Disabled, data.broker())).thenRun(() -> {
+            pubAsync(serviceUnit, new ServiceUnitStateData(Deleted, data.broker())).thenRun(() -> {
                 // Update bundled_topic cache for load-report-generation
                 pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                 // TODO: Update the load data immediately if needed.
@@ -979,7 +987,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             } else if (state != Owned
                     && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
                 boolean tombstone = false;
-                if ((state == Free || state == Disabled)) {
+                if (state == Deleted) {
                     if (now - stateData.timestamp()
                             > semiTerminalStateWaitingTimeInMillis) {
                         log.info("Found semi-terminal states(free or disabled) to clean"

@@ -30,7 +30,7 @@ public enum ServiceUnitState {
 
     Init, // initializing the state. no previous state(terminal state)
 
-    Free, // not owned by any broker (semi-terminal state)
+    Disabled, // disabled by the owner broker
 
     Owned, // owned by a broker (terminal state)
 
@@ -40,18 +40,18 @@ public enum ServiceUnitState {
 
     Splitting, // the service unit(e.g. bundle) is in the process of splitting.
 
-    Disabled; // disabled in the system (semi-terminal state)
+    Deleted; // deleted in the system (semi-terminal state)
 
     private static Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
             // (Init -> all states) transitions are required
             // when the topic is compacted in the middle of assign, transfer or split.
-            Init, Set.of(Free, Owned, Assigned, Released, Splitting, Disabled, Init),
-            Free, Set.of(Assigned, Init),
-            Owned, Set.of(Assigned, Splitting, Free, Init),
+            Init, Set.of(Disabled, Owned, Assigned, Released, Splitting, Deleted, Init),
+            Disabled, Set.of(Init),
+            Owned, Set.of(Assigned, Splitting, Disabled, Init),
             Assigned, Set.of(Owned, Released, Init),
             Released, Set.of(Owned, Init),
-            Splitting, Set.of(Disabled, Init),
-            Disabled, Set.of(Init)
+            Splitting, Set.of(Deleted, Init),
+            Deleted, Set.of(Init)
     );
 
     public static boolean isValidTransition(ServiceUnitState from, ServiceUnitState to) {

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
@@ -113,7 +114,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState nextValidStateNonSplit(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
-                .filter(to -> to != Init && to != Splitting && to != Disabled && isValidTransition(from, to))
+                .filter(to -> to != Init && to != Splitting && to != Deleted && to != Disabled
+                        && isValidTransition(from, to))
                 .collect(Collectors.toList());
         var state=  candidates.get(RANDOM.nextInt(candidates.size()));
         return state;

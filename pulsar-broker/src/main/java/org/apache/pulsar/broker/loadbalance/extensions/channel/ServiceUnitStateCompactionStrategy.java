@@ -56,25 +56,20 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
 
         if (checkBrokers) {
             switch (prevState) {
-                case Free:
-                    switch (state) {
-                        case Assigned:
-                            return isNotBlank(to.sourceBroker());
-                    }
                 case Owned:
                     switch (state) {
                         case Assigned:
                             return invalidTransfer(from, to);
                         case Splitting:
-                        case Free:
-                            return !from.broker().equals(to.broker());
+                        case Disabled:
+                            return targetNotEquals(from, to);
                     }
                 case Assigned:
                     switch (state) {
                         case Released:
                             return isBlank(to.sourceBroker()) || notEquals(from, to);
                         case Owned:
-                            return isNotBlank(to.sourceBroker()) || !to.broker().equals(from.broker());
+                            return isNotBlank(to.sourceBroker()) || targetNotEquals(from, to);
                     }
                 case Released:
                     switch (state) {
@@ -83,12 +78,16 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
                     }
                 case Splitting:
                     switch (state) {
-                        case Disabled :
+                        case Deleted:
                             return notEquals(from, to);
                     }
             }
         }
         return false;
+    }
+
+    private boolean targetNotEquals(ServiceUnitStateData from, ServiceUnitStateData to) {
+        return !from.broker().equals(to.broker());
     }
 
     private boolean notEquals(ServiceUnitStateData from, ServiceUnitStateData to) {

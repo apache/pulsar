@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
@@ -534,8 +534,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         Split split = new Split(bundle, ownerAddr1.get(), new HashMap<>());
         channel1.publishSplitEventAsync(split);
 
-        waitUntilState(channel1, bundle, Disabled);
-        waitUntilState(channel2, bundle, Disabled);
+        waitUntilState(channel1, bundle, Deleted);
+        waitUntilState(channel2, bundle, Deleted);
 
         validateHandlerCounters(channel1, 1, 0, 9, 0, 0, 0, 1, 0, 0, 0, 6, 0, 1, 0);
         validateHandlerCounters(channel2, 1, 0, 9, 0, 0, 0, 1, 0, 0, 0, 6, 0, 1, 0);
@@ -893,10 +893,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, "b1"));
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Disabled, "b1"));
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Disabled, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, "b1"));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
@@ -920,45 +920,16 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(ownerAddr1, ownerAddr2);
         assertEquals(ownerAddr1, Optional.of(lookupServiceAddress1));
-
         Unload unload = new Unload(lookupServiceAddress1, bundle, Optional.empty());
         channel1.publishUnloadEventAsync(unload);
-        // channel1 is broken. the ownership transfer won't be complete.
-        waitUntilState(channel1, bundle, Free);
-        waitUntilState(channel2, bundle, Free);
+
+        waitUntilState(channel1, bundle, Init);
+        waitUntilState(channel2, bundle, Init);
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
         assertEquals(Optional.empty(), owner1.get());
         assertEquals(Optional.empty(), owner2.get());
-
-        // test monitor if Free -> Init
-        FieldUtils.writeDeclaredField(channel1,
-                "inFlightStateWaitingTimeInMillis", 1 , true);
-        FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
-
-        FieldUtils.writeDeclaredField(channel2,
-                "inFlightStateWaitingTimeInMillis", 1 , true);
-        FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 1, true);
-
-        ((ServiceUnitStateChannelImpl) channel1).monitorOwnerships(
-                List.of(lookupServiceAddress1, lookupServiceAddress2));
-        ((ServiceUnitStateChannelImpl) channel2).monitorOwnerships(
-                List.of(lookupServiceAddress1, lookupServiceAddress2));
-        waitUntilState(channel1, bundle, Init);
-        waitUntilState(channel2, bundle, Init);
-
-        FieldUtils.writeDeclaredField(channel1,
-                "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
-        FieldUtils.writeDeclaredField(channel1,
-                "semiTerminalStateWaitingTimeInMillis", 30 * 1000, true);
-
-        FieldUtils.writeDeclaredField(channel2,
-                "inFlightStateWaitingTimeInMillis", 300 * 1000, true);
-        FieldUtils.writeDeclaredField(channel2,
-                "semiTerminalStateWaitingTimeInMillis", 300 * 1000, true);
     }
 
     private static ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
@@ -1158,12 +1129,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     assertEquals(releasedF, handlerCounters.get(Released).getFailure().get());
                     assertEquals(splittingT, handlerCounters.get(Splitting).getTotal().get());
                     assertEquals(splittingF, handlerCounters.get(Splitting).getFailure().get());
-                    assertEquals(freeT, handlerCounters.get(Free).getTotal().get());
-                    assertEquals(freeF, handlerCounters.get(Free).getFailure().get());
+                    assertEquals(freeT, handlerCounters.get(Disabled).getTotal().get());
+                    assertEquals(freeF, handlerCounters.get(Disabled).getFailure().get());
                     assertEquals(initT, handlerCounters.get(Init).getTotal().get());
                     assertEquals(initF, handlerCounters.get(Init).getFailure().get());
-                    assertEquals(disabledT, handlerCounters.get(Disabled).getTotal().get());
-                    assertEquals(disabledF, handlerCounters.get(Disabled).getFailure().get());
+                    assertEquals(disabledT, handlerCounters.get(Deleted).getTotal().get());
+                    assertEquals(disabledF, handlerCounters.get(Deleted).getFailure().get());
                 });
     }
 
@@ -1211,8 +1182,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     assertEquals(owned, ownerLookUpCounters.get(Owned).get());
                     assertEquals(released, ownerLookUpCounters.get(Released).get());
                     assertEquals(splitting, ownerLookUpCounters.get(Splitting).get());
-                    assertEquals(free, ownerLookUpCounters.get(Free).get());
-                    assertEquals(disabled, ownerLookUpCounters.get(Disabled).get());
+                    assertEquals(free, ownerLookUpCounters.get(Disabled).get());
+                    assertEquals(disabled, ownerLookUpCounters.get(Deleted).get());
                     assertEquals(init, ownerLookUpCounters.get(Init).get());
                 });
     }
