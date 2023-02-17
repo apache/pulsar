@@ -403,7 +403,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         Producer<Stock> producer = pulsarClient.newProducer(Schema.AVRO(Stock.class))
                 .topic(topic)
                 .enableBatching(enableBatch)
-                .maxPendingMessages(10)
+                .batchingMaxMessages(10)
                 .create();
 
         int divisor = 8;
