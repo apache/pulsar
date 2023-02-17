@@ -82,6 +82,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private final String TLS_SUPERUSER_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     private ProxyService proxyService;
+    private WebServer webServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @DataProvider(name = "hostnameVerification")
@@ -173,6 +174,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
+        superUserRoles.add("Proxy");
         conf.setSuperUserRoles(superUserRoles);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
@@ -200,12 +202,11 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setForwardAuthorizationCredentials(true);
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
+        proxyConfig.setBrokerWebServiceURLTLS(pulsar.getWebServiceAddressTls());
         proxyConfig.setAdvertisedAddress(null);
 
-        proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
-        proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
 
@@ -223,9 +224,10 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
         proxyConfig.setProperties(properties);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                           new AuthenticationService(
-                                                   PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        AuthenticationService authService =
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        webServer = new WebServer(proxyConfig, authService);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -233,10 +235,13 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
+        webServer.stop();
     }
 
     private void startProxy() throws Exception {
         proxyService.start();
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
+        webServer.start();
     }
 
     /**
@@ -258,7 +263,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         startProxy();
-        createAdminClient();
+        createProxyAdminClient();
         // create a client which connects to proxy over tls and pass authData
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
@@ -311,7 +316,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         startProxy();
-        createAdminClient();
+        createProxyAdminClient();
         // create a client which connects to proxy over tls and pass authData
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
@@ -364,7 +369,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         startProxy();
-        createAdminClient();
+        createProxyAdminClient();
         // create a client which connects to proxy over tls and pass authData
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(),
@@ -409,7 +414,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             throws Exception {
         log.info("-- Starting {} test --", methodName);
         String namespaceName = "my-tenant/my-ns";
-        createAdminClient();
+        createBrokerAdminClient();
 
         admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
                 .serviceUrlTls(brokerUrlTls.toString()).build());
@@ -508,7 +513,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         startProxy();
-        createAdminClient();
+        createProxyAdminClient();
 
         @Cleanup
         PulsarClient proxyClient = PulsarClient.builder()
@@ -565,7 +570,17 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    private void createAdminClient() throws Exception {
+    private void createProxyAdminClient() throws Exception {
+        Map<String, String> authParams = Maps.newHashMap();
+        authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
+
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl("https://localhost:" + webServer.getListenPortHTTPS().get())
+                .tlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH)
+                .authentication(AuthenticationTls.class.getName(), authParams).build());
+    }
+
+    private void createBrokerAdminClient() throws Exception {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
