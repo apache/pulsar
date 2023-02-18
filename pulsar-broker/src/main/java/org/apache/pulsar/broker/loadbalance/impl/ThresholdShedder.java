@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,11 +59,13 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private static final double LOWER_BOUNDARY_THRESHOLD_MARGIN = 0.5;
 
     private static final double MB = 1024 * 1024;
-    private final Map<String, Double> brokerAvgResourceUsage = new ConcurrentHashMap<>();
+    private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
+    private final Set<String> activeBrokers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     @Override
     public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
+        cleanUnActiveBroker();
         final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         final double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
@@ -76,7 +80,6 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         loadData.getBrokerData().forEach((broker, brokerData) -> {
             final LocalBrokerData localData = brokerData.getLocalData();
             final double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
-
             if (currentUsage < avgUsage + threshold) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] broker is not overloaded, ignoring at this point", broker);
@@ -235,10 +238,20 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
     }
     @Override
-    public void onBrokerChange(Set<String> activeBrokers) {
-        for (String broker : brokerAvgResourceUsage.keySet()) {
-            if (!activeBrokers.contains(broker)) {
-                brokerAvgResourceUsage.remove(broker);
+    public void onBrokerChange(Set<String> newBrokers) {
+        synchronized (activeBrokers) {
+            activeBrokers.clear();
+            activeBrokers.addAll(newBrokers);
+        }
+    }
+
+    private void cleanUnActiveBroker() {
+        if (!activeBrokers.isEmpty()) {
+            synchronized (activeBrokers) {
+                if (!activeBrokers.isEmpty()) {
+                    brokerAvgResourceUsage.keySet().removeIf((key) -> !activeBrokers.contains(key));
+                    activeBrokers.clear();
+                }
             }
         }
     }
