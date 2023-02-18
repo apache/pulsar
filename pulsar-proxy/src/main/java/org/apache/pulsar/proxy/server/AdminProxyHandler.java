@@ -268,7 +268,6 @@ class AdminProxyHandler extends ProxyServlet {
                     SSLContext sslCtx;
                     AuthenticationDataProvider authData = auth.getAuthData();
                     if (authData.hasDataForTls()) {
-                        isProxyClientAuthenticatingWithTLS = true;
                         sslCtx = SecurityUtility.createSslContext(
                                 config.isTlsAllowInsecureConnection(),
                                 trustCertificates,
