@@ -86,9 +86,6 @@ class AdminProxyHandler extends ProxyServlet {
     private final String brokerWebServiceUrl;
     private final String functionWorkerWebServiceUrl;
 
-    // Whether the proxy will supply TLS for the connection
-    private volatile boolean isProxyClientAuthenticatingWithTLS = false;
-
     AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
         this.config = config;
         this.discoveryProvider = discoveryProvider;
@@ -371,10 +368,6 @@ class AdminProxyHandler extends ProxyServlet {
     @Override
     protected void addProxyHeaders(HttpServletRequest clientRequest, Request proxyRequest) {
         super.addProxyHeaders(clientRequest, proxyRequest);
-        if (!isProxyClientAuthenticatingWithTLS) {
-            // Only add the original principal header because the proxy is supplying its own auth data
-            return;
-        }
         String user = (String) clientRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
         if (user != null) {
             proxyRequest.header(ORIGINAL_PRINCIPAL_HEADER, user);
