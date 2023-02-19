@@ -18,15 +18,23 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static com.google.protobuf.Descriptors.Descriptor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
+import org.apache.pulsar.client.schema.proto.reader.Reader;
+import org.apache.pulsar.client.schema.proto.writerWithAddHasDefaultValue.WriterWithAddHasDefaultValue;
+import org.apache.pulsar.client.schema.proto.writerWithAddNoDefaultValue.WriterWithAddNoDefaultValue;
+import org.apache.pulsar.client.schema.proto.writerWithRemoveNoDefaultValueField.WriterWithRemoveNoDefaultValueField;
+import org.apache.pulsar.client.schema.proto.writerWithRemoveDefaultValueField.WriterWithRemoveDefaultValueField;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import java.util.Arrays;
+import java.util.Collections;
 
-import static com.google.protobuf.Descriptors.Descriptor;
-
+@Slf4j
 @Test(groups = "broker")
 public class ProtobufNativeSchemaCompatibilityCheckTest {
 
@@ -34,15 +42,128 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
 
     private static final SchemaData schemaData2 = getSchemaData(org.apache.pulsar.client.api.schema.proto.Test.SubMessage.getDescriptor());
 
+    private static final SchemaData reader = getSchemaData(Reader.ProtobufSchema.getDescriptor());
+    private static final SchemaData reader2 = getSchemaData(Reader.ProtobufSchema.getDescriptor());
+    private static final SchemaData writerWithAddHasDefaultValue = getSchemaData(WriterWithAddHasDefaultValue.ProtobufSchema.getDescriptor());
+    private static final SchemaData writerWithAddNoDefaultValue = getSchemaData(WriterWithAddNoDefaultValue.ProtobufSchema.getDescriptor());
+    private static final SchemaData writerWithRemoveNoDefaultValueField = getSchemaData(WriterWithRemoveNoDefaultValueField.ProtobufSchema.getDescriptor());
+    private static final SchemaData writerWithRemoveDefaultValueField = getSchemaData(WriterWithRemoveDefaultValueField.ProtobufSchema.getDescriptor());
+
     /**
      * make sure protobuf root message isn't allow change
      */
     @Test
     public void testRootMessageChange() {
-        ProtobufNativeSchemaCompatibilityCheck compatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        SchemaCompatibilityCheck compatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
         Assert.assertFalse(compatibilityCheck.isCompatible(schemaData2, schemaData1,
                 SchemaCompatibilityStrategy.FULL),
                 "Protobuf root message isn't allow change");
+    }
+
+    @Test
+    public void testBackwardCompatibility() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        // adding a field with default is backwards compatible
+        log.info("adding a field with default is backwards compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddHasDefaultValue,
+                        SchemaCompatibilityStrategy.BACKWARD),
+                "adding a field with default is backwards compatible");
+        // adding a field without default is NOT backwards compatible
+        log.info("adding a field without default is NOT backwards compatible");
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(reader, writerWithAddNoDefaultValue,
+                        SchemaCompatibilityStrategy.BACKWARD),
+                "adding a field without default is NOT backwards compatible");
+        // removing a field with no default is backwards compatible
+        log.info("removing a field with no default is backwards compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithRemoveNoDefaultValueField,
+                        SchemaCompatibilityStrategy.BACKWARD),
+                "removing a field with no default is backwards compatible");
+        // removing a field with default value is backwards compatible
+        log.info("removing a field with default value is backwards compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithRemoveDefaultValueField,
+                        SchemaCompatibilityStrategy.BACKWARD),
+                "removing a field with default value is backwards compatible");
+    }
+
+    @Test
+    public void testForwardCompatibility() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        // adding a field with default is forward compatible
+        log.info("adding a field with default is forward compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddHasDefaultValue,
+                        SchemaCompatibilityStrategy.FORWARD),
+                "adding a field with default is forward compatible");
+        // adding a field without default is forward compatible
+        log.info("adding a field without default is forward compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddNoDefaultValue,
+                        SchemaCompatibilityStrategy.FORWARD),
+                "adding a field without default is forward compatible");
+        // removing a field with no default is not forward compatible
+        log.info("removing a field with no default is not forward compatible");
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(reader, writerWithRemoveNoDefaultValueField,
+                        SchemaCompatibilityStrategy.FORWARD),
+                "removing a field with no default is not forward compatible");
+        // removing a field with default value is forward compatible
+        log.info("removing a field with default value is forward compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithRemoveDefaultValueField,
+                        SchemaCompatibilityStrategy.FORWARD),
+                "removing a field with default value is forward compatible");
+    }
+
+    @Test
+    public void testFullCompatibility() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddHasDefaultValue,
+                        SchemaCompatibilityStrategy.FULL),
+                "adding a field with default fully compatible");
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(reader, writerWithAddNoDefaultValue,
+                        SchemaCompatibilityStrategy.FULL),
+                "adding a field without default is not fully compatible");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithRemoveDefaultValueField,
+                        SchemaCompatibilityStrategy.FULL),
+                "removing a field with default is fully compatible");
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(reader, writerWithRemoveNoDefaultValueField,
+                        SchemaCompatibilityStrategy.FULL),
+                "removing a field with no default is not fully compatible");
+    }
+
+    @Test
+    public void testBackwardTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2), writerWithAddHasDefaultValue,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2, writerWithAddHasDefaultValue),
+                writerWithRemoveNoDefaultValueField, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Collections.singletonList(reader), writerWithRemoveDefaultValueField,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, writerWithAddNoDefaultValue),
+                writerWithAddNoDefaultValue, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, writerWithAddNoDefaultValue),
+                writerWithAddNoDefaultValue, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+    }
+
+    @Test
+    public void testForwardTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2), writerWithRemoveDefaultValueField,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2, writerWithRemoveDefaultValueField),
+                writerWithAddHasDefaultValue, SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, writerWithRemoveNoDefaultValueField),
+                writerWithRemoveNoDefaultValueField, SchemaCompatibilityStrategy.FORWARD));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, writerWithRemoveNoDefaultValueField),
+                writerWithRemoveNoDefaultValueField, SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
+    }
+
+    @Test
+    public void testFullTransitive() {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, writerWithRemoveDefaultValueField),
+                writerWithAddHasDefaultValue, SchemaCompatibilityStrategy.FULL));
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2),
+                writerWithAddNoDefaultValue, SchemaCompatibilityStrategy.FULL_TRANSITIVE));
     }
 
     private static SchemaData getSchemaData(Descriptor descriptor) {

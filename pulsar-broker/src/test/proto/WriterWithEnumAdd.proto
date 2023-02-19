@@ -1,0 +1,64 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto2";
+package proto.writerWithEnumAdd;
+
+import "ExternalReader.proto";
+
+option java_package = "org.apache.pulsar.client.schema.proto.writerWithEnumAdd";
+option java_outer_classname = "WriterWithEnumAdd";
+
+enum WeekEnum {
+    MONDAY = 0;
+    TUESDAY = 1;
+    WEDNESDAY = 2;
+    THURSDAY = 3;
+    FRIDAY = 4;
+    SATURDAY = 5;
+    SUNDAY = 6;
+    WEEK_ADD = 7;
+}
+
+message ProtobufMessage {
+    required string protobufFoo = 1;
+    required double protobufBar = 2;
+}
+
+message ProtobufSchema {
+    required string schemaId = 1;
+    optional double doubleField = 2;
+    optional float floatField = 3;
+    optional int64 int64Field = 4;
+    optional uint64 uint64Field = 5;
+    optional int32 int32Field = 6;
+    optional fixed64 fixed64Field = 7;
+    optional fixed32 fixed32Field = 8;
+    optional bool boolField = 9 [default = false];
+    optional string stringField = 10;
+    map<uint32, double> groupField = 11;
+    optional ProtobufMessage messageField = 12;
+    optional bytes bytesField = 13;
+    optional uint32 uint32Field = 14;
+    optional WeekEnum enumField = 15;
+    optional sfixed32 sfixed32Field = 16;
+    optional sfixed64 sfixed64Field = 17;
+    optional sint32 sint32Field = 18;
+    optional sint64 sint64Field = 19;
+    optional proto.external.ExternalReaderMessage externalReaderMessage = 20;
+}
