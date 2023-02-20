@@ -392,6 +392,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         }
     }
 
+    protected EntryBatchIndexesAcks getEntryBatchIndexesAcks(int entries) {
+        return serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled() ? EntryBatchIndexesAcks.get(entries) : null;
+    }
+
     @Override
     public long getFilterProcessedMsgCount() {
         return this.filterProcessedMsgs.longValue();

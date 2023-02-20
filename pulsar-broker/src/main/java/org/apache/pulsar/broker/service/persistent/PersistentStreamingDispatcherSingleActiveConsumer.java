@@ -167,7 +167,7 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
         } else {
             EntryBatchSizes batchSizes = EntryBatchSizes.get(1);
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
-            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(1);
+            EntryBatchIndexesAcks batchIndexesAcks = getEntryBatchIndexesAcks(1);
             filterEntriesForConsumer(Lists.newArrayList(entry), batchSizes, sendMessageInfo, batchIndexesAcks,
                     cursor, false, consumer);
             // Update cursor's read position.

@@ -703,7 +703,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
-            EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
+            EntryBatchIndexesAcks batchIndexesAcks = getEntryBatchIndexesAcks(entriesForThisConsumer.size());
             totalEntries += filterEntriesForConsumer(metadataArray, start,
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
@@ -781,7 +781,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
             final SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             final EntryBatchSizes batchSizes = EntryBatchSizes.get(messagesForC);
-            final EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(messagesForC);
+            final EntryBatchIndexesAcks batchIndexesAcks = getEntryBatchIndexesAcks(messagesForC);
 
             totalEntries += filterEntriesForConsumer(entryAndMetadataList, batchSizes, sendMessageInfo,
                     batchIndexesAcks, cursor, readType == ReadType.Replay, consumer);
