@@ -56,8 +56,8 @@ public class LongAdderCounter implements Counter {
     }
 
     @Override
-    public void addLatency(long eventLatency, TimeUnit unit) {
-
+    public void add(long delta) {
+        counter.add(delta);
     }
 
     @Override
