@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
@@ -36,23 +36,23 @@ public class ServiceUnitStateTest {
     public void testTransitions() {
 
         assertTrue(ServiceUnitState.isValidTransition(Init, Init));
-        assertTrue(ServiceUnitState.isValidTransition(Init, Disabled));
-        assertTrue(ServiceUnitState.isValidTransition(Init, Assigned));
+        assertTrue(ServiceUnitState.isValidTransition(Init, Free));
         assertTrue(ServiceUnitState.isValidTransition(Init, Owned));
+        assertTrue(ServiceUnitState.isValidTransition(Init, Assigned));
         assertTrue(ServiceUnitState.isValidTransition(Init, Released));
         assertTrue(ServiceUnitState.isValidTransition(Init, Splitting));
         assertTrue(ServiceUnitState.isValidTransition(Init, Deleted));
 
-        assertTrue(ServiceUnitState.isValidTransition(Disabled, Init));
-        assertFalse(ServiceUnitState.isValidTransition(Disabled, Disabled));
-        assertFalse(ServiceUnitState.isValidTransition(Disabled, Assigned));
-        assertFalse(ServiceUnitState.isValidTransition(Disabled, Owned));
-        assertFalse(ServiceUnitState.isValidTransition(Disabled, Released));
-        assertFalse(ServiceUnitState.isValidTransition(Disabled, Splitting));
-        assertFalse(ServiceUnitState.isValidTransition(Disabled, Deleted));
+        assertTrue(ServiceUnitState.isValidTransition(Free, Init));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Free));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Owned));
+        assertTrue(ServiceUnitState.isValidTransition(Free, Assigned));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Released));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Splitting));
+        assertFalse(ServiceUnitState.isValidTransition(Free, Deleted));
 
         assertTrue(ServiceUnitState.isValidTransition(Assigned, Init));
-        assertFalse(ServiceUnitState.isValidTransition(Assigned, Disabled));
+        assertFalse(ServiceUnitState.isValidTransition(Assigned, Free));
         assertFalse(ServiceUnitState.isValidTransition(Assigned, Assigned));
         assertTrue(ServiceUnitState.isValidTransition(Assigned, Owned));
         assertTrue(ServiceUnitState.isValidTransition(Assigned, Released));
@@ -60,15 +60,15 @@ public class ServiceUnitStateTest {
         assertFalse(ServiceUnitState.isValidTransition(Assigned, Deleted));
 
         assertTrue(ServiceUnitState.isValidTransition(Owned, Init));
-        assertTrue(ServiceUnitState.isValidTransition(Owned, Disabled));
+        assertFalse(ServiceUnitState.isValidTransition(Owned, Free));
         assertTrue(ServiceUnitState.isValidTransition(Owned, Assigned));
         assertFalse(ServiceUnitState.isValidTransition(Owned, Owned));
-        assertFalse(ServiceUnitState.isValidTransition(Owned, Released));
+        assertTrue(ServiceUnitState.isValidTransition(Owned, Released));
         assertTrue(ServiceUnitState.isValidTransition(Owned, Splitting));
         assertFalse(ServiceUnitState.isValidTransition(Owned, Deleted));
 
         assertTrue(ServiceUnitState.isValidTransition(Released, Init));
-        assertFalse(ServiceUnitState.isValidTransition(Released, Disabled));
+        assertTrue(ServiceUnitState.isValidTransition(Released, Free));
         assertFalse(ServiceUnitState.isValidTransition(Released, Assigned));
         assertTrue(ServiceUnitState.isValidTransition(Released, Owned));
         assertFalse(ServiceUnitState.isValidTransition(Released, Released));
@@ -76,7 +76,7 @@ public class ServiceUnitStateTest {
         assertFalse(ServiceUnitState.isValidTransition(Released, Deleted));
 
         assertTrue(ServiceUnitState.isValidTransition(Splitting, Init));
-        assertFalse(ServiceUnitState.isValidTransition(Splitting, Disabled));
+        assertFalse(ServiceUnitState.isValidTransition(Splitting, Free));
         assertFalse(ServiceUnitState.isValidTransition(Splitting, Assigned));
         assertFalse(ServiceUnitState.isValidTransition(Splitting, Owned));
         assertFalse(ServiceUnitState.isValidTransition(Splitting, Released));
@@ -84,7 +84,7 @@ public class ServiceUnitStateTest {
         assertTrue(ServiceUnitState.isValidTransition(Splitting, Deleted));
 
         assertTrue(ServiceUnitState.isValidTransition(Deleted, Init));
-        assertFalse(ServiceUnitState.isValidTransition(Deleted, Disabled));
+        assertFalse(ServiceUnitState.isValidTransition(Deleted, Free));
         assertFalse(ServiceUnitState.isValidTransition(Deleted, Assigned));
         assertFalse(ServiceUnitState.isValidTransition(Deleted, Owned));
         assertFalse(ServiceUnitState.isValidTransition(Deleted, Released));

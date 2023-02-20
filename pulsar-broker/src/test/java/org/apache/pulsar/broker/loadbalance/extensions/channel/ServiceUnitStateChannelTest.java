@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
@@ -894,7 +893,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, "b1"));
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Disabled, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, "b1"));
         channel1.getOwnerAsync(bundle);
 
         overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, "b1"));
@@ -1160,7 +1159,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                                                 long splittingT, long splittingF,
                                                 long freeT, long freeF,
                                                 long initT, long initF,
-                                                long disabledT, long disabledF)
+                                                long deletedT, long deletedF)
             throws IllegalAccessException {
         var handlerCounters =
                 (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
@@ -1178,12 +1177,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     assertEquals(releasedF, handlerCounters.get(Released).getFailure().get());
                     assertEquals(splittingT, handlerCounters.get(Splitting).getTotal().get());
                     assertEquals(splittingF, handlerCounters.get(Splitting).getFailure().get());
-                    assertEquals(freeT, handlerCounters.get(Disabled).getTotal().get());
-                    assertEquals(freeF, handlerCounters.get(Disabled).getFailure().get());
+                    assertEquals(freeT, handlerCounters.get(Free).getTotal().get());
+                    assertEquals(freeF, handlerCounters.get(Free).getFailure().get());
                     assertEquals(initT, handlerCounters.get(Init).getTotal().get());
                     assertEquals(initF, handlerCounters.get(Init).getFailure().get());
-                    assertEquals(disabledT, handlerCounters.get(Deleted).getTotal().get());
-                    assertEquals(disabledF, handlerCounters.get(Deleted).getFailure().get());
+                    assertEquals(deletedT, handlerCounters.get(Deleted).getTotal().get());
+                    assertEquals(deletedF, handlerCounters.get(Deleted).getFailure().get());
                 });
     }
 
@@ -1215,7 +1214,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                                                     long released,
                                                     long splitting,
                                                     long free,
-                                                    long disabled,
+                                                    long deleted,
                                                     long init
                                                     )
             throws IllegalAccessException {
@@ -1231,8 +1230,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     assertEquals(owned, ownerLookUpCounters.get(Owned).get());
                     assertEquals(released, ownerLookUpCounters.get(Released).get());
                     assertEquals(splitting, ownerLookUpCounters.get(Splitting).get());
-                    assertEquals(free, ownerLookUpCounters.get(Disabled).get());
-                    assertEquals(disabled, ownerLookUpCounters.get(Deleted).get());
+                    assertEquals(free, ownerLookUpCounters.get(Free).get());
+                    assertEquals(deleted, ownerLookUpCounters.get(Deleted).get());
                     assertEquals(init, ownerLookUpCounters.get(Init).get());
                 });
     }

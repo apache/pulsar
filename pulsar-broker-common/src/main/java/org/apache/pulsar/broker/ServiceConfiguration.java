@@ -2529,12 +2529,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             doc = "After this delay, the service-unit state channel tombstones any service units (e.g., bundles) "
-                    + "in semi-terminal states. For example, after splits, parent bundles will be `Disabled`, "
-                    + "and then after this delay, the parent bundles' state will be removed(tombstoned) "
+                    + "in semi-terminal states. For example, after splits, parent bundles will be `deleted`, "
+                    + "and then after this delay, the parent bundles' state will be `tombstoned` "
                     + "in the service-unit state channel. "
                     + "Pulsar does not immediately remove such semi-terminal states "
                     + "to avoid unnecessary system confusion, "
-                    + "as the bundles in the `Tombstoned` state might temporarily look available to reassign. "
+                    + "as the bundles in the `tombstoned` state might temporarily look available to reassign. "
                     + "Rarely, one could lower this delay in order to aggressively clean "
                     + "the service-unit state channel when there are a large number of bundles. "
                     + "minimum value = 30 secs"

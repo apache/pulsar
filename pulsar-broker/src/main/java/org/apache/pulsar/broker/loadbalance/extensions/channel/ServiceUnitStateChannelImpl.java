@@ -23,7 +23,6 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
@@ -248,13 +247,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         try {
             this.brokerRegistry = getBrokerRegistry();
             this.brokerRegistry.addListener((broker, type) -> {
-                if (type == NotificationType.Deleted) {
-                    log.info("BrokerRegistry detected the broker:{} registry has been deleted.", broker);
-                    handleBrokerDeletionEvent(broker);
-                } else if (type == NotificationType.Created) {
-                    log.info("BrokerRegistry detected the broker:{} registry has been created.", broker);
-                    handleBrokerCreationEvent(broker);
-                }
+                handleBrokerRegistrationEvent(broker, type);
             });
             leaderElectionService.start();
             this.channelState = LeaderElectionServiceStarted;
@@ -426,7 +419,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Owned, Splitting -> {
                 return CompletableFuture.completedFuture(Optional.of(data.broker()));
             }
-            case Assigned, Released, Disabled -> {
+            case Assigned, Released -> {
                 return deferGetOwnerRequest(serviceUnit).thenApply(Optional::of);
             }
             case Init, Free -> {
@@ -470,7 +463,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     Assigned, unload.destBroker().get(), unload.sourceBroker()));
         } else {
             future = pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Disabled, unload.sourceBroker()));
+                    Released, unload.sourceBroker()));
         }
 
         return future.whenComplete((__, ex) -> {
@@ -506,7 +499,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 case Assigned -> handleAssignEvent(serviceUnit, data);
                 case Released -> handleReleaseEvent(serviceUnit, data);
                 case Splitting -> handleSplitEvent(serviceUnit, data);
-                case Disabled -> handleDisableEvent(serviceUnit, data);
                 case Deleted, Free, Init -> handleInitEvent(serviceUnit);
                 default -> throw new IllegalStateException("Failed to handle channel data:" + data);
             }
@@ -598,12 +590,22 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
-        if (isTargetBroker(data.sourceBroker())) {
-            ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker());
-            // TODO: when close, pass message to clients to connect to the new broker
-            closeServiceUnit(serviceUnit)
-                    .thenCompose(__ -> pubAsync(serviceUnit, next))
-                    .whenComplete((__, e) -> log(e, serviceUnit, data, next));
+
+        if (isTransferCommand(data)) {
+            if (isTargetBroker(data.sourceBroker())) {
+                ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker());
+                // TODO: when close, pass message to clients to connect to the new broker
+                closeServiceUnit(serviceUnit)
+                        .thenCompose(__ -> pubAsync(serviceUnit, next))
+                        .whenComplete((__, e) -> log(e, serviceUnit, data, next));
+            }
+        } else {
+            if (isTargetBroker(data.broker())) {
+                ServiceUnitStateData next = new ServiceUnitStateData(Free, data.broker());
+                closeServiceUnit(serviceUnit)
+                        .thenCompose(__ -> pubAsync(serviceUnit, next))
+                        .whenComplete((__, e) -> log(e, serviceUnit, data, next));
+            }
         }
     }
 
@@ -838,8 +840,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     public void handleBrokerRegistrationEvent(String broker, NotificationType type) {
         if (type == NotificationType.Created) {
+            log.info("BrokerRegistry detected the broker:{} registry has been created.", broker);
             handleBrokerCreationEvent(broker);
         } else if (type == NotificationType.Deleted) {
+            log.info("BrokerRegistry detected the broker:{} registry has been deleted.", broker);
             handleBrokerDeletionEvent(broker);
         }
     }

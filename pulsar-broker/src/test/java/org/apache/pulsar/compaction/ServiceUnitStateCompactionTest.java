@@ -122,7 +122,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState nextInvalidState(ServiceUnitState from) {
         List<ServiceUnitState> candidates = Arrays.stream(ServiceUnitState.values())
-                .filter(to -> isValidTransition(from, to))
+                .filter(to -> !isValidTransition(from, to))
                 .collect(Collectors.toList());
         if (candidates.size() == 0) {
             return Init;

@@ -61,8 +61,8 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
                         case Assigned:
                             return invalidTransfer(from, to);
                         case Splitting:
-                        case Disabled:
-                            return targetNotEquals(from, to);
+                        case Released:
+                            return isNotBlank(to.sourceBroker()) || targetNotEquals(from, to);
                     }
                 case Assigned:
                     switch (state) {
@@ -74,16 +74,12 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
                 case Released:
                     switch (state) {
                         case Owned:
+                        case Free:
                             return notEquals(from, to);
                     }
                 case Splitting:
                     switch (state) {
                         case Deleted:
-                            return notEquals(from, to);
-                    }
-                case Disabled:
-                    switch (state) {
-                        case Free:
                             return notEquals(from, to);
                     }
                 case Free:

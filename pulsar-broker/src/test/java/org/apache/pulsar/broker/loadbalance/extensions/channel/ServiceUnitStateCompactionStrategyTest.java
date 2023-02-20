@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Disabled;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
@@ -50,23 +49,15 @@ public class ServiceUnitStateCompactionStrategyTest {
         String dst = "dst";
         String src = "src";
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Init)));
-        assertFalse(strategy.shouldKeepLeft(data(Init), data(Disabled)));
+        assertFalse(strategy.shouldKeepLeft(data(Init), data(Free)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Assigned)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Owned)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Released)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Splitting)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Deleted)));
 
-        assertFalse(strategy.shouldKeepLeft(data(Disabled), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Disabled), data(Disabled)));
-        assertTrue(strategy.shouldKeepLeft(data(Disabled), data(Assigned)));
-        assertTrue(strategy.shouldKeepLeft(data(Disabled), data(Owned)));
-        assertTrue(strategy.shouldKeepLeft(data(Disabled), data(Released)));
-        assertTrue(strategy.shouldKeepLeft(data(Disabled), data(Splitting)));
-        assertTrue(strategy.shouldKeepLeft(data(Disabled), data(Deleted)));
-
         assertFalse(strategy.shouldKeepLeft(data(Assigned), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Disabled)));
+        assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned, "dst1"), data(Owned, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Assigned, dst), data(Owned, src, dst)));
@@ -79,10 +70,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Deleted, dst)));
 
         assertFalse(strategy.shouldKeepLeft(data(Owned), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data(Disabled, src, "dst2")));
-        assertTrue(strategy.shouldKeepLeft(data(Owned, "dst1"), data(Disabled, "dst2")));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, dst), data(Disabled, dst)));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data(Disabled, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data(Assigned, src, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data(Assigned, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data(Assigned, src, dst)));
@@ -90,6 +78,10 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data(Assigned, dst, "dst1")));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Owned)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Released, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data(Released, src, "dst2")));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, "dst1"), data(Released, "dst2")));
+        assertFalse(strategy.shouldKeepLeft(data(Owned, dst), data(Released, dst)));
+        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data(Released, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data(Splitting, src, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Owned, "dst1"), data(Splitting, "dst2")));
         assertFalse(strategy.shouldKeepLeft(data(Owned, dst), data(Splitting, dst)));
@@ -97,7 +89,9 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Deleted, dst)));
 
         assertFalse(strategy.shouldKeepLeft(data(Released), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Released), data(Disabled)));
+        assertFalse(strategy.shouldKeepLeft(data(Released), data(Free)));
+        assertTrue(strategy.shouldKeepLeft(data(Released, "dst1"), data(Free, "dst2")));
+        assertTrue(strategy.shouldKeepLeft(data(Released, "src1", dst), data(Free, "src2", dst)));
         assertTrue(strategy.shouldKeepLeft(data(Released), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Released, "dst1"), data(Owned, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Released, src, "dst1"), data(Owned, src, "dst2")));
@@ -108,7 +102,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Released), data(Deleted, dst)));
 
         assertFalse(strategy.shouldKeepLeft(data(Splitting), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Disabled)));
+        assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Owned)));
         assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Released)));
@@ -120,7 +114,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertFalse(strategy.shouldKeepLeft(data(Splitting, src, dst), data(Deleted, src, dst)));
 
         assertFalse(strategy.shouldKeepLeft(data(Deleted), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Disabled)));
+        assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Owned)));
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Released)));
@@ -128,7 +122,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Deleted), data(Deleted)));
 
         assertFalse(strategy.shouldKeepLeft(data(Free), data(Init)));
-        assertTrue(strategy.shouldKeepLeft(data(Free), data(Disabled)));
+        assertTrue(strategy.shouldKeepLeft(data(Free), data(Free)));
         assertFalse(strategy.shouldKeepLeft(data(Free), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Free), data(Assigned, src, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Free), data(Owned)));
