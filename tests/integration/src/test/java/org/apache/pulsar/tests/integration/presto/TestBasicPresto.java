@@ -419,8 +419,11 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
         prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor, removeKey);
 
-        Assert.assertEquals(selectCount("public/default", tableName, "__compacted_query__=true"),
-                compactedCount > 0 || noCompactedCount > 0 ? divisor : 0);
+        Awaitility.await()
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .atMost(5, TimeUnit.SECONDS)
+                .until(() -> selectCount("public/default", tableName, "__compacted_query__=true") ==
+                        (compactedCount > 0 || noCompactedCount > 0 ? divisor - 1 : 0));
         ContainerExecResult result = execQuery(
                 "select __key__,symbol,sharePrice from pulsar.\"public/default\".\"" + tableName
                         + "\" where __compacted_query__=true");

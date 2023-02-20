@@ -80,6 +80,8 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    private static final String COMPACTION_SUBSCRIPTION = "__compaction";
+
     @Inject
     public PulsarSplitManager(PulsarConnectorId connectorId, PulsarConnectorConfig pulsarConnectorConfig) {
         this.connectorId = requireNonNull(connectorId, "connectorId is null").toString();
@@ -127,12 +129,9 @@ public class PulsarSplitManager implements ConnectorSplitManager {
 
         AtomicReference<Boolean> readCompactedTypeReference = new AtomicReference<>(false);
         tupleDomain.getDomains().ifPresent(domainMap -> {
-            log.info("tuple domain map " + domainMap);
             Domain readCompactedDomain = domainMap.get(
                     PulsarInternalColumn.COMPACTED_QUERY.getColumnHandle(connectorId, false));
-            log.info("tuple readCompactedDomain " + readCompactedDomain);
             if (readCompactedDomain != null) {
-                log.info("tuple readCompactedDomain value " + readCompactedDomain.getSingleValue());
                 readCompactedTypeReference.set((Boolean) readCompactedDomain.getSingleValue());
             }
 
@@ -298,9 +297,9 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             if (readCompacted) {
                 PersistentTopicInternalStats internalStats = pulsarAdmin.topics()
                         .getInternalStats(topicName.toString());
-                if (internalStats.cursors.containsKey("Compaction")) {
+                if (internalStats.cursors.containsKey(COMPACTION_SUBSCRIPTION)) {
                     String[] compactedHorizonArr =
-                            internalStats.cursors.get("Compaction").markDeletePosition.split(":");
+                            internalStats.cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition.split(":");
                     cursorStartPos = PositionImpl.get(
                             Long.parseLong(compactedHorizonArr[0]), Long.parseLong(compactedHorizonArr[1]));
                 }
@@ -313,17 +312,21 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                     cursorStartPos, managedLedgerConfig);
 
             long numEntries = readOnlyCursor.getNumberOfEntries();
-            if (numEntries <= 0) {
+            if (numEntries <= 0 && !readCompacted) {
                 return Collections.emptyList();
             }
 
-            PredicatePushdownInfo predicatePushdownInfo = PredicatePushdownInfo.getPredicatePushdownInfo(
-                    this.connectorId,
-                    tupleDomain,
-                    managedLedgerFactory,
-                    managedLedgerConfig,
-                    topicNamePersistenceEncoding,
-                    numEntries);
+            PredicatePushdownInfo predicatePushdownInfo = null;
+            if (numEntries > 0) {
+                predicatePushdownInfo = PredicatePushdownInfo.getPredicatePushdownInfo(
+                        this.connectorId,
+                        tupleDomain,
+                        managedLedgerFactory,
+                        managedLedgerConfig,
+                        topicNamePersistenceEncoding,
+                        numEntries,
+                        cursorStartPos);
+            }
 
             PositionImpl initialStartPosition;
             if (predicatePushdownInfo != null) {
@@ -396,14 +399,15 @@ public class PulsarSplitManager implements ConnectorSplitManager {
                                                                      ManagedLedgerFactory managedLedgerFactory,
                                                                      ManagedLedgerConfig managedLedgerConfig,
                                                                      String topicNamePersistenceEncoding,
-                                                                     long totalNumEntries) throws
+                                                                     long totalNumEntries,
+                                                                     Position startPos) throws
                 ManagedLedgerException, InterruptedException {
 
             ReadOnlyCursor readOnlyCursor = null;
             try {
                 readOnlyCursor = managedLedgerFactory.openReadOnlyCursor(
                         topicNamePersistenceEncoding,
-                        PositionImpl.EARLIEST, managedLedgerConfig);
+                        startPos, managedLedgerConfig);
 
                 if (tupleDomain.getDomains().isPresent()) {
                     Domain domain = tupleDomain.getDomains().get().get(PulsarInternalColumn.PUBLISH_TIME

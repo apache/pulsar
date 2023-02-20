@@ -979,15 +979,15 @@ public class PulsarRecordCursor implements RecordCursor {
         private final AtomicBoolean havePendingRead = new AtomicBoolean(false);
         private long startEntry = 0;
         private long readEntry = 0;
-        private MessageIdData lastMessageId;
+        private MessageIdData firstUnCompactedMessageId;
         private long compactedLedgerId = -1;
         private LedgerHandle compactedLedgerHandle;
 
         CompactedLedgerReader() {
             queue = new SpscArrayQueue<>((int) (readSize * 1.5));
-            lastMessageId = new MessageIdData();
-            lastMessageId.setLedgerId(-1);
-            lastMessageId.setEntryId(-1);
+            firstUnCompactedMessageId = new MessageIdData();
+            firstUnCompactedMessageId.setLedgerId(-1);
+            firstUnCompactedMessageId.setEntryId(-1);
             try {
                 initCompactedRead();
             } catch (Exception e) {
@@ -1014,8 +1014,11 @@ public class PulsarRecordCursor implements RecordCursor {
             if (havePendingRead.get()) {
                 return;
             }
-            havePendingRead.set(true);
+            if (startEntry >= compactedLedgerHandle.getLastAddConfirmed()) {
+                return;
+            }
             if (queue.size() < readSize / 2) {
+                havePendingRead.set(true);
                 long endEntry = Math.min(compactedLedgerHandle.getLastAddConfirmed(), startEntry + readSize);
                 compactedLedgerHandle.asyncReadEntries(startEntry, endEntry, this, null);
             }
@@ -1023,6 +1026,10 @@ public class PulsarRecordCursor implements RecordCursor {
 
         @Override
         public void readComplete(int i, LedgerHandle ledgerHandle, Enumeration<LedgerEntry> enumeration, Object o) {
+            if (enumeration == null) {
+                havePendingRead.set(false);
+                return;
+            }
             while (enumeration.hasMoreElements()) {
                 LedgerEntry ledgerEntry = enumeration.nextElement();
                 queue.offer(ledgerEntry);
@@ -1040,8 +1047,11 @@ public class PulsarRecordCursor implements RecordCursor {
 
         private void readCompactedData() {
             if (compactedLedgerId == -1 || compactedLedgerHandle == null) {
+                log.info("[%s] Compacted ledger is not exist.", topicName);
                 return;
             }
+
+            log.info("[%s] Start to read compacted data, compacted ledger is %d.", topicName, compactedLedgerId);
             while (readEntry < compactedLedgerHandle.getLastAddConfirmed()) {
                 readMoreEntriesIfNeed();
                 LedgerEntry ledgerEntry = queue.poll();
@@ -1057,8 +1067,8 @@ public class PulsarRecordCursor implements RecordCursor {
                 ByteBuf buffer = ledgerEntry.getEntryBuffer();
                 int idSize = buffer.readInt();
 
-                lastMessageId = new MessageIdData();
-                lastMessageId.parseFrom(buffer, idSize);
+                firstUnCompactedMessageId = new MessageIdData();
+                firstUnCompactedMessageId.parseFrom(buffer, idSize);
                 int payloadAndMetadataSize = buffer.readInt();
                 ByteBuf metadataAndPayload = buffer.slice(buffer.readerIndex(), payloadAndMetadataSize);
                 MessageMetadata messageMetadata = Commands.parseMessageMetadata(metadataAndPayload);
@@ -1077,6 +1087,7 @@ public class PulsarRecordCursor implements RecordCursor {
                 }
                 readEntry = ledgerEntry.getEntryId();
             }
+            log.info("[%s] Finish to read compacted data, read entry is %d.", topicName, readEntry);
         }
 
         private void handleCompactedBatchData(long ledgerId, long entryId, ByteBuf payload) throws IOException {
@@ -1103,12 +1114,15 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         private void readUnCompactedData() {
+            log.info("[%s] Start to read unCompacted data, first unCompacted message id is %s.", topicName,
+                    firstUnCompactedMessageId.getLedgerId() + ":" + firstUnCompactedMessageId.getEntryId());
             try {
                 PositionImpl startPosition;
-                if (lastMessageId.getLedgerId() == -1 && lastMessageId.getEntryId() == -1) {
+                if (firstUnCompactedMessageId.getLedgerId() == -1 && firstUnCompactedMessageId.getEntryId() == -1) {
                     startPosition = PositionImpl.EARLIEST;
                 } else {
-                    startPosition = PositionImpl.get(lastMessageId.getLedgerId(), lastMessageId.getEntryId()).getNext();
+                    startPosition = PositionImpl.get(firstUnCompactedMessageId.getLedgerId(),
+                            firstUnCompactedMessageId.getEntryId()).getNext();
                 }
                 cursor = getCursor(topicName, startPosition, managedLedgerFactory, managedLedgerConfig);
 
@@ -1132,9 +1146,12 @@ public class PulsarRecordCursor implements RecordCursor {
                     throw new RuntimeException(e);
                 }
             }
+            log.info("[%s] Finish to read unCompacted data.", topicName);
         }
 
         private void readCompleteData() {
+            log.info("[%s] Start to read complete data, compacted messages count %d.",
+                    topicName, compactedMessageIds.size());
             Iterator<BatchMessageIdImpl> messageIdIterator = compactedMessageIds.values().stream().sorted().iterator();
             LedgerHandle readLedgerHandle = null;
             AtomicBoolean isCompactedLedger = new AtomicBoolean(false);
@@ -1151,6 +1168,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     log.warn("Failed to close ledger handle for ledger %s.", readLedgerHandle.getId());
                 }
             }
+            log.info("[%s] Finish to read complete data.", topicName);
         }
 
         private LedgerHandle getLedgerHandle(MessageIdImpl messageId,
