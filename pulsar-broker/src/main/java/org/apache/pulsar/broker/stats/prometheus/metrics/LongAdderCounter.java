@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.stats.Counter;
 
@@ -48,11 +47,6 @@ public class LongAdderCounter implements Counter {
     @Override
     public void dec() {
         counter.decrement();
-    }
-
-    @Override
-    public void addCount(long delta) {
-        counter.add(delta);
     }
 
     @Override
