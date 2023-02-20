@@ -552,7 +552,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
                 fail("The expected behavior is that the first ledger will be deleted, but it still exists.");
             } catch (Exception ledgerDeletedEx){
                 // Expected LedgerNotExistsEx: the first ledger will be deleted after add entry fail.
-                ledgerDeletedEx.printStackTrace();
+                assertTrue(ledgerDeletedEx instanceof BKException.BKNoSuchLedgerExistsException);
             }
         });
 
