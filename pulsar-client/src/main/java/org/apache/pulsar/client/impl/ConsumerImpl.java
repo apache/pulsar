@@ -2028,10 +2028,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             }).exceptionally(ex -> {
                                 if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
                                     log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
-                                            topicName, subscription, consumerName, finalMessageId, ex.getMessage());
+                                            topicName, subscription, consumerName,
+                                            deadLetterPolicy.getDeadLetterTopic(), finalMessageId, ex.getMessage());
                                 } else {
                                     log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                            topicName, subscription, consumerName, finalMessageId, ex);
+                                            topicName, subscription, consumerName,
+                                            deadLetterPolicy.getDeadLetterTopic(), finalMessageId, ex);
                                 }
                                 result.complete(false);
                                 return null;
