@@ -39,7 +39,7 @@ public interface LoadSheddingStrategy {
     Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf);
 
     /**
-     * Triggered when active broker changes
+     * Triggered when active broker changes.
      *
      * @param activeBrokers active Brokers
      */
