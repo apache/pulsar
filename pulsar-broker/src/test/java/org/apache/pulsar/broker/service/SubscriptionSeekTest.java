@@ -598,7 +598,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                 .subscriptionName("my-subscription")
                 .subscribe();
 
-        pulsarClient.newConsumer()
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscriptionName("my-subscription")
@@ -615,8 +615,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
         assertEquals(connectedSinceSet.size(), 2);
         consumer1.seek(MessageId.earliest);
-        // Wait for consumer to reconnect
-        Awaitility.await().until(consumer1::isConnected);
+        // Wait for consumers to reconnect
+        Awaitility.await().until(() -> consumer1.isConnected() && consumer2.isConnected());
 
         consumers = topicRef.getSubscriptions().get("my-subscription").getConsumers();
         assertEquals(consumers.size(), 2);
