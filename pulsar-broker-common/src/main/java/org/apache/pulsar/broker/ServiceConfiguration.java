@@ -1400,6 +1400,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean systemTopicEnabled = true;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Enable strict topic name check. See PIP-242 to get more information."
+                    + "NOTE: This flag will be removed in the next major release.")
+    private boolean strictTopicNameEnabled = false;
+
+    @FieldContext(
             category = CATEGORY_SCHEMA,
             doc = "The schema compatibility strategy to use for system topics"
     )
