@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.delayed.bucket;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.delayed.bucket.Bucket.DELAYED_BUCKET_KEY_PREFIX;
 import static org.apache.pulsar.broker.delayed.bucket.Bucket.DELIMITER;
+import static org.apache.pulsar.broker.delayed.bucket.Bucket.MaxRetryTimes;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Range;
@@ -60,7 +61,7 @@ import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 @ThreadSafe
 public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
 
-    static final int AsyncOperationTimeoutSeconds = 30;
+    static final int AsyncOperationTimeoutSeconds = 60;
 
     private final long minIndexCountPerBucket;
 
@@ -103,20 +104,19 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-        ManagedCursor cursor = dispatcher.getCursor();
-        this.lastMutableBucket = new MutableBucket(cursor, bucketSnapshotStorage);
+        this.lastMutableBucket = new MutableBucket(dispatcher, bucketSnapshotStorage);
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
-        ManagedCursor cursor = this.lastMutableBucket.cursor;
+        ManagedCursor cursor = this.lastMutableBucket.dispatcher.getCursor();
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
         cursor.getCursorProperties().keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
                 ImmutableBucket immutableBucket =
-                        new ImmutableBucket(cursor, this.lastMutableBucket.bucketSnapshotStorage,
+                        new ImmutableBucket(dispatcher, this.lastMutableBucket.bucketSnapshotStorage,
                                 Long.parseLong(keys[1]), Long.parseLong(keys[2]));
                 putAndCleanOverlapRange(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
                         immutableBucket, toBeDeletedBucketMap);
@@ -125,6 +125,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         Map<Range<Long>, ImmutableBucket> immutableBucketMap = immutableBuckets.asMapOfRanges();
         if (immutableBucketMap.isEmpty()) {
+            log.info("[{}] Recover delayed message index bucket snapshot finish, don't find bucket snapshot",
+                    dispatcher.getName());
             return 0;
         }
 
@@ -262,7 +264,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
                 try {
-                    asyncMergeBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+                    asyncMergeBucketSnapshot().get(2 * AsyncOperationTimeoutSeconds * MaxRetryTimes, TimeUnit.SECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
@@ -306,7 +308,19 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 minIndex = i;
             }
         }
-        return asyncMergeBucketSnapshot(values.get(minIndex), values.get(minIndex + 1));
+        ImmutableBucket immutableBucketA = values.get(minIndex);
+        ImmutableBucket immutableBucketB = values.get(minIndex + 1);
+        log.info("[{}] Merging bucket snapshot, bucketAKey: {}, bucketBKey: {}", dispatcher.getName(),
+                immutableBucketA.bucketKey(), immutableBucketB.bucketKey());
+        return asyncMergeBucketSnapshot(immutableBucketA, immutableBucketB).whenComplete((__, ex) -> {
+            if (ex != null) {
+                log.error("[{}] Failed to merge bucket snapshot, bucketAKey: {}, bucketBKey: {}",
+                        dispatcher.getName(), immutableBucketA.bucketKey(), immutableBucketB.bucketKey(), ex);
+            } else {
+                log.error("[{}] Merge bucket snapshot finish, bucketAKey: {}, bucketBKey: {}",
+                        dispatcher.getName(), immutableBucketA.bucketKey(), immutableBucketB.bucketKey());
+            }
+        });
     }
 
     private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot(ImmutableBucket bucketA,
@@ -399,9 +413,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Load next snapshot segment, bucket: {}", dispatcher.getName(), bucket);
-                }
+                log.info("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
+                        dispatcher.getName(), bucket.bucketKey(), bucket.currentSegmentEntryId + 1);
                 // All message of current snapshot segment are scheduled, load next snapshot segment
                 // TODO make it asynchronous and not blocking this process
                 try {
@@ -419,7 +432,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
                                     index.getEntryId());
                         }
-                    }).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+                    }).whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}",
+                                    dispatcher.getName(), bucket.bucketKey(), ex);
+                        } else {
+                            log.info("[{}] Load next bucket snapshot segment finish, bucketKey: {}, segmentEntryId: {}",
+                                    dispatcher.getName(), bucket.bucketKey(), bucket.currentSegmentEntryId);
+                        }
+                    }).get(AsyncOperationTimeoutSeconds * MaxRetryTimes, TimeUnit.SECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     // TODO make this segment load again
                     throw new RuntimeException(e);

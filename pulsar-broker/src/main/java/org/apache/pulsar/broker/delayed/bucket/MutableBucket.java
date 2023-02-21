@@ -28,12 +28,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -42,9 +42,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
 
-    MutableBucket(ManagedCursor cursor,
+    MutableBucket(PersistentDispatcherMultipleConsumers dispatcher,
                   BucketSnapshotStorage bucketSnapshotStorage) {
-        super(cursor, bucketSnapshotStorage, -1L, -1L);
+        super(dispatcher, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();
     }
 
@@ -59,6 +59,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long timeStepPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
+        log.info("[{}] Creating bucket snapshot, startLedgerId: {}, endLedgerId: {}", dispatcher.getName(),
+                startLedgerId, endLedgerId);
+
         if (delayedIndexQueue.isEmpty()) {
             return null;
         }
@@ -122,7 +125,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        ImmutableBucket bucket = new ImmutableBucket(cursor, bucketSnapshotStorage, startLedgerId, endLedgerId);
+        ImmutableBucket bucket = new ImmutableBucket(dispatcher, bucketSnapshotStorage, startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);
         bucket.setLastSegmentEntryId(lastSegmentEntryId);
@@ -139,7 +142,10 @@ class MutableBucket extends Bucket implements AutoCloseable {
         future.whenComplete((__, ex) -> {
             if (ex != null) {
                 //TODO Record create snapshot failed
-                log.error("Failed to create snapshot: ", ex);
+                log.error("[{}] Failed to create bucket snapshot, bucketKey: {}, ex: ",
+                        dispatcher.getName(), bucketKey(), ex);
+            } else {
+                log.info("[{}] Creat bucket snapshot finish, bucketKey: {}", dispatcher.getName(), bucket.bucketKey());
             }
         });
 
