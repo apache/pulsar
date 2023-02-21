@@ -715,12 +715,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             remainingMessages -= msgSent;
             start += messagesForC;
             entriesToDispatch -= messagesForC;
+            int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this,
-                    -(msgSent - batchIndexesAcks.getTotalAckedIndexCount()));
+                    -(msgSent - ackedCount));
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Added -({} minus {}) permits to TOTAL_AVAILABLE_PERMITS_UPDATER in "
                                 + "PersistentDispatcherMultipleConsumers",
-                        name, msgSent, batchIndexesAcks.getTotalAckedIndexCount());
+                        name, msgSent, ackedCount);
             }
             totalMessagesSent += sendMessageInfo.getTotalMessages();
             totalBytesSent += sendMessageInfo.getTotalBytes();
