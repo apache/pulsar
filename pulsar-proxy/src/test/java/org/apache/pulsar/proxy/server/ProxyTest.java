@@ -36,6 +36,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 import org.apache.avro.reflect.Nullable;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Consumer;
@@ -309,6 +310,28 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
             requireNonNull(msg);
             consumer.acknowledge(msg);
         }
+    }
+
+    @Test
+    public void testGetClientVersion() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .build();
+
+        String topic = "persistent://sample/test/local/testGetClientVersion";
+        String subName = "test-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+
+        consumer.receiveAsync();
+
+
+        Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers()
+                .get(0).getClientVersion(), PulsarVersion.getVersion());
     }
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)

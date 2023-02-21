@@ -314,7 +314,8 @@ public class DirectProxyHandler {
             authenticationDataProvider = authentication.getAuthData(remoteHostName);
             AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             ByteBuf command;
-            command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion, "Pulsar proxy",
+            command = Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
+                    proxyConnection.clientVersion,
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command)
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
