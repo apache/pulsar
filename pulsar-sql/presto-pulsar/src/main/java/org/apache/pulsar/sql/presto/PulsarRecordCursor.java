@@ -456,8 +456,8 @@ public class PulsarRecordCursor implements RecordCursor {
 
                         ReadOnlyCursorImpl readOnlyCursorImpl = ((ReadOnlyCursorImpl) cursor);
                         // check if ledger is offloaded
-                        if (!readOffloaded && readOnlyCursorImpl.getCurrentLedgerInfo() != null &&
-                                readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
+                        if (!readOffloaded && readOnlyCursorImpl.getCurrentLedgerInfo() != null
+                                && readOnlyCursorImpl.getCurrentLedgerInfo().hasOffloadContext()) {
                             log.warn(
                                 "Ledger %s is offloaded for topic %s. Ignoring it because offloader is not configured",
                                 readOnlyCursorImpl.getCurrentLedgerInfo().getLedgerId(), pulsarSplit.getTableName());
