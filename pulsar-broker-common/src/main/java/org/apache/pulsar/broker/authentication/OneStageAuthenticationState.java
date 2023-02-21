@@ -106,7 +106,7 @@ public class OneStageAuthenticationState implements AuthenticationState {
     /**
      * @deprecated use {@link #authenticateAsync(AuthData)}
      */
-    @Deprecated(since = "2.12.0")
+    @Deprecated(since = "3.0.0")
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
         try {
@@ -120,7 +120,7 @@ public class OneStageAuthenticationState implements AuthenticationState {
      * @deprecated rely on result from {@link #authenticateAsync(AuthData)}. For more information, see the Javadoc
      * for {@link AuthenticationState#isComplete()}.
      */
-    @Deprecated(since = "2.12.0")
+    @Deprecated(since = "3.0.0")
     @Override
     public boolean isComplete() {
         return authRole != null;
