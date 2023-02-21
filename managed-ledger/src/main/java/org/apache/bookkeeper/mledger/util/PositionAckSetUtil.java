@@ -61,8 +61,9 @@ public class PositionAckSetUtil {
 
     public static boolean isAckSetEmpty(long[] ackSet) {
         BitSetRecyclable bitSet =  BitSetRecyclable.create().resetWords(ackSet);
+        boolean isEmpty = bitSet.isEmpty();
         bitSet.recycle();
-        return bitSet.isEmpty();
+        return isEmpty;
     }
 
     //This method is compare two position which position is bigger than another one.
