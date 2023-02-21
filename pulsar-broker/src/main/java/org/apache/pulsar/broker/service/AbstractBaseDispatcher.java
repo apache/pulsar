@@ -392,7 +392,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         }
     }
 
-    protected EntryBatchIndexesAcks getEntryBatchIndexesAcks(int entries) {
+    protected @Nullable EntryBatchIndexesAcks getEntryBatchIndexesAcks(int entries) {
         return serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled() ? EntryBatchIndexesAcks.get(entries) : null;
     }
 

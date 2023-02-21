@@ -289,7 +289,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                 });
 
                 TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
-                        -(sendMessageInfo.getTotalMessages() - batchIndexesAcks.getTotalAckedIndexCount()));
+                        -(sendMessageInfo.getTotalMessages()
+                                - (batchIndexesAcks != null ? batchIndexesAcks.getTotalAckedIndexCount() : 0)));
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
             } else {
