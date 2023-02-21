@@ -36,7 +36,7 @@
   <name>Pulsar Build Tools</name>
 
   <properties>
-    <project.build.outputTimestamp>2023-02-20T12:42:59Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <surefire.version>3.0.0-M3</surefire.version>
