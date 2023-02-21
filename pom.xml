@@ -92,7 +92,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>2023-02-20T12:42:59Z</project.build.outputTimestamp>
+    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
