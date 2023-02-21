@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
+import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetEmpty;
 import io.netty.buffer.ByteBuf;
 import io.prometheus.client.Gauge;
 import java.util.ArrayList;
@@ -238,6 +239,21 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                             } else {
                                 // if actSet is null, use pendingAck ackSet
                                 ackSet = positionInPendingAck.getAckSet();
+                            }
+                            // if the result of pendingAckSet(in pendingAckHandle) AND the ackSet(in cursor) is empty
+                            // filter this entry
+                            if (isAckSetEmpty(ackSet)) {
+                                entries.set(i, null);
+                                entry.release();
+                                continue;
+                            }
+                        } else {
+                            // filter non-batch message in pendingAck state
+                            if (positionInPendingAck.getLedgerId() == entry.getLedgerId()
+                                    && positionInPendingAck.getEntryId() == entry.getEntryId()) {
+                                entries.set(i, null);
+                                entry.release();
+                                continue;
                             }
                         }
                     }
