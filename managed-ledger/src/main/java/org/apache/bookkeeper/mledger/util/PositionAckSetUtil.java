@@ -61,6 +61,7 @@ public class PositionAckSetUtil {
 
     public static boolean isAckSetEmpty(long[] ackSet) {
         BitSetRecyclable bitSet =  BitSetRecyclable.create().resetWords(ackSet);
+        bitSet.recycle();
         return bitSet.isEmpty();
     }
 
