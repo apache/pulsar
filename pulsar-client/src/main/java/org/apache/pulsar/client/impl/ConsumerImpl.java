@@ -1004,6 +1004,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
+        if (poolMessages) {
+            clearIncomingMessages();
+        }
+
         if (getState() == State.Closing || getState() == State.Closed) {
             closeConsumerTasks();
             failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
