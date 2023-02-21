@@ -1004,10 +1004,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
-        if (poolMessages) {
-            clearIncomingMessages();
-        }
-
         if (getState() == State.Closing || getState() == State.Closed) {
             closeConsumerTasks();
             failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
@@ -1017,6 +1013,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
+            if (poolMessages) {
+                internalPinnedExecutor.execute(this::clearIncomingMessages);
+            }
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
@@ -1027,6 +1026,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.getStatTimeout().ifPresent(Timeout::cancel);
 
         setState(State.Closing);
+        if (poolMessages) {
+            internalPinnedExecutor.execute(this::clearIncomingMessages);
+        }
 
         closeConsumerTasks();
 
