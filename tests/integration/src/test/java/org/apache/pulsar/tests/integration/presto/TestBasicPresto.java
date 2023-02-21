@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,6 +46,7 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -379,8 +381,8 @@ public class TestBasicPresto extends TestPulsarSQLBase {
     public Object[][] compactedQueryProvider() {
         return new Object[][] {
                 {0, 0},
-                {100, 0},
                 {0, 100},
+                {100, 0},
                 {100, 100}
         };
     }
@@ -418,12 +420,20 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             });
         }
         prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor, removeKey);
+        assertEquals(latestStocks.size(), (compactedCount > 0 || noCompactedCount > 0 ? divisor : 0));
+
+        PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topic);
+        log.info("check internal stats for topic {}", topic);
+        log.info(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(internalStats));
 
         Awaitility.await()
-                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
                 .atMost(5, TimeUnit.SECONDS)
-                .until(() -> selectCount("public/default", tableName, "__compacted_query__=true") ==
-                        (compactedCount > 0 || noCompactedCount > 0 ? divisor - 1 : 0));
+                .until(() -> {
+                    int count = selectCount("public/default", tableName, "__compacted_query__=true");
+                    log.info("select count result for table {} is {}.", tableName, count);
+                    return count == (compactedCount > 0 || noCompactedCount > 0 ? divisor - 1 : 0);
+                });
         ContainerExecResult result = execQuery(
                 "select __key__,symbol,sharePrice from pulsar.\"public/default\".\"" + tableName
                         + "\" where __compacted_query__=true");
@@ -437,10 +447,10 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         String[] dataArray = result.getStdout().split("\n");
         for (String data : dataArray) {
             String[] columns = data.split(",");
-            Stock expectedStock = latestStocks.remove(columns[0].trim());
+            Stock expectedStock = latestStocks.remove(columns[0].replace("\"", ""));
             assertNotNull(expectedStock);
-            assertEquals(columns[1], expectedStock.getSymbol());
-            assertEquals(columns[2], "" + expectedStock.getSharePrice());
+            assertEquals(columns[1].replace("\"", ""), expectedStock.getSymbol());
+            assertEquals(columns[2].replace("\"", ""), "" + expectedStock.getSharePrice());
         }
         assertEquals(1, latestStocks.size());
         assertNotNull(latestStocks.remove(removeKey));

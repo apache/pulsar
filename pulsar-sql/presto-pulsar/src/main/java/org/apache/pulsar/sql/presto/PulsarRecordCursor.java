@@ -362,7 +362,7 @@ public class PulsarRecordCursor implements RecordCursor {
                                                         if (isCompactedQuery && message.getKey().isPresent()) {
                                                             RawMessageIdImpl messageId =
                                                                     (RawMessageIdImpl) message.getMessageId();
-                                                            cacheCmpactedMessageIds(message.getKey().get(),
+                                                            cacheCompactedMessageIds(message.getKey().get(),
                                                                     new BatchMessageIdImpl(
                                                                             messageId.getLedgerId(),
                                                                             messageId.getEntryId(),
@@ -961,7 +961,7 @@ public class PulsarRecordCursor implements RecordCursor {
         }
     }
 
-    private void cacheCmpactedMessageIds(String key, BatchMessageIdImpl messageId, long payloadSize) {
+    private void cacheCompactedMessageIds(String key, BatchMessageIdImpl messageId, long payloadSize) {
         if (key == null) {
             return;
         }
@@ -978,7 +978,7 @@ public class PulsarRecordCursor implements RecordCursor {
         private final SpscArrayQueue<LedgerEntry> queue;
         private final AtomicBoolean havePendingRead = new AtomicBoolean(false);
         private long startEntry = 0;
-        private long readEntry = 0;
+        private long readEntry = -1;
         private MessageIdData firstUnCompactedMessageId;
         private long compactedLedgerId = -1;
         private LedgerHandle compactedLedgerHandle;
@@ -1014,7 +1014,7 @@ public class PulsarRecordCursor implements RecordCursor {
             if (havePendingRead.get()) {
                 return;
             }
-            if (startEntry >= compactedLedgerHandle.getLastAddConfirmed()) {
+            if (startEntry > compactedLedgerHandle.getLastAddConfirmed()) {
                 return;
             }
             if (queue.size() < readSize / 2) {
@@ -1051,7 +1051,8 @@ public class PulsarRecordCursor implements RecordCursor {
                 return;
             }
 
-            log.info("[%s] Start to read compacted data, compacted ledger is %d.", topicName, compactedLedgerId);
+            log.info("[%s] Start to read compacted data, compacted ledger is %d, the LAC of compacted ledger is %d.",
+                    topicName, compactedLedgerId, compactedLedgerHandle.getLastAddConfirmed());
             while (readEntry < compactedLedgerHandle.getLastAddConfirmed()) {
                 readMoreEntriesIfNeed();
                 LedgerEntry ledgerEntry = queue.poll();
@@ -1081,13 +1082,14 @@ public class PulsarRecordCursor implements RecordCursor {
                         throw new RuntimeException(e);
                     }
                 } else {
-                    cacheCmpactedMessageIds(messageMetadata.getPartitionKey(), new BatchMessageIdImpl(
+                    cacheCompactedMessageIds(messageMetadata.getPartitionKey(), new BatchMessageIdImpl(
                             ledgerEntry.getLedgerId(), ledgerEntry.getEntryId(), partition, 0),
                             messageMetadata.getUncompressedSize());
                 }
                 readEntry = ledgerEntry.getEntryId();
             }
-            log.info("[%s] Finish to read compacted data, read entry is %d.", topicName, readEntry);
+            log.info("[%s] Finish to read compacted data, read entry is %s, compacted messages count %d.",
+                    topicName, compactedLedgerId + ":" + readEntry, compactedMessageIds.size());
         }
 
         private void handleCompactedBatchData(long ledgerId, long entryId, ByteBuf payload) throws IOException {
@@ -1107,7 +1109,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     continue;
                 }
                 BatchMessageIdImpl id = new BatchMessageIdImpl(ledgerId, entryId, partition, i);
-                cacheCmpactedMessageIds(smm.getPartitionKey(), id, smm.getPayloadSize());
+                cacheCompactedMessageIds(smm.getPartitionKey(), id, smm.getPayloadSize());
                 singleMessagePayload.release();
             }
             uncompressedPayload.release();
@@ -1146,7 +1148,8 @@ public class PulsarRecordCursor implements RecordCursor {
                     throw new RuntimeException(e);
                 }
             }
-            log.info("[%s] Finish to read unCompacted data.", topicName);
+            log.info("[%s] Finish to read unCompacted data, read position is %s.",
+                    topicName, cursor.getReadPosition().toString());
         }
 
         private void readCompleteData() {

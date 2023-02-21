@@ -350,7 +350,9 @@ public class PulsarSplitManager implements ConnectorSplitManager {
             for (int i = 0; i < numSplits; i++) {
                 long entriesForSplit = (remainder > i) ? avgEntriesPerSplit + 1 : avgEntriesPerSplit;
                 PositionImpl startPosition = (PositionImpl) readOnlyCursor.getReadPosition();
-                readOnlyCursor.skipEntries(Math.toIntExact(entriesForSplit));
+                if (entriesForSplit > 0) {
+                    readOnlyCursor.skipEntries(Math.toIntExact(entriesForSplit));
+                }
                 PositionImpl endPosition = (PositionImpl) readOnlyCursor.getReadPosition();
 
                 PulsarSplit pulsarSplit = new PulsarSplit(i, this.connectorId,
