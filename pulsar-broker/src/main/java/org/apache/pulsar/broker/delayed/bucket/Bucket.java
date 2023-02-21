@@ -126,8 +126,9 @@ abstract class Bucket {
             ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
             List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
-        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
-                .thenCompose(newBucketId -> {
+        return executeWithRetry(
+                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey),
+                BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {

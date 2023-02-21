@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.AsyncOperationTimeoutSeconds;
 import com.google.protobuf.ByteString;
 import java.util.Collections;
@@ -69,7 +70,8 @@ class ImmutableBucket extends Bucket {
             if (isRecover) {
                 final long cutoffTime = cutoffTimeSupplier.get();
                 // Load Metadata of bucket snapshot
-                loadMetaDataFuture = bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
+                loadMetaDataFuture = executeWithRetry(() -> bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId),
+                        BucketSnapshotPersistenceException.class, MaxRetryTimes)
                         .thenApply(snapshotMetadata -> {
                     List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata> metadataList =
                             snapshotMetadata.getMetadataListList();
@@ -95,7 +97,9 @@ class ImmutableBucket extends Bucket {
                     return CompletableFuture.completedFuture(null);
                 }
 
-                return bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId, nextSegmentEntryId)
+                return executeWithRetry(
+                        () -> bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId,
+                                nextSegmentEntryId), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                         .thenApply(bucketSnapshotSegments -> {
                             if (CollectionUtils.isEmpty(bucketSnapshotSegments)) {
                                 return Collections.emptyList();
@@ -142,7 +146,8 @@ class ImmutableBucket extends Bucket {
         String bucketKey = bucketKey();
         long bucketId = getAndUpdateBucketId();
         return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
-                bucketSnapshotStorage.deleteBucketSnapshot(bucketId)).whenComplete((__, ex) -> {
+                executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
+                        BucketSnapshotPersistenceException.class, MaxRetryTimes)).whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.warn("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
                                 bucketId, bucketKey, ex);
