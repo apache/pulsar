@@ -66,6 +66,7 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
@@ -148,7 +149,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final BookKeeper bookKeeper;
     protected final String name;
     private final Map<String, byte[]> ledgerMetadata;
-    private final BookKeeper.DigestType digestType;
+    protected final BookKeeper.DigestType digestType;
 
     protected ManagedLedgerConfig config;
     protected Map<String, String> propertiesMap;
@@ -432,6 +433,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // Calculate total entries and size
+        final List<Long> emptyLedgersToBeDeleted = Collections.synchronizedList(new ArrayList<>());
         Iterator<LedgerInfo> iterator = ledgers.values().iterator();
         while (iterator.hasNext()) {
             LedgerInfo li = iterator.next();
@@ -440,9 +442,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 TOTAL_SIZE_UPDATER.addAndGet(this, li.getSize());
             } else {
                 iterator.remove();
-                bookKeeper.asyncDeleteLedger(li.getLedgerId(), (rc, ctx) -> {
-                    log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, li.getLedgerId(), rc);
-                }, null);
+                emptyLedgersToBeDeleted.add(li.getLedgerId());
             }
         }
 
@@ -458,6 +458,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationComplete(Void v, Stat stat) {
                 ledgersStat = stat;
+                emptyLedgersToBeDeleted.forEach(ledgerId -> {
+                    bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+                        log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, ledgerId, rc);
+                    }, null);
+                });
                 initializeCursors(callback);
             }
 
@@ -1443,16 +1448,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
-                    ledgers.put(lh.getId(), newLedger);
-                    currentLedger = lh;
-                    currentLedgerEntries = 0;
-                    currentLedgerSize = 0;
-                    metadataMutex.unlock();
-                    updateLedgersIdsComplete(stat);
                     synchronized (ManagedLedgerImpl.this) {
-                        mbean.addLedgerSwitchLatencySample(System.currentTimeMillis() - lastLedgerCreationInitiationTimestamp,
-                                TimeUnit.MILLISECONDS);
+                        LedgerHandle originalCurrentLedger = currentLedger;
+                        ledgers.put(lh.getId(), newLedger);
+                        currentLedger = lh;
+                        currentLedgerEntries = 0;
+                        currentLedgerSize = 0;
+                        updateLedgersIdsComplete(originalCurrentLedger);
+                        mbean.addLedgerSwitchLatencySample(System.currentTimeMillis()
+                                - lastLedgerCreationInitiationTimestamp, TimeUnit.MILLISECONDS);
                     }
+                    metadataMutex.unlock();
 
                     // May need to update the cursor position
                     maybeUpdateCursorBeforeTrimmingConsumedLedger();
@@ -1518,8 +1524,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
 
-    public synchronized void updateLedgersIdsComplete(Stat stat) {
+    public synchronized void updateLedgersIdsComplete(@Nullable LedgerHandle originalCurrentLedger) {
         STATE_UPDATER.set(this, State.LedgerOpened);
+        // Delete original "currentLedger" if it has been removed from "ledgers".
+        if (originalCurrentLedger != null && !ledgers.containsKey(originalCurrentLedger.getId())){
+            bookKeeper.asyncDeleteLedger(originalCurrentLedger.getId(), (rc, ctx) -> {
+                mbean.endDataLedgerDeleteOp();
+                log.info("[{}] Delete complete for empty ledger {}. rc={}", name, originalCurrentLedger.getId(), rc);
+            }, null);
+        }
         updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
         if (log.isDebugEnabled()) {
@@ -1596,10 +1609,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // The last ledger was empty, so we can discard it
             ledgers.remove(lh.getId());
             mbean.startDataLedgerDeleteOp();
-            bookKeeper.asyncDeleteLedger(lh.getId(), (rc, ctx) -> {
-                mbean.endDataLedgerDeleteOp();
-                log.info("[{}] Delete complete for empty ledger {}. rc={}", name, lh.getId(), rc);
-            }, null);
         }
 
         trimConsumedLedgersInBackground();
