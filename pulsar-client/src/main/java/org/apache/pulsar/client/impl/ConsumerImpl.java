@@ -1091,7 +1091,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Increment epoch.
         CONSUMER_EPOCH.incrementAndGet(this);
         // Try clear the incoming queue in internalPinnedExecutor-thread.
-        boolean executorIsShutdown = false;
+        boolean executorIsShutdown;
         try {
             if (!(executorIsShutdown = internalPinnedExecutor.isShutdown())) {
                 internalPinnedExecutor.execute(this::clearIncomingMessages);
