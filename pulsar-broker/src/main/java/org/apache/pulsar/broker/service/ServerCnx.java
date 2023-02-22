@@ -397,7 +397,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
             // failed
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Got exception: {}", remoteAddress, cause);
+                log.debug("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
             }
         }
         ctx.close();
