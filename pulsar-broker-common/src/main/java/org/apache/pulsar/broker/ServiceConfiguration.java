@@ -1401,8 +1401,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Enable strict topic name check. See PIP-242 to get more information."
-                    + "NOTE: This flag will be removed in the next major release.")
+            doc = "# Enable strict topic name check. Which includes two parts as follows:"
+                + "# 1. Mark `-partition-` as a keyword for the non-partitioned topic."
+                + "# 2. Allowed alphanumeric (a-zA-Z_0-9) and these special chars -=:. for topic name."
+                + "# NOTE: This flag will be removed in some major releases in the future.")
     private boolean strictTopicNameEnabled = false;
 
     @FieldContext(
