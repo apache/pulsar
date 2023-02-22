@@ -32,6 +32,7 @@ except:
 import threading
 import sys
 import re
+import inspect
 import pulsar
 import contextimpl
 import Function_pb2
@@ -50,9 +51,10 @@ Log = log.Log
 # Equivalent of the InstanceConfig in Java
 InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_details max_buffered_tuples')
 # This is the message that the consumers put on the queue for the function thread to process
-InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
+InternalMessage = namedtuple('InternalMessage', 'message topic serde use_schema consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 DEFAULT_SERIALIZER = "serde.IdentitySerDe"
+DEFAULT_SCHEMA = pulsar.schema.BytesSchema()
 
 PY3 = sys.version_info[0] >= 3
 
@@ -93,8 +95,10 @@ class PythonInstance(object):
     self.pulsar_client = pulsar_client
     self.state_storage_serviceurl = state_storage_serviceurl
     self.input_serdes = {}
+    self.input_schema = {}
     self.consumers = {}
     self.output_serde = None
+    self.output_schema = DEFAULT_SCHEMA
     self.function_class = None
     self.function_purefunction = None
     self.producer = None
@@ -166,7 +170,7 @@ class PythonInstance(object):
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,
         consumer_type=mode,
-        message_listener=partial(self.message_listener, self.input_serdes[topic]),
+        message_listener=partial(self.message_listener, self.input_serdes[topic], DEFAULT_SCHEMA),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
         initial_position=position,
         properties=properties
@@ -178,11 +182,16 @@ class PythonInstance(object):
       else:
         serde_kclass = util.import_class(os.path.dirname(self.user_code), consumer_conf.serdeClassName)
       self.input_serdes[topic] = serde_kclass()
+
+      self.input_schema[topic] = self.get_schema(consumer_conf.schemaType,
+                                                 self.instance_config.function_details.source.typeClassName,
+                                                 consumer_conf.schemaProperties)
       Log.debug("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
 
       consumer_args = {
         "consumer_type": mode,
-        "message_listener": partial(self.message_listener, self.input_serdes[topic]),
+        "schema": self.input_schema[topic],
+        "message_listener": partial(self.message_listener, self.input_serdes[topic], self.input_schema[topic]),
         "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
         "initial_position": position,
         "properties": properties
@@ -233,8 +242,10 @@ class PythonInstance(object):
         if isinstance(msg, InternalQuitMessage):
           break
         Log.debug("Got a message from topic %s" % msg.topic)
-        # deserialize message
-        input_object = msg.serde.deserialize(msg.message.data())
+        input_object = msg.message.value()
+        if not msg.use_schema:
+          # deserialize message
+          input_object = msg.serde.deserialize(msg.message.data())
         # set current message in context
         self.contextimpl.set_current_message_context(msg.message, msg.topic)
         output_object = None
@@ -296,12 +307,14 @@ class PythonInstance(object):
       if self.producer is None:
         self.setup_producer()
 
-      # serialize function output
-      output_bytes = self.output_serde.serialize(output)
+      # only serialize function output when output schema is not set
+      output_object = output
+      if self.output_schema == DEFAULT_SCHEMA:
+        output_object = self.output_serde.serialize(output)
 
-      if output_bytes is not None:
+      if output_object is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
+        self.producer.send_async(output_object, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
 
@@ -327,8 +340,13 @@ class PythonInstance(object):
         if batch_builder == "KEY_BASED":
           batch_type = pulsar.BatchingType.KeyBased
 
+      self.output_schema = self.get_schema(self.instance_config.function_details.sink.schemaType,
+                                           self.instance_config.function_details.sink.typeClassName,
+                                           self.instance_config.function_details.sink.schemaProperties)
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
+        schema=self.output_schema,
         block_if_queue_full=True,
         batching_enabled=True,
         batching_type=batch_type,
@@ -351,10 +369,13 @@ class PythonInstance(object):
     table_name = str(self.instance_config.function_details.name)
     return state_context.create_state_context(self.state_storage_serviceurl, table_ns, table_name)
 
-  def message_listener(self, serde, consumer, message):
+  def message_listener(self, serde, schema, consumer, message):
     # increment number of received records from source
     self.stats.incr_total_received()
-    item = InternalMessage(message, message.topic_name(), serde, consumer)
+    use_schema = False
+    if schema != DEFAULT_SCHEMA:
+      use_schema = True
+    item = InternalMessage(message, message.topic_name(), serde, use_schema, consumer)
     self.queue.put(item, True)
     if self.atmost_once and self.auto_ack:
       consumer.acknowledge(message)
@@ -462,3 +483,47 @@ class PythonInstance(object):
 
     if self.pulsar_client:
       self.pulsar_client.close()
+
+
+  # TODO: support other schemas: PROTOBUF, PROTOBUF_NATIVE, and KeyValue
+  def get_schema(self, schema_type, type_class_name, schema_properties):
+    schema = DEFAULT_SCHEMA
+    if schema_type == "" or schema_type is None:
+      schema = DEFAULT_SCHEMA
+    elif schema_type.lower() == "string":
+      schema = pulsar.schema.StringSchema()
+    elif schema_type.lower() == "json":
+      record_kclass = self.get_record_class(type_class_name)
+      schema = pulsar.schema.JsonSchema(record_kclass)
+    elif schema_type.lower() == "avro":
+      record_kclass = self.get_record_class(type_class_name)
+      schema = pulsar.schema.AvroSchema(record_kclass)
+    else:  # load custom schema
+      record_kclass = self.get_record_class(type_class_name)
+      schema_kclass = util.import_class(os.path.dirname(self.user_code), schema_type)
+      args_count = 0
+      try:
+        args_count = len(inspect.signature(schema_kclass.__init__).parameters)
+      except:  # for compatibility with python 2
+        args_count = len(inspect.getargspec(schema_kclass.__init__).args)
+      if args_count == 1:  # doesn't take any arguments
+        schema = schema_kclass()
+      elif args_count == 2:  # take one argument, it can be either schema properties or record class
+        try:
+          schema = schema_kclass(record_kclass)
+        except TypeError:
+          schema = schema_kclass(schema_properties)
+      elif args_count >= 3:  # take two or more arguments
+        schema = schema_kclass(record_kclass, schema_properties)
+      else:
+        raise Exception("Invalid schema class %s" % schema_type)
+    return schema
+
+  def get_record_class(self, class_name):
+      record_kclass = None
+      if class_name != None and len(class_name) > 0:
+        try:
+          record_kclass = util.import_class(os.path.dirname(self.user_code), class_name)
+        except:
+          pass
+      return record_kclass

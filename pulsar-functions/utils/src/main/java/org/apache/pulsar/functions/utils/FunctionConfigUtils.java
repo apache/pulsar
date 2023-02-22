@@ -200,6 +200,8 @@ public class FunctionConfigUtils {
 
         if (extractedDetails.getTypeArg0() != null) {
             sourceSpecBuilder.setTypeClassName(extractedDetails.getTypeArg0());
+        } else if (StringUtils.isNotEmpty(functionConfig.getInputTypeClassName())) {
+            sourceSpecBuilder.setTypeClassName(functionConfig.getInputTypeClassName());
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
@@ -242,6 +244,8 @@ public class FunctionConfigUtils {
         }
         if (extractedDetails.getTypeArg1() != null) {
             sinkSpecBuilder.setTypeClassName(extractedDetails.getTypeArg1());
+        } else if (StringUtils.isNotEmpty(functionConfig.getOutputTypeClassName())) {
+            sinkSpecBuilder.setTypeClassName(functionConfig.getOutputTypeClassName());
         }
         if (functionConfig.getProducerConfig() != null) {
             ProducerConfig producerConf = functionConfig.getProducerConfig();

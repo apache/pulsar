@@ -269,6 +269,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--input-specs",
                 description = "The map of inputs to custom configuration (as a JSON string) #Java, Python, Go")
         protected String inputSpecs;
+        @Parameter(names = "--input-type-class-name",
+                description = "The class name of input type class #Java, Python, Go")
+        protected String inputTypeClassName;
         // for backwards compatibility purposes
         @Parameter(names = "--outputSerdeClassName",
                 description = "The SerDe class to be used for messages output by the function", hidden = true)
@@ -276,6 +279,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--output-serde-classname",
                 description = "The SerDe class to be used for messages output by the function #Java, Python")
         protected String outputSerdeClassName;
+        @Parameter(names = "--output-type-class-name",
+                description = "The class name of output type class #Java, Python, Go")
+        protected String outputTypeClassName;
         // for backwards compatibility purposes
         @Parameter(names = "--functionConfigFile", description = "The path to a YAML config file that specifies "
                 + "the configuration of a Pulsar Function", hidden = true)
@@ -485,11 +491,17 @@ public class CmdFunctions extends CmdBase {
                 Type type = new TypeToken<Map<String, ConsumerConfig>>() {}.getType();
                 functionConfig.setInputSpecs(new Gson().fromJson(inputSpecs, type));
             }
+            if (null != inputTypeClassName) {
+                functionConfig.setInputTypeClassName(inputTypeClassName);
+            }
             if (null != topicsPattern) {
                 functionConfig.setTopicsPattern(topicsPattern);
             }
             if (null != output) {
                 functionConfig.setOutput(output);
+            }
+            if (null != outputTypeClassName) {
+                functionConfig.setOutputTypeClassName(outputTypeClassName);
             }
             if (null != producerConfig) {
                 Type type = new TypeToken<ProducerConfig>() {}.getType();

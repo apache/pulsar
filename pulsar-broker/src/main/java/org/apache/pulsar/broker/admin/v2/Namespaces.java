@@ -46,12 +46,9 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -199,12 +196,6 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    if (cause instanceof PulsarAdminException.ConflictException) {
-                        log.info("[{}] There are new topics created during the namespace deletion, "
-                                + "retry to delete the namespace again.", namespaceName);
-                        pulsar().getExecutor().execute(() -> internalDeleteNamespaceAsync(force));
-                    }
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to delete namespace {}", clientAppId(), namespaceName, ex);
                     }
@@ -817,34 +808,13 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                       @QueryParam("destinationBroker") String destinationBroker) {
         validateNamespaceName(tenant, namespace);
-        pulsar().getLoadManager().get().getAvailableBrokersAsync()
-                .thenApply(brokers ->
-                        StringUtils.isNotBlank(destinationBroker) ? brokers.contains(destinationBroker) : true)
-                .thenAccept(isActiveDestination -> {
-                    if (isActiveDestination) {
-                        setNamespaceBundleAffinity(bundleRange, destinationBroker);
-                        internalUnloadNamespaceBundleAsync(bundleRange, authoritative)
-                                .thenAccept(__ -> {
-                                    log.info("[{}] Successfully unloaded namespace bundle {}",
-                                            clientAppId(), bundleRange);
-                                    asyncResponse.resume(Response.noContent().build());
-                                })
-                                .exceptionally(ex -> {
-                                    if (!isRedirectException(ex)) {
-                                        log.error("[{}] Failed to unload namespace bundle {}/{}",
-                                                clientAppId(), namespaceName, bundleRange, ex);
-                                    }
-                                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                                    return null;
-                                });
-                    } else {
-                        log.warn("[{}] Failed to unload namespace bundle {}/{} to inactive broker {}.",
-                                clientAppId(), namespaceName, bundleRange, destinationBroker);
-                        resumeAsyncResponseExceptionally(asyncResponse,
-                                new BrokerServiceException.NotAllowedException(
-                                        "Not allowed unload namespace bundle to inactive destination broker"));
-                    }
-                }).exceptionally(ex -> {
+        internalUnloadNamespaceBundleAsync(bundleRange, destinationBroker, authoritative)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully unloaded namespace bundle {}",
+                            clientAppId(), bundleRange);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to unload namespace bundle {}/{}",
                                 clientAppId(), namespaceName, bundleRange, ex);

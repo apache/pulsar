@@ -1370,6 +1370,29 @@ public class BrokerService implements Closeable {
         }
     }
 
+    private void configAdminTlsSettings(PulsarAdminBuilder adminBuilder, boolean brokerClientTlsEnabledWithKeyStore,
+                                        boolean isTlsAllowInsecureConnection,
+                                        String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
+                                        String brokerClientTlsTrustStorePassword, String brokerClientTlsKeyStoreType,
+                                        String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
+                                        String brokerClientTrustCertsFilePath,
+                                        String brokerClientKeyFilePath, String brokerClientCertificateFilePath) {
+        if (brokerClientTlsEnabledWithKeyStore) {
+            adminBuilder.useKeyStoreTls(true)
+                    .tlsTrustStoreType(brokerClientTlsTrustStoreType)
+                    .tlsTrustStorePath(brokerClientTlsTrustStore)
+                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                    .tlsKeyStoreType(brokerClientTlsKeyStoreType)
+                    .tlsKeyStorePath(brokerClientTlsKeyStore)
+                    .tlsKeyStorePassword(brokerClientTlsKeyStorePassword);
+        } else {
+            adminBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                    .tlsKeyFilePath(brokerClientKeyFilePath)
+                    .tlsCertificateFilePath(brokerClientCertificateFilePath);
+        }
+        adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection);
+    }
+
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarAdmin admin = clusterAdmins.get(cluster);
         if (admin != null) {
@@ -1379,37 +1402,58 @@ public class BrokerService implements Closeable {
             try {
                 ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
+                PulsarAdminBuilder builder = PulsarAdmin.builder();
 
                 ServiceConfiguration conf = pulsar.getConfig();
-
-                boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
-                String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl);
-
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
                 builder.loadConf(PropertiesUtils.filterAndMapProperties(conf.getProperties(), "brokerClient_"));
 
-                builder.authentication(
-                        conf.getBrokerClientAuthenticationPlugin(),
-                        conf.getBrokerClientAuthenticationParameters());
+                if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
+                    builder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
+                } else {
+                    builder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
+                            pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
+                }
 
-                if (isTlsUrl) {
-                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
-                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
-                        builder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
-                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword())
-                                .tlsKeyStoreType(conf.getBrokerClientTlsKeyStoreType())
-                                .tlsKeyStorePath(conf.getBrokerClientTlsKeyStore())
-                                .tlsKeyStorePassword(conf.getBrokerClientTlsKeyStorePassword());
-                    } else {
-                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath())
-                                .tlsKeyFilePath(conf.getBrokerClientKeyFilePath())
-                                .tlsCertificateFilePath(conf.getBrokerClientCertificateFilePath());
-                    }
+                boolean isTlsEnabled = data.isBrokerClientTlsEnabled() || conf.isBrokerClientTlsEnabled();
+                if (isTlsEnabled && StringUtils.isEmpty(data.getServiceUrlTls())) {
+                    throw new IllegalArgumentException("serviceUrlTls is empty, brokerClientTlsEnabled: "
+                            + isTlsEnabled);
+                } else if (StringUtils.isEmpty(data.getServiceUrl())) {
+                    throw new IllegalArgumentException("serviceUrl is empty, brokerClientTlsEnabled: " + isTlsEnabled);
+                }
+                String adminApiUrl = isTlsEnabled ? data.getServiceUrlTls() : data.getServiceUrl();
+                builder.serviceHttpUrl(adminApiUrl);
+                if (data.isBrokerClientTlsEnabled()) {
+                    configAdminTlsSettings(builder,
+                            data.isBrokerClientTlsEnabledWithKeyStore(),
+                            data.isTlsAllowInsecureConnection(),
+                            data.getBrokerClientTlsTrustStoreType(),
+                            data.getBrokerClientTlsTrustStore(),
+                            data.getBrokerClientTlsTrustStorePassword(),
+                            data.getBrokerClientTlsKeyStoreType(),
+                            data.getBrokerClientTlsKeyStore(),
+                            data.getBrokerClientTlsKeyStorePassword(),
+                            data.getBrokerClientTrustCertsFilePath(),
+                            data.getBrokerClientKeyFilePath(),
+                            data.getBrokerClientCertificateFilePath()
+                    );
+                } else if (conf.isBrokerClientTlsEnabled()) {
+                    configAdminTlsSettings(builder,
+                            conf.isBrokerClientTlsEnabledWithKeyStore(),
+                            conf.isTlsAllowInsecureConnection(),
+                            conf.getBrokerClientTlsTrustStoreType(),
+                            conf.getBrokerClientTlsTrustStore(),
+                            conf.getBrokerClientTlsTrustStorePassword(),
+                            conf.getBrokerClientTlsKeyStoreType(),
+                            conf.getBrokerClientTlsKeyStore(),
+                            conf.getBrokerClientTlsKeyStorePassword(),
+                            conf.getBrokerClientTrustCertsFilePath(),
+                            conf.getBrokerClientKeyFilePath(),
+                            conf.getBrokerClientCertificateFilePath()
+                    );
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on

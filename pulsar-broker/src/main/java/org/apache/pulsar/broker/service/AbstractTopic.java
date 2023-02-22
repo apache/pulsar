@@ -249,9 +249,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         if (log.isDebugEnabled()) {
             log.debug("[{}]updateTopicPolicyByNamespacePolicy,data={}", topic, namespacePolicies);
         }
-        if (namespacePolicies.deleted) {
-            return;
-        }
         topicPolicies.getRetentionPolicies().updateNamespaceValue(namespacePolicies.retention_policies);
         topicPolicies.getCompactionThreshold().updateNamespaceValue(namespacePolicies.compaction_threshold);
         topicPolicies.getReplicationClusters().updateNamespaceValue(

@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
@@ -1681,6 +1682,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // verify namespace can be deleted even without topic policy events
         admin.namespaces().deleteNamespace(namespace, true);
 
+        Awaitility.await().untilAsserted(() -> {
+            final CompletableFuture<Optional<Topic>> eventTopicFuture =
+                    pulsar.getBrokerService().getTopics().get("persistent://test-tenant/test-ns2/__change_events");
+            assertNull(eventTopicFuture);
+        });
         admin.namespaces().createNamespace(namespace, Set.of("test"));
         // create topic
         String topic = namespace + "/test-topic2";
