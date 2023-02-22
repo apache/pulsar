@@ -292,23 +292,36 @@ public class AuthorizationService {
         return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
     }
 
-    public boolean isValidOriginalPrincipal(String authenticatedPrincipal,
-                                            String originalPrincipal,
-                                            AuthenticationDataSource authDataSource) {
-        SocketAddress remoteAddress = authDataSource != null ? authDataSource.getPeerAddress() : null;
-        return isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, remoteAddress);
-    }
-
     /**
-     * Validates that the authenticatedPrincipal and the originalPrincipal are a valid combination.
-     * Valid combinations fulfill the following rule: the authenticatedPrincipal is in
-     * {@link ServiceConfiguration#getProxyRoles()}, if, and only if, the originalPrincipal is set to a role
-     * that is not also in {@link ServiceConfiguration#getProxyRoles()}.
+     * Whether the authenticatedPrincipal and the originalPrincipal form a valid pair. This method assumes that
+     * authenticatedPrincipal and originalPrincipal can be equal, as long as they are not a proxy role. This use
+     * case is relvant for the admin server because of the way the proxy handles authentication. The binary protocol
+     * should not use this method.
      * @return true when roles are a valid combination and false when roles are an invalid combination
      */
     public boolean isValidOriginalPrincipal(String authenticatedPrincipal,
                                             String originalPrincipal,
-                                            SocketAddress remoteAddress) {
+                                            AuthenticationDataSource authDataSource) {
+        SocketAddress remoteAddress = authDataSource != null ? authDataSource.getPeerAddress() : null;
+        return isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, remoteAddress, true);
+    }
+
+    /**
+     * Validates that the authenticatedPrincipal and the originalPrincipal are a valid combination.
+     * Valid combinations fulfill one of the following two rules:
+     * <p>
+     * 1. The authenticatedPrincipal is in {@link ServiceConfiguration#getProxyRoles()}, if, and only if,
+     * the originalPrincipal is set to a role that is not also in {@link ServiceConfiguration#getProxyRoles()}.
+     * <p>
+     * 2. The authenticatedPrincipal and the originalPrincipal are the same, but are not a proxyRole, when
+     * allowNonProxyPrincipalsToBeEqual is true.
+     *
+     * @return true when roles are a valid combination and false when roles are an invalid combination
+     */
+    public boolean isValidOriginalPrincipal(String authenticatedPrincipal,
+                                            String originalPrincipal,
+                                            SocketAddress remoteAddress,
+                                            boolean allowNonProxyPrincipalsToBeEqual) {
         String errorMsg = null;
         if (conf.getProxyRoles().contains(authenticatedPrincipal)) {
             if (StringUtils.isBlank(originalPrincipal)) {
@@ -316,7 +329,8 @@ public class AuthorizationService {
             } else if (conf.getProxyRoles().contains(originalPrincipal)) {
                 errorMsg = "originalPrincipal cannot be a proxy role.";
             }
-        } else if (StringUtils.isNotBlank(originalPrincipal)) {
+        } else if (StringUtils.isNotBlank(originalPrincipal)
+                && !(allowNonProxyPrincipalsToBeEqual && originalPrincipal.equals(authenticatedPrincipal))) {
             errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
         }
         if (errorMsg != null) {
