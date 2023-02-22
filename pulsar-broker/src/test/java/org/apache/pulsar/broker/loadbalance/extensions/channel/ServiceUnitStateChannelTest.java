@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Assign;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Split;
@@ -717,6 +717,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel1, bundle2, broker);
         waitUntilNewOwner(channel2, bundle2, broker);
 
+        channel1.publishUnloadEventAsync(new Unload(broker, bundle1, Optional.of(lookupServiceAddress2)));
+        waitUntilNewOwner(channel1, bundle1, lookupServiceAddress2);
+        waitUntilNewOwner(channel2, bundle1, lookupServiceAddress2);
+
         // test stable metadata state
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         followerChannel.handleMetadataSessionEvent(SessionReestablished);
@@ -741,7 +745,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
-                2,
+                1,
                 0,
                 1,
                 0,
@@ -768,7 +772,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
-                2,
+                1,
                 0,
                 2,
                 0,
@@ -785,7 +789,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
-                2,
+                1,
                 0,
                 2,
                 0,
@@ -804,7 +808,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
-                2,
+                1,
                 0,
                 3,
                 0,
@@ -823,7 +827,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
-                4,
+                3,
                 0,
                 3,
                 0,
@@ -849,7 +853,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
-                4,
+                3,
                 0,
                 3,
                 1,
@@ -920,7 +924,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @Test(priority = 11)
     public void ownerLookupCountTests() throws IllegalAccessException {
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigned, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, "b1"));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
@@ -929,7 +933,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Released, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, "b1"));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
@@ -1386,12 +1390,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> { // wait until true
-                    assertEquals(assignedT, handlerCounters.get(Assigned).getTotal().get());
-                    assertEquals(assignedF, handlerCounters.get(Assigned).getFailure().get());
+                    assertEquals(assignedT, handlerCounters.get(Assigning).getTotal().get());
+                    assertEquals(assignedF, handlerCounters.get(Assigning).getFailure().get());
                     assertEquals(ownedT, handlerCounters.get(Owned).getTotal().get());
                     assertEquals(ownedF, handlerCounters.get(Owned).getFailure().get());
-                    assertEquals(releasedT, handlerCounters.get(Released).getTotal().get());
-                    assertEquals(releasedF, handlerCounters.get(Released).getFailure().get());
+                    assertEquals(releasedT, handlerCounters.get(Releasing).getTotal().get());
+                    assertEquals(releasedF, handlerCounters.get(Releasing).getFailure().get());
                     assertEquals(splittingT, handlerCounters.get(Splitting).getTotal().get());
                     assertEquals(splittingF, handlerCounters.get(Splitting).getFailure().get());
                     assertEquals(freeT, handlerCounters.get(Free).getTotal().get());
@@ -1443,9 +1447,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> { // wait until true
-                    assertEquals(assigned, ownerLookUpCounters.get(Assigned).get());
+                    assertEquals(assigned, ownerLookUpCounters.get(Assigning).get());
                     assertEquals(owned, ownerLookUpCounters.get(Owned).get());
-                    assertEquals(released, ownerLookUpCounters.get(Released).get());
+                    assertEquals(released, ownerLookUpCounters.get(Releasing).get());
                     assertEquals(splitting, ownerLookUpCounters.get(Splitting).get());
                     assertEquals(free, ownerLookUpCounters.get(Free).get());
                     assertEquals(deleted, ownerLookUpCounters.get(Deleted).get());

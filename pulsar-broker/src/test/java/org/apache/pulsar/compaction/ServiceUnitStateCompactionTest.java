@@ -21,8 +21,8 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
@@ -531,7 +531,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         AtomicBoolean handledReleased = new AtomicBoolean(false);
 
         slowTV.listen((k, v) -> {
-            if (v.state() == Assigned) {
+            if (v.state() == Assigning) {
                 try {
                     // Stuck at handling Assigned
                     handledReleased.set(false);
@@ -540,7 +540,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-            } else if (v.state() == Released) {
+            } else if (v.state() == Releasing) {
                 handledReleased.set(true);
             }
         });
@@ -563,10 +563,10 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         String dst = "broker1";
         producer.newMessage().key(bundle).value(new ServiceUnitStateData(Owned, src)).send();
         for (int i = 0; i < 3; i++) {
-            var assignedStateData = new ServiceUnitStateData(Assigned, dst, src);
+            var assignedStateData = new ServiceUnitStateData(Assigning, dst, src);
             producer.newMessage().key(bundle).value(assignedStateData).send();
             producer.newMessage().key(bundle).value(assignedStateData).send();
-            var releasedStateData = new ServiceUnitStateData(Released, dst, src);
+            var releasedStateData = new ServiceUnitStateData(Releasing, dst, src);
             producer.newMessage().key(bundle).value(releasedStateData).send();
             producer.newMessage().key(bundle).value(releasedStateData).send();
             var ownedStateData = new ServiceUnitStateData(Owned, dst, src);

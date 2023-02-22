@@ -21,12 +21,12 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Deleted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Closed;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Constructed;
@@ -433,7 +433,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Owned, Splitting -> {
                 return CompletableFuture.completedFuture(Optional.of(data.broker()));
             }
-            case Assigned, Released -> {
+            case Assigning, Releasing -> {
                 return deferGetOwnerRequest(serviceUnit).thenApply(
                         broker -> broker == null ? Optional.empty() : Optional.of(broker));
             }
@@ -455,7 +455,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         EventType eventType = Assign;
         eventCounters.get(eventType).getTotal().incrementAndGet();
         CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
-        pubAsync(serviceUnit, new ServiceUnitStateData(Assigned, broker))
+        pubAsync(serviceUnit, new ServiceUnitStateData(Assigning, broker))
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
                         getOwnerRequests.remove(serviceUnit, getOwnerRequest);
@@ -475,10 +475,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         CompletableFuture<MessageId> future;
         if (isTransferCommand(unload)) {
             future = pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Assigned, unload.destBroker().get(), unload.sourceBroker()));
+                    Assigning, unload.destBroker().get(), unload.sourceBroker()));
         } else {
             future = pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Released, unload.sourceBroker()));
+                    Releasing, unload.sourceBroker()));
         }
 
         return future.whenComplete((__, ex) -> {
@@ -511,8 +511,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         try {
             switch (state) {
                 case Owned -> handleOwnEvent(serviceUnit, data);
-                case Assigned -> handleAssignEvent(serviceUnit, data);
-                case Released -> handleReleaseEvent(serviceUnit, data);
+                case Assigning -> handleAssignEvent(serviceUnit, data);
+                case Releasing -> handleReleaseEvent(serviceUnit, data);
                 case Splitting -> handleSplitEvent(serviceUnit, data);
                 case Deleted -> handleDeleteEvent(serviceUnit, data);
                 case Free -> handleFreeEvent(serviceUnit, data);
@@ -599,7 +599,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
             ServiceUnitStateData next = new ServiceUnitStateData(
-                    isTransferCommand(data) ? Released : Owned, data.broker(), data.sourceBroker());
+                    isTransferCommand(data) ? Releasing : Owned, data.broker(), data.sourceBroker());
             pubAsync(serviceUnit, next)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -964,10 +964,18 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
-            if (StringUtils.equals(broker, stateData.broker())
-                    || StringUtils.equals(broker, stateData.sourceBroker())) {
-                overrideOwnership(serviceUnit, stateData, availableBrokers);
-                orphanServiceUnitCleanupCnt++;
+            var state = state(stateData);
+            if (StringUtils.equals(broker, stateData.broker())) {
+                if (ServiceUnitState.isInFlightState(state) || state == Owned) {
+                    overrideOwnership(serviceUnit, stateData, availableBrokers);
+                    orphanServiceUnitCleanupCnt++;
+                }
+
+            } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
+                if (ServiceUnitState.isInFlightState(state)) {
+                    overrideOwnership(serviceUnit, stateData, availableBrokers);
+                    orphanServiceUnitCleanupCnt++;
+                }
             }
         }
 
@@ -1002,14 +1010,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTransferCommand(orphanData)) {
             // rollback to the src
             return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true));
-        } else if (orphanData.state() == Assigned) { // assign
+        } else if (orphanData.state() == Assigning) { // assign
             // roll-forward to another broker
             Optional<String> selectedBroker = brokerSelector.select(availableBrokers, null, context);
             if (selectedBroker.isEmpty()) {
                 return Optional.empty();
             }
             return Optional.of(new ServiceUnitStateData(Owned, selectedBroker.get(), true));
-        } else if (orphanData.state() == Splitting || orphanData.state() == Released) {
+        } else if (orphanData.state() == Splitting || orphanData.state() == Releasing) {
             // rollback to the target broker for split and unload
             return Optional.of(new ServiceUnitStateData(Owned, orphanData.broker(), true));
         } else {
