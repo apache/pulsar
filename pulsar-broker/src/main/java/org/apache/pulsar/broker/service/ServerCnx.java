@@ -700,7 +700,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (service.isAuthenticationEnabled()) {
                     if (service.isAuthorizationEnabled()) {
                         if (!service.getAuthorizationService()
-                                .isValidOriginalPrincipal(this.authRole, originalPrincipal, remoteAddress)) {
+                                .isValidOriginalPrincipal(this.authRole, originalPrincipal, remoteAddress, false)) {
                             state = State.Failed;
                             service.getPulsarStats().recordConnectionCreateFail();
                             final ByteBuf msg = Commands.newError(-1, ServerError.AuthorizationError,
