@@ -1013,9 +1013,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
-            if (poolMessages) {
-                internalPinnedExecutor.execute(this::clearIncomingMessages);
-            }
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
@@ -1026,9 +1023,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.getStatTimeout().ifPresent(Timeout::cancel);
 
         setState(State.Closing);
-        if (poolMessages) {
-            internalPinnedExecutor.execute(this::clearIncomingMessages);
-        }
 
         closeConsumerTasks();
 
@@ -1081,6 +1075,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
+        // Execute "clearIncomingMessages" regardless of whether "internalPinnedExecutor" has shutdown or not.
+        // Call "clearIncomingMessages" in "internalPinnedExecutor" is used to clear messages in flight.
+        clearIncomingMessages();
+        internalPinnedExecutor.execute(this::clearIncomingMessages);
     }
 
     void activeConsumerChanged(boolean isActive) {
