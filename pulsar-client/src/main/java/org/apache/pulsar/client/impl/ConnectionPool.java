@@ -305,8 +305,12 @@ public class ConnectionPool implements AutoCloseable {
                 resolvedAddress = resolveName(unresolvedPhysicalAddress);
             }
             return resolvedAddress.thenCompose(
-                    inetAddresses -> connectToResolvedAddresses(logicalAddress, unresolvedPhysicalAddress, inetAddresses.iterator(),
-                            isSniProxy ? unresolvedPhysicalAddress : null));
+                    inetAddresses -> connectToResolvedAddresses(
+                            logicalAddress,
+                            unresolvedPhysicalAddress,
+                            inetAddresses.iterator(),
+                            isSniProxy ? unresolvedPhysicalAddress : null)
+            );
         } catch (URISyntaxException e) {
             log.error("Invalid Proxy url {}", clientConfig.getProxyServiceUrl(), e);
             return FutureUtil
