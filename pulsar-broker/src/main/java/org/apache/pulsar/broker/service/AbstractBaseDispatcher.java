@@ -249,12 +249,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                             }
                         } else {
                             // filter non-batch message in pendingAck state
-                            if (positionInPendingAck.getLedgerId() == entry.getLedgerId()
-                                    && positionInPendingAck.getEntryId() == entry.getEntryId()) {
-                                entries.set(i, null);
-                                entry.release();
-                                continue;
-                            }
+                            entries.set(i, null);
+                            entry.release();
+                            continue;
                         }
                     }
                 }
