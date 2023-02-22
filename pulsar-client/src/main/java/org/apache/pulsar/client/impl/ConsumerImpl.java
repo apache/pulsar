@@ -1075,11 +1075,32 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
-        // Execute "clearIncomingMessages" regardless of whether "internalPinnedExecutor" has shutdown or not.
+        releaseMsgIfEnabledPooledMsg();
+    }
+
+    private void releaseMsgIfEnabledPooledMsg() {
+        if (!poolMessages) {
+            return;
+        }
+        // Call "clearIncomingMessages" regardless of whether "internalPinnedExecutor" has shutdown or not.
+        // Increment epoch will auto release all messages which received after close.
         // Call "clearIncomingMessages" in "internalPinnedExecutor" is used to clear messages in flight.
-        clearIncomingMessages();
+        CONSUMER_EPOCH.incrementAndGet(this);
         if (!internalPinnedExecutor.isShutdown()) {
             internalPinnedExecutor.execute(this::clearIncomingMessages);
+        } else {
+            boolean awaitTerminationSuccess = false;
+            try {
+                awaitTerminationSuccess = internalPinnedExecutor.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // Current thread is interrupted, so awaitTerminationSuccess will be false.
+            } finally {
+                if (!awaitTerminationSuccess) {
+                    log.warn("[{}] [{}] Failed to wait for in-flight messages, there is a small probability that client"
+                            + " memory leaks will occur", topicName, subscription);
+                }
+                clearIncomingMessages();
+            }
         }
     }
 
