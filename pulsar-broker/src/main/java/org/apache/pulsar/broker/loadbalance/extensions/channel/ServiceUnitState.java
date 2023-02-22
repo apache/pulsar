@@ -42,15 +42,15 @@ public enum ServiceUnitState {
 
     Deleted; // deleted in the system (semi-terminal state)
 
-    private static Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
+    private static final Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
             // (Init -> all states) transitions are required
             // when the topic is compacted in the middle of assign, transfer or split.
-            Init, Set.of(Free, Owned, Assigned, Released, Splitting, Deleted, Init),
+            Init, Set.of(Free, Owned, Assigned, Released, Splitting, Deleted),
             Free, Set.of(Assigned, Init),
-            Owned, Set.of(Assigned, Splitting, Released, Init),
-            Assigned, Set.of(Owned, Released, Init),
-            Released, Set.of(Owned, Free, Init),
-            Splitting, Set.of(Deleted, Init),
+            Owned, Set.of(Assigned, Splitting, Released),
+            Assigned, Set.of(Owned, Released),
+            Released, Set.of(Owned, Free),
+            Splitting, Set.of(Deleted),
             Deleted, Set.of(Init)
     );
 

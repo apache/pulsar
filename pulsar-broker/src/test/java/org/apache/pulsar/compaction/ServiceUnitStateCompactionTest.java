@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -196,10 +197,21 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             int keyIndex = r.nextInt(maxKeys);
             String key = "key" + keyIndex;
             ServiceUnitStateData prev = expected.get(key);
-            ServiceUnitState prevState = prev == null ? Init : prev.state();
-            ServiceUnitState state = r.nextBoolean() ? nextInvalidState(prevState) :
+            ServiceUnitState prevState = state(prev);
+            boolean invalid =  r.nextBoolean();
+            ServiceUnitState state = invalid ? nextInvalidState(prevState) :
                     nextValidState(prevState);
-            ServiceUnitStateData value = new ServiceUnitStateData(state, key + ":" + j);
+            ServiceUnitStateData value;
+            if (invalid) {
+                value = new ServiceUnitStateData(state, key + ":" + j, false);
+            } else {
+                if (state == Init) {
+                    value = new ServiceUnitStateData(state, key + ":" + j, true);
+                } else {
+                    value = new ServiceUnitStateData(state, key + ":" + j, false);
+                }
+            }
+
             producer.newMessage().key(key).value(value).send();
             if (!strategy.shouldKeepLeft(prev, value)) {
                 expected.put(key, value);
@@ -719,9 +731,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
 
-        producer.newMessage().key("1").value(testValue(Owned, "1")).send();
-        producer.newMessage().key("2").value(testValue(Owned, "3")).send();
-        producer.newMessage().key("3").value(testValue(Owned, "5")).send();
+        producer.newMessage().key("1").value(testValue("1")).send();
+        producer.newMessage().key("2").value(testValue("3")).send();
+        producer.newMessage().key("3").value(testValue( "5")).send();
         producer.newMessage().key("1").value(null).send();
         producer.newMessage().key("2").value(null).send();
 

@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Init;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
@@ -48,8 +48,16 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
 
     @Override
     public boolean shouldKeepLeft(ServiceUnitStateData from, ServiceUnitStateData to) {
-        ServiceUnitState prevState = from == null ? Init : from.state();
-        ServiceUnitState state = to == null ? Init : to.state();
+        if (to == null) {
+            return false;
+        } else if (to.force()) {
+            return false;
+        }
+
+
+        ServiceUnitState prevState = state(from);
+        ServiceUnitState state = state(to);
+
         if (!ServiceUnitState.isValidTransition(prevState, state)) {
             return true;
         }

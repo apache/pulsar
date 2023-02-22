@@ -48,7 +48,15 @@ public class ServiceUnitStateCompactionStrategyTest {
     public void test() throws InterruptedException {
         String dst = "dst";
         String src = "src";
-        assertFalse(strategy.shouldKeepLeft(data(Init), data(Init)));
+
+        assertFalse(strategy.shouldKeepLeft(
+                new ServiceUnitStateData(Init, dst),
+                new ServiceUnitStateData(Init, dst, true)));
+
+        assertFalse(strategy.shouldKeepLeft(
+                data(Owned), null));
+
+        assertTrue(strategy.shouldKeepLeft(data(Init), data(Init)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Free)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Assigned)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Owned)));
@@ -56,7 +64,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Splitting)));
         assertFalse(strategy.shouldKeepLeft(data(Init), data(Deleted)));
 
-        assertFalse(strategy.shouldKeepLeft(data(Assigned), data(Init)));
+        assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Init)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned, "dst1"), data(Owned, "dst2")));
@@ -69,7 +77,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Splitting, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Assigned), data(Deleted, dst)));
 
-        assertFalse(strategy.shouldKeepLeft(data(Owned), data(Init)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned), data(Init)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data(Assigned, src, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data(Assigned, dst)));
@@ -88,7 +96,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data(Splitting, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data(Deleted, dst)));
 
-        assertFalse(strategy.shouldKeepLeft(data(Released), data(Init)));
+        assertTrue(strategy.shouldKeepLeft(data(Released), data(Init)));
         assertFalse(strategy.shouldKeepLeft(data(Released), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Released, "dst1"), data(Free, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Released, "src1", dst), data(Free, "src2", dst)));
@@ -101,7 +109,7 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Released), data(Splitting)));
         assertTrue(strategy.shouldKeepLeft(data(Released), data(Deleted, dst)));
 
-        assertFalse(strategy.shouldKeepLeft(data(Splitting), data(Init)));
+        assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Init)));
         assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Assigned)));
         assertTrue(strategy.shouldKeepLeft(data(Splitting), data(Owned)));
