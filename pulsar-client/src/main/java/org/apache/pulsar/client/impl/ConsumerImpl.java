@@ -1076,7 +1076,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
-        releaseMsgIfEnabledPooledMsg();
+        if (poolMessages) {
+            releasePooledMessages();
+        }
     }
 
     /**
@@ -1085,10 +1087,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      *   2. Increment epoch will auto release all messages which received after close.
      *   3. Call "clearIncomingMessages" in "internalPinnedExecutor" is used to clear messages in flight.
      */
-    private void releaseMsgIfEnabledPooledMsg() {
-        if (!poolMessages) {
-            return;
-        }
+    private void releasePooledMessages() {
         // Increment epoch.
         CONSUMER_EPOCH.incrementAndGet(this);
         // Try clear the incoming queue in internalPinnedExecutor-thread.
