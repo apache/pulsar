@@ -1077,8 +1077,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.getStatTimeout().ifPresent(Timeout::cancel);
         // Execute "clearIncomingMessages" regardless of whether "internalPinnedExecutor" has shutdown or not.
         // Call "clearIncomingMessages" in "internalPinnedExecutor" is used to clear messages in flight.
-        clearIncomingMessages();
-        internalPinnedExecutor.execute(this::clearIncomingMessages);
+        if (!internalPinnedExecutor.isShutdown()) {
+            internalPinnedExecutor.execute(this::clearIncomingMessages);
+        } else {
+            clearIncomingMessages();
+        }
     }
 
     void activeConsumerChanged(boolean isActive) {
