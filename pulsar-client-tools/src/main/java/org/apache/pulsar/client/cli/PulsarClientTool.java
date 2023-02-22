@@ -100,7 +100,7 @@ public class PulsarClientTool {
     protected CmdProduce produceCommand;
     protected CmdConsume consumeCommand;
     CmdGenerateDocumentation generateDocumentation;
-
+    CmdEnvironmentVariables environmentVariables;
     public PulsarClientTool(Properties properties) {
         rootParams = new RootParams();
         initRootParamsFromProperties(properties);
@@ -135,6 +135,7 @@ public class PulsarClientTool {
         jcommander.addCommand("produce", produceCommand);
         jcommander.addCommand("consume", consumeCommand);
         jcommander.addCommand("generate_documentation", generateDocumentation);
+        jcommander.addCommand("environment_variables", environmentVariables);
     }
 
     protected void initRootParamsFromProperties(Properties properties) {
