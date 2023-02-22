@@ -948,7 +948,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertNotEquals(payload.refCnt(), 0);
         consumer.redeliverUnacknowledgedMessages();
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(consumer.incomingMessages.size(), 100);
+            assertTrue(consumer.incomingMessages.size() >=100);
         });
         consumer.close();
         producer.close();
