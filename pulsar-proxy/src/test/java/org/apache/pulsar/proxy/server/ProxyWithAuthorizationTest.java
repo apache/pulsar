@@ -578,7 +578,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
 
         admin = spy(PulsarAdmin.builder().serviceHttpUrl("https://localhost:" + webServer.getListenPortHTTPS().get())
-                .tlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
     }
 
