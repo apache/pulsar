@@ -959,7 +959,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
-        var availableBrokers = new HashSet(brokerRegistry.getAvailableBrokersAsync()
+        var availableBrokers = new HashSet<>(brokerRegistry.getAvailableBrokersAsync()
                 .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();

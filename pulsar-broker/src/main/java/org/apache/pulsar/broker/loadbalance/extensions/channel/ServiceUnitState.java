@@ -24,7 +24,7 @@ import java.util.Set;
 /**
  * Defines the possible states for service units.
  *
- * Refer to Service Unit State Channel in https://github.com/apache/pulsar/issues/16691 for additional details.
+ * @see <a href="https://github.com/apache/pulsar/issues/16691"> Service Unit State Channel </a> for additional details.
  */
 public enum ServiceUnitState {
 

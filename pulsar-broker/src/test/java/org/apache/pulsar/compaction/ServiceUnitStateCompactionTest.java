@@ -536,7 +536,6 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                     // Stuck at handling Assigned
                     handledReleased.set(false);
                     semaphore.acquire();
-                    //Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
