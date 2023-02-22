@@ -275,7 +275,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
-                    // TODO: Support isolation policies
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
