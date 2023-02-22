@@ -1093,7 +1093,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // Try clear the incoming queue in internalPinnedExecutor-thread.
         boolean executorIsShutdown = false;
         try {
-            if (!internalPinnedExecutor.isShutdown()) {
+            if (!(executorIsShutdown = internalPinnedExecutor.isShutdown())) {
                 internalPinnedExecutor.execute(this::clearIncomingMessages);
             }
         } catch (RejectedExecutionException rejectedExecutionException) {
