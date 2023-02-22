@@ -86,6 +86,7 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -272,11 +273,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
+            public void initialize(PulsarService pulsar) {
+                // No-op
+            }
+
+            @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        LoadManagerContext context) {
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
                 brokers.remove(pulsar1.getLookupServiceAddress());
                 return brokers;
             }
+
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
@@ -289,14 +297,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("test-filter-has-exception");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
-        doReturn(List.of(new BrokerFilter() {
-            @Override
-            public String name() {
-                return "Mock broker filter";
-            }
-
+        doReturn(List.of(new MockBrokerFilter() {
             @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
                                                         LoadManagerContext context) throws BrokerFilterException {
                 brokers.clear();
                 throw new BrokerFilterException("Test");
@@ -305,6 +309,35 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         assertTrue(brokerLookupData.isPresent());
+    }
+
+    @Test
+    public void testMoreThenOneFilter() throws Exception {
+        TopicName topicName = TopicName.get("test-filter-has-exception");
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+
+        String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
+        doReturn(List.of(new MockBrokerFilter() {
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                brokers.remove(lookupServiceAddress1);
+                return brokers;
+            }
+        },new MockBrokerFilter() {
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                brokers.clear();
+                throw new BrokerFilterException("Test");
+            }
+        })).when(primaryLoadManager).getBrokerFilterPipeline();
+
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        assertTrue(brokerLookupData.isPresent());
+        assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
     }
 
     @Test
@@ -491,6 +524,20 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         """.split("\n"));
         var actual = primaryLoadManager.getMetrics().stream().map(m -> m.toString()).collect(Collectors.toSet());
         assertEquals(actual, expected);
+    }
+
+    private static abstract class MockBrokerFilter implements BrokerFilter {
+
+        @Override
+        public String name() {
+            return "Mock-broker-filter";
+        }
+
+        @Override
+        public void initialize(PulsarService pulsar) {
+            // No-op
+        }
+
     }
 
     private static void cleanTableView(ServiceUnitStateChannel channel)

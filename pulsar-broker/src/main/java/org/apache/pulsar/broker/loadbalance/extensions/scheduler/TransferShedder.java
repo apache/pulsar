@@ -25,6 +25,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MinMaxPriorityQueue;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
@@ -32,12 +36,15 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -71,6 +78,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private final LoadStats stats = new LoadStats();
     private final PulsarService pulsar;
     private final SimpleResourceAllocationPolicies allocationPolicies;
+    private final IsolationPoliciesHelper isolationPoliciesHelper;
 
     private final UnloadDecision decision = new UnloadDecision();
 
@@ -78,11 +86,13 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     public TransferShedder(){
         this.pulsar = null;
         this.allocationPolicies = null;
+        this.isolationPoliciesHelper = null;
     }
 
     public TransferShedder(PulsarService pulsar){
         this.pulsar = pulsar;
         this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
+        this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
     }
 
 
@@ -334,7 +344,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     int remainingTopBundles = topBundlesLoadData.size();
                     for (var e : topBundlesLoadData) {
                         String bundle = e.bundleName();
-                        if (!recentlyUnloadedBundles.containsKey(bundle) && isTransferable(bundle)) {
+                        if (!recentlyUnloadedBundles.containsKey(bundle)
+                                && isTransferable(context, bundle, maxBroker, Optional.ofNullable(minBroker))) {
                             var bundleData = e.stats();
                             double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
                             if (remainingTopBundles > 1
@@ -342,8 +353,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                     || !atLeastOneBundleSelected)) {
                                 if (transfer) {
                                     selectedBundlesCache.put(maxBroker,
-                                            new Unload(maxBroker, bundle,
-                                                    Optional.of(minBroker)));
+                                            new Unload(maxBroker, bundle, Optional.ofNullable(minBroker)));
                                 } else {
                                     selectedBundlesCache.put(maxBroker,
                                             new Unload(maxBroker, bundle));
@@ -412,18 +422,26 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     }
 
 
-    private boolean isTransferable(String bundle) {
+    private boolean isTransferable(LoadManagerContext context,
+                                   String bundle,
+                                   String maxBroker,
+                                   Optional<String> broker) {
         if (pulsar == null || allocationPolicies == null) {
             return true;
         }
-        NamespaceName namespace = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle));
-        if (allocationPolicies.areIsolationPoliciesPresent(namespace)) {
+        String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+        NamespaceName namespaceName = NamespaceName.get(namespace);
+        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+        NamespaceBundle namespaceBundle =
+                pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespace, bundleRange);
+
+        if (!canTransferWithIsolationPoliciesToBroker(context, namespaceBundle, maxBroker, broker)) {
             return false;
         }
 
         try {
             var localPoliciesOptional = pulsar
-                    .getPulsarResources().getLocalPolicies().getLocalPolicies(namespace);
+                    .getPulsarResources().getLocalPolicies().getLocalPolicies(namespaceName);
             if (localPoliciesOptional.isPresent() && StringUtils.isNotBlank(
                     localPoliciesOptional.get().namespaceAntiAffinityGroup)) {
                 return false;
@@ -433,5 +451,46 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Check the gave bundle and broker can be transfer or unload with isolation policies applied.
+     *
+     * @param context The load manager context.
+     * @param namespaceBundle The bundle try to unload or transfer.
+     * @param maxBroker The current broker.
+     * @param minBroker The broker will be transfer to.
+     * @return Can be transfer/unload or not.
+     */
+    private boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
+                                                             NamespaceBundle namespaceBundle,
+                                                             String maxBroker,
+                                                             Optional<String> minBroker) {
+        if (isolationPoliciesHelper == null ||
+                !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
+            return true;
+        }
+        int timeout = context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds();
+        boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
+        Map<String, BrokerLookupData> availableBrokers;
+        try {
+            availableBrokers =
+                    context.brokerRegistry().getAvailableBrokerLookupDataAsync().get(timeout, TimeUnit.SECONDS);
+        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            log.error("Failed to fetch available brokers.", e);
+            return false;
+        }
+
+        Set<String> candidates = isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, namespaceBundle);
+
+        // Remove the current bundle owner broker.
+        candidates.remove(maxBroker);
+
+        // Unload: Check if there are any more candidates available for selection.
+        if (minBroker.isEmpty() || !transfer) {
+            return !candidates.isEmpty();
+        }
+        // Transfer: Check if this broker is among the candidates.
+        return candidates.contains(minBroker.get());
     }
 }
