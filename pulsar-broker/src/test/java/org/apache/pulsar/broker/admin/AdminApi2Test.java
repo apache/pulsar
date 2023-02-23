@@ -1791,7 +1791,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 40);
     }
 
-    @Test(timeOut = 300000)
+    @Test(timeOut = 30000)
     public void testBacklogNoDelayedForPartitionedTopic() throws PulsarClientException, PulsarAdminException, InterruptedException {
         final String topic = "persistent://prop-xyz/ns1/precise-back-log-no-delayed-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 2);
