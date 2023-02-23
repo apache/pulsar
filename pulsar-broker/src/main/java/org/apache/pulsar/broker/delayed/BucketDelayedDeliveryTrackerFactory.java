@@ -49,6 +49,7 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     public void initialize(PulsarService pulsarService) throws Exception {
         ServiceConfiguration config = pulsarService.getConfig();
         bucketSnapshotStorage = new BookkeeperBucketSnapshotStorage(pulsarService);
+        bucketSnapshotStorage.start();
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();

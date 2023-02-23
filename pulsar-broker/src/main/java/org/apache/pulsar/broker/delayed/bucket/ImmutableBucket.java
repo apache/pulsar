@@ -134,7 +134,11 @@ class ImmutableBucket extends Bucket {
     }
 
     CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
-        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), currentSegmentEntryId,
+        int nextSegmentEntryId = currentSegmentEntryId + 1;
+        if (nextSegmentEntryId > lastSegmentEntryId) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
                 lastSegmentEntryId);
     }
 

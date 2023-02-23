@@ -303,17 +303,21 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             long numberMessages = bucketL.numberBucketDelayedMessages + bucketR.numberBucketDelayedMessages;
             if (numberMessages < minNumberMessages) {
                 minNumberMessages = (int) numberMessages;
-                minIndex = i;
+                if (bucketL.lastSegmentEntryId > bucketL.getCurrentSegmentEntryId()) {
+                    minIndex = i;
+                }
             }
+        }
+
+        if (minIndex == -1) {
+            log.warn("[{}] Can't find able merged bucket", dispatcher.getName());
+            return CompletableFuture.completedFuture(null);
         }
         return asyncMergeBucketSnapshot(values.get(minIndex), values.get(minIndex + 1));
     }
 
     private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot(ImmutableBucket bucketA,
                                                                           ImmutableBucket bucketB) {
-        immutableBuckets.remove(Range.closed(bucketA.startLedgerId, bucketA.endLedgerId));
-        immutableBuckets.remove(Range.closed(bucketB.startLedgerId, bucketB.endLedgerId));
-
         CompletableFuture<Long> snapshotCreateFutureA =
                 bucketA.getSnapshotCreateFuture().orElse(CompletableFuture.completedFuture(null));
         CompletableFuture<Long> snapshotCreateFutureB =
@@ -332,12 +336,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                         combinedDelayedIndexQueue, bucketA.startLedgerId, bucketB.endLedgerId);
                         afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
 
-                        immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
-                                .orElse(CompletableFuture.completedFuture(null)).thenCompose(___ -> {
-                                    CompletableFuture<Void> removeAFuture = bucketA.asyncDeleteBucketSnapshot();
-                                    CompletableFuture<Void> removeBFuture = bucketB.asyncDeleteBucketSnapshot();
-                                    return CompletableFuture.allOf(removeAFuture, removeBFuture);
-                                });
+                        CompletableFuture<Long> snapshotCreateFuture = CompletableFuture.completedFuture(null);
+                        if (immutableBucketDelayedIndexPair != null) {
+                            snapshotCreateFuture = immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
+                                    .orElse(CompletableFuture.completedFuture(null));
+                        }
+
+                        immutableBuckets.remove(Range.closed(bucketA.startLedgerId, bucketA.endLedgerId));
+                        immutableBuckets.remove(Range.closed(bucketB.startLedgerId, bucketB.endLedgerId));
                     });
         });
     }

@@ -36,6 +36,7 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
@@ -253,5 +254,13 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         int size = tracker.getImmutableBuckets().asMapOfRanges().size();
 
         assertEquals(10, size);
+
+        clockTime.set(110 * 10);
+
+        NavigableSet<PositionImpl> scheduledMessages = tracker.getScheduledMessages(110);
+        for (int i = 1; i <= 110; i++) {
+            PositionImpl position = scheduledMessages.pollFirst();
+            assertEquals(position, PositionImpl.get(i, i));
+        }
     }
 }
