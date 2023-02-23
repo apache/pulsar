@@ -201,14 +201,14 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ClientCnx cnx = pool.getConnection(
                 InetSocketAddress.createUnresolved("proxy", 9999),
                 InetSocketAddress.createUnresolved("proxy", 9999)).get();
-        Assert.assertEquals(cnx.remoteHostName, "localhost");
+        Assert.assertEquals(cnx.remoteHostName, "proxy");
         Assert.assertNull(cnx.proxyToTargetBrokerAddress);
         cnx.close();
 
         cnx = pool.getConnection(
                 InetSocketAddress.createUnresolved("broker", 9999),
                 InetSocketAddress.createUnresolved("proxy", 9999)).get();
-        Assert.assertEquals(cnx.remoteHostName, "localhost");
+        Assert.assertEquals(cnx.remoteHostName, "proxy");
         Assert.assertEquals(cnx.proxyToTargetBrokerAddress, "broker:9999");
         cnx.close();
 
@@ -216,7 +216,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         cnx = pool.getConnection(
                 InetSocketAddress.createUnresolved("broker", 9999),
                 InetSocketAddress.createUnresolved("broker", 9999)).get();
-        Assert.assertEquals(cnx.remoteHostName, "127.0.0.1");
+        Assert.assertEquals(cnx.remoteHostName, "broker");
         Assert.assertNull(cnx.proxyToTargetBrokerAddress);
         cnx.close();
 

@@ -213,7 +213,6 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     CompletableFuture<Channel> initializeClientCnx(Channel ch,
                                                    InetSocketAddress logicalAddress,
-                                                   InetSocketAddress resolvedPhysicalAddress,
                                                    InetSocketAddress unresolvedPhysicalAddress) {
         return NettyFutureUtil.toCompletableFuture(ch.eventLoop().submit(() -> {
             final ClientCnx cnx = (ClientCnx) ch.pipeline().get("handler");
@@ -228,7 +227,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                 cnx.setTargetBroker(logicalAddress);
             }
 
-            cnx.setRemoteHostName(resolvedPhysicalAddress.getHostString());
+            cnx.setRemoteHostName(unresolvedPhysicalAddress.getHostString());
 
             return ch;
         }));
