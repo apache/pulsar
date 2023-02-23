@@ -37,9 +37,7 @@ public class StreamingStats {
         statsStream.writePair("producerId", stats.producerId);
         statsStream.writePair("producerName", stats.getProducerName());
         statsStream.writePair("connectedSince", stats.getConnectedSince());
-        if (stats.getClientVersion() != null) {
-            statsStream.writePair("clientVersion", stats.getClientVersion());
-        }
+        writeClientVersion(statsStream, stats.getClientVersion());
 
         // add metadata
         statsStream.startObject("metadata");
@@ -71,9 +69,7 @@ public class StreamingStats {
             statsStream.writePair("unackedMessages", stats.unackedMessages);
             statsStream.writePair("blockedConsumerOnUnackedMsgs", stats.blockedConsumerOnUnackedMsgs);
         }
-        if (stats.getClientVersion() != null) {
-            statsStream.writePair("clientVersion", stats.getClientVersion());
-        }
+        writeClientVersion(statsStream, stats.getClientVersion());
 
         // add metadata
         statsStream.startObject("metadata");
@@ -83,5 +79,11 @@ public class StreamingStats {
         statsStream.endObject();
 
         statsStream.endObject();
+    }
+
+    private static void writeClientVersion(StatsOutputStream statsStream, String clientVersion) {
+        if (clientVersion != null) {
+            statsStream.writePair("clientVersion", clientVersion);
+        }
     }
 }

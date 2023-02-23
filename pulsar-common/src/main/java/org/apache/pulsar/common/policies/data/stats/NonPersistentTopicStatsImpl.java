@@ -109,8 +109,9 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     public void addPublisher(NonPersistentPublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
-            nonPersistentPublishersMap.put(stats.getProducerName(), stats);
+        final String producerName;
+        if (stats.isSupportsPartialProducer() && (producerName = stats.getProducerName()) != null) {
+            nonPersistentPublishersMap.put(producerName, stats);
         } else {
             stats.setSupportsPartialProducer(false); // setter method with side effect
             nonPersistentPublishers.add(stats);
@@ -157,12 +158,13 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         this.msgDropRate += stats.msgDropRate;
         for (int index = 0; index < stats.getNonPersistentPublishers().size(); index++) {
             NonPersistentPublisherStats s = stats.getNonPersistentPublishers().get(index);
-            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
+            final String producerName;
+            if (s.isSupportsPartialProducer() && (producerName = s.getProducerName()) != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
-                        .computeIfAbsent(s.getProducerName(), key -> {
+                        .computeIfAbsent(producerName, key -> {
                             final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
                             newStats.setSupportsPartialProducer(true);
-                            newStats.setProducerName(s.getProducerName());
+                            newStats.setProducerName(producerName);
                             return newStats;
                         })).add((NonPersistentPublisherStatsImpl) s);
             } else {

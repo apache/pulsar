@@ -160,8 +160,9 @@ public class TopicStatsImpl implements TopicStats {
     }
 
     public void addPublisher(PublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
-            publishersMap.put(stats.getProducerName(), stats);
+        final String producerName;
+        if (stats.isSupportsPartialProducer() && (producerName = stats.getProducerName()) != null) {
+            publishersMap.put(producerName, stats);
         } else {
             stats.setSupportsPartialProducer(false); // setter method with side effect
             publishers.add(stats);
@@ -246,11 +247,12 @@ public class TopicStatsImpl implements TopicStats {
 
         for (int index = 0; index < stats.getPublishers().size(); index++) {
            PublisherStats s = stats.getPublishers().get(index);
-           if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
-               this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
+           final String producerName;
+           if (s.isSupportsPartialProducer() && (producerName = s.getProducerName()) != null) {
+               this.publishersMap.computeIfAbsent(producerName, key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
                    newStats.setSupportsPartialProducer(true);
-                   newStats.setProducerName(s.getProducerName());
+                   newStats.setProducerName(producerName);
                    return newStats;
                }).add((PublisherStatsImpl) s);
            } else {
