@@ -24,60 +24,47 @@ import java.util.Set;
 /**
  * Defines the possible states for service units.
  *
- * The following diagram defines the valid state changes
- *
- *                  ┌───────────┐
- *       ┌──────────┤ released  │◄────────┐
- *       │own       └───────────┘         │release
- *       │                                │
- *       │                                │
- *       ▼                                │
- *    ┌────────┐  assign(transfer)  ┌─────┴────┐
- *    │        ├───────────────────►│          │
- *    │ owned  │                    │ assigned │
- *    │        │◄───────────────────┤          │
- *    └──┬─────┤      own           └──────────┘
- *       │  ▲  │                         ▲
- *       │  │  │                         │
- *       │  │  └──────────────┐          │
- *       │  │                 │          │
- *       │  │        unload   │          │ assign(assignment)
- * split │  │                 │          │
- *       │  │                 │          │
- *       │  │ create(child)   │          │
- *       │  │                 │          │
- *       ▼  │                 │          │
- *    ┌─────┴─────┐           └─────►┌───┴──────┐
- *    │           │                  │          │
- *    │ splitting ├────────────────► │   free   │
- *    │           │   discard(parent)│          │
- *    └───────────┘                  └──────────┘
+ * @see <a href="https://github.com/apache/pulsar/issues/16691"> Service Unit State Channel </a> for additional details.
  */
 public enum ServiceUnitState {
 
-    Free, // not owned by any broker (terminal state)
+    Init, // initializing the state. no previous state(terminal state)
+
+    Free, // not owned by any broker (semi-terminal state)
 
     Owned, // owned by a broker (terminal state)
 
-    Assigned, // the ownership is assigned(but the assigned broker has not been notified the ownership yet)
+    Assigning, // the ownership is being assigned (e.g. the new ownership is being notified to the target broker)
 
-    Released, // the source broker's ownership has been released (e.g. the topic connections are closed)
+    Releasing, // the source broker's ownership is being released (e.g. the topic connections are being closed)
 
-    Splitting; // the service unit(e.g. bundle) is in the process of splitting.
+    Splitting, // the service unit is in the process of splitting. (e.g. the metadata store is being updated)
 
-    private static Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
-            // (Free -> Released | Splitting) transitions are required
-            // when the topic is compacted in the middle of transfer or split.
-            Free, Set.of(Owned, Assigned, Released, Splitting),
-            Owned, Set.of(Assigned, Splitting, Free),
-            Assigned, Set.of(Owned, Released, Free),
-            Released, Set.of(Owned, Free),
-            Splitting, Set.of(Free)
+    Deleted; // deleted in the system (semi-terminal state)
+
+    private static final Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
+            // (Init -> all states) transitions are required
+            // when the topic is compacted in the middle of assign, transfer or split.
+            Init, Set.of(Free, Owned, Assigning, Releasing, Splitting, Deleted),
+            Free, Set.of(Assigning, Init),
+            Owned, Set.of(Assigning, Splitting, Releasing),
+            Assigning, Set.of(Owned, Releasing),
+            Releasing, Set.of(Owned, Free),
+            Splitting, Set.of(Deleted),
+            Deleted, Set.of(Init)
+    );
+
+    private static final Set<ServiceUnitState> inFlightStates = Set.of(
+            Assigning, Releasing, Splitting
     );
 
     public static boolean isValidTransition(ServiceUnitState from, ServiceUnitState to) {
         Set<ServiceUnitState> transitions = validTransitions.get(from);
         return transitions.contains(to);
+    }
+
+    public static boolean isInFlightState(ServiceUnitState state) {
+        return inFlightStates.contains(state);
     }
 
 }

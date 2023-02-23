@@ -20,24 +20,36 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Defines data for the service unit state changes.
  * This data will be broadcast in ServiceUnitStateChannel.
  */
 
-public record ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker, long timestamp) {
+public record ServiceUnitStateData(
+        ServiceUnitState state, String broker, String sourceBroker, boolean force, long timestamp) {
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
-        Objects.requireNonNull(broker);
+        if (StringUtils.isBlank(broker)) {
+            throw new IllegalArgumentException("Empty broker");
+        }
     }
 
     public ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker) {
-        this(state, broker, sourceBroker, System.currentTimeMillis());
+        this(state, broker, sourceBroker, false, System.currentTimeMillis());
     }
 
     public ServiceUnitStateData(ServiceUnitState state, String broker) {
-        this(state, broker, null, System.currentTimeMillis());
+        this(state, broker, null, false, System.currentTimeMillis());
+    }
+
+    public ServiceUnitStateData(ServiceUnitState state, String broker, boolean force) {
+        this(state, broker, null, force, System.currentTimeMillis());
+    }
+
+    public static ServiceUnitState state(ServiceUnitStateData data) {
+        return data == null ? ServiceUnitState.Init : data.state();
     }
 }
