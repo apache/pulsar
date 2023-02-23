@@ -2545,7 +2545,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final String checkOwner = getPrincipal();
         return service.pulsar().getTransactionMetadataStoreService()
                 .verifyTxnOwnership(txnID, checkOwner)
-                .thenComposeAsync(isOwner -> {
+                .thenCompose(isOwner -> {
                     if (isOwner) {
                         return CompletableFuture.completedFuture(true);
                     }
@@ -2556,7 +2556,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         return CompletableFuture.completedFuture(false);
                     }
-                }, ctx.executor());
+                });
     }
 
     @Override
