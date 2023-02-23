@@ -66,15 +66,15 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         createExceptionQueue.add(throwable);
     }
 
-    public void injectGetMetaDataExceptionQueue(Throwable throwable) {
+    public void injectGetMetaDataException(Throwable throwable) {
         getMetaDataExceptionQueue.add(throwable);
     }
 
-    public void injectGetSegmentExceptionQueue(Throwable throwable) {
+    public void injectGetSegmentException(Throwable throwable) {
         getSegmentExceptionQueue.add(throwable);
     }
 
-    public void injectDeleteExceptionQueue(Throwable throwable) {
+    public void injectDeleteException(Throwable throwable) {
         deleteExceptionQueue.add(throwable);
     }
 

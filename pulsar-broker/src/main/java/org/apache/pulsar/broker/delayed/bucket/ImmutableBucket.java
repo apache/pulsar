@@ -172,6 +172,9 @@ class ImmutableBucket extends Bucket {
                     if (ex != null) {
                         log.warn("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
                                 dispatcher.getName(), bucketId, bucketKey, ex);
+                    } else {
+                        log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
+                                 dispatcher.getName(), bucketId, bucketKey);
                     }
         });
     }

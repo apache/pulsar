@@ -270,12 +270,17 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
         mockBucketSnapshotStorage.injectCreateException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
-        mockBucketSnapshotStorage.injectGetMetaDataExceptionQueue(
+        mockBucketSnapshotStorage.injectGetMetaDataException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Get entry"));
-        mockBucketSnapshotStorage.injectGetSegmentExceptionQueue(
+        mockBucketSnapshotStorage.injectGetSegmentException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Get entry"));
-        mockBucketSnapshotStorage.injectDeleteExceptionQueue(
+        mockBucketSnapshotStorage.injectDeleteException(
                 new BucketSnapshotPersistenceException("Bookie operation timeout, op: Delete entry"));
+
+        assertEquals(1, mockBucketSnapshotStorage.createExceptionQueue.size());
+        assertEquals(1, mockBucketSnapshotStorage.getMetaDataExceptionQueue.size());
+        assertEquals(1, mockBucketSnapshotStorage.getSegmentExceptionQueue.size());
+        assertEquals(1, mockBucketSnapshotStorage.deleteExceptionQueue.size());
 
         for (int i = 1; i <= 110; i++) {
             tracker.addMessage(i, i, i * 10);
