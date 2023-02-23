@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import java.util.List;
+import com.google.common.collect.Lists;
 import java.util.Optional;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -50,7 +50,7 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Test
     public void testReplicationClient() throws Exception {
-        for (BrokerService ns : List.of(ns1, ns2, ns3)) {
+        for (BrokerService ns : Lists.newArrayList(ns1, ns2, ns3)) {
             // load the client
             ns.getReplicationClient(cluster1, Optional.of(admin1.clusters().getCluster(cluster1)));
             ns.getReplicationClient(cluster2, Optional.of(admin1.clusters().getCluster(cluster2)));

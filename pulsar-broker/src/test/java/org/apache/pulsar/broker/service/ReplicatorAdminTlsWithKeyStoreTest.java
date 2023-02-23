@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.collect.Lists;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -49,7 +50,7 @@ public class ReplicatorAdminTlsWithKeyStoreTest extends ReplicatorTestBase {
 
     @Test
     public void testReplicationAdmin() throws Exception {
-        for (BrokerService ns : List.of(ns1, ns2, ns3)) {
+        for (BrokerService ns : Lists.newArrayList(ns1, ns2, ns3)) {
             // load the admin
             ns.getClusterPulsarAdmin(cluster1, Optional.of(admin1.clusters().getCluster(cluster1)));
             ns.getClusterPulsarAdmin(cluster2, Optional.of(admin1.clusters().getCluster(cluster2)));

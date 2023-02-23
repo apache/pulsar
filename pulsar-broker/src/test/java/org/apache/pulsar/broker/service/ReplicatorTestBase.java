@@ -238,7 +238,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .serviceUrlTls("https://global:8443")
                 .build());
         admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().createNamespace("pulsar/global/ns");
         admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet(cluster1, cluster2, cluster3));
 
         Thread.sleep(100);
