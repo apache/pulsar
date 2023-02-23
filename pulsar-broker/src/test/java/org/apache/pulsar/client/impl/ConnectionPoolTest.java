@@ -21,11 +21,17 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import com.google.common.collect.Lists;
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.AbstractAddressResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import io.netty.util.concurrent.Promise;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -66,7 +72,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         List<InetSocketAddress> result = Lists.newArrayList();
         result.add(new InetSocketAddress("127.0.0.1", brokerPort));
         Mockito.when(pool.resolveName(InetSocketAddress.createUnresolved("non-existing-dns-name",
-                brokerPort)))
+                        brokerPort)))
                 .thenReturn(CompletableFuture.completedFuture(result));
 
         client.newProducer().topic("persistent://sample/standalone/ns/my-topic").create();
@@ -107,7 +113,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
 
         InetSocketAddress brokerAddress =
-            InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
+                InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
         IntStream.range(1, 5).forEach(i -> {
             pool.getConnection(brokerAddress).thenAccept(cnx -> {
                 Assert.assertTrue(cnx.channel().isActive());
@@ -119,6 +125,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
         pool.closeAllConnections();
         pool.close();
+        eventLoop.shutdownGracefully();
     }
 
     @Test
@@ -129,7 +136,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop);
 
         InetSocketAddress brokerAddress =
-            InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
+                InetSocketAddress.createUnresolved("127.0.0.1", brokerPort);
         IntStream.range(1, 10).forEach(i -> {
             pool.getConnection(brokerAddress).thenAccept(cnx -> {
                 Assert.assertTrue(cnx.channel().isActive());
@@ -141,5 +148,82 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
         pool.closeAllConnections();
         pool.close();
+        eventLoop.shutdownGracefully();
+    }
+
+
+    @Test
+    public void testSetProxyToTargetBrokerAddress() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setConnectionsPerBroker(5);
+
+
+        EventLoopGroup eventLoop =
+                EventLoopUtil.newEventLoopGroup(8, false,
+                        new DefaultThreadFactory("test"));
+
+        final AbstractAddressResolver resolver = new AbstractAddressResolver(eventLoop.next()) {
+            @Override
+            protected boolean doIsResolved(SocketAddress socketAddress) {
+                return !((InetSocketAddress) socketAddress).isUnresolved();
+            }
+
+            @Override
+            protected void doResolve(SocketAddress socketAddress, Promise promise) throws Exception {
+                promise.setFailure(new IllegalStateException());
+                throw new IllegalStateException();
+            }
+
+            @Override
+            protected void doResolveAll(SocketAddress socketAddress, Promise promise) throws Exception {
+                final InetSocketAddress socketAddress1 = (InetSocketAddress) socketAddress;
+                final boolean isProxy = socketAddress1.getHostName().equals("proxy");
+                final boolean isBroker = socketAddress1.getHostName().equals("broker");
+                if (!isProxy && !isBroker) {
+                    promise.setFailure(new IllegalStateException());
+                    throw new IllegalStateException();
+                }
+                List<InetSocketAddress> result = new ArrayList<>();
+                if (isProxy) {
+                    result.add(new InetSocketAddress("localhost", brokerPort));
+                    result.add(InetSocketAddress.createUnresolved("proxy", brokerPort));
+                } else {
+                    result.add(new InetSocketAddress("127.0.0.1", brokerPort));
+                    result.add(InetSocketAddress.createUnresolved("broker", brokerPort));
+                }
+                promise.setSuccess(result);
+            }
+        };
+
+        ConnectionPool pool = spyWithClassAndConstructorArgs(ConnectionPool.class, conf, eventLoop,
+                (Supplier<ClientCnx>) () -> new ClientCnx(conf, eventLoop), Optional.of(resolver));
+
+
+        ClientCnx cnx = pool.getConnection(
+                InetSocketAddress.createUnresolved("proxy", 9999),
+                InetSocketAddress.createUnresolved("proxy", 9999)).get();
+        Assert.assertEquals(cnx.remoteHostName, "proxy");
+        Assert.assertNull(cnx.proxyToTargetBrokerAddress);
+        cnx.close();
+
+        cnx = pool.getConnection(
+                InetSocketAddress.createUnresolved("broker", 9999),
+                InetSocketAddress.createUnresolved("proxy", 9999)).get();
+        Assert.assertEquals(cnx.remoteHostName, "proxy");
+        Assert.assertEquals(cnx.proxyToTargetBrokerAddress, "broker:9999");
+        cnx.close();
+
+
+        cnx = pool.getConnection(
+                InetSocketAddress.createUnresolved("broker", 9999),
+                InetSocketAddress.createUnresolved("broker", 9999)).get();
+        Assert.assertEquals(cnx.remoteHostName, "broker");
+        Assert.assertNull(cnx.proxyToTargetBrokerAddress);
+        cnx.close();
+
+
+        pool.closeAllConnections();
+        pool.close();
+        eventLoop.shutdownGracefully();
     }
 }
