@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
@@ -31,6 +32,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
 /**
@@ -77,12 +79,18 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData> 
         final var pulsarStats = pulsar.getBrokerService().getPulsarStats();
         synchronized (pulsarStats) {
             var brokerStats = pulsarStats.getBrokerStats();
+            var bundleStats = pulsarStats.getBundleStats();
+            var topics = 0;
+            for (Map.Entry<String, NamespaceBundleStats> bundleStatsEntry : bundleStats.entrySet()) {
+                topics += bundleStatsEntry.getValue().topics;
+            }
             localData.update(systemResourceUsage,
                     brokerStats.msgThroughputIn,
                     brokerStats.msgThroughputOut,
                     brokerStats.msgRateIn,
                     brokerStats.msgRateOut,
                     brokerStats.bundleCount,
+                    topics,
                     pulsar.getConfiguration());
 
         }

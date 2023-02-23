@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -30,14 +29,13 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
-import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.testng.annotations.Test;
 
 /**
  * Unit test for {@link BrokerVersionFilter}.
  */
 @Test(groups = "broker")
-public class BrokerVersionFilterTest {
+public class BrokerVersionFilterTest extends BrokerFilterTestBase {
 
 
     @Test
@@ -114,27 +112,5 @@ public class BrokerVersionFilterTest {
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
         brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
-    }
-
-    public LoadManagerContext getContext() {
-        LoadManagerContext mockContext = mock(LoadManagerContext.class);
-        ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setPreferLaterVersions(true);
-        doReturn(configuration).when(mockContext).brokerConfiguration();
-        return mockContext;
-    }
-
-    public BrokerLookupData getLookupData(String version) {
-        String webServiceUrl = "http://localhost:8080";
-        String webServiceUrlTls = "https://localhoss:8081";
-        String pulsarServiceUrl = "pulsar://localhost:6650";
-        String pulsarServiceUrlTls = "pulsar+ssl://localhost:6651";
-        Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
-        Map<String, String> protocols = new HashMap<>(){{
-            put("kafka", "9092");
-        }};
-        return new BrokerLookupData(
-                webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true, version);
     }
 }
