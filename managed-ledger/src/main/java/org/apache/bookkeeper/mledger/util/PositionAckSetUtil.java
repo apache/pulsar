@@ -59,6 +59,13 @@ public class PositionAckSetUtil {
         return ackSet;
     }
 
+    public static boolean isAckSetEmpty(long[] ackSet) {
+        BitSetRecyclable bitSet =  BitSetRecyclable.create().resetWords(ackSet);
+        boolean isEmpty = bitSet.isEmpty();
+        bitSet.recycle();
+        return isEmpty;
+    }
+
     //This method is compare two position which position is bigger than another one.
     //When the ledgerId and entryId in this position is same to another one and two position all have ack set, it will
     //compare the ack set next bit index is bigger than another one.
