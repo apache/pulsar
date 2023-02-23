@@ -690,7 +690,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
         }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
-        if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
+        if (isNotBlank(clientVersion)) {
             this.clientVersion = clientVersion.intern();
         }
         if (brokerInterceptor != null) {
