@@ -305,6 +305,17 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(110 * 10);
 
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout1, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout2, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout3, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout4, op: Get entry"));
+
+        assertEquals(tracker.getScheduledMessages(100).size(), 0);
+
         assertEquals(tracker.getScheduledMessages(100).size(), 80);
 
         assertTrue(mockBucketSnapshotStorage.createExceptionQueue.isEmpty());

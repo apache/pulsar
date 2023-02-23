@@ -54,9 +54,9 @@ abstract class Bucket {
 
     int lastSegmentEntryId;
 
-    int currentSegmentEntryId;
+    volatile int currentSegmentEntryId;
 
-    long snapshotLength;
+    volatile long snapshotLength;
 
     private volatile Long bucketId;
 

@@ -406,15 +406,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             long ledgerId = sharedBucketPriorityQueue.peekN2();
             long entryId = sharedBucketPriorityQueue.peekN3();
-            positions.add(new PositionImpl(ledgerId, entryId));
-
-            sharedBucketPriorityQueue.pop();
-            removeIndexBit(ledgerId, entryId);
 
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+                final int lastSegmentEntryId = bucket.currentSegmentEntryId;
                 log.info("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
-                        dispatcher.getName(), bucket.bucketKey(), bucket.currentSegmentEntryId + 1);
+                        dispatcher.getName(), bucket.bucketKey(), lastSegmentEntryId + 1);
                 // All message of current snapshot segment are scheduled, load next snapshot segment
                 // TODO make it asynchronous and not blocking this process
                 try {
@@ -434,6 +431,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         }
                     }).whenComplete((__, ex) -> {
                         if (ex != null) {
+                            // Back bucket state
+                            snapshotSegmentLastIndexTable.put(ledgerId, entryId, bucket);
+                            bucket.setCurrentSegmentEntryId(lastSegmentEntryId);
+
                             log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}",
                                     dispatcher.getName(), bucket.bucketKey(), ex);
                         } else {
@@ -441,11 +442,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                     dispatcher.getName(), bucket.bucketKey(), bucket.currentSegmentEntryId);
                         }
                     }).get(AsyncOperationTimeoutSeconds * MaxRetryTimes, TimeUnit.SECONDS);
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                    // TODO make this segment load again
-                    throw new RuntimeException(e);
+                } catch (Exception e) {
+                    // Ignore exception to reload this segment on the next schedule.
+                    break;
                 }
             }
+
+            positions.add(new PositionImpl(ledgerId, entryId));
+
+            sharedBucketPriorityQueue.pop();
+            removeIndexBit(ledgerId, entryId);
 
             --n;
             --numberDelayedMessages;
