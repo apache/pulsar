@@ -59,6 +59,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -384,8 +385,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public long getLastSnapshotTimestamps() {
-        return this.lastSnapshotTimestamps;
+    public void getSnapshotStats(TransactionBufferStats stats) {
+        stats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        TransactionBufferStats.SnapshotStats snapshotStats = new TransactionBufferStats.SnapshotStats();
+        snapshotStats.segmentsSize = this.indexes.size();
+        snapshotStats.unsealedAbortTxnIDs = this.unsealedTxnIds.size();
+        stats.snapshotStats = snapshotStats;
     }
 
     @Override
