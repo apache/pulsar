@@ -775,10 +775,21 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                 }
             } else {
-                // auth not complete, continue auth with client side.
-                ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, authChallenge, clientProtocolVersion));
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Authentication in progress client by method {}.", remoteAddress, authMethod);
+                if (supportsAuthChallenge(clientProtocolVersion)) {
+                    // auth not complete, continue auth with client side.
+                    ctx.writeAndFlush(Commands.newAuthChallenge(authMethod, authChallenge, clientProtocolVersion));
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Authentication in progress client by method {}.", remoteAddress, authMethod);
+                    }
+                } else {
+                    state = State.Failed;
+                    service.getPulsarStats().recordConnectionCreateFail();
+                    log.warn("[{}] client's protocol version does not support AuthChallenges, closing connection.",
+                            remoteAddress);
+                    final ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError,
+                            "Server generated auth challenge, but client's protocol version ["
+                                    + getRemoteEndpointProtocolVersion() + "] does not support them.");
+                    NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
                 }
             }
         } catch (Exception | AssertionError e) {
@@ -3218,9 +3229,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     boolean supportsAuthenticationRefresh() {
-        return features != null && features.isSupportsAuthRefresh();
+        return features != null && features.isSupportsAuthRefresh()
+                && supportsAuthChallenge(getRemoteEndpointProtocolVersion());
     }
 
+    boolean supportsAuthChallenge(int protocolVersion) {
+        return protocolVersion >= ProtocolVersion.v14.getValue();
+    }
 
     boolean supportBrokerMetadata() {
         return features != null && features.isSupportsBrokerEntryMetadata();

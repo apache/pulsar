@@ -455,12 +455,21 @@ public class ProxyConnection extends PulsarHandler {
                 return;
             }
 
-            // auth not complete, continue auth with client side.
-            final ByteBuf msg = Commands.newAuthChallenge(authMethod, authChallenge, protocolVersionToAdvertise);
-            writeAndFlush(msg);
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Authentication in progress client by method {}.",
-                        remoteAddress, authMethod);
+            if (getRemoteEndpointProtocolVersion() >= ProtocolVersion.v14.getValue()) {
+                // auth not complete, continue auth with client side.
+                final ByteBuf msg = Commands.newAuthChallenge(authMethod, authChallenge, protocolVersionToAdvertise);
+                writeAndFlush(msg);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug("[{}] Authentication in progress client by method {}.",
+                            remoteAddress, authMethod);
+                }
+            } else {
+                LOG.warn("[{}] client's protocol version does not support AuthChallenges, closing connection.",
+                        remoteAddress);
+                final ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError,
+                        "Server generated auth challenge, but client's protocol version ["
+                                + getRemoteEndpointProtocolVersion() + "] does not support them.");
+                writeAndFlushAndClose(msg);
             }
         } catch (Exception e) {
             authenticationFailedCallback(e);
