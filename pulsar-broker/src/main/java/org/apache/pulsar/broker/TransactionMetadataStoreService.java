@@ -340,11 +340,11 @@ public class TransactionMetadataStoreService {
                     if (txnMeta.status() == TxnStatus.OPEN) {
                         return updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout)
                                 .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
-                    } else if (txnMeta.status() == TxnStatus.COMMITTED &&
-                            txnAction == TxnAction.COMMIT_VALUE) {
+                    } else if (txnMeta.status() == TxnStatus.COMMITTED
+                            && txnAction == TxnAction.COMMIT_VALUE) {
                         future.complete(null);
-                    } else if (txnMeta.status() == TxnStatus.ABORTED &&
-                            txnAction == TxnAction.ABORT_VALUE) {
+                    } else if (txnMeta.status() == TxnStatus.ABORTED
+                            && txnAction == TxnAction.ABORT_VALUE) {
                         future.complete(null);
                     }
                     return fakeAsyncCheckTxnStatus(txnMeta.status(), txnAction, txnID, newStatus)
