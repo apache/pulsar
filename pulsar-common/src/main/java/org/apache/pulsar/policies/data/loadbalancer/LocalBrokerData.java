@@ -249,7 +249,7 @@ public class LocalBrokerData implements LoadManagerReport {
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());
     }
-    @Deprecated(since = "3.0.0")
+    @Deprecated
     public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
