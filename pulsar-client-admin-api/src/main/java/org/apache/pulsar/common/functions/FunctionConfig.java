@@ -131,6 +131,8 @@ public class FunctionConfig {
     private Integer maxPendingAsyncRequests;
     // Whether the pulsar admin client exposed to function context, default is disabled.
     private Boolean exposePulsarAdminClientEnabled;
+    // Whether the consumer should skip to latest position in case of failure recovery
+    private Boolean skipToLatest;
 
     @Builder.Default
     private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;
