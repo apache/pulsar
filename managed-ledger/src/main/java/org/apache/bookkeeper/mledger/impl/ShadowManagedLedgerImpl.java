@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -332,7 +333,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                             currentLedgerEntries = 0;
                             currentLedgerSize = 0;
                             initLastConfirmedEntry();
-                            updateLedgersIdsComplete();
+                            updateLedgersIdsComplete(null);
                             maybeUpdateCursorBeforeTrimmingConsumedLedger();
                         } else if (isNoSuchLedgerExistsException(rc)) {
                             log.warn("[{}] Source ledger not found: {}", name, lastLedgerId);
@@ -365,7 +366,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     @Override
-    protected synchronized void updateLedgersIdsComplete() {
+    protected synchronized void updateLedgersIdsComplete(LedgerHandle originalCurrentLedger) {
         STATE_UPDATER.set(this, State.LedgerOpened);
         updateLastLedgerCreatedTimeAndScheduleRolloverTask();
 
