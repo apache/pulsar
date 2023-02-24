@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.io.Resources;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -86,8 +87,34 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
 
     static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
 
-    protected static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    protected static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+    // PEM
+    protected final String brokerCertFilePath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    protected final String brokerFilePath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+    protected final String clientCertFilePath =
+            Resources.getResource("certificate-authority/client-keys/admin.cert.pem").getPath();
+    protected final String clientKeyFilePath =
+            Resources.getResource("certificate-authority/client-keys/admin.key-pk8.pem").getPath();
+    protected final String caCertFilePath =
+            Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+
+    // KEYSTORE
+    protected boolean tlsWithKeyStore = false;
+    protected final static String brokerKeyStorePath =
+            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+    protected final static String brokerTrustStorePath =
+            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+    protected final static String clientKeyStorePath =
+            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
+    protected final static String clientTrustStorePath =
+            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
+    protected final static String keyStoreType = "JKS";
+    protected final static String keyStorePassword = "111111";
+
+    protected final String cluster1 = "r1";
+    protected final String cluster2 = "r2";
+    protected final String cluster3 = "r3";
 
     // Default frequency
     public int getBrokerServicePurgeInactiveFrequency() {
@@ -156,23 +183,41 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
         // Provision the global namespace
-        admin1.clusters().createCluster("r1", ClusterData.builder()
+        admin1.clusters().createCluster(cluster1, ClusterData.builder()
                 .serviceUrl(url1.toString())
                 .serviceUrlTls(urlTls1.toString())
                 .brokerServiceUrl(pulsar1.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar1.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
-        admin1.clusters().createCluster("r2", ClusterData.builder()
+        admin1.clusters().createCluster(cluster2, ClusterData.builder()
                 .serviceUrl(url2.toString())
                 .serviceUrlTls(urlTls2.toString())
                 .brokerServiceUrl(pulsar2.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar2.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
-        admin1.clusters().createCluster("r3", ClusterData.builder()
+        admin1.clusters().createCluster(cluster3, ClusterData.builder()
                 .serviceUrl(url3.toString())
                 .serviceUrlTls(urlTls3.toString())
                 .brokerServiceUrl(pulsar3.getBrokerServiceUrl())
                 .brokerServiceUrlTls(pulsar3.getBrokerServiceUrlTls())
+                .brokerClientTlsEnabled(true)
+                .brokerClientTrustCertsFilePath(caCertFilePath)
+                .brokerClientTlsEnabledWithKeyStore(tlsWithKeyStore)
+                .brokerClientTlsTrustStore(clientTrustStorePath)
+                .brokerClientTlsTrustStorePassword(keyStorePassword)
+                .brokerClientTlsTrustStoreType(keyStoreType)
                 .build());
 
         admin1.tenants().createTenant("pulsar",
@@ -180,12 +225,12 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         admin1.namespaces().createNamespace("pulsar/ns", Sets.newHashSet("r1", "r2", "r3"));
         admin1.namespaces().createNamespace("pulsar/ns1", Sets.newHashSet("r1", "r2"));
 
-        assertEquals(admin2.clusters().getCluster("r1").getServiceUrl(), url1.toString());
-        assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
-        assertEquals(admin2.clusters().getCluster("r3").getServiceUrl(), url3.toString());
-        assertEquals(admin2.clusters().getCluster("r1").getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r2").getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
-        assertEquals(admin2.clusters().getCluster("r3").getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster1).getServiceUrl(), url1.toString());
+        assertEquals(admin2.clusters().getCluster(cluster2).getServiceUrl(), url2.toString());
+        assertEquals(admin2.clusters().getCluster(cluster3).getServiceUrl(), url3.toString());
+        assertEquals(admin2.clusters().getCluster(cluster1).getBrokerServiceUrl(), pulsar1.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster2).getBrokerServiceUrl(), pulsar2.getBrokerServiceUrl());
+        assertEquals(admin2.clusters().getCluster(cluster3).getBrokerServiceUrl(), pulsar3.getBrokerServiceUrl());
 
         // Also create V1 namespace for compatibility check
         admin1.clusters().createCluster("global", ClusterData.builder()
@@ -193,7 +238,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
                 .serviceUrlTls("https://global:8443")
                 .build());
         admin1.namespaces().createNamespace("pulsar/global/ns");
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet(cluster1, cluster2, cluster3));
 
         Thread.sleep(100);
         log.info("--- ReplicatorTestBase::setup completed ---");
@@ -206,11 +251,11 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
     }
 
     public void setConfig1DefaultValue(){
-        setConfigDefaults(config1, "r1", bkEnsemble1);
+        setConfigDefaults(config1, cluster1, bkEnsemble1);
     }
 
     public void setConfig2DefaultValue() {
-        setConfigDefaults(config2, "r2", bkEnsemble2);
+        setConfigDefaults(config2, cluster2, bkEnsemble2);
     }
 
     private void setConfigDefaults(ServiceConfiguration config, String clusterName,
@@ -227,9 +272,16 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setBrokerShutdownTimeoutMs(0L);
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
-        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(brokerCertFilePath);
+        config.setTlsKeyFilePath(brokerFilePath);
+        config.setTlsTrustCertsFilePath(caCertFilePath);
+        config.setTlsEnabledWithKeyStore(tlsWithKeyStore);
+        config.setTlsKeyStore(brokerKeyStorePath);
+        config.setTlsKeyStoreType(keyStoreType);
+        config.setTlsKeyStorePassword(keyStorePassword);
+        config.setTlsTrustStore(brokerTrustStorePath);
+        config.setTlsTrustStoreType(keyStoreType);
+        config.setTlsTrustStorePassword(keyStorePassword);
         config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config.setDefaultNumberOfNamespaceBundles(1);
         config.setAllowAutoTopicCreationType("non-partitioned");
