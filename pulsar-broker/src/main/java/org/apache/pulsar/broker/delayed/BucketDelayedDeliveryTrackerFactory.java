@@ -64,7 +64,7 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
         return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
                 bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
-                delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds,
+                TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
                 delayedDeliveryMaxNumBuckets);
     }
 
