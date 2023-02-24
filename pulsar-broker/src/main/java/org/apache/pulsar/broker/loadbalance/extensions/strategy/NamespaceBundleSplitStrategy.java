@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
+package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
 import java.util.Set;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
-import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 
 /**
  * Determines which bundles should be split based on various thresholds.
@@ -35,5 +36,5 @@ public interface NamespaceBundleSplitStrategy {
      * @param context The context used for decisions.
      * @return A set of the bundles that should be split.
      */
-    Set<Split> findBundlesToSplit(LoadManagerContext context);
+    Set<SplitDecision> findBundlesToSplit(LoadManagerContext context, PulsarService pulsar);
 }

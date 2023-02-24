@@ -2557,6 +2557,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(only used in load balancer extension logics)"
     )
     private double loadBalancerBundleLoadReportPercentage = 10;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Service units'(bundles) split interval. Broker periodically checks whether "
+                    + "some service units(e.g. bundles) should split if they become hot-spots. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private int loadBalancerSplitIntervalMinutes = 1;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Max number of bundles to split to per cycle. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private int loadBalancerMaxNumberOfBundlesToSplitPerCycle = 10;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Threshold to the consecutive count of fulfilled split conditions. "
+                    + "If the split scheduler consecutively finds bundles that meet split conditions "
+                    + "many times bigger than this threshold, the scheduler will trigger splits on the bundles "
+                    + "(if the number of bundles is less than loadBalancerNamespaceMaximumBundles). "
+                    + "(only used in load balancer extension logics)"
+    )
+    private int loadBalancerNamespaceBundleSplitConditionThreshold = 5;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

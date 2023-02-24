@@ -47,13 +47,13 @@ import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilte
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
-import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.TopBundleLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerScheduler;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.SplitScheduler;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.UnloadScheduler;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
@@ -102,7 +102,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Getter
     private final List<BrokerFilter> brokerFilterPipeline;
-
     /**
      * The load data reporter.
      */
@@ -112,6 +111,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private ScheduledFuture brokerLoadDataReportTask;
     private ScheduledFuture topBundlesLoadDataReportTask;
+    private SplitScheduler splitScheduler;
 
     private UnloadManager unloadManager;
 
@@ -182,7 +182,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 .brokerLoadDataStore(brokerLoadDataStore)
                 .topBundleLoadDataStore(topBundlesLoadDataStore).build();
 
-
         this.brokerLoadDataReporter =
                 new BrokerLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), brokerLoadDataStore);
 
@@ -214,10 +213,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         interval,
                         interval, TimeUnit.MILLISECONDS);
 
-        // TODO: Start bundle split scheduler.
         this.unloadScheduler = new UnloadScheduler(
                 pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel);
         this.unloadScheduler.start();
+        this.splitScheduler = new SplitScheduler(
+                pulsar, serviceUnitStateChannel, splitCounter, splitMetrics, context);
+        this.splitScheduler.start();
         this.started = true;
     }
 
@@ -376,6 +377,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.brokerLoadDataStore.close();
             this.topBundlesLoadDataStore.close();
             this.unloadScheduler.close();
+            this.splitScheduler.close();
         } catch (IOException ex) {
             throw new PulsarServerException(ex);
         } finally {
@@ -405,13 +407,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private void updateUnloadMetrics(UnloadDecision decision) {
         unloadCounter.update(decision);
         this.unloadMetrics.set(unloadCounter.toMetrics(pulsar.getAdvertisedAddress()));
-    }
-
-    private void updateSplitMetrics(List<SplitDecision> decisions) {
-        for (var decision : decisions) {
-            splitCounter.update(decision);
-        }
-        this.splitMetrics.set(splitCounter.toMetrics(pulsar.getAdvertisedAddress()));
     }
 
     public List<Metrics> getMetrics() {
