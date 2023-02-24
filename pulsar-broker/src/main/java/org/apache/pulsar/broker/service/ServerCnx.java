@@ -388,7 +388,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
             log.warn("[{}] Got exception {}", remoteAddress,
-                    ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
+                    ClientCnx.isKnownException(cause) ? cause.toString() : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Failed.name());
@@ -398,7 +398,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // failed
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Got exception {}", remoteAddress,
-                        ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
+                        ClientCnx.isKnownException(cause) ? cause.toString() : ExceptionUtils.getStackTrace(cause));
             }
         }
         ctx.close();
