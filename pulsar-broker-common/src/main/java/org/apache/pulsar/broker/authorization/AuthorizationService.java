@@ -342,7 +342,7 @@ public class AuthorizationService {
         }
     }
 
-    private boolean isProxyRole(String role) {
+    public boolean isProxyRole(String role) {
         return role != null && conf.getProxyRoles().contains(role);
     }
 
