@@ -131,9 +131,11 @@ public class UnloadScheduler implements LoadManagerScheduler {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 unloadDecision.getUnloads().forEach((broker, unload) -> {
                     log.info("[{}] Unloading bundle: {}", namespaceUnloadStrategy.getClass().getSimpleName(), unload);
-                    futures.add(channel.publishUnloadEventAsync(unload).thenAccept(__ -> {
-                        recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
-                        recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
+                    futures.add(channel.publishUnloadEventAndWaitUnloadComplete(
+                            unload, conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
+                            .thenAccept(__ -> {
+                                recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
+                                recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
                     }));
                 });
                 return FutureUtil.waitForAll(futures).exceptionally(ex -> {

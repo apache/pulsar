@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -85,7 +86,7 @@ public class UnloadSchedulerTest {
 
         scheduler.execute();
 
-        verify(channel, times(1)).publishUnloadEventAsync(eq(unload));
+        verify(channel, times(1)).publishUnloadEventAndWaitUnloadComplete(eq(unload), anyLong(), any());
 
         // Test empty unload.
         UnloadDecision emptyUnload = new UnloadDecision();
@@ -93,7 +94,7 @@ public class UnloadSchedulerTest {
 
         scheduler.execute();
 
-        verify(channel, times(1)).publishUnloadEventAsync(eq(unload));
+        verify(channel, times(1)).publishUnloadEventAndWaitUnloadComplete(eq(unload), anyLong(), any());
     }
 
     @Test(timeOut = 30 * 1000)
