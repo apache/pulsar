@@ -21,9 +21,7 @@ package org.apache.pulsar.broker.namespace;
 import com.google.common.collect.Sets;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.testng.Assert;
@@ -34,7 +32,6 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.testng.Assert.assertTrue;
