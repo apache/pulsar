@@ -727,7 +727,7 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, @Nullable String destinationBroker) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
             ExtensibleLoadManagerWrapper loadManagerWrapper = (ExtensibleLoadManagerWrapper) loadManager.get();
-            ExtensibleLoadManagerImpl extensibleLoadManager = loadManagerWrapper.getLoadManager();
+            ExtensibleLoadManagerImpl extensibleLoadManager = loadManagerWrapper.get();
             ServiceUnitStateChannel channel = extensibleLoadManager.getServiceUnitStateChannel();
             return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
                     .thenCompose(brokerOpt -> {

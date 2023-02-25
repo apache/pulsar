@@ -24,7 +24,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -39,7 +38,6 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     private PulsarService pulsar;
 
-    @Getter
     private final ExtensibleLoadManagerImpl loadManager;
 
     public ExtensibleLoadManagerWrapper(ExtensibleLoadManagerImpl loadManager) {
