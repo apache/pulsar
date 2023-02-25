@@ -5068,7 +5068,8 @@ public class PersistentTopicsBase extends AdminResource {
             // Redirect the request to the appropriate broker if this broker is not the owner of the topic
             validateTopicOwnership(topicName, authoritative);
 
-            getReplicatedSubscriptionStatusFromLocalBroker(topicName, subName).get();
+            Map res = getReplicatedSubscriptionStatusFromLocalBroker(topicName, subName).get();
+            asyncResponse.resume(res);
         } catch (Exception e) {
             log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
                     topicName, subName, e);
