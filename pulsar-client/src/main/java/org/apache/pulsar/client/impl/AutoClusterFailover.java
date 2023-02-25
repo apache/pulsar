@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -38,6 +37,7 @@ import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 @Slf4j
 @Data
@@ -80,7 +80,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         this.intervalMs = builder.checkIntervalMs;
         this.resolver = new PulsarServiceNameResolver();
         this.executor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-service-provider"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
     }
 
     @Override

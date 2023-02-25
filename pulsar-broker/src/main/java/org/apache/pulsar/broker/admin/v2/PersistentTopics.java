@@ -945,6 +945,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
+            if (topicName.isPartitioned()) {
+                // There's no way to create the partition topic with `-partition-{index}`, So we can reject it.
+                throw new RestException(Response.Status.PRECONDITION_FAILED,
+                        "Partitioned Topic Name should not contain '-partition-'");
+            }
             internalDeletePartitionedTopic(asyncResponse, authoritative, force, deleteSchema);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
