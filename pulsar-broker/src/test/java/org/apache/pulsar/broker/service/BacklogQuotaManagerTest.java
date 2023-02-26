@@ -40,7 +40,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -82,22 +81,6 @@ public class BacklogQuotaManagerTest {
 
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 2;
     private static final int MAX_ENTRIES_PER_LEDGER = 5;
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force)
-            throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
-
-    /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
-     */
-    protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
-            throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsar);
-    }
 
     @DataProvider(name = "backlogQuotaSizeGB")
     public Object[][] backlogQuotaSizeGB() {
@@ -175,10 +158,10 @@ public class BacklogQuotaManagerTest {
     }
 
     @AfterMethod(alwaysRun = true)
-    void clearNamespaces() throws Exception {
-        deleteNamespaceWithRetry("prop/ns-quota", true);
-        deleteNamespaceWithRetry("prop/quotahold", true);
-        deleteNamespaceWithRetry("prop/quotaholdasync", true);
+    void clearNamespaces() throws PulsarAdminException {
+        admin.namespaces().deleteNamespace("prop/ns-quota", true);
+        admin.namespaces().deleteNamespace("prop/quotahold", true);
+        admin.namespaces().deleteNamespace("prop/quotaholdasync", true);
     }
 
     private void rolloverStats() {

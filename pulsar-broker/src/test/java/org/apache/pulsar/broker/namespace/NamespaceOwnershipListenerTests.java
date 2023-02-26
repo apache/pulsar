@@ -52,7 +52,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
     }
 
     @Test
-    public void testNamespaceBundleOwnershipListener() throws Exception {
+    public void testNamespaceBundleOwnershipListener() throws PulsarAdminException, InterruptedException, PulsarClientException {
 
         final CountDownLatch countDownLatch = new CountDownLatch(2);
         final AtomicBoolean onLoad = new AtomicBoolean(false);
@@ -98,11 +98,11 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         Assert.assertTrue(onLoad.get());
         Assert.assertTrue(unLoad.get());
         admin.topics().delete(topic);
-        deleteNamespaceWithRetry(namespace, false);
+        admin.namespaces().deleteNamespace(namespace);
     }
 
     @Test
-    public void testGetAllPartitions() throws Exception {
+    public void testGetAllPartitions() throws PulsarAdminException, ExecutionException, InterruptedException {
         final String namespace = "prop/" + UUID.randomUUID().toString();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
         assertTrue(admin.namespaces().getNamespaces("prop").contains(namespace));
@@ -119,11 +119,12 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         }
 
         admin.topics().deletePartitionedTopic(topicName);
-        deleteNamespaceWithRetry(namespace, false);
+        admin.namespaces().deleteNamespace(namespace);
     }
 
     @Test
-    public void testNamespaceBundleLookupOnwershipListener() throws Exception {
+    public void testNamespaceBundleLookupOnwershipListener() throws PulsarAdminException, InterruptedException,
+            PulsarClientException {
         final CountDownLatch countDownLatch = new CountDownLatch(2);
         final AtomicInteger onLoad = new AtomicInteger(0);
         final AtomicInteger unLoad = new AtomicInteger(0);
@@ -168,6 +169,6 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         Assert.assertEquals(onLoad.get(), 1);
         Assert.assertEquals(unLoad.get(), 1);
         admin.topics().delete(topic);
-        deleteNamespaceWithRetry(namespace, false);
+        admin.namespaces().deleteNamespace(namespace);
     }
 }
