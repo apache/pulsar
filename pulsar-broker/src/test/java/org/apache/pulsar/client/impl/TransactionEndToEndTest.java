@@ -171,6 +171,84 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         assertNull(consumer.receive(2, TimeUnit.SECONDS));
     }
 
+
+    @Test(dataProvider="enableBatch")
+    private void testFilterMsgsInPendingAckStateWhenConsumerDisconnect(boolean enableBatch) throws Exception {
+        final String topicName = NAMESPACE1 + "/testFilterMsgsInPendingAckStateWhenConsumerDisconnect-" + enableBatch;
+        final int count = 10;
+
+        @Cleanup
+        Producer<Integer> producer = null;
+        if (enableBatch) {
+            producer = pulsarClient
+                    .newProducer(Schema.INT32)
+                    .topic(topicName)
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                    .batchingMaxMessages(count).create();
+        } else {
+            producer = pulsarClient
+                    .newProducer(Schema.INT32)
+                    .topic(topicName)
+                    .enableBatching(false).create();
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        for (int i = 0; i < count; i++) {
+            producer.sendAsync(i);
+        }
+
+        Transaction txn1 = getTxn();
+
+        Transaction txn2 = getTxn();
+
+
+        // txn1 ack half of messages and don't end the txn1
+        for (int i = 0; i < count / 2; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn1).get();
+        }
+
+        // txn2 ack the rest half of messages and commit tnx2
+        for (int i = count / 2; i < count; i++) {
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn2).get();
+        }
+        // commit txn2
+        txn2.commit().get();
+
+        // close and re-create consumer
+        consumer.close();
+        consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topicName)
+                .isAckReceiptEnabled(true)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .subscribe();
+
+        Message<Integer> message = consumer.receive(3, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+
+        // abort txn1
+        txn1.abort().get();
+        // after txn1 aborted, consumer will receive messages txn1 contains
+        int receiveCounter = 0;
+        while((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
+            Assert.assertEquals(message.getValue().intValue(), receiveCounter);
+            receiveCounter ++;
+        }
+        Assert.assertEquals(receiveCounter, count / 2);
+    }
+
     @Test(dataProvider="enableBatch")
     private void produceCommitTest(boolean enableBatch) throws Exception {
         @Cleanup

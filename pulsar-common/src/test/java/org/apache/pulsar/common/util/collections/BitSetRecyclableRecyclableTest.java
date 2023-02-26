@@ -45,4 +45,22 @@ public class BitSetRecyclableRecyclableTest {
         Assert.assertTrue(bitset1.get(128));
         Assert.assertFalse(bitset1.get(256));
     }
+
+    @Test
+    public void testBitSetEmpty() {
+        BitSetRecyclable bitSet = BitSetRecyclable.create();
+        bitSet.set(0, 5);
+        bitSet.clear(1);
+        bitSet.clear(2);
+        bitSet.clear(3);
+        long[] array = bitSet.toLongArray();
+        Assert.assertFalse(bitSet.isEmpty());
+        Assert.assertFalse(BitSetRecyclable.create().resetWords(array).isEmpty());
+        bitSet.clear(0);
+        bitSet.clear(4);
+        Assert.assertTrue(bitSet.isEmpty());
+        long[] array1 = bitSet.toLongArray();
+        Assert.assertTrue(BitSetRecyclable.create().resetWords(array1).isEmpty());
+        bitSet.recycle();
+    }
 }
