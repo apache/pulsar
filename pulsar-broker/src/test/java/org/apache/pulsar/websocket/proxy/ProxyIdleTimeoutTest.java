@@ -64,7 +64,8 @@ public class ProxyIdleTimeoutTest extends ProducerConsumerBase {
         config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal))
+                .when(service).createConfigMetadataStore(anyString(), anyInt(), false);
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");

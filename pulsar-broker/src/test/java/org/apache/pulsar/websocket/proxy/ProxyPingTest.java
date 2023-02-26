@@ -66,7 +66,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
         config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
         config.setWebSocketPingDurationSeconds(2);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), false);
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");
