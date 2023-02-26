@@ -1241,7 +1241,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                         deleteLedgerFailed(ManagedLedgerException exception,
                                                                            Object ctx) {
                                                             if (exception.getCause()
-                                                                    instanceof MetadataStoreException.NotFoundException) {
+                                                                    instanceof MetadataStoreException
+                                                                    .NotFoundException) {
                                                                 log.info("[{}] Topic is already deleted {}",
                                                                         topic, exception.getMessage());
                                                                 deleteLedgerComplete(ctx);
