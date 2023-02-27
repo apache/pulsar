@@ -43,5 +43,5 @@ public interface LoadSheddingStrategy {
      *
      * @param activeBrokers active Brokers
      */
-    default void onBrokerChange(Set<String> activeBrokers) {}
+    default void onActiveBrokersChange(Set<String> activeBrokers) {}
 }

@@ -490,7 +490,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
             for (LoadSheddingStrategy loadSheddingStrategy : loadSheddingPipeline) {
-                loadSheddingStrategy.onBrokerChange(activeBrokers);
+                loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
             }
         }
     }

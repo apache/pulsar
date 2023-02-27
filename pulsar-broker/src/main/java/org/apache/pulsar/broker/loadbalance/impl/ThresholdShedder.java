@@ -238,7 +238,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
     }
     @Override
-    public void onBrokerChange(Set<String> newBrokers) {
+    public void onActiveBrokersChange(Set<String> newBrokers) {
         synchronized (activeBrokers) {
             activeBrokers.clear();
             activeBrokers.addAll(newBrokers);

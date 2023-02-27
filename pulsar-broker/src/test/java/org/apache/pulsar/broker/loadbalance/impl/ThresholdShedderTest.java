@@ -69,7 +69,7 @@ public class ThresholdShedderTest {
         assertFalse(map.isEmpty());
         HashSet<String> activeBrokers = new HashSet<>();
         activeBrokers.add("leader");
-        thresholdShedder.onBrokerChange(activeBrokers);
+        thresholdShedder.onActiveBrokersChange(activeBrokers);
         thresholdShedder.findBundlesForUnloading(new LoadData(), conf);
         map = (Map<String, Double>) field.get(thresholdShedder);
         assertTrue(map.isEmpty());
