@@ -198,12 +198,6 @@ public class FunctionConfigUtils {
             sourceSpecBuilder.setSubscriptionPosition(subPosition);
         }
 
-        if (functionConfig.getSkipToLatest() != null) {
-            sourceSpecBuilder.setSkipToLatest(functionConfig.getSkipToLatest());
-        } else {
-            sourceSpecBuilder.setSkipToLatest(false);
-        }
-
         if (extractedDetails.getTypeArg0() != null) {
             sourceSpecBuilder.setTypeClassName(extractedDetails.getTypeArg0());
         } else if (StringUtils.isNotEmpty(functionConfig.getInputTypeClassName())) {
