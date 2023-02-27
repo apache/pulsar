@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,13 +22,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import java.io.IOException;
+import java.util.Collections;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
 
 public class BatchMessageIdImplTest {
 
@@ -72,6 +71,30 @@ public class BatchMessageIdImplTest {
         assertEquals(batchMsgId4, msgId);
 
         assertEquals(msgId, batchMsgId4);
+    }
+
+    @Test
+    public void notEqualsMultiTest() {
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0);
+        MessageIdImpl msgId = new MessageIdImpl(0, 0, 0);
+        MultiMessageIdImpl multiMsgId = new MultiMessageIdImpl(Collections.singletonMap("topic", msgId));
+
+        assertNotEquals(msgId, multiMsgId);
+        assertNotEquals(multiMsgId, msgId);
+        assertNotEquals(batchMsgId, multiMsgId);
+        assertNotEquals(multiMsgId, batchMsgId);
+    }
+
+    @Test
+    public void compareToUnbatchedTest() {
+        MessageIdImpl msgId = new MessageIdImpl(1, 2, 3);
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(1, 2, 3, 0);
+        assertEquals(msgId.compareTo(batchMsgId), -1);
+        assertEquals(batchMsgId.compareTo(msgId), 1);
+
+        batchMsgId = new BatchMessageIdImpl(1, 2, 3, -1);
+        assertEquals(msgId.compareTo(batchMsgId), 0);
+        assertEquals(batchMsgId.compareTo(msgId), 0);
     }
 
     @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -73,7 +73,7 @@ public class PulsarAdminTool {
             names = { "--auth-params" },
                 description = "Authentication parameters, whose format is determined by the implementation "
                         + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
+                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".")
         String authParams = null;
 
         @Parameter(names = { "--tls-allow-insecure" }, description = "Allow TLS insecure connection")

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,15 @@ import static org.testng.Assert.assertTrue;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.jetbrains.annotations.NotNull;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -59,13 +62,20 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
     }
 
     @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+        return super.createPulsarTestContextBuilder(conf)
+                .localMetadataStore(createMetadataStore())
+                .configurationMetadataStore(createMetadataStore());
     }
 
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
+    @NotNull
+    protected MetadataStoreExtended createMetadataStore()  {
+        try {
+            return MetadataStoreExtended.create(testZKServer.getConnectionString(),
+                    MetadataStoreConfig.builder().build());
+        } catch (MetadataStoreException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -111,8 +111,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
 
         admin.clusters().createCluster(configClusterName,
                 ClusterData.builder()
-                        .brokerServiceUrl(brokerUrl.toString())
-                        .serviceUrl(getPulsar().getWebServiceAddress())
+                        .serviceUrl(brokerUrl.toString())
                         .build()
         );
     }

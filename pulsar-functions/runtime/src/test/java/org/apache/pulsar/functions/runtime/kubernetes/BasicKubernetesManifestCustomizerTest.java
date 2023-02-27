@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,8 +24,10 @@ import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
@@ -92,5 +94,56 @@ public class BasicKubernetesManifestCustomizerTest {
         assertEquals(mergedOpts.getNodeSelectorLabels().size(), 2);
         assertEquals(mergedOpts.getResourceRequirements().getLimits().get("cpu").getNumber().intValue(), 20);
         assertEquals(mergedOpts.getResourceRequirements().getLimits().get("memory").getNumber().intValue(), 10240);
+    }
+
+    // Note: this test creates many new objects to ensure that the tests guarantees objects are not mutated
+    // unexpectedly.
+    @Test
+    public void testMergeRuntimeOptsDoesNotModifyArguments() {
+        BasicKubernetesManifestCustomizer.RuntimeOpts opts1 = new BasicKubernetesManifestCustomizer.RuntimeOpts(
+                "namespace1", "job1", new HashMap<>(), new HashMap<>(), new HashMap<>(), new V1ResourceRequirements(),
+                new ArrayList<>());
+
+        HashMap<String, String> testMap = new HashMap<>();
+        testMap.put("testKey", "testValue");
+
+        List<V1Toleration> testList = new ArrayList<>();
+        testList.add(new V1Toleration());
+
+        V1ResourceRequirements requirements = new V1ResourceRequirements();
+        requirements.setLimits(new HashMap<>());
+        BasicKubernetesManifestCustomizer.RuntimeOpts opts2 = new BasicKubernetesManifestCustomizer.RuntimeOpts(
+                "namespace2", "job2", testMap, testMap, testMap,requirements, testList);
+
+        // Merge the runtime opts
+        BasicKubernetesManifestCustomizer.RuntimeOpts result =
+                BasicKubernetesManifestCustomizer.mergeRuntimeOpts(opts1, opts2);
+
+        // Assert opts1 is same
+        assertEquals("namespace1", opts1.getJobNamespace());
+        assertEquals("job1", opts1.getJobName());
+        assertEquals(new HashMap<>(), opts1.getNodeSelectorLabels());
+        assertEquals(new HashMap<>(), opts1.getExtraAnnotations());
+        assertEquals(new HashMap<>(), opts1.getExtraLabels());
+        assertEquals(new ArrayList<>(), opts1.getTolerations());
+        assertEquals(new V1ResourceRequirements(), opts1.getResourceRequirements());
+
+        // Assert opts2 is same
+        HashMap<String, String> expectedTestMap = new HashMap<>();
+        expectedTestMap.put("testKey", "testValue");
+
+        List<V1Toleration> expectedTestList = new ArrayList<>();
+        expectedTestList.add(new V1Toleration());
+
+        V1ResourceRequirements expectedRequirements = new V1ResourceRequirements();
+        expectedRequirements.setLimits(new HashMap<>());
+
+        assertEquals("namespace2", opts2.getJobNamespace());
+        assertEquals("job2", opts2.getJobName());
+        assertEquals(expectedTestMap, opts2.getNodeSelectorLabels());
+        assertEquals(expectedTestMap, opts2.getExtraAnnotations());
+        assertEquals(expectedTestMap, opts2.getExtraLabels());
+        assertEquals(expectedTestList, opts2.getTolerations());
+        assertEquals(expectedRequirements, opts2.getResourceRequirements());
     }
 }

@@ -47,6 +47,7 @@
     <file><source>${basedir}/../../pulsar-io/cassandra/target/pulsar-io-cassandra-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/twitter/target/pulsar-io-twitter-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/kafka/target/pulsar-io-kafka-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/http/target/pulsar-io-http-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/kinesis/target/pulsar-io-kinesis-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/rabbitmq/target/pulsar-io-rabbitmq-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/nsq/target/pulsar-io-nsq-${project.version}.nar</source></file>
@@ -79,5 +80,6 @@
     <file><source>${basedir}/../../pulsar-io/flume/target/pulsar-io-flume-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/solr/target/pulsar-io-solr-${project.version}.nar</source></file>
     <file><source>${basedir}/../../pulsar-io/dynamodb/target/pulsar-io-dynamodb-${project.version}.nar</source></file>
+    <file><source>${basedir}/../../pulsar-io/alluxio/target/pulsar-io-alluxio-${project.version}.nar</source></file>
   </files>
 </assembly>

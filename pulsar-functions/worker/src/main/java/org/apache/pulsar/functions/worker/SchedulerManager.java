@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -896,7 +896,7 @@ public class SchedulerManager implements AutoCloseable {
         @Override
         public String toString() {
             try {
-                return ObjectMapperFactory.getThreadLocal().writerWithDefaultPrettyPrinter()
+                return ObjectMapperFactory.getMapper().writer().withDefaultPrettyPrinter()
                         .writeValueAsString(workerStatsMap);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);

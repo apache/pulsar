@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -209,7 +209,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
             Assert.fail(); // should fail
         } catch (TrinoException e){
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
-            Assert.assertTrue(e.getMessage().contains("Unable to authenticate"));
+            Assert.assertTrue(e.getMessage().contains("Failed to authenticate"));
         }
 
         pulsarAuth.cleanSession(session);

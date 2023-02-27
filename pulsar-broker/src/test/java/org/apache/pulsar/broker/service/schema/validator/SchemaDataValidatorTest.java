@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -124,7 +124,7 @@ public class SchemaDataValidatorTest {
 
     @Test
     public void testJsonSchemaTypeWithJsonSchemaData() throws Exception {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         SchemaData data = SchemaData.builder()
             .type(SchemaType.JSON)
             .data(

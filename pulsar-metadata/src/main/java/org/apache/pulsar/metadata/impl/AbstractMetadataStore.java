@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -78,6 +79,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     // we want to avoid the overhead of 'volatile'.
     @Getter
     private boolean isConnected = true;
+
+    protected final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     protected abstract CompletableFuture<List<String>> getChildrenFromStore(String path);
 
@@ -133,44 +136,45 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
     }
 
-    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
-        if (synchronizer.isPresent()) {
-            synchronizer.get().registerSyncListener(event -> {
-                CompletableFuture<Void> result = new CompletableFuture<>();
-                get(event.getPath()).thenApply(res -> {
-                    Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
-                            : Collections.emptySet();
-                    if (res.isPresent()) {
-                        GetResult existingValue = res.get();
-                        if (shouldIgnoreEvent(event, existingValue)) {
-                            result.complete(null);
-                            return result;
-                        }
-                    }
-                    // else update the event
-                    CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
-                            ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
-                            : putInternal(event.getPath(), event.getValue(),
-                                    Optional.ofNullable(event.getExpectedVersion()), options);
-                    updateResult.thenApply(stat -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("successfully updated {}", event.getPath());
-                        }
-                        return result.complete(null);
-                    }).exceptionally(ex -> {
-                        log.warn("Failed to update metadata {}", event.getPath(), ex.getCause());
-                        if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
-                            result.complete(null);
-                        } else {
-                            result.completeExceptionally(ex);
-                        }
-                        return false;
-                    });
+    @Override
+    public CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        get(event.getPath()).thenApply(res -> {
+            Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
+                    : Collections.emptySet();
+            if (res.isPresent()) {
+                GetResult existingValue = res.get();
+                if (shouldIgnoreEvent(event, existingValue)) {
+                    result.complete(null);
                     return result;
-                });
-                return result;
+                }
+            }
+            // else update the event
+            CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
+                    ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
+                    : putInternal(event.getPath(), event.getValue(),
+                    Optional.ofNullable(event.getExpectedVersion()), options);
+            updateResult.thenApply(stat -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("successfully updated {}", event.getPath());
+                }
+                return result.complete(null);
+            }).exceptionally(ex -> {
+                log.warn("Failed to update metadata {}", event.getPath(), ex.getCause());
+                if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                    result.complete(null);
+                } else {
+                    result.completeExceptionally(ex);
+                }
+                return false;
             });
-        }
+            return result;
+        });
+        return result;
+    }
+
+    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
+        synchronizer.ifPresent(s -> s.registerSyncListener(this::handleMetadataEvent));
     }
 
     @VisibleForTesting
@@ -240,6 +244,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Optional<GetResult>> get(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
             metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
@@ -265,6 +273,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<List<String>> getChildren(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -273,6 +285,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Boolean> exists(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -281,7 +297,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void registerListener(Consumer<Notification> listener) {
-        listeners.add(listener);
+        // If the metadata store is closed, do nothing here.
+        if (!isClosed()) {
+            listeners.add(listener);
+        }
     }
 
     protected CompletableFuture<Void> receivedNotification(Notification notification) {
@@ -328,6 +347,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
             metadataStoreStats.recordDelOpsFailed(System.currentTimeMillis() - start);
@@ -373,6 +396,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public CompletableFuture<Void> deleteRecursive(String path) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         return getChildren(path)
                 .thenCompose(children -> FutureUtil.waitForAll(
                         children.stream()
@@ -394,6 +421,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public final CompletableFuture<Stat> put(String path, byte[] data, Optional<Long> optExpectedVersion,
             EnumSet<CreateOption> options) {
+        if (isClosed()) {
+            return FutureUtil.failedFuture(
+                    new MetadataStoreException.AlreadyClosedException());
+        }
         long start = System.currentTimeMillis();
         if (!isValidPath(path)) {
             metadataStoreStats.recordPutOpsFailed(System.currentTimeMillis() - start);
@@ -470,6 +501,10 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         } catch (RejectedExecutionException e) {
             log.warn("Error in processing session event " + event, e);
         }
+    }
+
+    private boolean isClosed() {
+        return isClosed.get();
     }
 
     @Override

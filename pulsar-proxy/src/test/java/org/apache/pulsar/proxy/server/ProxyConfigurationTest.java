@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -110,4 +110,26 @@ public class ProxyConfigurationTest {
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
     }
+
+
+    @Test
+    public void testConvert() throws IOException {
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        try (PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)))) {
+            printWriter.println("proxyAdditionalServlets=a,b,c");
+        }
+        testConfigFile.deleteOnExit();
+        try(InputStream stream = new FileInputStream(testConfigFile)) {
+            ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(stream, ProxyConfiguration.class);
+            assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
+            assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
+            PulsarConfigurationLoader.convertFrom(proxyConfig);
+            assertEquals(proxyConfig.getProperties().getProperty("proxyAdditionalServlets"), "a,b,c");
+            assertEquals(proxyConfig.getProxyAdditionalServlets().size(), 3);
+        }
+    }
+
 }

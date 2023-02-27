@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -247,7 +247,7 @@ public class RuntimeUtils {
         goInstanceConfig.setPort(instanceConfig.getPort());
 
         // Parse the contents of goInstanceConfig into json form string
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
         args.add(originalCodeFileName);
@@ -499,7 +499,7 @@ public class RuntimeUtils {
     }
 
     public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
-        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
+        return ObjectMapperFactory.getMapper().getObjectMapper().convertValue(configMap, functionRuntimeConfigClass);
     }
 
     public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {

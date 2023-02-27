@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterMetricsStats;
@@ -58,6 +59,16 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                 return;
             }
             bufferedWriterMetrics = new MLTxnPendingAckLogBufferedWriterMetrics(brokerAdvertisedAddress);
+        }
+    }
+
+    public static void closeBufferedWriterMetrics() {
+        synchronized (MLPendingAckStoreProvider.class){
+            if (bufferedWriterMetrics == DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+                return;
+            }
+            bufferedWriterMetrics.close();
+            bufferedWriterMetrics = DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
         }
     }
 
@@ -149,15 +160,21 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                         pendingAckStoreFuture.completeExceptionally(exception);
                                     }
                                 }, () -> true, null);
-            });
-        }).exceptionally(e -> {
-            log.error("Failed to obtain the existence of ManagerLedger with topic and subscription : "
-                    + originPersistentTopic.getSubscriptions() + "  "
-                    + subscription.getName());
-            pendingAckStoreFuture.completeExceptionally(
-                    e.getCause());
-            return null;
-        });
+                    }).exceptionally(e -> {
+                        Throwable t = FutureUtil.unwrapCompletionException(e);
+                        log.error("[{}] [{}] Failed to get managedLedger config when init pending ack store!",
+                                originPersistentTopic, subscription, t);
+                        pendingAckStoreFuture.completeExceptionally(t);
+                        return null;
+
+                    });
+                }).exceptionally(e -> {
+                    Throwable t = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] [{}] Failed to check the pending ack topic exist when init pending ack store!",
+                            originPersistentTopic, subscription, t);
+                    pendingAckStoreFuture.completeExceptionally(t);
+                    return null;
+                });
         return pendingAckStoreFuture;
     }
 

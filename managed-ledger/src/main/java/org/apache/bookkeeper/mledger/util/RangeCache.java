@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -196,13 +196,12 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
            if (entry == null || timestampExtractor.getTimestamp(entry.getValue()) > maxTimestamp) {
                break;
            }
-
-           entry = entries.pollFirstEntry();
-           if (entry == null) {
+           Value value = entry.getValue();
+           boolean removeHits = entries.remove(entry.getKey(), value);
+           if (!removeHits) {
                break;
            }
 
-           Value value = entry.getValue();
            removedSize += weighter.getSize(value);
            removedCount++;
            value.release();

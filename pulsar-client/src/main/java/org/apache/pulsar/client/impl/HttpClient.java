@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -244,7 +244,7 @@ public class HttpClient implements Closeable {
                     }
 
                     try {
-                        T data = ObjectMapperFactory.getThreadLocal().readValue(
+                        T data = ObjectMapperFactory.getMapper().reader().readValue(
                                 response2.getResponseBodyAsBytes(), clazz);
                         future.complete(data);
                     } catch (Exception e) {

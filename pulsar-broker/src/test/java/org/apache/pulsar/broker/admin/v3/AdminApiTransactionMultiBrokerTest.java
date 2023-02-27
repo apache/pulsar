@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -61,6 +61,9 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                     .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                             new PartitionedTopicMetadata(NUM_PARTITIONS));
             map = admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        }
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
         }
         //init tc stores
         pulsarClient = PulsarClient.builder()

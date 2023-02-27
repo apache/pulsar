@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -43,25 +43,25 @@ public class NamespaceEventsSystemTopicFactory {
         return new TopicPoliciesSystemTopicClient(client, topicName);
     }
 
-    public TransactionBufferSystemTopicClient createTransactionBufferSystemTopicClient(NamespaceName namespaceName,
-                                                   TransactionBufferSnapshotService transactionBufferSnapshotService) {
-        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        log.info("Create transaction buffer snapshot client, topicName : {}", topicName.toString());
-        return new TransactionBufferSystemTopicClient(client, topicName, transactionBufferSnapshotService);
+    public <T> TransactionBufferSnapshotBaseSystemTopicClient<T> createTransactionBufferSystemTopicClient(
+            TopicName systemTopicName, SystemTopicTxnBufferSnapshotService<T>
+            systemTopicTxnBufferSnapshotService, Class<T> schemaType) {
+        log.info("Create transaction buffer snapshot client, topicName : {}", systemTopicName.toString());
+        return new TransactionBufferSnapshotBaseSystemTopicClient(client, systemTopicName,
+                systemTopicTxnBufferSnapshotService, schemaType);
     }
 
     public static TopicName getSystemTopicName(NamespaceName namespaceName, EventType eventType) {
-        switch (eventType) {
-            case TOPIC_POLICY:
-                return TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                        SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
-            case TRANSACTION_BUFFER_SNAPSHOT:
-                return TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-            default:
-                return null;
-        }
+        return switch (eventType) {
+            case TOPIC_POLICY -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+                    SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+            case TRANSACTION_BUFFER_SNAPSHOT -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+            case TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+            case TRANSACTION_BUFFER_SNAPSHOT_INDEXES -> TopicName.get(TopicDomain.persistent.value(), namespaceName,
+                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+        };
     }
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicFactory.class);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -257,5 +258,26 @@ public class FutureUtil {
         } else {
             return new CompletionException(throwable);
         }
+    }
+
+    /**
+     * Executes an operation using the supplied {@link Executor}
+     * and notify failures on the supplied {@link CompletableFuture}.
+     *
+     * @param runnable the runnable to execute
+     * @param executor  the executor to use for executing the runnable
+     * @param completableFuture  the future to complete in case of exceptions
+     * @return
+     */
+
+    public static void safeRunAsync(Runnable runnable,
+                                    Executor executor,
+                                    CompletableFuture completableFuture) {
+        CompletableFuture
+                .runAsync(runnable, executor)
+                .exceptionally((throwable) -> {
+                    completableFuture.completeExceptionally(throwable);
+                    return null;
+                });
     }
 }

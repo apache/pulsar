@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -2091,6 +2091,20 @@ public interface Namespaces {
     void unloadNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
 
     /**
+     * Unload namespace bundle and assign the bundle to specified broker.
+     *
+     * @param namespace
+     * @param bundle
+     *           range of bundle to unload
+     * @param destinationBroker
+     *           Target broker url to which the bundle should be assigned to
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void unloadNamespaceBundle(String namespace, String bundle, String destinationBroker) throws PulsarAdminException;
+
+
+    /**
      * Unload namespace bundle asynchronously.
      *
      * @param namespace
@@ -2100,6 +2114,19 @@ public interface Namespaces {
      * @return a future that can be used to track when the bundle is unloaded
      */
     CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace, String bundle);
+
+    /**
+     * Unload namespace bundle asynchronously.
+     *
+     * @param namespace
+     * @param bundle
+     *           range of bundle to unload
+     * @param destinationBroker
+     *           Target broker url to which the bundle should be assigned to
+     *
+     * @return a future that can be used to track when the bundle is unloaded
+     */
+    CompletableFuture<Void> unloadNamespaceBundleAsync(String namespace, String bundle, String destinationBroker);
 
     /**
      * Split namespace bundle.
@@ -3532,6 +3559,45 @@ public interface Namespaces {
      */
     CompletableFuture<Long> getOffloadThresholdAsync(String namespace);
 
+
+    /**
+     * Get the offloadThresholdInSeconds for a namespace.
+     *
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    long getOffloadThresholdInSeconds(String namespace) throws PulsarAdminException;
+
+
+    /**
+     * Get the offloadThresholdInSeconds for a namespace.
+     *
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     */
+    CompletableFuture<Long> getOffloadThresholdInSecondsAsync(String namespace);
+
     /**
      * Set the offloadThreshold for a namespace.
      * <p/>
@@ -3580,6 +3646,50 @@ public interface Namespaces {
      *            maximum number of bytes stored before offloading is triggered
      */
     CompletableFuture<Void> setOffloadThresholdAsync(String namespace, long offloadThreshold);
+
+
+    /**
+     * Set the offloadThresholdInSeconds for a namespace.
+     * <p/>
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThresholdInSeconds
+     *            maximum number of bytes stored before offloading is triggered
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setOffloadThresholdInSeconds(String namespace, long offloadThresholdInSeconds) throws PulsarAdminException;
+
+    /**
+     * Set the offloadThresholdInSeconds for a namespace.
+     * <p/>
+     * Negative values disabled automatic offloading. Setting a threshold of 0 will offload data as soon as possible.
+     * <p/>
+     * Request example:
+     *
+     * <pre>
+     * <code>10000000</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param offloadThresholdInSeconds
+     *            maximum number of seconds stored before offloading is triggered
+     */
+    CompletableFuture<Void> setOffloadThresholdInSecondsAsync(String namespace, long offloadThresholdInSeconds);
 
     /**
      * Get the offload deletion lag for a namespace, in milliseconds.

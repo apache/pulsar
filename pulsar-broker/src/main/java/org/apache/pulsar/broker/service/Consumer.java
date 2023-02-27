@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -49,10 +50,12 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.KeyLongValue;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
@@ -349,9 +352,9 @@ public class Consumer {
         return writeAndFlushPromise;
     }
 
-    private void incrementUnackedMessages(int ackedMessages) {
+    private void incrementUnackedMessages(int unackedMessages) {
         if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= getMaxUnackedMessages()
+                && addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
                 && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
@@ -392,10 +395,10 @@ public class Consumer {
         subscription.doUnsubscribe(this).thenAccept(v -> {
             log.info("Unsubscribed successfully from {}", subscription);
             cnx.removedConsumer(this);
-            cnx.getCommandSender().sendSuccess(requestId);
+            cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {
             log.warn("Unsubscribe failed for {}", subscription, exception);
-            cnx.getCommandSender().sendError(requestId, BrokerServiceException.getClientErrorCode(exception),
+            cnx.getCommandSender().sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(exception),
                     exception.getCause().getMessage());
             return null;
         });
@@ -422,19 +425,19 @@ public class Consumer {
                         subscription, consumerId);
                 return CompletableFuture.completedFuture(null);
             }
-            PositionImpl position = PositionImpl.EARLIEST;
-            if (ack.getMessageIdsCount() == 1) {
-                MessageIdData msgId = ack.getMessageIdAt(0);
-                if (msgId.getAckSetsCount() > 0) {
-                    long[] ackSets = new long[msgId.getAckSetsCount()];
-                    for (int j = 0; j < msgId.getAckSetsCount(); j++) {
-                        ackSets[j] = msgId.getAckSetAt(j);
-                    }
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
-                } else {
-                    position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+
+            PositionImpl position;
+            MessageIdData msgId = ack.getMessageIdAt(0);
+            if (msgId.getAckSetsCount() > 0) {
+                long[] ackSets = new long[msgId.getAckSetsCount()];
+                for (int j = 0; j < msgId.getAckSetsCount(); j++) {
+                    ackSets[j] = msgId.getAckSetAt(j);
                 }
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId(), ackSets);
+            } else {
+                position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
             }
+
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
                 List<PositionImpl> positionsAcked = Collections.singletonList(position);
                 future = transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
@@ -785,6 +788,16 @@ public class Consumer {
         cnx.getCommandSender().sendReachedEndOfTopic(consumerId);
     }
 
+    public void topicMigrated(Optional<ClusterUrl> clusterUrl) {
+        if (clusterUrl.isPresent()) {
+            ClusterUrl url = clusterUrl.get();
+            cnx.getCommandSender().sendTopicMigrated(ResourceType.Consumer, consumerId, url.getBrokerServiceUrl(),
+                    url.getBrokerServiceUrlTls());
+            // disconnect consumer after sending migrated cluster url
+            disconnect();
+        }
+    }
+
     /**
      * Checks if consumer-blocking on unAckedMessages is allowed for below conditions:<br/>
      * a. consumer must have Shared-subscription<br/>
@@ -895,7 +908,7 @@ public class Consumer {
     public boolean equals(Object obj) {
         if (obj instanceof Consumer) {
             Consumer other = (Consumer) obj;
-            return Objects.equals(cnx.clientAddress(), other.cnx.clientAddress()) && consumerId == other.consumerId;
+            return consumerId == other.consumerId && Objects.equals(cnx.clientAddress(), other.cnx.clientAddress());
         }
         return false;
     }

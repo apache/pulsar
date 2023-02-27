@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,16 +28,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.beust.jcommander.JCommander;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
@@ -114,6 +114,7 @@ import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -292,22 +293,32 @@ public class PulsarAdminToolTest {
         clusters = new CmdClusters(() -> admin);
         clusters.run(split("create my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
                 + "--tls-enable-keystore --tls-trust-store-type JKS --tls-trust-store /var/private/tls/client.truststore.jks "
-                + "--tls-trust-store-pwd clientpw"));
+                + "--tls-trust-store-pwd clientpw --tls-key-store-type KEYSTORE_TYPE --tls-key-store /var/private/tls/client.keystore.jks "
+                + "--tls-key-store-pwd KEYSTORE_STORE_PWD"));
         ClusterData.Builder data = ClusterData.builder()
                 .serviceUrlTls("https://my-service.url:4443")
                 .brokerClientTlsEnabled(true)
                 .brokerClientTlsEnabledWithKeyStore(true)
                 .brokerClientTlsTrustStoreType("JKS")
                 .brokerClientTlsTrustStore("/var/private/tls/client.truststore.jks")
-                .brokerClientTlsTrustStorePassword("clientpw");
+                .brokerClientTlsTrustStorePassword("clientpw")
+                .brokerClientTlsKeyStoreType("KEYSTORE_TYPE")
+                .brokerClientTlsKeyStore("/var/private/tls/client.keystore.jks")
+                .brokerClientTlsKeyStorePassword("KEYSTORE_STORE_PWD");
+
         verify(mockClusters).createCluster("my-tls-cluster", data.build());
 
         clusters.run(split("update my-tls-cluster --url-secure https://my-service.url:4443 --tls-enable "
-                + "--tls-trust-certs-filepath /path/to/ca.cert.pem"));
+                + "--tls-trust-certs-filepath /path/to/ca.cert.pem --tls-key-filepath KEY_FILEPATH --tls-certs-filepath CERTS_FILEPATH"));
         data.brokerClientTlsEnabledWithKeyStore(false)
                 .brokerClientTlsTrustStore(null)
                 .brokerClientTlsTrustStorePassword(null)
-                .brokerClientTrustCertsFilePath("/path/to/ca.cert.pem");
+                .brokerClientTlsKeyStoreType("JKS")
+                .brokerClientTlsKeyStore(null)
+                .brokerClientTlsKeyStorePassword(null)
+                .brokerClientTrustCertsFilePath("/path/to/ca.cert.pem")
+                .brokerClientKeyFilePath("KEY_FILEPATH")
+                .brokerClientCertificateFilePath("CERTS_FILEPATH");
         verify(mockClusters).updateCluster("my-tls-cluster", data.build());
     }
 
@@ -427,12 +438,18 @@ public class PulsarAdminToolTest {
         namespaces.run(split("unload myprop/clust/ns1"));
         verify(mockNamespaces).unload("myprop/clust/ns1");
 
+        // message_age must have time limit, destination_storage must have size limit
+        Assert.assertFalse(namespaces.run(
+                split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -t message_age")));
+        Assert.assertFalse(namespaces.run(
+                split("set-backlog-quota myprop/clust/ns1 -p producer_exception -lt 10h -t destination_storage")));
+
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
         namespaces.run(split("unload myprop/clust/ns1 -b 0x80000000_0xffffffff"));
-        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff");
+        verify(mockNamespaces).unloadNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", null);
 
         namespaces.run(split("split-bundle myprop/clust/ns1 -b 0x00000000_0xffffffff"));
         verify(mockNamespaces).splitNamespaceBundle("myprop/clust/ns1", "0x00000000_0xffffffff", false, null);
@@ -488,23 +505,21 @@ public class PulsarAdminToolTest {
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
-        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p consumer_backlog_eviction -l 10K -lt 10m"));
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p consumer_backlog_eviction -lt 10m -t message_age"));
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
                 BacklogQuota.builder()
-                        .limitSize(10 * 1024)
                         .limitTime(10 * 60)
                         .retentionPolicy(RetentionPolicy.consumer_backlog_eviction)
                         .build(),
-                        BacklogQuota.BacklogQuotaType.destination_storage);
+                        BacklogQuota.BacklogQuotaType.message_age);
 
         mockNamespaces = mock(Namespaces.class);
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
-        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -l 10G -lt 10000 -t message_age"));
+        namespaces.run(split("set-backlog-quota myprop/clust/ns1 -p producer_exception -lt 10000 -t message_age"));
         verify(mockNamespaces).setBacklogQuota("myprop/clust/ns1",
                 BacklogQuota.builder()
-                        .limitSize(10l * 1024 * 1024 * 1024)
                         .limitTime(10000)
                         .retentionPolicy(RetentionPolicy.producer_exception)
                         .build(),
@@ -804,11 +819,11 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).clearOffloadDeleteLag("myprop/clust/ns1");
 
         namespaces.run(split(
-                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first"));
+                "set-offload-policies myprop/clust/ns1 -r test-region -d aws-s3 -b test-bucket -e http://test.endpoint -mbs 32M -rbs 5M -oat 10M -oats 100 -oae 10s -orp tiered-storage-first"));
         verify(mockNamespaces).setOffloadPolicies("myprop/clust/ns1",
                 OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
                         "http://test.endpoint",null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
-                        10 * 1024 * 1024L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                        10 * 1024 * 1024L, 100L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         namespaces.run(split("remove-offload-policies myprop/clust/ns1"));
         verify(mockNamespaces).removeOffloadPolicies("myprop/clust/ns1");
@@ -964,11 +979,11 @@ public class PulsarAdminToolTest {
         verify(mockTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
-                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -ts 10 -orp tiered-storage-first"));
         verify(mockTopicsPolicies)
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
-                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                                8, 9, 10L, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
 
         cmdTopics.run(split("get-retention persistent://myprop/clust/ns1/ds1"));
         verify(mockTopicsPolicies).getRetention("persistent://myprop/clust/ns1/ds1", false);
@@ -1206,24 +1221,28 @@ public class PulsarAdminToolTest {
         cmdTopics = new CmdTopicPolicies(() -> admin);
         cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10h"));
         verify(mockTopicsPolicies).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10 * 60 * 60);
-        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1w -p consumer_backlog_eviction"));
+        cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1w -p consumer_backlog_eviction -t message_age"));
         verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
                 BacklogQuota.builder()
-                        .limitSize(-1)
                         .limitTime(60 * 60 * 24 * 7)
                         .retentionPolicy(RetentionPolicy.consumer_backlog_eviction)
                         .build(),
-                BacklogQuota.BacklogQuotaType.destination_storage);
+                BacklogQuota.BacklogQuotaType.message_age);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopicPolicies(() -> admin);
         cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1000 -p producer_request_hold -t message_age"));
         verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
                 BacklogQuota.builder()
-                        .limitSize(-1)
                         .limitTime(1000)
                         .retentionPolicy(RetentionPolicy.producer_request_hold)
                         .build(),
                 BacklogQuota.BacklogQuotaType.message_age);
+        //cmd with option cannot be executed repeatedly.
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        Assert.assertFalse(cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -l 1000 -p producer_request_hold -t message_age")));
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        Assert.assertFalse(cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 60 -p producer_request_hold -t destination_storage")));
+
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopicPolicies(() -> admin);
         cmdTopics.run(split("remove-backlog-quota persistent://myprop/clust/ns1/ds1"));
@@ -1414,11 +1433,21 @@ public class PulsarAdminToolTest {
         verify(mockGlobalTopicsPolicies).removeOffloadPolicies("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
-                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first -g"));
+                " region -b bucket -e endpoint -m 8 -rb 9 -t 10 -ts 100 -orp tiered-storage-first -g"));
         verify(mockGlobalTopicsPolicies)
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
-                                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+                                8, 9, 10L, 100L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+
+        cmdTopics.run(split("set-auto-subscription-creation persistent://prop/clust/ns1/ds1 -e -g"));
+        verify(mockGlobalTopicsPolicies).setAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1",
+                AutoSubscriptionCreationOverride.builder()
+                        .allowAutoSubscriptionCreation(true)
+                        .build());
+        cmdTopics.run(split("get-auto-subscription-creation persistent://prop/clust/ns1/ds1 -a -g"));
+        verify(mockGlobalTopicsPolicies).getAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1", true);
+        cmdTopics.run(split("remove-auto-subscription-creation persistent://prop/clust/ns1/ds1 -g"));
+        verify(mockGlobalTopicsPolicies).removeAutoSubscriptionCreation("persistent://prop/clust/ns1/ds1");
     }
 
     @Test
@@ -1473,7 +1502,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).deleteSubscription("persistent://myprop/clust/ns1/ds1", "sub1", false);
 
         cmdTopics.run(split("stats persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, false, false);
+        verify(mockTopics).getStats("persistent://myprop/clust/ns1/ds1", false, true, false);
 
         cmdTopics.run(split("stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getInternalStats("persistent://myprop/clust/ns1/ds1", false);
@@ -1521,7 +1550,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
         verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1",
-                true, false, false, false);
+                true, false, true, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
@@ -1563,7 +1592,10 @@ public class PulsarAdminToolTest {
 
         cmdTopics.run(split("analyze-backlog persistent://myprop/clust/ns1/ds1 -s sub1"));
         verify(mockTopics).analyzeSubscriptionBacklog("persistent://myprop/clust/ns1/ds1", "sub1", Optional.empty());
-        
+
+        cmdTopics.run(split("trim-topic persistent://myprop/clust/ns1/ds1"));
+        verify(mockTopics).trimTopic("persistent://myprop/clust/ns1/ds1");
+
         // jcommander is stateful, you cannot parse the same command twice
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b -p x=y,z"));
@@ -1701,10 +1733,10 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("remove-delayed-delivery persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).removeDelayedDeliveryPolicy("persistent://myprop/clust/ns1/ds1") ;
 
-        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r region -b bucket -e endpoint -ts 50 -m 8 -rb 9 -t 10 -orp tiered-storage-first"));
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("s3", "region", "bucket"
                 , "endpoint", null, null, null, null,
-                8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
+                8, 9, 10L, 50L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/clust/ns1/ds1", offloadPolicies);
 
         cmdTopics.run(split("get-max-unacked-messages-on-consumer persistent://myprop/clust/ns1/ds1"));
@@ -2084,7 +2116,7 @@ public class PulsarAdminToolTest {
         CmdTopics topics = new CmdTopics(() -> admin);
 
         topics.run(split("stats non-persistent://myprop/ns1/ds1"));
-        verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, false, false);
+        verify(mockTopics).getStats("non-persistent://myprop/ns1/ds1", false, true, false);
 
         topics.run(split("stats-internal non-persistent://myprop/ns1/ds1"));
         verify(mockTopics).getInternalStats("non-persistent://myprop/ns1/ds1", false);
@@ -2162,19 +2194,9 @@ public class PulsarAdminToolTest {
             //Ok
         }
 
+        ClientConfigurationData conf =  ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get()).getClientConfigData();
 
-        final PulsarAdmin admin = tool.getPulsarAdminSupplier().get();
-        Field requestTimeoutField =
-                PulsarAdminImpl.class.getDeclaredField("requestTimeout");
-        requestTimeoutField.setAccessible(true);
-        int requestTimeout = (int) requestTimeoutField.get(admin);
-
-        Field requestTimeoutUnitField =
-                PulsarAdminImpl.class.getDeclaredField("requestTimeoutUnit");
-        requestTimeoutUnitField.setAccessible(true);
-        TimeUnit requestTimeoutUnit = (TimeUnit) requestTimeoutUnitField.get(admin);
-        assertEquals(1, requestTimeout);
-        assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
+        assertEquals(1000, conf.getRequestTimeoutMs());
     }
 
     @Test
@@ -2187,7 +2209,7 @@ public class PulsarAdminToolTest {
         final String keyFilePath = "/my-file:role=name.key";
         paramMap.put("tlsCertFile", certFilePath);
         paramMap.put("tlsKeyFile", keyFilePath);
-        final String paramStr = ObjectMapperFactory.getThreadLocal().writeValueAsString(paramMap);
+        final String paramStr = ObjectMapperFactory.getMapper().writer().writeValueAsString(paramMap);
         properties.put("authParams", paramStr);
         properties.put("webServiceUrl", "http://localhost:2181");
         PulsarAdminTool tool = new PulsarAdminTool(properties);
@@ -2215,8 +2237,8 @@ public class PulsarAdminToolTest {
         conf = conf = ((PulsarAdminImpl)tool.getPulsarAdminSupplier().get())
                 .getClientConfigData();
         atuh = (AuthenticationTls) conf.getAuthentication();
-        assertNull(atuh.getCertFilePath());
-        assertNull(atuh.getKeyFilePath());
+        assertEquals(atuh.getCertFilePath(), certFilePath);
+        assertEquals(atuh.getKeyFilePath(), keyFilePath);
     }
 
     @Test
@@ -2294,6 +2316,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("position-stats-in-pending-ack -t test -s test -l 1 -e 1 -b 1"));
         verify(transactions).getPositionStatsInPendingAck("test", "test", 1L, 1L, 1);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("coordinators-list"));
+        verify(transactions).listTransactionCoordinators();
     }
 
     @Test
@@ -2410,6 +2436,43 @@ public class PulsarAdminToolTest {
         assertTrue(logs.contains("-bf=false")); // boolean flag, not passed = false
         assertTrue(logs.contains("main=null"));
 
+    }
+
+    @Test
+    public void testHelpFlag() {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("-h"));
+            assertTrue(cmdSchemas.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("--help"));
+            assertTrue(cmdSchemas.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("delete --help"));
+            assertFalse(cmdSchemas.isHelp());
+            JCommander commander = cmdSchemas.getJcommander();
+            JCommander subCommander = commander.getCommands().get("delete");
+            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
+            assertTrue(subcommand.isHelp());
+        }
+
+        {
+            CmdSchemas cmdSchemas = new CmdSchemas(() -> admin);
+            cmdSchemas.run(split("delete -h"));
+            assertFalse(cmdSchemas.isHelp());
+            JCommander commander = cmdSchemas.getJcommander();
+            JCommander subCommander = commander.getCommands().get("delete");
+            CliCommand subcommand = (CliCommand) subCommander.getObjects().get(0);
+            assertTrue(subcommand.isHelp());
+        }
     }
 
     private static String runCustomCommand(String[] args) throws Exception {

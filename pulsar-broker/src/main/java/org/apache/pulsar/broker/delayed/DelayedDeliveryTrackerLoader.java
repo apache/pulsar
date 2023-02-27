@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,18 +20,20 @@ package org.apache.pulsar.broker.delayed;
 
 import java.io.IOException;
 import lombok.experimental.UtilityClass;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.Reflections;
 
 @UtilityClass
 public class DelayedDeliveryTrackerLoader {
-    public static DelayedDeliveryTrackerFactory loadDelayedDeliveryTrackerFactory(ServiceConfiguration conf)
+    public static DelayedDeliveryTrackerFactory loadDelayedDeliveryTrackerFactory(PulsarService pulsarService)
             throws IOException {
         try {
+            ServiceConfiguration conf = pulsarService.getConfiguration();
             DelayedDeliveryTrackerFactory factory =
                     Reflections.createInstance(conf.getDelayedDeliveryTrackerFactoryClassName(),
                             DelayedDeliveryTrackerFactory.class, Thread.currentThread().getContextClassLoader());
-            factory.initialize(conf);
+            factory.initialize(pulsarService);
             return factory;
         } catch (Exception e) {
             throw new IOException(e);

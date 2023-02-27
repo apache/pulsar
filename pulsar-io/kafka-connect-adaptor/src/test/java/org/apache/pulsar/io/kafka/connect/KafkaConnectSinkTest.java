@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka.connect;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
@@ -1096,9 +1096,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
-        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+        @Cleanup
+        PulsarClient pulsarClient1 = PulsarClient.builder()
                 .serviceUrl(brokerUrl.toString())
-                .build());
+                .build();
+        when(context.getPulsarClient()).thenReturn(pulsarClient1);
         sink.open(props, context);
 
         // offset is 1 after reopening the producer
@@ -1226,9 +1228,11 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         // close the producer, open again
         sink = new KafkaConnectSink();
-        when(context.getPulsarClient()).thenReturn(PulsarClient.builder()
+        @Cleanup
+        PulsarClient pulsarClient1 = PulsarClient.builder()
                 .serviceUrl(brokerUrl.toString())
-                .build());
+                .build();
+        when(context.getPulsarClient()).thenReturn(pulsarClient1);
         sink.open(props, context);
 
         // offset is 1 after reopening the producer

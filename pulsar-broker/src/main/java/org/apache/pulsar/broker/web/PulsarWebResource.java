@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.web;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
@@ -86,7 +85,6 @@ import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.path.PolicyPath;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,19 +150,11 @@ public abstract class PulsarWebResource {
         return appId != null;
     }
 
-    private static void validateOriginalPrincipal(Set<String> proxyRoles, String authenticatedPrincipal,
-                                                  String originalPrincipal) {
-        if (proxyRoles.contains(authenticatedPrincipal)) {
-            // Request has come from a proxy
-            if (StringUtils.isBlank(originalPrincipal)) {
-                log.warn("Original principal empty in request authenticated as {}", authenticatedPrincipal);
-                throw new RestException(Status.UNAUTHORIZED,
-                        "Original principal cannot be empty if the request is via proxy.");
-            }
-            if (proxyRoles.contains(originalPrincipal)) {
-                log.warn("Original principal {} cannot be a proxy role ({})", originalPrincipal, proxyRoles);
-                throw new RestException(Status.UNAUTHORIZED, "Original principal cannot be a proxy role");
-            }
+    private void validateOriginalPrincipal(String authenticatedPrincipal, String originalPrincipal) {
+        if (!pulsar.getBrokerService().getAuthorizationService()
+                .isValidOriginalPrincipal(authenticatedPrincipal, originalPrincipal, clientAuthData())) {
+            throw new RestException(Status.UNAUTHORIZED,
+                    "Invalid combination of Original principal cannot be empty if the request is via proxy.");
         }
     }
 
@@ -187,7 +177,7 @@ public abstract class PulsarWebResource {
                     isClientAuthenticated(appId), appId);
         }
         String originalPrincipal = originalPrincipal();
-        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), appId, originalPrincipal);
+        validateOriginalPrincipal(appId, originalPrincipal);
 
         if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
             BrokerService brokerService = pulsar.getBrokerService();
@@ -262,7 +252,7 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
+    protected void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
                                                 String originalPrincipal, String tenant,
                                                 AuthenticationDataSource authenticationData,
                                                 long timeout, TimeUnit unit) {
@@ -289,7 +279,7 @@ public abstract class PulsarWebResource {
                 clientAuthData());
     }
 
-    protected static CompletableFuture<Void> validateAdminAccessForTenantAsync(
+    protected CompletableFuture<Void> validateAdminAccessForTenantAsync(
             PulsarService pulsar, String clientAppId,
             String originalPrincipal, String tenant,
             AuthenticationDataSource authenticationData) {
@@ -308,8 +298,7 @@ public abstract class PulsarWebResource {
                         if (!isClientAuthenticated(clientAppId)) {
                             throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
                         }
-                        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId,
-                                originalPrincipal);
+                        validateOriginalPrincipal(clientAppId, originalPrincipal);
                         if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
                             AuthorizationService authorizationService =
                                     pulsar.getBrokerService().getAuthorizationService();
@@ -710,8 +699,8 @@ public abstract class PulsarWebResource {
                                     // Replace the host and port of the current request and redirect
                                     URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
                                             .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
-                                                    newAuthoritative).build();
-
+                                                    newAuthoritative).replaceQueryParam("destinationBroker",
+                                                    null).build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
@@ -822,8 +811,9 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException e) {
             throw e;
         } catch (Exception e) {
-            if (e.getCause() instanceof WebApplicationException) {
-                throw (WebApplicationException) e.getCause();
+            Throwable throwable = FutureUtil.unwrapCompletionException(e);
+            if (throwable instanceof WebApplicationException webApplicationException) {
+                throw webApplicationException;
             }
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
                     "Failed to validate global cluster configuration : ns=%s  emsg=%s", namespace, e.getMessage()));
@@ -875,7 +865,7 @@ public abstract class PulsarWebResource {
                 if (!allowDeletedNamespace && policies.deleted) {
                     String msg = String.format("Namespace %s is deleted", namespace.toString());
                     log.warn(msg);
-                    validationFuture.completeExceptionally(new RestException(Status.PRECONDITION_FAILED,
+                    validationFuture.completeExceptionally(new RestException(Status.NOT_FOUND,
                             "Namespace is deleted"));
                 } else if (policies.replication_clusters.isEmpty()) {
                     String msg = String.format(
@@ -1109,10 +1099,6 @@ public abstract class PulsarWebResource {
         return pulsar().getPulsarResources().getDynamicConfigResources();
     }
 
-    public static ObjectMapper jsonMapper() {
-        return ObjectMapperFactory.getThreadLocal();
-    }
-
     public void validatePoliciesReadOnlyAccess() {
         try {
             if (namespaceResources().getPoliciesReadOnly()) {
@@ -1223,14 +1209,6 @@ public abstract class PulsarWebResource {
                     });
         }
         return CompletableFuture.completedFuture(null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation) {
-        validateTopicOperation(topicName, operation, null);
-    }
-
-    public void validateTopicOperation(TopicName topicName, TopicOperation operation, String subscription) {
-        sync(()-> validateTopicOperationAsync(topicName, operation, subscription));
     }
 
     public CompletableFuture<Void> validateTopicOperationAsync(TopicName topicName, TopicOperation operation) {

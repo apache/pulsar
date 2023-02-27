@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,14 +39,24 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
             DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
 
     public static void initBufferedWriterMetrics(String brokerAdvertisedAddress){
-        if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+        if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS) {
             return;
         }
         synchronized (MLTransactionMetadataStoreProvider.class){
-            if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS){
+            if (bufferedWriterMetrics != DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS) {
                 return;
             }
             bufferedWriterMetrics = new MLTransactionMetadataStoreBufferedWriterMetrics(brokerAdvertisedAddress);
+        }
+    }
+
+    public static void closeBufferedWriterMetrics() {
+        synchronized (MLTransactionMetadataStoreProvider.class){
+            if (bufferedWriterMetrics == DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS) {
+                return;
+            }
+            bufferedWriterMetrics.close();
+            bufferedWriterMetrics = DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
         }
     }
 

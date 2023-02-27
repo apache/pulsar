@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -106,7 +106,7 @@ public abstract class WebSocketTestSuite extends PulsarTestSuite {
             if (response == null) {
                 Assert.fail("Did not get websocket response within timeout");
             }
-            return ObjectMapperFactory.getThreadLocal().readValue(response, new TypeReference<>() {});
+            return ObjectMapperFactory.getMapper().getObjectMapper().readValue(response, new TypeReference<>() {});
 
         }
 

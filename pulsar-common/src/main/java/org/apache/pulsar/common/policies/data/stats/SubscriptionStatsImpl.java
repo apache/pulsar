@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,7 +58,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Number of entries in the subscription backlog. */
     public long msgBacklog;
 
-    /** Size of backlog in byte. **/
+    /** Size of backlog in byte, -1 means that the argument "subscriptionBacklogSize" is false when calling the API. **/
     public long backlogSize;
 
     /** Get the publish time of the earliest message in the backlog. */

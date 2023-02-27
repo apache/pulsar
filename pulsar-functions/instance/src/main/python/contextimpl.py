@@ -233,10 +233,13 @@ class ContextImpl(pulsar.Context):
     return self.state_context.get_amount(key)
 
   def del_counter(self, key):
-    return self.state_context.delete(key)
+    return self.state_context.delete_key(key)
 
   def put_state(self, key, value):
     return self.state_context.put(key, value)
 
   def get_state(self, key):
     return self.state_context.get_value(key)
+
+  def get_pulsar_client(self):
+    return self.pulsar_client

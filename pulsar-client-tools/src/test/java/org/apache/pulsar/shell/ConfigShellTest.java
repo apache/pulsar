@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.beust.jcommander.internal.Console;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -143,6 +144,16 @@ public class ConfigShellTest {
                 "--file", newClientConf.toFile().getAbsolutePath()}));
         assertTrue(output.isEmpty());
         verify(pulsarShell, times(2)).reload(any());
+
+        assertTrue(runCommand(new String[]{"clone", "myclient",
+                "--name", "myclient-copied"}));
+        assertTrue(output.isEmpty());
+        verify(pulsarShell, times(2)).reload(any());
+
+        assertTrue(runCommand(new String[]{"view", "myclient-copied"}));
+        assertEquals(output.get(0), "webServiceUrl=http://localhost:8081/\nbrokerServiceUrl" +
+                "=pulsar://localhost:6651/\n");
+        output.clear();
     }
 
     @Test
@@ -216,5 +227,23 @@ public class ConfigShellTest {
             configShell.setupState(null);
             setConsole();
         }
+    }
+
+    @Test
+    public void testResolveLocalFile() throws Exception {
+        assertEquals(ConfigShell.resolveLocalFile("myfile").getAbsolutePath(),
+                new File("myfile").getAbsolutePath());
+        assertEquals(ConfigShell.resolveLocalFile("mydir/myfile.txt").getAbsolutePath(),
+                new File("mydir/myfile.txt").getAbsolutePath());
+        assertEquals(ConfigShell.resolveLocalFile("myfile", "current").getAbsolutePath(),
+                new File("current/myfile").getAbsolutePath());
+        assertEquals(ConfigShell.resolveLocalFile("mydir/myfile.txt", "current").getAbsolutePath(),
+                new File("current/mydir/myfile.txt").getAbsolutePath());
+
+        assertEquals(ConfigShell.resolveLocalFile("/tmp/absolute.txt").getAbsolutePath(),
+                new File("/tmp/absolute.txt").getAbsolutePath());
+
+        assertEquals(ConfigShell.resolveLocalFile("/tmp/absolute.txt", "current").getAbsolutePath(),
+                new File("/tmp/absolute.txt").getAbsolutePath());
     }
 }

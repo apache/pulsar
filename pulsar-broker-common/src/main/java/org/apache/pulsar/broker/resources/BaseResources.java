@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -91,6 +91,13 @@ public class BaseResources<T> {
 
     protected CompletableFuture<Optional<T>> getAsync(String path) {
         return cache.get(path);
+    }
+
+    protected CompletableFuture<Optional<T>> refreshAndGetAsync(String path) {
+        return store.sync(path).thenCompose(___ -> {
+            cache.invalidate(path);
+            return cache.get(path);
+        });
     }
 
     protected void set(String path, Function<T, T> modifyFunction) throws MetadataStoreException {

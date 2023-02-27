@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -614,8 +614,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     }
 
     @Override
-    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
-        super.beforePulsarStartMocks(pulsar);
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
         doAnswer(i0 -> {
             ManagedLedgerFactory factory = (ManagedLedgerFactory) spy(i0.callRealMethod());
             doAnswer(i1 -> {
@@ -698,6 +698,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .topic("persistent://my-property/use/my-ns/" + topicName)
                 .subscriptionName(sub2)
                 .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
                 .subscribe();
         // Produce messages
         final int moreMessages = 10;

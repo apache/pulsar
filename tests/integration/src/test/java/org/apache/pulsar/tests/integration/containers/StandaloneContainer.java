@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -65,13 +65,5 @@ public class StandaloneContainer extends PulsarContainer<StandaloneContainer> {
                 .forStatusCode(200)
                 .forPath("/admin/v2/namespaces/public/default")
                 .withStartupTimeout(Duration.of(300, SECONDS));
-    }
-
-    public String getPlainTextServiceUrl() {
-        return "pulsar://" + getHost() + ":" + getMappedPort(BROKER_PORT);
-    }
-
-    public String getHttpServiceUrl() {
-        return "http://" + getHost() + ":" + getMappedPort(BROKER_HTTP_PORT);
     }
 }

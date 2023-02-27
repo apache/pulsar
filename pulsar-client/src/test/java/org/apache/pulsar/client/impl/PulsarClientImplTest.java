@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -186,16 +186,6 @@ public class PulsarClientImplTest {
 
         client.shutdown();
         client.timer().stop();
-    }
-
-    @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
-    public void testNewTransactionWhenDisable() throws Exception {
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl("pulsar://localhost:6650");
-        conf.setEnableTransaction(false);
-        try (PulsarClientImpl client = new PulsarClientImpl(conf)) {
-            client.newTransaction();
-        }
     }
 
     @Test

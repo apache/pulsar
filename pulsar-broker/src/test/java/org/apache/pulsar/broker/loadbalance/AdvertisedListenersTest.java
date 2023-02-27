@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
@@ -25,7 +26,6 @@ import java.net.URI;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -66,9 +66,9 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     }
 
     private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
-        int pulsarPort = PortManager.nextFreePort();
-        int httpPort = PortManager.nextFreePort();
-        int httpsPort = PortManager.nextFreePort();
+        int pulsarPort = nextLockedFreePort();
+        int httpPort = nextLockedFreePort();
+        int httpsPort = nextLockedFreePort();
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
         conf.setAdvertisedAddress(advertisedAddress);
@@ -96,7 +96,7 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         CloseableHttpResponse response = httpClient.execute(request);
 
         HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getThreadLocal().readValue(EntityUtils.toString(entity), LookupData.class);
+        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
         System.err.println("Lookup data: " + ld);
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");

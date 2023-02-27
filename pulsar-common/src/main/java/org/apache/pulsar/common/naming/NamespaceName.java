@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -89,6 +90,7 @@ public class NamespaceName implements ServiceUnitId {
         return Optional.of(get(namespace));
     }
 
+    @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
     private NamespaceName(String namespace) {
         // Verify it's a proper namespace
         // The namespace name is composed of <tenant>/<namespace>

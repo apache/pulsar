@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,6 +32,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.File;
@@ -380,8 +381,8 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have "
-            + "the correct format.*")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class"
+            + " from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOInvalidNar())) {
             testRegisterSourceMissingArguments(
@@ -402,7 +403,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
+    @Test
     public void testRegisterSourceNoOutputTopic() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
             testRegisterSourceMissingArguments(
@@ -418,8 +419,8 @@ public class SourceApiV3ResourceTest {
                     null
             );
         } catch (RestException re) {
-            assertEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
-            throw re;
+            // https://github.com/apache/pulsar/pull/18769 releases the restriction of topic name
+            assertNotEquals(re.getResponse().getStatusInfo(), Response.Status.BAD_REQUEST);
         }
     }
 

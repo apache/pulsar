@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,10 +30,11 @@ import org.apache.pulsar.admin.cli.utils.SchemaExtractor;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Parameters(commandDescription = "Operations about schemas")
 public class CmdSchemas extends CmdBase {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = ObjectMapperFactory.create();
 
     public CmdSchemas(Supplier<PulsarAdmin> admin) {
         super("schemas", admin);
@@ -73,7 +74,7 @@ public class CmdSchemas extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Delete the latest schema for a topic")
+    @Parameters(commandDescription = "Delete all versions schema of a topic")
     private class DeleteSchema extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;

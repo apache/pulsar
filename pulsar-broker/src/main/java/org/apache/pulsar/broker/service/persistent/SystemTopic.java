@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.concurrent.CompletableFuture;
@@ -76,5 +75,11 @@ public class SystemTopic extends PersistentTopic {
         // All system topics are using compaction except `HealthCheck`,
         // even though is not explicitly set in the policies.
         return !NamespaceService.isHeartbeatNamespace(TopicName.get(topic));
+    }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        // System topics are only written by the broker that can't know the encryption context.
+        return false;
     }
 }

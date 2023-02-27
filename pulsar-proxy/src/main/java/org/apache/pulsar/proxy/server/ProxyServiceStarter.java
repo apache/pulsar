@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import lombok.Getter;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -103,6 +104,7 @@ public class ProxyServiceStarter {
     private ProxyService proxyService;
 
     private WebServer server;
+    private static boolean metricsInitialized;
 
     public ProxyServiceStarter(String[] args) throws Exception {
         try {
@@ -131,7 +133,7 @@ public class ProxyServiceStarter {
                 }
             } catch (Exception e) {
                 jcommander.usage();
-                System.exit(-1);
+                System.exit(1);
             }
 
             // load config file
@@ -207,23 +209,27 @@ public class ProxyServiceStarter {
 
         proxyService.start();
 
-        // Setup metrics
-        DefaultExports.initialize();
+        if (!metricsInitialized) {
+            // Setup metrics
+            DefaultExports.initialize();
 
-        // Report direct memory from Netty counters
-        Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return getJvmDirectMemoryUsed();
-            }
-        }).register(CollectorRegistry.defaultRegistry);
+            // Report direct memory from Netty counters
+            Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
+                @Override
+                public double get() {
+                    return getJvmDirectMemoryUsed();
+                }
+            }).register(CollectorRegistry.defaultRegistry);
 
-        Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-            @Override
-            public double get() {
-                return DirectMemoryUtils.jvmMaxDirectMemory();
-            }
-        }).register(CollectorRegistry.defaultRegistry);
+            Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
+                @Override
+                public double get() {
+                    return DirectMemoryUtils.jvmMaxDirectMemory();
+                }
+            }).register(CollectorRegistry.defaultRegistry);
+
+            metricsInitialized = true;
+        }
 
         addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
 
@@ -241,6 +247,8 @@ public class ProxyServiceStarter {
             }
         } catch (Exception e) {
             log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+        } finally {
+            LogManager.shutdown();
         }
     }
 

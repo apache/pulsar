@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -555,7 +555,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
 
                     }
-                }, null, maxPosition);
+                }, null, maxPosition, null);
         Assert.assertEquals(opReadEntry.readPosition, position);
     }
 
@@ -3011,7 +3011,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.asyncCreateLedger(bk, config, null, (rc, lh, ctx) -> {}, Collections.emptyMap());
         retryStrategically((test) -> responseException1.get() != null, 5, 1000);
         assertNotNull(responseException1.get());
-        assertEquals(responseException1.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+        assertTrue(responseException1.get().getMessage()
+                .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
 
         // (2) test read-timeout for: ManagedLedger.asyncReadEntry(..)
         AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
@@ -3029,20 +3030,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 responseException2.set(exception);
             }
 
-        }, null, PositionImpl.LATEST);
+        }, null, PositionImpl.LATEST, null);
         ledger.asyncReadEntry(ledgerHandle, PositionImpl.EARLIEST.getEntryId(), PositionImpl.EARLIEST.getEntryId(),
                 opReadEntry, ctxStr);
         retryStrategically((test) -> {
             return responseException2.get() != null;
         }, 5, 1000);
         assertNotNull(responseException2.get());
-        assertEquals(responseException2.get().getMessage(), BKException.getMessage(BKException.Code.TimeoutException));
+        assertTrue(responseException2.get().getMessage()
+                .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
 
         ledger.close();
     }
 
     /**
-     * It verifies that if bk-client doesn't complete the add-entry in given time out then broker is resilient enought
+     * It verifies that if bk-client doesn't complete the add-entry in given time out then broker is resilient enough
      * to create new ledger and add entry successfully.
      *
      *
@@ -3624,10 +3626,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         LedgerOffloader ledgerOffloader = mock(NullLedgerOffloader.class);
         OffloadPoliciesImpl offloadPolicies = mock(OffloadPoliciesImpl.class);
         when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
+        when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes()).thenReturn(-1L);
+        when(ledgerOffloader.getOffloadPolicies().getManagedLedgerOffloadThresholdInSeconds()).thenReturn(-1L);
         when(ledgerOffloader.getOffloadDriverName()).thenReturn("s3");
         config.setLedgerOffloader(ledgerOffloader);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl)factory.open(
-                "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config);
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl)factory.open(
+                "testDoNotGetOffloadPoliciesMultipleTimesWhenTrimLedgers", config));
+        doNothing().when(ledger).trimConsumedLedgersInBackground(any(CompletableFuture.class));
 
         // Retain the data.
         ledger.openCursor("test-cursor");
@@ -3831,5 +3836,23 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         long lastLedger = managedLedger.ledgers.lastEntry().getKey();
         managedLedger.getEnsemblesAsync(lastLedger).join();
         Assert.assertFalse(managedLedger.ledgerCache.containsKey(lastLedger));
+    }
+
+    @Test
+    public void testGetEstimatedBacklogSize() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testGetEstimatedBacklogSize", config);
+        List<Position> positions = new ArrayList<>(10);
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(new byte[1]));
+        }
+
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(new PositionImpl(-1, -1)), 10);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(1))), 8);
+        Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext()), 0);
+        ledger.close();
     }
 }

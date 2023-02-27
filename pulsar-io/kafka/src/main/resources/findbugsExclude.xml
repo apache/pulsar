@@ -19,4 +19,80 @@
 
 -->
 <FindBugsFilter>
+  <!-- Ignore violations that were present when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.BytesWithKafkaSchema"/>
+    <Method name="getValue"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.BytesWithKafkaSchema"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KafkaRecord"/>
+    <Method name="getCompletableFuture"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KafkaRecord"/>
+    <Method name="getProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KafkaRecord"/>
+    <Method name="getSchema"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KafkaRecord"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KafkaRecord"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KeyValueKafkaRecord"/>
+    <Method name="getKeySchema"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KeyValueKafkaRecord"/>
+    <Method name="getValueSchema"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KeyValueKafkaRecord"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaAbstractSource$KeyValueKafkaRecord"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaSinkConfig"/>
+    <Method name="getProducerConfigProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaSinkConfig"/>
+    <Method name="setProducerConfigProperties"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaSourceConfig"/>
+    <Method name="getConsumerConfigProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.io.kafka.KafkaSourceConfig"/>
+    <Method name="setConsumerConfigProperties"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -448,12 +448,14 @@ public class ProxyService implements Closeable {
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return PulsarResources.createLocalMetadataStore(proxyConfig.getMetadataStoreUrl(),
-                proxyConfig.getMetadataStoreSessionTimeoutMillis());
+                proxyConfig.getMetadataStoreSessionTimeoutMillis(),
+                proxyConfig.isMetadataStoreAllowReadOnlyOperations());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
         return PulsarResources.createConfigMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
-                proxyConfig.getMetadataStoreSessionTimeoutMillis());
+                proxyConfig.getMetadataStoreSessionTimeoutMillis(),
+                proxyConfig.isMetadataStoreAllowReadOnlyOperations());
     }
 
     public Authentication getProxyClientAuthenticationPlugin() {

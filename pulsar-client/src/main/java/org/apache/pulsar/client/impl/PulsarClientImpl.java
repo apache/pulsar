@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import com.google.common.cache.LoadingCache;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Clock;
@@ -49,9 +48,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Builder;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -190,7 +187,6 @@ public class PulsarClientImpl implements PulsarClient {
             if (conf == null || isBlank(conf.getServiceUrl())) {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
-            setAuth(conf);
             this.conf = conf;
             clientClock = conf.getClock();
             conf.getAuthentication().start();
@@ -244,19 +240,6 @@ public class PulsarClientImpl implements PulsarClient {
         }
     }
 
-    private void setAuth(ClientConfigurationData conf) throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getAuthPluginClassName())
-                || (StringUtils.isBlank(conf.getAuthParams()) && conf.getAuthParamMap() == null)) {
-            return;
-        }
-
-        if (StringUtils.isNotBlank(conf.getAuthParams())) {
-            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParams()));
-        } else if (conf.getAuthParamMap() != null) {
-            conf.setAuthentication(AuthenticationFactory.create(conf.getAuthPluginClassName(), conf.getAuthParamMap()));
-        }
-    }
-
     public ClientConfigurationData getConfiguration() {
         return conf;
     }
@@ -306,8 +289,22 @@ public class PulsarClientImpl implements PulsarClient {
         return new ReaderBuilderImpl<>(this, schema);
     }
 
+    /**
+     * @deprecated use {@link #newTableView(Schema)} instead.
+     */
     @Override
+    @Deprecated
     public <T> TableViewBuilder<T> newTableViewBuilder(Schema<T> schema) {
+        return new TableViewBuilderImpl<>(this, schema);
+    }
+
+    @Override
+    public TableViewBuilder<byte[]> newTableView() {
+        return new TableViewBuilderImpl<>(this, Schema.BYTES);
+    }
+
+    @Override
+    public <T> TableViewBuilder<T> newTableView(Schema<T> schema) {
         return new TableViewBuilderImpl<>(this, schema);
     }
 
@@ -756,7 +753,7 @@ public class PulsarClientImpl implements PulsarClient {
         // would happen
         CompletableFuture<Void> combinedFuture = FutureUtil.waitForAll(futures);
         ScheduledExecutorService shutdownExecutor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-client-shutdown-timeout-scheduler"));
         FutureUtil.addTimeoutHandling(combinedFuture, Duration.ofSeconds(CLOSE_TIMEOUT_SECONDS),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Closing producers and consumers timed out.",
                         PulsarClientImpl.class, "closeAsync"));
@@ -1087,7 +1084,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private static ThreadFactory getThreadFactory(String poolName) {
-        return new DefaultThreadFactory(poolName, Thread.currentThread().isDaemon());
+        return new ExecutorProvider.ExtendedThreadFactory(poolName, Thread.currentThread().isDaemon());
     }
 
     void cleanupProducer(ProducerBase<?> producer) {
@@ -1189,10 +1186,7 @@ public class PulsarClientImpl implements PulsarClient {
     // This method should be exposed in the PulsarClient interface. Only expose it when all the transaction features
     // are completed.
     // @Override
-    public TransactionBuilder newTransaction() throws PulsarClientException {
-        if (!conf.isEnableTransaction()) {
-            throw new PulsarClientException.InvalidConfigurationException("Transactions are not enabled");
-        }
+    public TransactionBuilder newTransaction() {
         return new TransactionBuilderImpl(this, tcClient);
     }
 }

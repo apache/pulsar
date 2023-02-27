@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -707,12 +707,19 @@ public class ResendRequestTest extends BrokerTestBase {
                 receivedConsumer1 += 1;
             }
         } while (message1 != null);
+        do {
+            message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
+            if (message2 != null) {
+                log.info("Consumer 2 Received: " + new String(message2.getData()));
+                receivedConsumer2 += 1;
+            }
+        } while (message2 != null);
         log.info("Consumer 1 receives = " + receivedConsumer1);
         log.info("Consumer 2 receives = " + receivedConsumer2);
         log.info("Total receives = " + (receivedConsumer2 + receivedConsumer1));
         assertEquals(receivedConsumer2 + receivedConsumer1, totalMessages);
         // Consumer 2 is on Stand By
-        assertEquals(receivedConsumer2, 0);
+        assertEquals(receivedConsumer1, 0);
 
         // 5. Consumer 2 asks for a redelivery but the request is ignored
         log.info("Consumer 2 asks for resend");
@@ -722,7 +729,7 @@ public class ResendRequestTest extends BrokerTestBase {
         message1 = consumer1.receive(500, TimeUnit.MILLISECONDS);
         message2 = consumer2.receive(500, TimeUnit.MILLISECONDS);
         assertNull(message1);
-        assertNull(message2);
+        assertNotNull(message2);
     }
 
     @SuppressWarnings("unchecked")

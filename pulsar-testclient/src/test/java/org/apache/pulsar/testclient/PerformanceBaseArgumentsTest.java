@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -144,10 +144,7 @@ public class PerformanceBaseArgumentsTest {
             args.confFile = "./src/test/resources/performance_client3.conf";
             PerfClientUtils.setExitProcedure(code -> {
                 calledVar2.set(true);
-                Assert.assertNotNull(code);
-                if (code != -1) {
-                    fail("Incorrect exit code");
-                }
+                Assert.assertEquals(code, 1, "Incorrect exit code");
             });
 
             args.confFile = "./src/test/resources/performance_client3.conf";

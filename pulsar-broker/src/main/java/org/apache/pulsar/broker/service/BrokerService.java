@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -85,6 +86,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -108,13 +110,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
+import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -127,6 +130,7 @@ import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -144,7 +148,6 @@ import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -274,11 +277,13 @@ public class BrokerService implements Closeable {
     private boolean preciseTopicPublishRateLimitingEnable;
     private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
-    private Map<String, EntryFilterWithClassLoader> entryFilters;
+    private final EntryFilterProvider entryFilterProvider;
     private TopicFactory topicFactory;
 
     private Set<BrokerEntryMetadataInterceptor> brokerEntryMetadataInterceptors;
     private Set<ManagedLedgerPayloadProcessor> brokerEntryPayloadProcessors;
+
+    private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
 
     public BrokerService(PulsarService pulsar, EventLoopGroup eventLoopGroup) throws Exception {
         this.pulsar = pulsar;
@@ -311,38 +316,37 @@ public class BrokerService implements Closeable {
         this.topicOrderedExecutor = OrderedExecutor.newBuilder()
                 .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
                 .name("broker-topic-workers").build();
-        final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
+        final DefaultThreadFactory acceptorThreadFactory =
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-acceptor");
 
         this.acceptorGroup = EventLoopUtil.newEventLoopGroup(
                 pulsar.getConfiguration().getNumAcceptorThreads(), false, acceptorThreadFactory);
         this.workerGroup = eventLoopGroup;
-        this.statsUpdater = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
+        this.statsUpdater = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-stats-updater"));
         this.authorizationService = new AuthorizationService(
                 pulsar.getConfiguration(), pulsar().getPulsarResources());
-        if (!pulsar.getConfiguration().getEntryFilterNames().isEmpty()) {
-            this.entryFilters = EntryFilterProvider.createEntryFilters(pulsar.getConfiguration());
-        }
+        this.entryFilterProvider = new EntryFilterProvider(pulsar.getConfiguration());
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
         pulsar.getConfigurationMetadataStore().registerListener(this::handleMetadataChanges);
 
-        this.inactivityMonitor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-inactivity-monitor"));
-        this.messageExpiryMonitor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-msg-expiry-monitor"));
+        this.inactivityMonitor = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-inactivity-monitor"));
+        this.messageExpiryMonitor = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-msg-expiry-monitor"));
         this.compactionMonitor =
                 Executors.newSingleThreadScheduledExecutor(
-                        new DefaultThreadFactory("pulsar-compaction-monitor"));
-        this.consumedLedgersMonitor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumed-Ledgers-monitor"));
+                        new ExecutorProvider.ExtendedThreadFactory("pulsar-compaction-monitor"));
+        this.consumedLedgersMonitor = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("consumed-Ledgers-monitor"));
         this.topicPublishRateLimiterMonitor =
                 new PublishRateLimiterMonitor("pulsar-topic-publish-rate-limiter-monitor");
         this.brokerPublishRateLimiterMonitor =
                 new PublishRateLimiterMonitor("pulsar-broker-publish-rate-limiter-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
-        this.backlogQuotaChecker = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-backlog-quota-checker"));
+        this.backlogQuotaChecker = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-backlog-quota-checker"));
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration());
         this.blockedDispatchers =
                 ConcurrentOpenHashSet.<PersistentDispatcherMultipleConsumers>newBuilder().build();
@@ -373,7 +377,7 @@ public class BrokerService implements Closeable {
         }
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
-                .loadDelayedDeliveryTrackerFactory(pulsar.getConfiguration());
+                .loadDelayedDeliveryTrackerFactory(pulsar);
 
         this.defaultServerBootstrap = defaultServerBootstrap();
 
@@ -396,6 +400,16 @@ public class BrokerService implements Closeable {
                         .getBrokerEntryPayloadProcessors(), BrokerService.class.getClassLoader());
 
         this.bundlesQuotas = new BundlesQuotas(pulsar.getLocalMetadataStore());
+    }
+
+    public void addTopicEventListener(TopicEventsListener... listeners) {
+        topicEventsDispatcher.addTopicEventListener(listeners);
+        getTopics().keys().forEach(topic ->
+                TopicEventsDispatcher.notify(listeners, topic, TopicEvent.LOAD, EventStage.SUCCESS, null));
+    }
+
+    public void removeTopicEventListener(TopicEventsListener... listeners) {
+        topicEventsDispatcher.removeTopicEventListener(listeners);
     }
 
     // This call is used for starting additional protocol handlers
@@ -429,7 +443,8 @@ public class BrokerService implements Closeable {
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
             EventLoopUtil.enableTriggeredMode(bootstrap);
-            DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ph-" + protocol);
+            DefaultThreadFactory defaultThreadFactory =
+                    new ExecutorProvider.ExtendedThreadFactory("pulsar-ph-" + protocol);
             EventLoopGroup dedicatedWorkerGroup =
                     EventLoopUtil.newEventLoopGroup(configuration.getNumIOThreads(), false, defaultThreadFactory);
             bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
@@ -551,7 +566,7 @@ public class BrokerService implements Closeable {
         int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
         if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
             this.deduplicationSnapshotMonitor =
-                    Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(
+                    Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(
                             "deduplication-snapshot-monitor"));
             deduplicationSnapshotMonitor.scheduleAtFixedRate(safeRun(() -> forEachTopic(
                     Topic::checkDeduplicationSnapshot))
@@ -581,6 +596,13 @@ public class BrokerService implements Closeable {
             inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkInactiveSubscriptions),
                     subscriptionExpiryCheckIntervalInSeconds,
                     subscriptionExpiryCheckIntervalInSeconds, TimeUnit.SECONDS);
+        }
+
+        // check cluster migration
+        int interval = pulsar().getConfiguration().getClusterMigrationCheckDurationSeconds();
+        if (interval > 0) {
+            inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkClusterMigration()), interval, interval,
+                    TimeUnit.SECONDS);
         }
     }
 
@@ -678,7 +700,7 @@ public class BrokerService implements Closeable {
                 stop();
             }
             //start monitor.
-            scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(name));
+            scheduler = Executors.newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory(name));
             // schedule task that sums up publish-rate across all cnx on a topic ,
             // and check the rate limit exceeded or not.
             scheduler.scheduleAtFixedRate(safeRun(checkTask), tickTimeMs, tickTimeMs, TimeUnit.MILLISECONDS);
@@ -770,14 +792,8 @@ public class BrokerService implements Closeable {
             });
 
             //close entry filters
-            if (entryFilters != null) {
-                entryFilters.forEach((name, filter) -> {
-                    try {
-                        filter.close();
-                    } catch (Exception e) {
-                        log.warn("Error shutting down entry filter {}", name, e);
-                    }
-                });
+            if (entryFilterProvider != null) {
+                entryFilterProvider.close();
             }
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
@@ -821,7 +837,7 @@ public class BrokerService implements Closeable {
                                 pulsarStats.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
-                                } catch (IOException e) {
+                                } catch (Exception e) {
                                     log.warn("Error in closing delayedDeliveryTrackerFactory", e);
                                 }
 
@@ -922,7 +938,8 @@ public class BrokerService implements Closeable {
 
             // unload all namespace-bundles gracefully
             long closeTopicsStartTime = System.nanoTime();
-            Set<NamespaceBundle> serviceUnits = pulsar.getNamespaceService().getOwnedServiceUnits();
+            Set<NamespaceBundle> serviceUnits =
+                    pulsar.getNamespaceService() != null ? pulsar.getNamespaceService().getOwnedServiceUnits() : null;
             if (serviceUnits != null) {
                 try (RateLimiter rateLimiter = maxConcurrentUnload > 0 ? RateLimiter.builder()
                         .scheduledExecutorService(pulsar.getExecutor())
@@ -943,12 +960,13 @@ public class BrokerService implements Closeable {
                         }
                     });
                 }
-            }
 
-            double closeTopicsTimeSeconds = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
-                    / 1000.0;
-            log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
-                    closeTopicsTimeSeconds);
+                double closeTopicsTimeSeconds =
+                        TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - closeTopicsStartTime))
+                                / 1000.0;
+                log.info("Unloading {} namespace-bundles completed in {} seconds", serviceUnits.size(),
+                        closeTopicsTimeSeconds);
+            }
         } catch (Exception e) {
             log.error("Failed to disable broker from loadbalancer list {}", e.getMessage(), e);
         }
@@ -959,7 +977,9 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Topic> getOrCreateTopic(final String topic) {
-        return getTopic(topic, isAllowAutoTopicCreation(topic)).thenApply(Optional::get);
+        return isAllowAutoTopicCreationAsync(topic)
+                .thenCompose(isAllowed -> getTopic(topic, isAllowed))
+                .thenApply(Optional::get);
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
@@ -1003,22 +1023,53 @@ public class BrokerService implements Closeable {
             }
             final boolean isPersistentTopic = topicName.getDomain().equals(TopicDomain.persistent);
             if (isPersistentTopic) {
-                return topics.computeIfAbsent(topicName.toString(), (k) -> {
-                    return this.loadOrCreatePersistentTopic(k, createIfMissing, properties);
+                return topics.computeIfAbsent(topicName.toString(), (tpName) -> {
+                    if (topicName.isPartitioned()) {
+                        return fetchPartitionedTopicMetadataAsync(TopicName.get(topicName.getPartitionedTopicName()))
+                                .thenCompose((metadata) -> {
+                                    // Allow crate non-partitioned persistent topic that name includes `partition`
+                                    if (metadata.partitions == 0
+                                            || topicName.getPartitionIndex() < metadata.partitions) {
+                                        return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
+                                    }
+                                    return CompletableFuture.completedFuture(Optional.empty());
+                                });
+                    }
+                    return loadOrCreatePersistentTopic(tpName, createIfMissing, properties);
                 });
             } else {
                 return topics.computeIfAbsent(topicName.toString(), (name) -> {
+                    topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.BEFORE);
                     if (topicName.isPartitioned()) {
                         final TopicName partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                         return this.fetchPartitionedTopicMetadataAsync(partitionedTopicName).thenCompose((metadata) -> {
                             if (topicName.getPartitionIndex() < metadata.partitions) {
-                                return createNonPersistentTopic(name);
+                                topicEventsDispatcher
+                                        .notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+
+                                CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+
+                                CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                        .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                                topicEventsDispatcher
+                                        .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                                return res;
                             }
+                            topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                             return CompletableFuture.completedFuture(Optional.empty());
                         });
                     } else if (createIfMissing) {
-                        return createNonPersistentTopic(name);
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.CREATE, EventStage.BEFORE);
+
+                        CompletableFuture<Optional<Topic>> res = createNonPersistentTopic(name);
+
+                        CompletableFuture<Optional<Topic>> eventFuture = topicEventsDispatcher
+                                .notifyOnCompletion(res, topicName.toString(), TopicEvent.CREATE);
+                        topicEventsDispatcher
+                                .notifyOnCompletion(eventFuture, topicName.toString(), TopicEvent.LOAD);
+                        return res;
                     } else {
+                        topicEventsDispatcher.notify(topicName.toString(), TopicEvent.LOAD, EventStage.FAILURE);
                         return CompletableFuture.completedFuture(Optional.empty());
                     }
                 });
@@ -1039,7 +1090,16 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
+        topicEventsDispatcher.notify(topic, TopicEvent.DELETE, EventStage.BEFORE);
+        CompletableFuture<Void> result =  deleteTopicInternal(topic, forceDelete);
+        topicEventsDispatcher.notifyOnCompletion(result, topic, TopicEvent.DELETE);
+        return result;
+    }
+
+    private CompletableFuture<Void> deleteTopicInternal(String topic, boolean forceDelete) {
+        TopicName topicName = TopicName.get(topic);
         Optional<Topic> optTopic = getTopicReference(topic);
+
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
@@ -1066,9 +1126,8 @@ public class BrokerService implements Closeable {
             return t.delete();
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Topic {} is not loaded, try to delete from metadata", topic);
-        }
+        log.info("Topic {} is not loaded, try to delete from metadata", topic);
+
         // Topic is not loaded, though we still might be able to delete from metadata
         TopicName tn = TopicName.get(topic);
         if (!tn.isPersistent()) {
@@ -1077,27 +1136,28 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-
         CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
         deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
+
         deleteTopicAuthenticationFuture.whenComplete((v, ex) -> {
             if (ex != null) {
                 future.completeExceptionally(ex);
                 return;
             }
-            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(), new DeleteLedgerCallback() {
-                @Override
-                public void deleteLedgerComplete(Object ctx) {
-                    future.complete(null);
-                }
+            CompletableFuture<ManagedLedgerConfig> mlConfigFuture = getManagedLedgerConfig(topicName);
+            managedLedgerFactory.asyncDelete(tn.getPersistenceNamingEncoding(),
+                    mlConfigFuture, new DeleteLedgerCallback() {
+                        @Override
+                        public void deleteLedgerComplete(Object ctx) {
+                            future.complete(null);
+                        }
 
-                @Override
-                public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                    future.completeExceptionally(exception);
-                }
-            }, null);
+                        @Override
+                        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                            future.completeExceptionally(exception);
+                        }
+                    }, null);
         });
-
 
         return future;
     }
@@ -1160,27 +1220,13 @@ public class BrokerService implements Closeable {
         NonPersistentTopic nonPersistentTopic;
         try {
             nonPersistentTopic = newTopic(topic, null, this, NonPersistentTopic.class);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("Failed to create topic {}", topic, e);
             return FutureUtil.failedFuture(e);
         }
         CompletableFuture<Void> isOwner = checkTopicNsOwnership(topic);
         isOwner.thenRun(() -> {
             nonPersistentTopic.initialize()
-                    .thenAccept(__ -> {
-                        EntryFilters entryFiltersPolicy = nonPersistentTopic.getEntryFiltersPolicy();
-                        if (!entryFiltersPolicy.getEntryFilterNames().isEmpty()) {
-                            try {
-                                nonPersistentTopic.entryFilters =
-                                        EntryFilterProvider.createEntryFilters(pulsar.getConfig(),
-                                                entryFiltersPolicy);
-                            } catch (IOException e) {
-                                log.warn("Failed to set entry filters on topic {}-{}", topic, e.getMessage());
-                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-                                topicFuture.completeExceptionally(e);
-                            }
-                        }
-                    })
                     .thenCompose(__ -> nonPersistentTopic.checkReplication())
                     .thenRun(() -> {
                         log.info("Created topic {}", nonPersistentTopic);
@@ -1251,9 +1297,18 @@ public class BrokerService implements Closeable {
                         : data.getServiceUrlTls();
                 if (data.isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
-                            data.isBrokerClientTlsEnabledWithKeyStore(), data.isTlsAllowInsecureConnection(),
-                            data.getBrokerClientTlsTrustStoreType(), data.getBrokerClientTlsTrustStore(),
-                            data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath());
+                            data.isBrokerClientTlsEnabledWithKeyStore(),
+                            data.isTlsAllowInsecureConnection(),
+                            data.getBrokerClientTlsTrustStoreType(),
+                            data.getBrokerClientTlsTrustStore(),
+                            data.getBrokerClientTlsTrustStorePassword(),
+                            data.getBrokerClientTlsKeyStoreType(),
+                            data.getBrokerClientTlsKeyStore(),
+                            data.getBrokerClientTlsKeyStorePassword(),
+                            data.getBrokerClientTrustCertsFilePath(),
+                            data.getBrokerClientKeyFilePath(),
+                            data.getBrokerClientCertificateFilePath()
+                    );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
                             pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(),
@@ -1261,7 +1316,13 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(),
                             pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
                             pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(),
-                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
+                            pulsar.getConfiguration().getBrokerClientTlsKeyStoreType(),
+                            pulsar.getConfiguration().getBrokerClientTlsKeyStore(),
+                            pulsar.getConfiguration().getBrokerClientTlsKeyStorePassword(),
+                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
+                            pulsar.getConfiguration().getBrokerClientKeyFilePath(),
+                            pulsar.getConfiguration().getBrokerClientCertificateFilePath()
+                    );
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -1287,18 +1348,25 @@ public class BrokerService implements Closeable {
     private void configTlsSettings(ClientBuilder clientBuilder, String serviceUrl,
                                    boolean brokerClientTlsEnabledWithKeyStore, boolean isTlsAllowInsecureConnection,
                                    String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
-                                   String brokerClientTlsTrustStorePassword, String brokerClientTrustCertsFilePath) {
+                                   String brokerClientTlsTrustStorePassword, String brokerClientTlsKeyStoreType,
+                                   String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
+                                   String brokerClientTrustCertsFilePath,
+                                   String brokerClientKeyFilePath, String brokerClientCertificateFilePath) {
         clientBuilder
                 .serviceUrl(serviceUrl)
-                .enableTls(true)
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection);
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
                     .tlsTrustStorePath(brokerClientTlsTrustStore)
-                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword);
+                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                    .tlsKeyStoreType(brokerClientTlsKeyStoreType)
+                    .tlsKeyStorePath(brokerClientTlsKeyStore)
+                    .tlsKeyStorePassword(brokerClientTlsKeyStorePassword);
         } else {
-            clientBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath);
+            clientBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                    .tlsKeyFilePath(brokerClientKeyFilePath)
+                    .tlsCertificateFilePath(brokerClientCertificateFilePath);
         }
     }
 
@@ -1375,7 +1443,7 @@ public class BrokerService implements Closeable {
                 log.debug("Broker is unable to load persistent topic {}", topic);
             }
             topicFuture.completeExceptionally(new NotAllowedException(
-                    "Broker is not unable to load persistent topic"));
+                    "Broker is unable to load persistent topic"));
             return topicFuture;
         }
 
@@ -1416,8 +1484,17 @@ public class BrokerService implements Closeable {
                         if (metadata.partitions == PartitionedTopicMetadata.NON_PARTITIONED) {
                             return managedLedgerFactory.getManagedLedgerPropertiesAsync(
                                     topicName.getPersistenceNamingEncoding());
+                        } else {
+                            // Check if the partitioned topic is a ShadowTopic
+                            if (MapUtils.getString(metadata.properties, PROPERTY_SOURCE_TOPIC_KEY) != null) {
+                                String sourceTopic = metadata.properties.get(PROPERTY_SOURCE_TOPIC_KEY);
+                                Map<String, String> result = new HashMap<>();
+                                result.put(PROPERTY_SOURCE_TOPIC_KEY, TopicName.getTopicPartitionNameString(
+                                        sourceTopic, topicName.getPartitionIndex()));
+                                return CompletableFuture.completedFuture(result);
+                            }
+                            return CompletableFuture.completedFuture(null);
                         }
-                        return CompletableFuture.completedFuture(metadata.properties);
                     });
         }
     }
@@ -1437,6 +1514,7 @@ public class BrokerService implements Closeable {
                             propertiesFuture = CompletableFuture.completedFuture(properties);
                         }
                         propertiesFuture.thenAccept(finalProperties ->
+                                //TODO add topicName in properties?
                                 createPersistentTopic(topic, createIfMissing, topicFuture, finalProperties)
                         ).exceptionally(throwable -> {
                             log.warn("[{}] Read topic property failed", topic, throwable);
@@ -1455,6 +1533,14 @@ public class BrokerService implements Closeable {
                     topicFuture.completeExceptionally(ex);
                     return null;
                 });
+    }
+
+
+    @VisibleForTesting
+    public void createPersistentTopic0(final String topic, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture,
+                                       Map<String, String> properties) {
+        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
     }
 
     private void createPersistentTopic(final String topic, boolean createIfMissing,
@@ -1492,6 +1578,28 @@ public class BrokerService implements Closeable {
             }
             managedLedgerConfig.setCreateIfMissing(createIfMissing);
             managedLedgerConfig.setProperties(properties);
+            String shadowSource = managedLedgerConfig.getShadowSource();
+            if (shadowSource != null) {
+                managedLedgerConfig.setShadowSourceName(TopicName.get(shadowSource).getPersistenceNamingEncoding());
+            }
+
+            topicEventsDispatcher.notify(topic, TopicEvent.LOAD, EventStage.BEFORE);
+            // load can fail with topicFuture completed non-exceptionally
+            // work around this
+            final CompletableFuture<Void> loadFuture = new CompletableFuture<>();
+            topicFuture.whenComplete((res, ex) -> {
+                if (ex == null) {
+                    loadFuture.complete(null);
+                } else {
+                    loadFuture.completeExceptionally(ex);
+                }
+            });
+
+            if (createIfMissing) {
+                topicEventsDispatcher.notify(topic, TopicEvent.CREATE, EventStage.BEFORE);
+                topicEventsDispatcher.notifyOnCompletion(topicFuture, topic, TopicEvent.CREATE);
+            }
+            topicEventsDispatcher.notifyOnCompletion(loadFuture, topic, TopicEvent.LOAD);
 
             // Once we have the configuration, we can proceed with the async open operation
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
@@ -1504,22 +1612,6 @@ public class BrokerService implements Closeable {
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic
                                         .initialize()
-                                        .thenAccept(__ -> {
-                                            EntryFilters entryFiltersPolicy = persistentTopic.getEntryFiltersPolicy();
-                                            if (!entryFiltersPolicy.getEntryFilterNames().isEmpty()) {
-                                                try {
-                                                    persistentTopic.entryFilters =
-                                                            EntryFilterProvider.createEntryFilters(pulsar.getConfig(),
-                                                                    entryFiltersPolicy);
-                                                } catch (IOException e) {
-                                                    log.warn("Failed to set entry filters on topic {}-{}", topic,
-                                                            e.getMessage());
-                                                    pulsar.getExecutor().execute(() ->
-                                                            topics.remove(topic, topicFuture));
-                                                    topicFuture.completeExceptionally(e);
-                                                }
-                                            }
-                                        })
                                         .thenCompose(__ -> persistentTopic.preCreateSubscriptionForCompactionIfNeeded())
                                         .thenCompose(__ -> persistentTopic.checkReplication())
                                         .thenCompose(v -> {
@@ -1533,8 +1625,15 @@ public class BrokerService implements Closeable {
                                                                         - topicCreateTimeMs;
                                             pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
                                             if (topicFuture.isCompletedExceptionally()) {
+                                                // Check create persistent topic timeout.
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
+                                                persistentTopic.getTransactionBuffer()
+                                                        .closeAsync()
+                                                        .exceptionally(t -> {
+                                                            log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                            return null;
+                                                        });
                                                 persistentTopic.stopReplProducers()
                                                         .whenCompleteAsync((v, exception) -> {
                                                             topics.remove(topic, topicFuture);
@@ -1547,6 +1646,12 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
+                                            persistentTopic.getTransactionBuffer()
+                                                    .closeAsync()
+                                                    .exceptionally(t -> {
+                                                        log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                        return null;
+                                                    });
                                             persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
@@ -1554,7 +1659,7 @@ public class BrokerService implements Closeable {
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
-                                log.warn("Failed to create topic {}-{}", topic, e.getMessage());
+                                log.warn("Failed to create topic {}: {}", topic, e.getMessage());
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
@@ -1564,6 +1669,7 @@ public class BrokerService implements Closeable {
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
+                                loadFuture.completeExceptionally(exception);
                                 topicFuture.complete(Optional.empty());
                             } else {
                                 log.warn("Failed to create topic {}", topic, exception);
@@ -1597,15 +1703,12 @@ public class BrokerService implements Closeable {
 
                     if (pulsar.getConfig().isTopicLevelPoliciesEnabled()
                             && !NamespaceService.isSystemServiceNamespace(namespace.toString())) {
-                        try {
-                            TopicPolicies topicPolicies = pulsar.getTopicPoliciesService().getTopicPolicies(topicName);
-                            if (topicPolicies != null) {
-                                persistencePolicies = topicPolicies.getPersistence();
-                                retentionPolicies = topicPolicies.getRetentionPolicies();
-                                topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
-                            }
-                        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                            log.debug("Topic {} policies have not been initialized yet.", topicName);
+                        final TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
+                                .getTopicPoliciesIfExists(topicName);
+                        if (topicPolicies != null) {
+                            persistencePolicies = topicPolicies.getPersistence();
+                            retentionPolicies = topicPolicies.getRetentionPolicies();
+                            topicLevelOffloadPolicies = topicPolicies.getOffloadPolicies();
                         }
                     }
 
@@ -1743,7 +1846,6 @@ public class BrokerService implements Closeable {
                             serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
                     managedLedgerConfig.setNewEntriesCheckDelayInMillis(
                             serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
-
                     return managedLedgerConfig;
                 });
     }
@@ -1849,6 +1951,10 @@ public class BrokerService implements Closeable {
 
     public void checkGC() {
         forEachTopic(Topic::checkGC);
+    }
+
+    public void checkClusterMigration() {
+        forEachTopic(Topic::checkClusterMigration);
     }
 
     public void checkMessageExpiry() {
@@ -2096,6 +2202,8 @@ public class BrokerService implements Closeable {
         String bundleName = namespaceBundle.toString();
         String namespaceName = TopicName.get(topic).getNamespaceObject().toString();
 
+        topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.BEFORE);
+
         synchronized (multiLayerTopicsMap) {
             ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> namespaceMap = multiLayerTopicsMap
                     .get(namespaceName);
@@ -2130,6 +2238,7 @@ public class BrokerService implements Closeable {
         if (compactor != null) {
             compactor.getStats().removeTopic(topic);
         }
+        topicEventsDispatcher.notify(topic, TopicEvent.UNLOAD, EventStage.SUCCESS);
     }
 
     public int getNumberOfNamespaceBundles() {
@@ -2873,30 +2982,38 @@ public class BrokerService implements Closeable {
                                     if (metadata.partitions == 0
                                             && !topicExists
                                             && !topicName.isPartitioned()
-                                            && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName, policies)
                                             && pulsar.getBrokerService()
                                                             .isDefaultTopicTypePartitioned(topicName, policies)) {
-
-                                        pulsar.getBrokerService()
-                                                .createDefaultPartitionedTopicAsync(topicName, policies)
-                                                .thenAccept(md -> future.complete(md))
-                                                .exceptionally(ex -> {
-                                                    if (ex.getCause()
-                                                            instanceof MetadataStoreException.AlreadyExistsException) {
-                                                        // The partitioned topic might be created concurrently
-                                                        fetchPartitionedTopicMetadataAsync(topicName)
-                                                                .whenComplete((metadata2, ex2) -> {
-                                                                    if (ex2 == null) {
-                                                                        future.complete(metadata2);
-                                                                    } else {
-                                                                        future.completeExceptionally(ex2);
-                                                                    }
-                                                                });
-                                                    } else {
-                                                        future.completeExceptionally(ex);
-                                                    }
-                                                    return null;
-                                                });
+                                        isAllowAutoTopicCreationAsync(topicName, policies).thenAccept(allowed -> {
+                                            if (allowed) {
+                                                pulsar.getBrokerService()
+                                                        .createDefaultPartitionedTopicAsync(topicName, policies)
+                                                        .thenAccept(md -> future.complete(md))
+                                                        .exceptionally(ex -> {
+                                                            if (ex.getCause()
+                                                                    instanceof MetadataStoreException
+                                                                        .AlreadyExistsException) {
+                                                                // The partitioned topic might be created concurrently
+                                                                fetchPartitionedTopicMetadataAsync(topicName)
+                                                                        .whenComplete((metadata2, ex2) -> {
+                                                                            if (ex2 == null) {
+                                                                                future.complete(metadata2);
+                                                                            } else {
+                                                                                future.completeExceptionally(ex2);
+                                                                            }
+                                                                        });
+                                                            } else {
+                                                                future.completeExceptionally(ex);
+                                                            }
+                                                            return null;
+                                                        });
+                                            } else {
+                                                future.complete(metadata);
+                                            }
+                                        }).exceptionally(ex -> {
+                                            future.completeExceptionally(ex);
+                                            return null;
+                                        });
                                     } else {
                                         future.complete(metadata);
                                     }
@@ -3090,34 +3207,46 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public boolean isAllowAutoTopicCreation(final String topic) {
+    public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final String topic) {
         TopicName topicName = TopicName.get(topic);
-        return isAllowAutoTopicCreation(topicName);
+        return isAllowAutoTopicCreationAsync(topicName);
     }
 
-    public boolean isAllowAutoTopicCreation(final TopicName topicName) {
+    public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName) {
         Optional<Policies> policies =
                 pulsar.getPulsarResources().getNamespaceResources()
                         .getPoliciesIfCached(topicName.getNamespaceObject());
-        return isAllowAutoTopicCreation(topicName, policies);
+        return isAllowAutoTopicCreationAsync(topicName, policies);
     }
 
-    public boolean isAllowAutoTopicCreation(final TopicName topicName, final Optional<Policies> policies) {
+    private CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName,
+                                                                     final Optional<Policies> policies) {
         if (policies.isPresent() && policies.get().deleted) {
             log.info("Preventing AutoTopicCreation on a namespace that is being deleted {}",
                     topicName.getNamespaceObject());
-            return false;
+            return CompletableFuture.completedFuture(false);
         }
         //System topic can always be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
-            return true;
+            return CompletableFuture.completedFuture(true);
         }
+        final boolean allowed;
         AutoTopicCreationOverride autoTopicCreationOverride = getAutoTopicCreationOverride(topicName, policies);
         if (autoTopicCreationOverride != null) {
-            return autoTopicCreationOverride.isAllowAutoTopicCreation();
+            allowed = autoTopicCreationOverride.isAllowAutoTopicCreation();
         } else {
-            return pulsar.getConfiguration().isAllowAutoTopicCreation();
+            allowed = pulsar.getConfiguration().isAllowAutoTopicCreation();
         }
+
+        if (allowed && topicName.isPartitioned()) {
+            // cannot re-create topic while it is being deleted
+            return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                    .isPartitionedTopicBeingDeletedAsync(topicName)
+                    .thenApply(beingDeleted -> !beingDeleted);
+        } else {
+            return CompletableFuture.completedFuture(allowed);
+        }
+
     }
 
     public boolean isDefaultTopicTypePartitioned(final TopicName topicName, final Optional<Policies> policies) {
@@ -3164,6 +3293,11 @@ public class BrokerService implements Closeable {
     }
 
     private AutoSubscriptionCreationOverride getAutoSubscriptionCreationOverride(final TopicName topicName) {
+        Optional<TopicPolicies> topicPolicies = getTopicPolicies(topicName);
+        if (topicPolicies.isPresent() && topicPolicies.get().getAutoSubscriptionCreationOverride() != null) {
+            return topicPolicies.get().getAutoSubscriptionCreationOverride();
+        }
+
         Optional<Policies> policies =
                 pulsar.getPulsarResources().getNamespaceResources().getPoliciesIfCached(topicName.getNamespaceObject());
         // If namespace policies have the field set, it will override the broker-level setting
@@ -3192,12 +3326,8 @@ public class BrokerService implements Closeable {
         if (!pulsar().getConfig().isTopicLevelPoliciesEnabled()) {
             return Optional.empty();
         }
-        try {
-            return Optional.ofNullable(pulsar.getTopicPoliciesService().getTopicPolicies(topicName));
-        } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-            log.debug("Topic {} policies have not been initialized yet.", topicName.getPartitionedTopicName());
-            return Optional.empty();
-        }
+        return Optional.ofNullable(pulsar.getTopicPoliciesService()
+                .getTopicPoliciesIfExists(topicName));
     }
 
     public CompletableFuture<Void> deleteTopicPolicies(TopicName topicName) {
@@ -3205,16 +3335,8 @@ public class BrokerService implements Closeable {
         if (!pulsarService.getConfig().isTopicLevelPoliciesEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
-        return pulsarService.getPulsarResources().getNamespaceResources()
-                .getPoliciesAsync(topicName.getNamespaceObject())
-                .thenCompose(optPolicies -> {
-                    if (optPolicies.isPresent() && optPolicies.get().deleted) {
-                        // We can return the completed future directly if the namespace is already deleted.
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    TopicName cloneTopicName = TopicName.get(topicName.getPartitionedTopicName());
-                    return pulsar.getTopicPoliciesService().deleteTopicPoliciesAsync(cloneTopicName);
-                });
+        return pulsar.getTopicPoliciesService()
+                .deleteTopicPoliciesAsync(TopicName.get(topicName.getPartitionedTopicName()));
     }
 
     private CompletableFuture<Void> checkMaxTopicsPerNamespace(TopicName topicName, int numPartitions) {
@@ -3277,7 +3399,8 @@ public class BrokerService implements Closeable {
     }
 
     @SuppressWarnings("unchecked")
-    private <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
+    @VisibleForTesting
+    public <T extends Topic> T newTopic(String topic, ManagedLedger ledger, BrokerService brokerService,
             Class<T> topicClazz) throws PulsarServerException {
         if (topicFactory != null) {
             try {

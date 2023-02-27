@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,9 +21,11 @@ package org.apache.pulsar.client.impl.transaction;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * The default implementation of transaction builder to build transactions.
@@ -50,6 +52,10 @@ public class TransactionBuilderImpl implements TransactionBuilder {
 
     @Override
     public CompletableFuture<Transaction> build() {
+        if (!client.getConfiguration().isEnableTransaction()) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Transactions are not enabled"));
+        }
         // talk to TC to begin a transaction
         //       the builder is responsible for locating the transaction coorindator (TC)
         //       and start the transaction to get the transaction id.
@@ -59,13 +65,13 @@ public class TransactionBuilderImpl implements TransactionBuilder {
         transactionCoordinatorClient
                 .newTransactionAsync(txnTimeout, timeUnit)
                 .whenComplete((txnID, throwable) -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Success to new txn. txnID: {}", txnID);
-                    }
                     if (throwable != null) {
                         log.error("New transaction error.", throwable);
                         future.completeExceptionally(throwable);
                         return;
+                    }
+                    if (log.isDebugEnabled()) {
+                        log.debug("'newTransaction' command completed successfully for transaction: {}", txnID);
                     }
                     TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
                             txnID.getLeastSigBits(), txnID.getMostSigBits());

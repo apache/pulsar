@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
@@ -426,7 +427,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
-                dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+                checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
     }
@@ -882,7 +883,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
             }
-            return this.pendingAckHandle.close().thenAccept(v -> {
+            return this.pendingAckHandle.closeAsync().thenAccept(v -> {
                 IS_FENCED_UPDATER.set(this, TRUE);
                 log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
             });
@@ -1130,6 +1131,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (subscriptionBacklogSize) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        } else {
+            subStats.backlogSize = -1;
         }
         if (getEarliestTimeInBacklog && subStats.msgBacklog > 0) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
@@ -1214,7 +1217,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             // notify the consumers if there are consumers connected to this topic.
             if (null != dispatcher) {
                 // Immediately notify the consumer that there are no more available messages
-                dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
+                checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -333,7 +333,7 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster("global", globalClusterData);
         }
 
-        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
         // Create system tenant

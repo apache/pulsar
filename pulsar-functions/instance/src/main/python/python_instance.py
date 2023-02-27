@@ -80,7 +80,8 @@ class PythonInstance(object):
                pulsar_client,
                secrets_provider,
                cluster_name,
-               state_storage_serviceurl):
+               state_storage_serviceurl,
+               config_file):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_details, max_buffered_tuples)
     self.user_code = user_code
     # set queue size to one since consumers already have internal queues. Just use queue to communicate message from
@@ -114,6 +115,7 @@ class PythonInstance(object):
                            instance_id, cluster_name,
                            "%s/%s/%s" % (function_details.tenant, function_details.namespace, function_details.name)]
     self.stats = Stats(self.metrics_labels)
+    self.config_file = config_file
 
   def health_check(self):
     self.last_health_check_ts = time.time()
@@ -135,6 +137,10 @@ class PythonInstance(object):
     mode = pulsar._pulsar.ConsumerType.Shared
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
+
+    position = pulsar._pulsar.InitialPosition.Latest
+    if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
+      position = pulsar._pulsar.InitialPosition.Earliest
 
     subscription_name = self.instance_config.function_details.source.subscriptionName    
 
@@ -162,6 +168,7 @@ class PythonInstance(object):
         consumer_type=mode,
         message_listener=partial(self.message_listener, self.input_serdes[topic]),
         unacked_messages_timeout_ms=int(self.timeout_ms) if self.timeout_ms else None,
+        initial_position=position,
         properties=properties
       )
 
@@ -177,6 +184,7 @@ class PythonInstance(object):
         "consumer_type": mode,
         "message_listener": partial(self.message_listener, self.input_serdes[topic]),
         "unacked_messages_timeout_ms": int(self.timeout_ms) if self.timeout_ms else None,
+        "initial_position": position,
         "properties": properties
       }
       if consumer_conf.HasField("receiverQueueSize"):

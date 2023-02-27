@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
@@ -329,7 +328,8 @@ public class WorkerStatsManager {
     stream.write("# TYPE ");
     stream.write(PULSAR_FUNCTION_WORKER_METRICS_PREFIX);
     stream.write(metricName);
-    stream.write(" gauge \n");
+    stream.write(" gauge");
+    stream.write("\n");
 
     stream.write(PULSAR_FUNCTION_WORKER_METRICS_PREFIX);
     stream.write(metricName);

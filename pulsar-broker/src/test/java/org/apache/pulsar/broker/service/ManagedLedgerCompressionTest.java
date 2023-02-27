@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -81,7 +81,8 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         try {
             startBroker();
             Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
-        } catch (Exception e) {
+        } catch (Exception rte) {
+            Throwable e = rte.getCause();
             Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
             Assert.assertEquals(
                     "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType.INVALID",

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,7 +34,9 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
+import org.apache.pulsar.client.impl.Murmur3Hash32;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,6 +63,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private volatile int isClosed = FALSE;
 
     protected boolean isFirstRead = true;
+    private static final int CONSUMER_CONSISTENT_HASH_REPLICAS = 100;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
                                                   String topicName, Subscription subscription,
@@ -93,35 +100,31 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      */
     protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
-        // By default always pick the first connected consumer for non partitioned topic.
-        int index = 0;
+        AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
+        consumers.sort((c1, c2) -> {
+            int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
+            if (priority != 0) {
+                hasPriorityConsumer.set(true);
+                return priority;
+            }
+            return c1.consumerName().compareTo(c2.consumerName());
+        });
 
-        // If it's a partitioned topic, sort consumers based on priority level then consumer name.
-        if (partitionIndex >= 0) {
-            AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
-            consumers.sort((c1, c2) -> {
-                int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
-                if (priority != 0) {
-                    hasPriorityConsumer.set(true);
-                    return priority;
-                }
-                return c1.consumerName().compareTo(c2.consumerName());
-            });
-
-            int consumersSize = consumers.size();
-            // find number of consumers which are having the highest priorities. so partitioned-topic assignment happens
-            // evenly across highest priority consumers
-            if (hasPriorityConsumer.get()) {
-                int highestPriorityLevel = consumers.get(0).getPriorityLevel();
-                for (int i = 0; i < consumers.size(); i++) {
-                    if (highestPriorityLevel != consumers.get(i).getPriorityLevel()) {
-                        consumersSize = i;
-                        break;
-                    }
+        int consumersSize = consumers.size();
+        // find number of consumers which are having the highest priorities. so partitioned-topic assignment happens
+        // evenly across highest priority consumers
+        if (hasPriorityConsumer.get()) {
+            int highestPriorityLevel = consumers.get(0).getPriorityLevel();
+            for (int i = 0; i < consumers.size(); i++) {
+                if (highestPriorityLevel != consumers.get(i).getPriorityLevel()) {
+                    consumersSize = i;
+                    break;
                 }
             }
-            index = partitionIndex % consumersSize;
         }
+        int index = partitionIndex >= 0
+                ? partitionIndex % consumersSize
+                : peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
 
         Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
@@ -134,6 +137,24 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             scheduleReadOnActiveConsumer();
             return true;
         }
+    }
+
+    private int peekConsumerIndexFromHashRing(NavigableMap<Integer, Integer> hashRing) {
+        int hash = Murmur3Hash32.getInstance().makeHash(topicName);
+        Map.Entry<Integer, Integer> ceilingEntry = hashRing.ceilingEntry(hash);
+        return ceilingEntry != null ? ceilingEntry.getValue() : hashRing.firstEntry().getValue();
+    }
+
+    private NavigableMap<Integer, Integer> makeHashRing(int consumerSize) {
+        NavigableMap<Integer, Integer> hashRing = new TreeMap<>();
+        for (int i = 0; i < consumerSize; i++) {
+            for (int j = 0; j < CONSUMER_CONSISTENT_HASH_REPLICAS; j++) {
+                String key = consumers.get(i).consumerName() + j;
+                int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
+                hashRing.put(hash, i);
+            }
+        }
+        return Collections.unmodifiableNavigableMap(hashRing);
     }
 
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {

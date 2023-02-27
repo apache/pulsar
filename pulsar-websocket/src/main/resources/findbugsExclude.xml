@@ -32,4 +32,171 @@
     <Class name="org.apache.pulsar.websocket.stats.ProxyTopicStat$ProducerStats"/>
     <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"/>
   </Match>
+
+  <!-- ignore existing violations when the rule was enabled -->
+  <Match>
+    <Class name="org.apache.pulsar.websocket.AbstractWebSocketHandler"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.admin.WebSocketWebResource"/>
+    <Method name="authData"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerAcks"/>
+    <Method name="getMessagePublishResults"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerAcks"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerAcks"/>
+    <Method name="setMessagePublishResults"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerMessages"/>
+    <Method name="getMessages"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerMessages"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.data.ProducerMessages"/>
+    <Method name="setMessages"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.ProducerHandler"/>
+    <Method name="onWebSocketText"/>
+    <Bug pattern="DCN_NULLPOINTER_EXCEPTION"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.ProducerHandler"/>
+    <Method name="getPublishLatencyStatsUSec"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.ProducerHandler"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.ProxyServer"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="getAuthenticationProviders"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="getProperties"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="getSuperUserRoles"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="getWebServiceTlsCiphers"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="getWebServiceTlsProtocols"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="setAuthenticationProviders"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="setProperties"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="setSuperUserRoles"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="setWebServiceTlsCiphers"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.service.WebSocketProxyConfiguration"/>
+    <Method name="setWebServiceTlsProtocols"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.stats.ProxyStats"/>
+    <Method name="getMetrics"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.stats.ProxyStats"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketConsumerServlet"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketPingPongServlet"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketProducerServlet"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketReaderServlet"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketService"/>
+    <Method name="getConfig"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketService"/>
+    <Method name="getConsumers"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketService"/>
+    <Method name="getProducers"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketService"/>
+    <Method name="getReaders"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.websocket.WebSocketService"/>
+    <Method name="&lt;init&gt;"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

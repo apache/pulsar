@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,6 +58,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
  */
 @Getter
 @Setter
+@ToString
 public class ServiceConfiguration implements PulsarConfiguration {
 
     @Category
@@ -433,6 +434,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is metadata store read-only operations."
+    )
+    private boolean metadataStoreAllowReadOnlyOperations;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -459,6 +466,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
         )
     private int zooKeeperCacheExpirySeconds = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            deprecated = true,
+            doc = "Is zookeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -511,7 +526,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreConfigPath = null;
 
-
     @FieldContext(
             dynamic = true,
             category = CATEGORY_SERVER,
@@ -553,6 +567,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How often to check for topics that have reached the quota."
             + " It only takes effects when `backlogQuotaCheckEnabled` is true"
     )
@@ -615,6 +630,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         dynamic = true,
         doc = "How often to check for inactive topics"
     )
@@ -643,12 +659,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of tenants. Default is false."
     )
     private boolean forceDeleteTenantAllowed = false;
 
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Allow forced deletion of namespaces. Default is false."
     )
     private boolean forceDeleteNamespaceAllowed = false;
@@ -662,6 +680,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "How frequently to proactively check and purge expired messages"
     )
     private int messageExpiryCheckIntervalInMinutes = 5;
@@ -765,12 +784,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        minValue = 1,
         doc = "Time of inactivity after which the broker will discard the deduplication information"
             + " relative to a disconnected producer. Default is 6 hours.")
     private int brokerDeduplicationProducerInactivityTimeoutMinutes = 360;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "When a namespace is created without specifying the number of bundle, this"
             + " value will be used as the default")
     private int defaultNumberOfNamespaceBundles = 4;
@@ -1759,6 +1780,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_STORAGE_BK,
+            doc = "whether limit per_channel_bookie_client metrics of bookkeeper client stats"
+    )
+    private boolean bookkeeperClientLimitStatsLogging = false;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
             doc = "Throttle value for bookkeeper client"
     )
     private int bookkeeperClientThrottleValue = 0;
@@ -1861,6 +1888,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for bytes read from storage."
+            + " This is the memory retained by data read from storage (or cache) until it has been delivered to the"
+            + " Consumer Netty channel. Use O to disable")
+    private long managedLedgerMaxReadsInFlightSizeInMB = 0;
+
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -1900,7 +1933,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
-    private String allowAutoTopicCreationType = "non-partitioned";
+    private TopicType allowAutoTopicCreationType = TopicType.NON_PARTITIONED;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         dynamic = true,
@@ -1960,6 +1993,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The number of bytes before triggering automatic offload to long term storage"
     )
     private long managedLedgerOffloadAutoTriggerSizeThresholdBytes = -1L;
+    @FieldContext(
+            category = CATEGORY_STORAGE_OFFLOADING,
+            doc = "The threshold to triggering automatic offload to long term storage"
+    )
+    private long managedLedgerOffloadThresholdInSeconds = -1L;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Max number of entries to append to a cursor ledger"
@@ -2412,6 +2450,81 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long namespaceBundleUnloadingTimeoutMs = 60000;
 
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Option to enable the debug mode for the load balancer logics. "
+                    + "The debug mode prints more logs to provide more information "
+                    + "such as load balance states and decisions. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private boolean loadBalancerDebugModeEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "The target standard deviation of the resource usage across brokers "
+                    + "(100% resource usage is 1.0 load). "
+                    + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
+                    + "The smaller value will incur load balancing more frequently. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private double loadBalancerBrokerLoadTargetStd = 0.25;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Option to enable the bundle transfer mode when distributing bundle loads. "
+                    + "On: transfer bundles from overloaded brokers to underloaded "
+                    + "-- pre-assigns the destination broker upon unloading). "
+                    + "Off: unload bundles from overloaded brokers "
+                    + "-- post-assigns the destination broker upon lookups). "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private boolean loadBalancerTransferEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Maximum number of brokers to transfer bundle load for each unloading cycle. "
+                    + "The bigger value will incur more unloading/transfers for each unloading cycle. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private int loadBalancerMaxNumberOfBrokerTransfersPerCycle = 3;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Delay (in seconds) to the next unloading cycle after unloading. "
+                    + "The logic tries to give enough time for brokers to recompute load after unloading. "
+                    + "The bigger value will delay the next unloading cycle longer. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private long loadBalanceUnloadDelayInSeconds = 600;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Broker load data time to live (TTL in seconds). "
+                    + "The logic tries to avoid (possibly unavailable) brokers with out-dated load data, "
+                    + "and those brokers will be ignored in the load computation. "
+                    + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
+                    + "The current default is loadBalancerReportUpdateMaxIntervalMinutes * 2. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Percentage of bundles to compute topK bundle load data from each broker. "
+                    + "The load balancer distributes bundles across brokers, "
+                    + "based on topK bundle load data and other broker load data."
+                    + "The bigger value will increase the overhead of reporting many bundles in load data. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private double loadBalancerBundleLoadReportPercentage = 10;
+
     /**** --- Replication. --- ****/
     @FieldContext(
         category = CATEGORY_REPLICATION,
@@ -2515,6 +2628,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long brokerServiceCompactionPhaseOneLoopTimeInSeconds = 30;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Interval between checks to see if cluster is migrated and marks topic migrated "
+                + " if cluster is marked migrated. Disable with value 0. (Default disabled)."
+    )
+    private int clusterMigrationCheckDurationSeconds = 0;
+
+    @FieldContext(
         category = CATEGORY_SCHEMA,
         doc = "Enforce schema validation on following cases:\n\n"
             + " - if a producer without a schema attempts to produce to a topic with schema, the producer will be\n"
@@ -2567,6 +2687,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Time in milliseconds that idle WebSocket session times out"
     )
     private int webSocketSessionIdleTimeoutMillis = 300000;
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
+            doc = "Interval of time to sending the ping to keep alive in WebSocket proxy. "
+                    + "This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
 
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
@@ -2651,6 +2777,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean splitTopicAndPartitionLabelInPrometheus = false;
 
     @FieldContext(
+            dynamic = true,
             category = CATEGORY_METRICS,
             doc = "Enable expose the broker bundles metrics."
     )
@@ -2683,6 +2810,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposePublisherStats = true;
     @FieldContext(
         category = CATEGORY_METRICS,
+        minValue = 1,
         doc = "Stats update frequency in seconds"
     )
     private int statsUpdateFrequencyInSecs = 60;
@@ -3173,7 +3301,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     }
 
     public boolean isDefaultTopicTypePartitioned() {
-        return TopicType.PARTITIONED.toString().equals(allowAutoTopicCreationType);
+        return TopicType.PARTITIONED.equals(allowAutoTopicCreationType);
     }
 
     public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {
@@ -3208,6 +3336,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public boolean isMetadataStoreAllowReadOnlyOperations() {
+        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 
     public long getManagedLedgerCacheEvictionIntervalMs() {
