@@ -106,7 +106,7 @@ class PythonInstance(object):
     self.execution_thread = None
     self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
     self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
-    self.effectively_once = None
+    self.effectively_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE')
     self.manual = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('MANUAL')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
@@ -136,9 +136,6 @@ class PythonInstance(object):
       sys.exit(1)
 
   def run(self):
-    # Check if effectively-once is enabled
-    self.effectively_once = self.can_enable_effectively_once()
-
     # Setup state
     self.state_context = self.setup_state()
 
@@ -319,7 +316,7 @@ class PythonInstance(object):
         if self.contextimpl.get_message_partition_index() is None or \
                 self.contextimpl.get_message_partition_index() >= 0:
           Log.error("Partitioned topic is not available in effectively_once mode.")
-          return
+          raise Exception("Partitioned topic is not available in effectively_once mode.")
 
         producer_id = self.instance_config.function_details.sink.topic
         producer = self.contextimpl.publish_producers.get(producer_id)
@@ -508,22 +505,6 @@ class PythonInstance(object):
     status.averageLatency = avg_process_latency_ms
     status.lastInvocationTime = int(last_invocation) if sys.version_info.major >= 3 else long(last_invocation)
     return status
-
-  def can_enable_effectively_once(self):
-    """
-    The prerequisites for enabling effective-once semantics are as follows.
-    1. deduplication is enabled
-    2. set ProcessingGuarantees to EFFECTIVELY_ONCE
-    3. the function has only one source topic and one sink topic
-    4. (unsupported yet) if partitioned topic is enabled, ensure that the number of partitions
-      (of both source and sink topics) is the same
-    """
-    if self.instance_config.function_details.processingGuarantees == \
-            Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE') and \
-            len(self.instance_config.function_details.source.inputSpecs.keys()) == 1 and \
-            self.instance_config.function_details.sink.topic != "":
-      return True
-    return False
 
   def join(self):
     self.queue.put(InternalQuitMessage(True), True)

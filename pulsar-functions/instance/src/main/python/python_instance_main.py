@@ -171,6 +171,13 @@ def main():
           "This is a contradictory configuration, autoAck will be removed later," 
           "Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
     sys.exit(1)
+  if function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE'):
+    if len(function_details.source.inputSpecs.keys()) != 1 or function_details.sink.topic == "":
+      print("When Guarantees == EFFECTIVELY_ONCE you need to ensure that the following pre-requisites have been met:"
+            "1. deduplication is enabled"
+            "2. set ProcessingGuarantees to EFFECTIVELY_ONCE"
+            "3. the function has only one source topic and one sink topic (both are non-partitioned)")
+      sys.exit(1)
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
       cmd = "pip install -t %s" % os.path.dirname(os.path.abspath(str(args.py)))

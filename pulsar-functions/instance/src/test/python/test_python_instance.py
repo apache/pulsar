@@ -90,32 +90,3 @@ class TestContextImpl(unittest.TestCase):
 
     args, kwargs = consumer.acknowledge.call_args
     self.assertEqual(args[0], "test_message_id")
-
-  def test_efffectively_once(self):
-    instance_id = 'test_instance_id'
-    function_id = 'test_function_id'
-    function_version = 'test_function_version'
-    # fill out function_details
-    function_details = Function_pb2.FunctionDetails()
-    function_details.processingGuarantees = Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE')
-    function_details.source.inputSpecs["persistent://public/default/input"].CopyFrom(Function_pb2.ConsumerSpec())
-    function_details.sink.topic = "persistent://public/default/output"
-    max_buffered_tuples = 100
-    pulsar_client = Mock()
-    user_code = __file__
-    py_instance_impl = PythonInstance(
-      instance_id=instance_id,
-      function_id=function_id,
-      function_version=function_version,
-      function_details=function_details,
-      max_buffered_tuples=max_buffered_tuples,
-      expected_healthcheck_interval=100,
-      secrets_provider=None,
-      cluster_name="",
-      state_storage_serviceurl="",
-      config_file=None,
-      user_code=user_code,
-      pulsar_client=pulsar_client)
-    py_instance_impl.effectively_once = py_instance_impl.can_enable_effectively_once()
-
-    self.assertEqual(py_instance_impl.effectively_once, True)
