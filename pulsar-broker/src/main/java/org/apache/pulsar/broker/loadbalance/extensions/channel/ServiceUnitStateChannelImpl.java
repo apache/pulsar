@@ -70,7 +70,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
-import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
@@ -116,10 +116,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
+    private final StateChangeListeners stateChangeListeners;
     private final LeaderElectionService leaderElectionService;
     private BrokerSelectionStrategy brokerSelector;
     private BrokerRegistry brokerRegistry;
-    private UnloadManager unloadManager;
     private TableView<ServiceUnitStateData> tableview;
     private Producer<ServiceUnitStateData> producer;
     private ScheduledFuture<?> monitorTask;
@@ -191,6 +191,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
                 CompletableFuture<String>>newBuilder().build();
         this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
+        this.stateChangeListeners = new StateChangeListeners();
         this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateCleanUpDelayTimeInSeconds()
                 * 1000;
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
@@ -240,7 +241,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         ownerLookUpCounters = Map.copyOf(tmpOwnerLookUpCounters);
         handlerCounters = Map.copyOf(tmpHandlerCounters);
         eventCounters = Map.copyOf(tmpEventCounters);
-        this.unloadManager = new UnloadManager(pulsar);
         this.channelState = Constructed;
     }
 
@@ -358,12 +358,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.info("Successfully cancelled the cleanup tasks");
             }
 
-            if (unloadManager != null) {
-                unloadManager.close();
-                unloadManager = null;
-                log.info("Successfully closed the unload manager.");
+            if (stateChangeListeners != null) {
+                stateChangeListeners.close();
             }
-
             log.info("Successfully closed the channel.");
 
         } catch (Exception e) {
@@ -477,12 +474,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return getOwnerRequest;
     }
 
-    public CompletableFuture<Void> publishUnloadEventAndWaitUnloadComplete(
-            Unload unload, long timeout, TimeUnit timeoutUnit) {
-        return publishUnloadEventAsync(unload)
-                .thenCompose(__ -> unloadManager.handleUnload(unload.serviceUnit(), timeout, timeoutUnit));
-    }
-
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
         EventType eventType = Unload;
         eventCounters.get(eventType).getTotal().incrementAndGet();
@@ -524,6 +515,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         ServiceUnitState state = state(data);
         try {
+            stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.BEFORE, null);
             switch (state) {
                 case Owned -> handleOwnEvent(serviceUnit, data);
                 case Assigning -> handleAssignEvent(serviceUnit, data);
@@ -609,7 +601,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         // If transfer to another broker,
         // then the unload-manager can't receive the transfer complete event in same broker,
         // so we need complete here when own the bundle.
-        unloadManager.completeUnload(serviceUnit);
+        stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -619,7 +611,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTargetBroker(data.broker())) {
             ServiceUnitStateData next = new ServiceUnitStateData(
                     isTransferCommand(data) ? Releasing : Owned, data.broker(), data.sourceBroker());
-            pubAsync(serviceUnit, next)
+            stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
     }
@@ -629,15 +621,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (isTargetBroker(data.sourceBroker())) {
                 ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker());
                 // TODO: when close, pass message to clients to connect to the new broker
-                closeServiceUnit(serviceUnit)
-                        .thenCompose(__ -> pubAsync(serviceUnit, next))
+                stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit)
+                        .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                         .whenComplete((__, e) -> log(e, serviceUnit, data, next));
             }
         } else {
             if (isTargetBroker(data.broker())) {
                 ServiceUnitStateData next = new ServiceUnitStateData(Free, data.broker());
-                closeServiceUnit(serviceUnit)
-                        .thenCompose(__ -> pubAsync(serviceUnit, next))
+                stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit)
+                                .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                         .whenComplete((__, e) -> log(e, serviceUnit, data, next));
             }
         }
@@ -645,7 +637,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void handleSplitEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
-            splitServiceUnit(serviceUnit, data)
+            stateChangeListeners.notifyOnCompletion(splitServiceUnit(serviceUnit, data), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         }
     }
@@ -655,7 +647,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
-        unloadManager.completeUnload(serviceUnit);
+        stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -666,6 +658,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.completeExceptionally(new IllegalStateException(serviceUnit + "has been deleted."));
         }
+        stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -676,6 +669,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
+        stateChangeListeners.notify(serviceUnit, null, StateChangeListener.EventStage.SUCCESS, null);
         log(null, serviceUnit, null, null);
     }
 
@@ -1276,5 +1270,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         metrics.add(metric);
 
         return metrics;
+    }
+
+    @Override
+    public void listen(StateChangeListener listener) {
+        this.stateChangeListeners.addListener(listener);
     }
 }

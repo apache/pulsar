@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -72,21 +73,24 @@ public class UnloadSchedulerTest {
         LoadManagerContext context = setupContext();
         BrokerRegistry registry = context.brokerRegistry();
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
+        UnloadManager unloadManager = mock(UnloadManager.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         doReturn(CompletableFuture.completedFuture(true)).when(channel).isChannelOwnerAsync();
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("broker-1", "broker-2")))
                 .when(registry).getAvailableBrokersAsync();
         doReturn(CompletableFuture.completedFuture(null)).when(channel).publishUnloadEventAsync(any());
+        doReturn(CompletableFuture.completedFuture(null)).when(unloadManager)
+                .waitAsync(any(), any(), anyLong(), any());
         UnloadDecision decision = new UnloadDecision();
         Unload unload = new Unload("broker-1", "bundle-1");
         decision.getUnloads().put("broker-1", unload);
         doReturn(decision).when(unloadStrategy).findBundlesForUnloading(any(), any(), any());
 
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, context, channel, unloadStrategy);
+        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
 
         scheduler.execute();
 
-        verify(channel, times(1)).publishUnloadEventAndWaitUnloadComplete(eq(unload), anyLong(), any());
+        verify(channel, times(1)).publishUnloadEventAsync(eq(unload));
 
         // Test empty unload.
         UnloadDecision emptyUnload = new UnloadDecision();
@@ -94,7 +98,7 @@ public class UnloadSchedulerTest {
 
         scheduler.execute();
 
-        verify(channel, times(1)).publishUnloadEventAndWaitUnloadComplete(eq(unload), anyLong(), any());
+        verify(channel, times(1)).publishUnloadEventAsync(eq(unload));
     }
 
     @Test(timeOut = 30 * 1000)
@@ -102,6 +106,7 @@ public class UnloadSchedulerTest {
         LoadManagerContext context = setupContext();
         BrokerRegistry registry = context.brokerRegistry();
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
+        UnloadManager unloadManager = mock(UnloadManager.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         doReturn(CompletableFuture.completedFuture(true)).when(channel).isChannelOwnerAsync();
         doAnswer(__ -> CompletableFuture.supplyAsync(() -> {
@@ -113,7 +118,7 @@ public class UnloadSchedulerTest {
                 }
                 return Lists.newArrayList("broker-1", "broker-2");
             }, Executors.newFixedThreadPool(1))).when(registry).getAvailableBrokersAsync();
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, context, channel, unloadStrategy);
+        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
 
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CountDownLatch latch = new CountDownLatch(10);
@@ -134,7 +139,8 @@ public class UnloadSchedulerTest {
         context.brokerConfiguration().setLoadBalancerEnabled(false);
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, context, channel, unloadStrategy);
+        UnloadManager unloadManager = mock(UnloadManager.class);
+        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
 
         scheduler.execute();
 
@@ -153,7 +159,8 @@ public class UnloadSchedulerTest {
         context.brokerConfiguration().setLoadBalancerEnabled(false);
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, context, channel, unloadStrategy);
+        UnloadManager unloadManager = mock(UnloadManager.class);
+        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
         doReturn(CompletableFuture.completedFuture(false)).when(channel).isChannelOwnerAsync();
 
         scheduler.execute();

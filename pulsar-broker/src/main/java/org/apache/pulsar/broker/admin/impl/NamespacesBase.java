@@ -532,7 +532,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .thenCompose(__ ->
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
                                             bundleRange,
-                                            authoritative, true, null))
+                                            authoritative, true))
                             .thenCompose(bundle -> {
                                 return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
                                         .thenCompose(topics -> {
@@ -1046,10 +1046,11 @@ public abstract class NamespacesBase extends AdminResource {
                                         namespaceName, bundleRange);
                                 return CompletableFuture.completedFuture(null);
                             }
+                            Optional<String> destinationBrokerOpt = Optional.ofNullable(destinationBroker);
                             return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                    authoritative, true, destinationBroker)
+                                    authoritative, true, destinationBrokerOpt)
                                     .thenCompose(nsBundle -> pulsar().getNamespaceService()
-                                            .unloadNamespaceBundle(nsBundle, destinationBroker));
+                                            .unloadNamespaceBundle(nsBundle, destinationBrokerOpt));
                         }));
     }
 

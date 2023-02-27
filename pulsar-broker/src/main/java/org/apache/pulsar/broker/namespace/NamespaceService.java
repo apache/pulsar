@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -57,9 +56,6 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
-import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -721,32 +717,13 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
-        return unloadNamespaceBundle(bundle, null);
+        return unloadNamespaceBundle(bundle, Optional.empty());
     }
 
-    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, @Nullable String destinationBroker) {
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, Optional<String> destinationBroker) {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
-            ExtensibleLoadManagerWrapper loadManagerWrapper = (ExtensibleLoadManagerWrapper) loadManager.get();
-            ExtensibleLoadManagerImpl extensibleLoadManager = loadManagerWrapper.get();
-            ServiceUnitStateChannel channel = extensibleLoadManager.getServiceUnitStateChannel();
-            return extensibleLoadManager.getOwnershipAsync(Optional.empty(), bundle)
-                    .thenCompose(brokerOpt -> {
-                if (brokerOpt.isEmpty()) {
-                    String msg = String.format("Namespace bundle: %s is not owned by any broker.", bundle);
-                    LOG.warn(msg);
-                    throw new IllegalStateException(msg);
-                }
-                String sourceBroker = brokerOpt.get();
-                if (destinationBroker != null && sourceBroker.endsWith(destinationBroker)) {
-                    String msg = String.format("Namespace bundle: %s own by %s, cannot be transfer to same broker.",
-                            bundle, sourceBroker);
-                    LOG.warn(msg);
-                    throw new IllegalStateException(msg);
-                }
-                return channel.publishUnloadEventAndWaitUnloadComplete(
-                        new Unload(sourceBroker, bundle.toString(), Optional.ofNullable(destinationBroker)),
-                        config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
-            });
+            return ExtensibleLoadManagerImpl.get(loadManager.get())
+                    .unloadNamespaceBundleAsync(bundle, destinationBroker);
         }
         // unload namespace bundle
         return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);

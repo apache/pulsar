@@ -21,54 +21,79 @@ package org.apache.pulsar.broker.loadbalance.extensions.manager;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 
+/**
+ * Unload manager.
+ */
 @Slf4j
-public class UnloadManager {
-
-    private final PulsarService pulsar;
+public class UnloadManager implements StateChangeListener {
 
     private final Map<String, CompletableFuture<Void>> inFlightUnloadRequest;
 
-    public UnloadManager(PulsarService pulsar) {
-        this.pulsar = pulsar;
+    public UnloadManager() {
         this.inFlightUnloadRequest = new ConcurrentHashMap<>();
     }
 
-    public void completeUnload(String serviceUnit) {
+    private void complete(String serviceUnit, Throwable ex) {
         inFlightUnloadRequest.computeIfPresent(serviceUnit, (__, future) -> {
             if (!future.isDone()) {
-                future.complete(null);
-                if (log.isDebugEnabled()) {
-                    log.debug("Complete unload bundle: {}", serviceUnit);
+                if (ex != null) {
+                    future.completeExceptionally(ex);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Complete exceptionally unload bundle: {}", serviceUnit, ex);
+                    }
+                } else {
+                    future.complete(null);
+                    if (log.isDebugEnabled()) {
+                        log.debug("Complete unload bundle: {}", serviceUnit);
+                    }
                 }
             }
             return null;
         });
     }
 
-    public CompletableFuture<Void> handleUnload(String bundle, long timeout, TimeUnit timeoutUnit) {
-        return inFlightUnloadRequest.computeIfAbsent(bundle, __ -> {
+    public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
+                                             String bundle,
+                                             long timeout,
+                                             TimeUnit timeoutUnit) {
+
+        return eventPubFuture.thenCompose(__ -> inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
             if (log.isDebugEnabled()) {
                 log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
             }
             CompletableFuture<Void> future = new CompletableFuture<>();
-            ScheduledFuture<?> taskTimeout = pulsar.getExecutor().schedule(() -> {
-                if (!future.isDone()) {
-                    String msg = String.format("Unloading bundle: %s has timed out, cancel the future.", bundle);
-                    log.warn(msg);
-                    // Complete the future with error
-                    future.completeExceptionally(new TimeoutException(msg));
+            future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
+                if (ex != null) {
+                    inFlightUnloadRequest.remove(bundle);
+                    log.warn("Failed to wait unload for serviceUnit: {}", bundle, ex);
                 }
-            }, timeout, timeoutUnit);
-
-            future.whenComplete((r, ex) -> taskTimeout.cancel(true));
+            });
             return future;
-        });
+        }));
+    }
+
+    @Override
+    public void handleEvent(String serviceUnit, ServiceUnitStateData data, EventStage stage, Throwable t) {
+        ServiceUnitState state = ServiceUnitStateData.state(data);
+        switch (state) {
+            case Free, Owned -> {
+                if (stage.equals(EventStage.SUCCESS)) {
+                    this.complete(serviceUnit, null);
+                } else if (stage.equals(EventStage.FAILURE)){
+                    this.complete(serviceUnit, t);
+                }
+            }
+            default -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Handling {}_{} for service unit {}", data, stage, serviceUnit);
+                }
+            }
+        }
     }
 
     public void close() {
@@ -81,5 +106,4 @@ public class UnloadManager {
         });
         inFlightUnloadRequest.clear();
     }
-
 }

@@ -48,6 +48,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -333,42 +334,48 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         String broker = admin.lookups().lookupTopic(topicName.toString());
         log.info("Assign the bundle {} to {}", bundle, broker);
 
-        var loadManager = secondaryLoadManager;
-        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
-            loadManager = primaryLoadManager;
-        }
-
-        assertTrue(loadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
-
+        checkOwnershipState(broker, bundle);
         admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
-        assertFalse(loadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
 
         broker = admin.lookups().lookupTopic(topicName.toString());
         log.info("Assign the bundle {} to {}", bundle, broker);
-        loadManager = secondaryLoadManager;
 
-        String othersBrokerUrl = pulsar1.getLookupServiceAddress();
-        String othersBrokerServiceUrl;
+        String dstBrokerUrl = pulsar1.getLookupServiceAddress();
+        String dstBrokerServiceUrl;
         if (broker.equals(pulsar1.getBrokerServiceUrl())) {
-            loadManager = primaryLoadManager;
-            othersBrokerUrl = pulsar2.getLookupServiceAddress();
-            othersBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
+            dstBrokerUrl = pulsar2.getLookupServiceAddress();
+            dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
         } else {
-            othersBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
+            dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
         }
-        assertTrue(loadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
-        admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), othersBrokerUrl);
+        checkOwnershipState(broker, bundle);
 
-        assertEquals(admin.lookups().lookupTopic(topicName.toString()), othersBrokerServiceUrl);
+        admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
+
+        assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
 
         // Test transfer to current broker.
         try {
             admin.namespaces()
-                    .unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), othersBrokerUrl);
+                    .unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
             fail();
         } catch (PulsarAdminException ex) {
             assertTrue(ex.getMessage().contains("cannot be transfer to same broker"));
         }
+    }
+
+    private void checkOwnershipState(String broker, NamespaceBundle bundle)
+            throws ExecutionException, InterruptedException {
+        var targetLoadManager = secondaryLoadManager;
+        var otherLoadManager = primaryLoadManager;
+        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+            targetLoadManager = primaryLoadManager;
+            otherLoadManager = secondaryLoadManager;
+        }
+        assertTrue(targetLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        assertFalse(otherLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
     }
 
 
