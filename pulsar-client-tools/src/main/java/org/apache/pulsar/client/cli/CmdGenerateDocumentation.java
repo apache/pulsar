@@ -29,11 +29,16 @@ import java.util.Properties;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.common.util.BaseGenerateDocumentation;
 
 @Getter
 @Parameters(commandDescription = "Generate documentation automatically.")
 @Slf4j
-public class CmdGenerateDocumentation {
+public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
 
     @Parameter(names = {"-n", "--command-names"}, description = "List of command names")
     private List<String> commandNames = new ArrayList<>();
@@ -78,5 +83,25 @@ public class CmdGenerateDocumentation {
         );
         System.out.println(sb.toString());
         return sb.toString();
+    }
+
+    @Override
+    protected String generateDocumentByClassName(String className) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        if (ClientConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Client", sb);
+        } else if (ProducerConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Producer", sb);
+        } else if (ConsumerConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Consumer", sb);
+        } else if (ReaderConfigurationData.class.getName().equals(className)) {
+            return generateDocByApiModelProperty(className, "Reader", sb);
+        }
+        return "Class [" + className + "] not found";
+    }
+
+    public static void main(String[] args) throws Exception {
+        CmdGenerateDocumentation generateDocumentation = new CmdGenerateDocumentation();
+        generateDocumentation.run(args);
     }
 }
