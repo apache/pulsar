@@ -364,9 +364,6 @@ The Apache Software License, Version 2.0
     - io.netty-netty-handler-proxy-4.1.87.Final.jar
     - io.netty-netty-resolver-4.1.87.Final.jar
     - io.netty-netty-resolver-dns-4.1.87.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.1.87.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.87.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.1.87.Final-osx-x86_64.jar
     - io.netty-netty-transport-4.1.87.Final.jar
     - io.netty-netty-transport-classes-epoll-4.1.87.Final.jar
     - io.netty-netty-transport-native-epoll-4.1.87.Final-linux-x86_64.jar
@@ -380,9 +377,6 @@ The Apache Software License, Version 2.0
     - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-osx-x86_64.jar
     - io.netty-netty-tcnative-boringssl-static-2.0.56.Final-windows-x86_64.jar
     - io.netty-netty-tcnative-classes-2.0.56.Final.jar
-    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.17.Final.jar
-    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.17.Final-linux-x86_64.jar
-    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.17.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar

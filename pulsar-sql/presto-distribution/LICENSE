@@ -244,9 +244,6 @@ The Apache Software License, Version 2.0
     - netty-reactive-streams-2.0.6.jar
     - netty-resolver-4.1.87.Final.jar
     - netty-resolver-dns-4.1.87.Final.jar
-    - netty-resolver-dns-classes-macos-4.1.87.Final.jar
-    - netty-resolver-dns-native-macos-4.1.87.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.1.87.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.56.Final.jar
     - netty-tcnative-boringssl-static-2.0.56.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.56.Final-linux-x86_64.jar
@@ -260,9 +257,6 @@ The Apache Software License, Version 2.0
     - netty-transport-native-unix-common-4.1.87.Final.jar
     - netty-transport-native-unix-common-4.1.87.Final-linux-x86_64.jar
     - netty-codec-http2-4.1.87.Final.jar
-    - netty-incubator-transport-classes-io_uring-0.0.17.Final.jar
-    - netty-incubator-transport-native-io_uring-0.0.17.Final-linux-x86_64.jar
-    - netty-incubator-transport-native-io_uring-0.0.17.Final-linux-aarch_64.jar
  * GRPC
     - grpc-api-1.45.1.jar
     - grpc-context-1.45.1.jar
