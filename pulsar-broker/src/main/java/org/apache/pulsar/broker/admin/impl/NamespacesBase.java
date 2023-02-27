@@ -1096,7 +1096,7 @@ public abstract class NamespacesBase extends AdminResource {
                     return getNamespacePoliciesAsync(namespaceName)
                             .thenCompose(policies ->
                                     validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                        authoritative, false, null))
+                                        authoritative, false))
                             .thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                                     pulsar().getNamespaceService()
                                             .getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName),
@@ -1113,7 +1113,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies -> {
                     return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                            false, true, null)
+                            false, true)
                             .thenCompose(nsBundle ->
                                     pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(nsBundle))
                             .thenApply(allTopicsInThisBundle -> {
