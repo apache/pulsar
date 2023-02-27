@@ -1123,8 +1123,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (subscriptionBacklogSize) {
             subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
                     .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
-        } else {
-            subStats.backlogSize = -1;
         }
         if (getEarliestTimeInBacklog && subStats.msgBacklog > 0) {
             ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
