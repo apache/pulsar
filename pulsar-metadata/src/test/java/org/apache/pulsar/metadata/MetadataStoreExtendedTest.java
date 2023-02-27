@@ -45,7 +45,8 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         Stat stat1 = store.put(basePath, "value-1".getBytes(), Optional.of(-1L), EnumSet.of(CreateOption.Sequential))
                 .join();
         assertNotNull(stat1);
-        assertEquals(stat1.getVersion(), 0L);
+        assertTrue(stat1.getVersion() >= 0L);
+        assertTrue(stat1.isFirstVersion());
         assertNotEquals(stat1.getPath(), basePath);
         assertEquals(store.get(stat1.getPath()).join().get().getValue(), "value-1".getBytes());
         String seq1 = stat1.getPath().replace(basePath, "");
@@ -54,7 +55,8 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         Stat stat2 = store.put(basePath, "value-2".getBytes(), Optional.of(-1L), EnumSet.of(CreateOption.Sequential))
                 .join();
         assertNotNull(stat2);
-        assertEquals(stat2.getVersion(), 0L);
+        assertTrue(stat2.getVersion() >= 0L);
+        assertTrue(stat2.isFirstVersion());
         assertNotEquals(stat2.getPath(), basePath);
         assertNotEquals(stat2.getPath(), stat1.getPath());
         assertEquals(store.get(stat2.getPath()).join().get().getValue(), "value-2".getBytes());
