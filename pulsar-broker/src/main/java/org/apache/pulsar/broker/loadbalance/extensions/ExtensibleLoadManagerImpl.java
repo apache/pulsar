@@ -86,7 +86,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private BrokerRegistry brokerRegistry;
 
-    @Getter
     private ServiceUnitStateChannel serviceUnitStateChannel;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
@@ -354,8 +353,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private CompletableFuture<Void> unloadAsync(Unload unload,
                                                long timeout,
                                                TimeUnit timeoutUnit) {
-        ServiceUnitStateChannel channel = getServiceUnitStateChannel();
-        CompletableFuture<Void> future = channel.publishUnloadEventAsync(unload);
+        CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
         return unloadManager.waitAsync(future, unload.serviceUnit(), timeout, timeoutUnit);
     }
 
