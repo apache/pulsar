@@ -58,7 +58,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Number of messages in the subscription backlog. */
     public long msgBacklog;
 
-    /** Size of backlog in byte, -1 means that the argument "subscriptionBacklogSize" is false when calling the API. **/
+    /** Size of backlog in byte. **/
     public long backlogSize;
 
     /** Get the publish time of the earliest message in the backlog. */
