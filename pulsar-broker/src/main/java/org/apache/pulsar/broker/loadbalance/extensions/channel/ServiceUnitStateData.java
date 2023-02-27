@@ -51,8 +51,4 @@ public record ServiceUnitStateData(
     public static ServiceUnitState state(ServiceUnitStateData data) {
         return data == null ? ServiceUnitState.Init : data.state();
     }
-
-    public static long versionId(ServiceUnitStateData data) {
-        return data == null ? 0 : data.versionId();
-    }
 }

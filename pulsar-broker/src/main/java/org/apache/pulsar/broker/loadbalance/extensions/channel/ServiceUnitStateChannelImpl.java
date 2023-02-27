@@ -39,7 +39,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Stable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.versionId;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
@@ -104,7 +103,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             NamespaceName.SYSTEM_NAMESPACE,
             "loadbalancer-service-unit-state").toString();
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
-    private static final long VERSION_ID_INIT = 1; // initial versionId
+    public static final long VERSION_ID_INIT = 1; // initial versionId
     private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
@@ -454,11 +453,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private long getNextVersionId(String serviceUnit) {
         var data = tableview.get(serviceUnit);
-        return versionId(data) + 1;
+        return getNextVersionId(data);
     }
 
     private long getNextVersionId(ServiceUnitStateData data) {
-        return versionId(data) + 1;
+        return data == null ? VERSION_ID_INIT : data.versionId() + 1;
     }
 
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
