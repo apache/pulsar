@@ -60,12 +60,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
     private static final double MB = 1024 * 1024;
     private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
-    private final Set<String> activeBrokers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     @Override
-    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public synchronized Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
-        cleanUnActiveBroker();
         final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         final double minThroughputThreshold = conf.getLoadBalancerBundleUnloadMinThroughputThreshold() * MB;
@@ -238,22 +236,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
     }
     @Override
-    public void onActiveBrokersChange(Set<String> newBrokers) {
-        synchronized (activeBrokers) {
-            activeBrokers.clear();
-            activeBrokers.addAll(newBrokers);
-        }
-    }
-
-    private void cleanUnActiveBroker() {
-        if (!activeBrokers.isEmpty()) {
-            synchronized (activeBrokers) {
-                if (!activeBrokers.isEmpty()) {
-                    brokerAvgResourceUsage.keySet().removeIf((key) -> !activeBrokers.contains(key));
-                    activeBrokers.clear();
-                }
-            }
-        }
+    public synchronized void onActiveBrokersChange(Set<String> newBrokers) {
+        brokerAvgResourceUsage.keySet().removeIf((key) -> !newBrokers.contains(key));
     }
 
 }
