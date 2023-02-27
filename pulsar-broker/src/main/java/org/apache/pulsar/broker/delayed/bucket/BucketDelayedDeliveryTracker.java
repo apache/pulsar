@@ -233,10 +233,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             DelayedIndex lastDelayedIndex = immutableBucketDelayedIndexPair.getRight();
             snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId(),
                     immutableBucket);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Create bucket snapshot, bucket: {}", dispatcher.getName(),
-                        lastMutableBucket);
-            }
         }
     }
 
@@ -310,8 +306,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
         ImmutableBucket immutableBucketA = values.get(minIndex);
         ImmutableBucket immutableBucketB = values.get(minIndex + 1);
-        log.info("[{}] Merging bucket snapshot, bucketAKey: {}, bucketBKey: {}", dispatcher.getName(),
-                immutableBucketA.bucketKey(), immutableBucketB.bucketKey());
+        if (log.isDebugEnabled()) {
+            log.info("[{}] Merging bucket snapshot, bucketAKey: {}, bucketBKey: {}", dispatcher.getName(),
+                    immutableBucketA.bucketKey(), immutableBucketB.bucketKey());
+        }
         return asyncMergeBucketSnapshot(immutableBucketA, immutableBucketB).whenComplete((__, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to merge bucket snapshot, bucketAKey: {}, bucketBKey: {}",
@@ -410,8 +408,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
                 final int lastSegmentEntryId = bucket.currentSegmentEntryId;
-                log.info("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
-                        dispatcher.getName(), bucket.bucketKey(), lastSegmentEntryId + 1);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
+                            dispatcher.getName(), bucket.bucketKey(), lastSegmentEntryId + 1);
+                }
                 // All message of current snapshot segment are scheduled, load next snapshot segment
                 // TODO make it asynchronous and not blocking this process
                 try {
