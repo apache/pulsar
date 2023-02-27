@@ -342,6 +342,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                     .orElse(CompletableFuture.completedFuture(null));
                         }
 
+                        snapshotCreateFuture.thenCompose(___ -> {
+                            CompletableFuture<Void> removeAFuture = bucketA.asyncDeleteBucketSnapshot();
+                            CompletableFuture<Void> removeBFuture = bucketB.asyncDeleteBucketSnapshot();
+                            return CompletableFuture.allOf(removeAFuture, removeBFuture);
+                        });
+
                         immutableBuckets.remove(Range.closed(bucketA.startLedgerId, bucketA.endLedgerId));
                         immutableBuckets.remove(Range.closed(bucketB.startLedgerId, bucketB.endLedgerId));
                     });
