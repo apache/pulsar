@@ -65,7 +65,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final long minIndexCountPerBucket;
 
-    private final long timeStepPerBucketSnapshotSegment;
+    private final long timeStepPerBucketSnapshotSegmentInMillis;
 
     private final int maxNumBuckets;
 
@@ -85,21 +85,21 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                  Timer timer, long tickTimeMillis,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
                                  BucketSnapshotStorage bucketSnapshotStorage,
-                                 long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
+                                 long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
                                  int maxNumBuckets) {
         this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict,
-                bucketSnapshotStorage, minIndexCountPerBucket, timeStepPerBucketSnapshotSegment, maxNumBuckets);
+                bucketSnapshotStorage, minIndexCountPerBucket, timeStepPerBucketSnapshotSegmentInMillis, maxNumBuckets);
     }
 
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis, Clock clock,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
                                  BucketSnapshotStorage bucketSnapshotStorage,
-                                 long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegment,
+                                 long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
                                  int maxNumBuckets) {
         super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.minIndexCountPerBucket = minIndexCountPerBucket;
-        this.timeStepPerBucketSnapshotSegment = timeStepPerBucketSnapshotSegment;
+        this.timeStepPerBucketSnapshotSegmentInMillis = timeStepPerBucketSnapshotSegmentInMillis;
         this.maxNumBuckets = maxNumBuckets;
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
@@ -256,7 +256,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 && lastMutableBucket.size() >= minIndexCountPerBucket
                 && !lastMutableBucket.isEmpty()) {
             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
-                    lastMutableBucket.sealBucketAndAsyncPersistent(this.timeStepPerBucketSnapshotSegment,
+                    lastMutableBucket.sealBucketAndAsyncPersistent(this.timeStepPerBucketSnapshotSegmentInMillis,
                             this.sharedBucketPriorityQueue);
             afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
             lastMutableBucket.resetLastMutableBucketRange();
@@ -333,7 +333,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     .thenAccept(combinedDelayedIndexQueue -> {
                         Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
                                 lastMutableBucket.createImmutableBucketAndAsyncPersistent(
-                                        timeStepPerBucketSnapshotSegment, sharedBucketPriorityQueue,
+                                        timeStepPerBucketSnapshotSegmentInMillis, sharedBucketPriorityQueue,
                                         combinedDelayedIndexQueue, bucketA.startLedgerId, bucketB.endLedgerId);
 
                         // Merge bit map to new bucket
