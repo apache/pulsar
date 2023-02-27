@@ -479,7 +479,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic).create();
 
-        final int messages = 10;
+        final int messages = 60;
         for (int i = 0; i < messages; i++) {
             producer.newMessage().deliverAfter(1, TimeUnit.HOURS).value("Delayed Message - " + i).send();
         }
