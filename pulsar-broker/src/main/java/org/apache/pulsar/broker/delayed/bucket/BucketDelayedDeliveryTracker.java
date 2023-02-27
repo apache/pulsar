@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotF
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
+import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
 @ThreadSafe
@@ -334,6 +335,23 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 lastMutableBucket.createImmutableBucketAndAsyncPersistent(
                                         timeStepPerBucketSnapshotSegment, sharedBucketPriorityQueue,
                                         combinedDelayedIndexQueue, bucketA.startLedgerId, bucketB.endLedgerId);
+
+                        // Merge bit map to new bucket
+                        Map<Long, RoaringBitmap> delayedIndexBitMapA = bucketA.getDelayedIndexBitMap();
+                        Map<Long, RoaringBitmap> delayedIndexBitMapB = bucketB.getDelayedIndexBitMap();
+                        Map<Long, RoaringBitmap> delayedIndexBitMap = new HashMap<>(delayedIndexBitMapA);
+                        delayedIndexBitMapB.forEach((ledgerId, bitMapB) -> {
+                            delayedIndexBitMap.compute(ledgerId, (k, bitMapA) -> {
+                                if (bitMapA == null) {
+                                    return bitMapB;
+                                }
+
+                                bitMapA.or(bitMapB);
+                                return bitMapA;
+                            });
+                        });
+                        immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
+
                         afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
 
                         CompletableFuture<Long> snapshotCreateFuture = CompletableFuture.completedFuture(null);
