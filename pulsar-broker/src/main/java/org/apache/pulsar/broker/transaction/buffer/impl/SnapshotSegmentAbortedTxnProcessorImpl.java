@@ -43,6 +43,7 @@ import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -442,10 +443,12 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         private final PersistentTopic topic;
 
         //Persistent snapshot segment and index at the single thread.
-        private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotSegment>>
+        private final ReferenceCountedWriter<TransactionBufferSnapshotSegment>
                 snapshotSegmentsWriterFuture;
-        private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>>
+        private final ReferenceCountedWriter<TransactionBufferSnapshotIndexes>
                 snapshotIndexWriterFuture;
+
+        private volatile boolean closed = false;
 
         private enum OperationState {
             None,
@@ -470,18 +473,18 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         public PersistentWorker(PersistentTopic topic) {
             this.topic = topic;
-            this.snapshotSegmentsWriterFuture =  this.topic.getBrokerService().getPulsar()
+            this.snapshotSegmentsWriterFuture = this.topic.getBrokerService().getPulsar()
                     .getTransactionBufferSnapshotServiceFactory()
-                    .getTxnBufferSnapshotSegmentService().createWriter(TopicName.get(topic.getName()));
-            this.snapshotSegmentsWriterFuture.exceptionally(ex -> {
+                    .getTxnBufferSnapshotSegmentService().getReferenceWriter(TopicName.get(topic.getName()));
+            this.snapshotSegmentsWriterFuture.getFuture().exceptionally(ex -> {
                         log.error("{} Failed to create snapshot index writer", topic.getName());
                         topic.close();
                         return null;
                     });
             this.snapshotIndexWriterFuture =  this.topic.getBrokerService().getPulsar()
                     .getTransactionBufferSnapshotServiceFactory()
-                    .getTxnBufferSnapshotIndexService().createWriter(TopicName.get(topic.getName()));
-            this.snapshotIndexWriterFuture.exceptionally((ex) -> {
+                    .getTxnBufferSnapshotIndexService().getReferenceWriter(TopicName.get(topic.getName()));
+            this.snapshotIndexWriterFuture.getFuture().exceptionally((ex) -> {
                         log.error("{} Failed to create snapshot writer", topic.getName());
                         topic.close();
                         return null;
@@ -631,7 +634,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             transactionBufferSnapshotSegment.setPersistentPositionLedgerId(
                     abortedMarkerPersistentPosition.getLedgerId());
 
-            return snapshotSegmentsWriterFuture.thenCompose(segmentWriter -> {
+            return snapshotSegmentsWriterFuture.getFuture().thenCompose(segmentWriter -> {
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());
                 return segmentWriter.writeAsync(buildKey(this.sequenceID.get()), transactionBufferSnapshotSegment);
             }).thenCompose((messageId) -> {
@@ -668,7 +671,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             List<CompletableFuture<Void>> results = new ArrayList<>();
             for (PositionImpl positionNeedToDelete : positionNeedToDeletes) {
                 long sequenceIdNeedToDelete = indexes.get(positionNeedToDelete).getSequenceID();
-                CompletableFuture<Void> res = snapshotSegmentsWriterFuture
+                CompletableFuture<Void> res = snapshotSegmentsWriterFuture.getFuture()
                         .thenCompose(writer -> writer.deleteAsync(buildKey(sequenceIdNeedToDelete), null))
                         .thenCompose(messageId -> {
                             if (log.isDebugEnabled()) {
@@ -695,7 +698,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
-            CompletableFuture<Void> res = snapshotIndexWriterFuture
+            CompletableFuture<Void> res = snapshotIndexWriterFuture.getFuture()
                     .thenCompose((indexesWriter) -> {
                         snapshotIndexes.setIndexList(indexes.values().stream().toList());
                         snapshotIndexes.setSnapshot(snapshotSegment);
@@ -712,7 +715,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
             CompletableFuture<Void> res = persistentWorker.clearAllSnapshotSegments()
-                    .thenCompose((ignore) -> snapshotIndexWriterFuture
+                    .thenCompose((ignore) -> snapshotIndexWriterFuture.getFuture()
                             .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
                     .thenRun(() ->
                             log.debug("Successes to clear the snapshot segment and indexes for the topic [{}]",
@@ -747,7 +750,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
                                         .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                                 if (topic.getName().equals(message.getValue().getTopicName())) {
-                                   snapshotSegmentsWriterFuture.get().write(message.getKey(), null);
+                                   snapshotSegmentsWriterFuture.getFuture().get().write(message.getKey(), null);
                                 }
                             }
                             return CompletableFuture.completedFuture(null);
@@ -760,11 +763,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
            });
         }
 
-
-        CompletableFuture<Void> closeAsync() {
-            return CompletableFuture.allOf(
-                    this.snapshotIndexWriterFuture.thenCompose(SystemTopicClient.Writer::closeAsync),
-                    this.snapshotSegmentsWriterFuture.thenCompose(SystemTopicClient.Writer::closeAsync));
+        synchronized CompletableFuture<Void> closeAsync() {
+            if (!closed) {
+                closed = true;
+                this.snapshotIndexWriterFuture.close();
+                this.snapshotSegmentsWriterFuture.close();
+            }
+            return CompletableFuture.completedFuture(null);
         }
     }
 

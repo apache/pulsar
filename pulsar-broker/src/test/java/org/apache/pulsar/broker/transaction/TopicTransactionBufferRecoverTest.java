@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotServiceFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -602,11 +603,12 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 mock(SystemTopicTxnBufferSnapshotService.class);
         SystemTopicClient.Reader<TransactionBufferSnapshot> reader = mock(SystemTopicClient.Reader.class);
         SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
+        ReferenceCountedWriter<TransactionBufferSnapshot> refCounterWriter = mock(ReferenceCountedWriter.class);
+        doReturn(CompletableFuture.completedFuture(writer)).when(refCounterWriter).getFuture();
 
         doReturn(CompletableFuture.completedFuture(reader))
                 .when(systemTopicTxnBufferSnapshotService).createReader(any());
-        doReturn(CompletableFuture.completedFuture(writer))
-                .when(systemTopicTxnBufferSnapshotService).createWriter(any());
+        doReturn(refCounterWriter).when(systemTopicTxnBufferSnapshotService).getReferenceWriter(any());
         TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory =
                 mock(TransactionBufferSnapshotServiceFactory.class);
         doReturn(systemTopicTxnBufferSnapshotService)
@@ -645,8 +647,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
         // mock create writer fail
-        doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))
-                .when(systemTopicTxnBufferSnapshotService).createWriter(any());
+        ReferenceCountedWriter<TransactionBufferSnapshot> failedCountedWriter = mock(ReferenceCountedWriter.class);
+        doReturn(FutureUtil.failedFuture(new PulsarClientException("test"))).when(failedCountedWriter).getFuture();
+        doReturn(failedCountedWriter).when(systemTopicTxnBufferSnapshotService).getReferenceWriter(any());
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceFactoryOriginal,
                 transactionBufferSnapshotServiceFactory, originalTopic, field, producer);
     }
