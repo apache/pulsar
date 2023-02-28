@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
@@ -228,6 +229,7 @@ public class ConsumerImplTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testCreateConsumerWhenSchemaIsNull() throws PulsarClientException {
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
             .serviceUrl("pulsar://127.0.0.1:6650")
             .build();

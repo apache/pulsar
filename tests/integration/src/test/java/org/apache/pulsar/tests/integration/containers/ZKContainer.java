@@ -69,4 +69,9 @@ public class ZKContainer<SelfT extends PulsarContainer<SelfT>> extends PulsarCon
             );
         }
     }
+
+    @Override
+    protected boolean isCodeCoverageEnabled() {
+        return false;
+    }
 }

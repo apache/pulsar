@@ -56,11 +56,6 @@ public class LocalBrokerDataTest {
         assertEquals(
                 data.getMaxResourceUsageWithWeight(
                         weight, weight, weight, weight, weight), 2.0, epsilon);
-
-        assertEquals(
-                data.getMaxResourceUsageWithWeightWithinLimit(
-                        weight, weight, weight, weight, weight), 0.02, epsilon);
-
     }
 
     /*

@@ -182,12 +182,14 @@ public class PulsarConfigurationLoader {
             final ServiceConfiguration convertedConf = ServiceConfiguration.class
                     .getDeclaredConstructor().newInstance();
             Field[] confFields = conf.getClass().getDeclaredFields();
-            Properties properties = new Properties();
+            Properties sourceProperties = conf.getProperties();
+            Properties targetProperties = convertedConf.getProperties();
             Arrays.stream(confFields).forEach(confField -> {
                 try {
                     confField.setAccessible(true);
                     Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
-                    if (!Modifier.isStatic(convertedConfField.getModifiers())) {
+                    if (!Modifier.isStatic(convertedConfField.getModifiers())
+                            && convertedConfField.getDeclaredAnnotation(FieldContext.class) != null) {
                         convertedConfField.setAccessible(true);
                         convertedConfField.set(convertedConf, confField.get(conf));
                     }
@@ -198,8 +200,9 @@ public class PulsarConfigurationLoader {
                     }
                     // add unknown fields to properties
                     try {
-                        if (confField.get(conf) != null) {
-                            properties.put(confField.getName(), confField.get(conf));
+                        String propertyName = confField.getName();
+                        if (!sourceProperties.containsKey(propertyName) && confField.get(conf) != null) {
+                            targetProperties.put(propertyName, confField.get(conf));
                         }
                     } catch (Exception ignoreException) {
                         // should not happen
@@ -208,7 +211,8 @@ public class PulsarConfigurationLoader {
                     throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
                 }
             });
-            convertedConf.getProperties().putAll(properties);
+            // Put the rest of properties to new config
+            targetProperties.putAll(sourceProperties);
             return convertedConf;
         } catch (InstantiationException | IllegalAccessException
                 | InvocationTargetException | NoSuchMethodException e) {

@@ -149,12 +149,12 @@ public class ManagedLedgerWriter {
         } catch (ParameterException e) {
             System.out.println(e.getMessage());
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.help) {
             jc.usage();
-            PerfClientUtils.exit(-1);
+            PerfClientUtils.exit(1);
         }
 
         if (arguments.metadataStoreUrl == null && arguments.zookeeperServers == null) {
@@ -280,7 +280,7 @@ public class ManagedLedgerWriter {
                         @Override
                         public void addFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Write error on message", exception);
-                            PerfClientUtils.exit(-1);
+                            PerfClientUtils.exit(1);
                         }
                     };
 

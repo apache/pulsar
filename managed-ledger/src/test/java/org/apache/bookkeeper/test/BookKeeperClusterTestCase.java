@@ -207,6 +207,8 @@ public abstract class BookKeeperClusterTestCase {
         }
         // stop zookeeper service
         try {
+            // cleanup for metrics.
+            metadataStore.close();
             stopZKCluster();
         } catch (Exception e) {
             LOG.error("Got Exception while trying to stop ZKCluster", e);

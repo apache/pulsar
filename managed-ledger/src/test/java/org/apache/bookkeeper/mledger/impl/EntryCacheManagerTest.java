@@ -34,7 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -55,13 +54,11 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
 
     @Override
     protected void setUpTestCase() throws Exception {
-        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).build();
-
         ml1 = mock(ManagedLedgerImpl.class);
         when(ml1.getScheduledExecutor()).thenReturn(executor);
         when(ml1.getName()).thenReturn("cache1");
         when(ml1.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml1));
-        when(ml1.getExecutor()).thenReturn(super.executor);
+        when(ml1.getExecutor()).thenReturn(executor);
         when(ml1.getFactory()).thenReturn(factory);
         when(ml1.getConfig()).thenReturn(new ManagedLedgerConfig());
 

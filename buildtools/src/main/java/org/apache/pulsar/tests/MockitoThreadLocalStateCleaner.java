@@ -70,7 +70,7 @@ public final class MockitoThreadLocalStateCleaner {
                 Object ongoingStubbing = MethodUtils.invokeMethod(mockingProgress, "pullOngoingStubbing");
                 if (ongoingStubbing != null) {
                     Object mock = MethodUtils.invokeMethod(ongoingStubbing, "getMock");
-                    if (mock != null) {
+                    if (mock != null && MockUtil.isMock(mock)) {
                         LOG.warn("Invalid usage of Mockito detected on thread {}."
                                         + " There is ongoing stubbing on mock of class={} instance={}",
                                 thread, mock.getClass().getName(), mock);

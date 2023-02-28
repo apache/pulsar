@@ -58,6 +58,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
@@ -125,7 +126,7 @@ public class BacklogQuotaManagerTest {
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-            config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             config.setSystemTopicEnabled(false);
             config.setTopicLevelPoliciesEnabled(false);
             config.setForceDeleteNamespaceAllowed(true);

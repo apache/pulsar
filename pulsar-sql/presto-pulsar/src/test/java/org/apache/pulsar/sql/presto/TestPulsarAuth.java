@@ -209,7 +209,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
             Assert.fail(); // should fail
         } catch (TrinoException e){
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
-            Assert.assertTrue(e.getMessage().contains("Unable to authenticate"));
+            Assert.assertTrue(e.getMessage().contains("Failed to authenticate"));
         }
 
         pulsarAuth.cleanSession(session);

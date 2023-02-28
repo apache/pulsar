@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +26,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.time.Duration;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Resolves OAuth 2.0 authorization server metadata as described in RFC 8414.
@@ -43,7 +43,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
 
     public DefaultMetadataResolver(URL metadataUrl) {
         this.metadataUrl = metadataUrl;
-        this.objectReader = new ObjectMapper().readerFor(Metadata.class);
+        this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
         // set a default timeout to ensure that this doesn't block
         this.connectTimeout = Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS);
         this.readTimeout = Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS);

@@ -40,13 +40,16 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
@@ -115,6 +118,44 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @Override
+    public CompletableFuture<SchemaVersion> put(String key,
+            Function<CompletableFuture<List<CompletableFuture<StoredSchema>>>,
+                    CompletableFuture<Pair<byte[], byte[]>>> fn) {
+        CompletableFuture<SchemaVersion> promise = new CompletableFuture<>();
+        put(key, fn, promise);
+        return promise;
+    }
+
+    private void put(String key,
+             Function<CompletableFuture<List<CompletableFuture<StoredSchema>>>,
+             CompletableFuture<Pair<byte[], byte[]>>> fn,
+             CompletableFuture<SchemaVersion> promise) {
+        CompletableFuture<Pair<Optional<LocatorEntry>, List<CompletableFuture<StoredSchema>>>> schemasWithLocator =
+                getAllWithLocator(key);
+        schemasWithLocator.thenCompose(pair ->
+                fn.apply(completedFuture(pair.getRight())).thenCompose(p -> {
+                    // The schema is existed
+                    if (p == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return putSchema(key, p.getLeft(), p.getRight(), pair.getLeft());
+                }).thenApply(version -> {
+                    return version != null ? new LongSchemaVersion(version) : null;
+                })).whenComplete((v, ex) -> {
+                    if (ex == null) {
+                        promise.complete(v);
+                    } else {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                            put(key, fn, promise);
+                        } else {
+                            promise.completeExceptionally(ex);
+                        }
+                    }
+        });
+    }
+
+    @Override
     public CompletableFuture<StoredSchema> get(String key, SchemaVersion version) {
         if (version == SchemaVersion.Latest) {
             return getSchema(key);
@@ -126,30 +167,32 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public CompletableFuture<List<CompletableFuture<StoredSchema>>> getAll(String key) {
-        CompletableFuture<List<CompletableFuture<StoredSchema>>> result = new CompletableFuture<>();
-        getLocator(key).thenAccept(locator -> {
+        return getAllWithLocator(key).thenApply(Pair::getRight);
+    }
+
+    private CompletableFuture<Pair<Optional<LocatorEntry>, List<CompletableFuture<StoredSchema>>>> getAllWithLocator(
+            String key) {
+        return getLocator(key).thenApply(locator -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Get all schemas - locator: {}", key, locator);
             }
 
-            if (!locator.isPresent()) {
-                result.complete(Collections.emptyList());
-                return;
+            if (locator.isEmpty()) {
+                return Pair.of(locator, Collections.emptyList());
             }
 
             SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
             List<CompletableFuture<StoredSchema>> list = new ArrayList<>();
             schemaLocator.getIndexList().forEach(indexEntry -> list.add(readSchemaEntry(indexEntry.getPosition())
-                .thenApply(entry -> new StoredSchema
-                    (
-                        entry.getSchemaData().toByteArray(),
-                        new LongSchemaVersion(indexEntry.getVersion())
+                    .thenApply(entry -> new StoredSchema
+                            (
+                                    entry.getSchemaData().toByteArray(),
+                                    new LongSchemaVersion(indexEntry.getVersion())
+                            )
                     )
-                )
             ));
-            result.complete(list);
+            return Pair.of(locator, list);
         });
-        return result;
     }
 
     CompletableFuture<Optional<LocatorEntry>> getLocator(String key) {
@@ -270,72 +313,29 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NotNull
     private CompletableFuture<Long> putSchema(String schemaId, byte[] data, byte[] hash) {
-        return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(optLocatorEntry -> {
+        return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(optLocatorEntry ->
+                putSchema(schemaId, data, hash, optLocatorEntry));
+    }
 
-            if (optLocatorEntry.isPresent()) {
+    private CompletableFuture<Long> putSchema(String schemaId, byte[] data, byte[] hash,
+                                              Optional<LocatorEntry> optLocatorEntry) {
+        if (optLocatorEntry.isPresent()) {
 
-                SchemaStorageFormat.SchemaLocator locator = optLocatorEntry.get().locator;
+            SchemaStorageFormat.SchemaLocator locator = optLocatorEntry.get().locator;
 
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] findSchemaEntryByHash - hash={}", schemaId, hash);
-                }
-
-                //don't check the schema whether already exist
-                return readSchemaEntry(locator.getIndexList().get(0).getPosition())
-                        .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId,
-                                locator.getIndexList(), data).thenCompose(
-                                position -> {
-                                    CompletableFuture<Long> future = new CompletableFuture<>();
-                                    updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash)
-                                            .thenAccept(future::complete)
-                                            .exceptionally(ex -> {
-                                                if (ex.getCause() instanceof BadVersionException) {
-                                                    // There was a race condition on the schema creation.
-                                                    // Since it has now been created,
-                                                    // retry the whole operation so that we have a chance to
-                                                    // recover without bubbling error
-                                                    putSchema(schemaId, data, hash)
-                                                            .thenAccept(future::complete)
-                                                            .exceptionally(ex2 -> {
-                                                                future.completeExceptionally(ex2);
-                                                                return null;
-                                                            });
-                                                } else {
-                                            // For other errors, just fail the operation
-                                            future.completeExceptionally(ex);
-                                        }
-                                        return null;
-                                    });
-                            return future;
-                        })
-                );
-            } else {
-                // No schema was defined yet
-                CompletableFuture<Long> future = new CompletableFuture<>();
-                createNewSchema(schemaId, data, hash)
-                        .thenAccept(future::complete)
-                        .exceptionally(ex -> {
-                            if (ex.getCause() instanceof AlreadyExistsException
-                                    || ex.getCause() instanceof BadVersionException) {
-                                // There was a race condition on the schema creation. Since it has now been created,
-                                // retry the whole operation so that we have a chance to recover without bubbling error
-                                // back to producer/consumer
-                                putSchema(schemaId, data, hash)
-                                        .thenAccept(future::complete)
-                                        .exceptionally(ex2 -> {
-                                            future.completeExceptionally(ex2);
-                                            return null;
-                                        });
-                            } else {
-                                // For other errors, just fail the operation
-                                future.completeExceptionally(ex);
-                            }
-                            return null;
-                        });
-
-                return future;
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] findSchemaEntryByHash - hash={}", schemaId, hash);
             }
-        });
+
+            //don't check the schema whether already exist
+            return readSchemaEntry(locator.getIndexList().get(0).getPosition())
+                    .thenCompose(schemaEntry -> addNewSchemaEntryToStore(schemaId,
+                            locator.getIndexList(), data).thenCompose(
+                            position -> updateSchemaLocator(schemaId, optLocatorEntry.get(), position, hash))
+                    );
+        } else {
+            return createNewSchema(schemaId, data, hash);
+        }
     }
 
     private CompletableFuture<Long> createNewSchema(String schemaId, byte[] data, byte[] hash) {
@@ -471,7 +471,21 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                         .addAllIndex(indexList)
                         .build()
                 , locatorEntry.version
-        ).thenApply(ignore -> nextVersion);
+        ).thenApply(ignore -> nextVersion).whenComplete((__, ex) -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn("[{}] Failed to update schema locator with position {}", schemaId, position, cause);
+            if (cause instanceof AlreadyExistsException || cause instanceof BadVersionException) {
+                bookKeeper.asyncDeleteLedger(position.getLedgerId(), new AsyncCallback.DeleteCallback() {
+                    @Override
+                    public void deleteComplete(int rc, Object ctx) {
+                        if (rc != BKException.Code.OK) {
+                            log.warn("[{}] Failed to delete ledger {} after updating schema locator failed, rc: {}",
+                                    schemaId, position.getLedgerId(), rc);
+                        }
+                    }
+                }, null);
+            }
+        });
     }
 
     @NotNull

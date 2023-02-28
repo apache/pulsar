@@ -31,13 +31,16 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of the channel handler to process inbound Pulsar data.
+ * <p>
+ * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
+ * parameter instance lifecycle.
  */
 public abstract class PulsarHandler extends PulsarDecoder {
     protected ChannelHandlerContext ctx;
     protected SocketAddress remoteAddress;
     private int remoteEndpointProtocolVersion = ProtocolVersion.v0.getValue();
     private final long keepAliveIntervalSeconds;
-    private volatile boolean waitingForPingResponse = false;
+    private boolean waitingForPingResponse = false;
     private ScheduledFuture<?> keepAliveTask;
 
     public int getRemoteEndpointProtocolVersion() {

@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -60,6 +61,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -197,6 +199,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private final Lock lock = new ReentrantLock();
     private Set<String> knownBrokers = ConcurrentHashMap.newKeySet();
+    private Map<String, String> bundleBrokerAffinityMap;
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
@@ -215,7 +218,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = new HashMap<>();
-
+        this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerUrl) {
@@ -443,9 +446,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         long timeSinceLastReportWrittenToStore = System.currentTimeMillis() - localData.getLastUpdate();
         if (timeSinceLastReportWrittenToStore > updateMaxIntervalMillis) {
             log.info("Writing local data to metadata store because time since last"
-                            + " update exceeded threshold of {} minutes. ResourceUsage:[{}]",
-                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes(),
-                    localData.printResourceUsage());
+                            + " update exceeded threshold of {} minutes",
+                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
             // Always update after surpassing the maximum interval.
             return true;
         }
@@ -459,10 +461,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
-                            + "time since last report written is {} seconds. ResourceUsage:[{}]", maxChange,
+                            + "time since last report written is {} seconds", maxChange,
                     conf.getLoadBalancerReportUpdateThresholdPercentage(),
-                    timeSinceLastReportWrittenToStore / 1000.0,
-                    localData.printResourceUsage());
+                    timeSinceLastReportWrittenToStore / 1000.0);
             return true;
         }
         return false;
@@ -569,24 +570,19 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
+            Set<String> ownedNsBundles = pulsar.getNamespaceService().getOwnedServiceUnits()
+                    .stream().map(NamespaceBundle::toString).collect(Collectors.toSet());
             synchronized (preallocatedBundleData) {
-                for (String preallocatedBundleName : brokerData.getPreallocatedBundleData().keySet()) {
-                    if (brokerData.getLocalData().getBundles().contains(preallocatedBundleName)) {
-                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
-                                preallocatedBundleData.entrySet()
-                                        .iterator();
-                        while (preallocatedIterator.hasNext()) {
-                            final String bundle = preallocatedIterator.next().getKey();
-
-                            if (bundleData.containsKey(bundle)) {
-                                preallocatedIterator.remove();
-                                preallocatedBundleToBroker.remove(bundle);
-                            }
-                        }
+                preallocatedBundleToBroker.keySet().removeAll(preallocatedBundleData.keySet());
+                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
+                        preallocatedBundleData.entrySet().iterator();
+                while (preallocatedIterator.hasNext()) {
+                    final String bundle = preallocatedIterator.next().getKey();
+                    if (!ownedNsBundles.contains(bundle)
+                            || (brokerData.getLocalData().getBundles().contains(bundle)
+                            && bundleData.containsKey(bundle))) {
+                        preallocatedIterator.remove();
                     }
-
-                    // This is needed too in case a broker which was assigned a bundle dies and comes back up.
-                    preallocatedBundleToBroker.remove(preallocatedBundleName);
                 }
             }
 
@@ -749,10 +745,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
         synchronized (bundleSplitStrategy) {
-            final Set<String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
+            final Map<String, String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
             int splitCount = 0;
-            for (String bundleName : bundlesToBeSplit) {
+            for (String bundleName : bundlesToBeSplit.keySet()) {
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
@@ -769,9 +765,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             .invalidateBundleCache(NamespaceName.get(namespaceName));
                     deleteBundleDataFromMetadataStore(bundleName);
 
-                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, unloadSplitBundles);
+                    // Check NamespacePolicies and AntiAffinityNamespace support unload bundle.
+                    boolean isUnload = false;
+                    String broker = bundlesToBeSplit.get(bundleName);
+                    if (unloadSplitBundles
+                            && shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)
+                            && shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
+                        isUnload = true;
+                    }
+                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, isUnload);
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
-                        unloadSplitBundles, null);
+                            isUnload, null);
 
                     splitCount++;
                     log.info("Successfully split namespace bundle {}", bundleName);
@@ -1213,5 +1217,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
 
         return metricsCollection;
+    }
+
+    @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        if (StringUtils.isBlank(broker)) {
+            return this.bundleBrokerAffinityMap.remove(bundle);
+        }
+        broker = broker.replaceFirst("http[s]?://", "");
+        return this.bundleBrokerAffinityMap.put(bundle, broker);
     }
 }

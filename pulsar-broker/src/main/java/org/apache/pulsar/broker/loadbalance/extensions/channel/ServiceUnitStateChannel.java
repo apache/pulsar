@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.io.Closeable;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
@@ -45,25 +48,18 @@ public interface ServiceUnitStateChannel extends Closeable {
     void close() throws PulsarServerException;
 
     /**
-     * Schedules the periodic compaction for the system topic in this channel.
-     * @throws PulsarServerException if it fails to schedule the compaction.
-     */
-    void scheduleCompaction() throws PulsarServerException;
-
-    /**
-     * Gets the current owner broker of the system topic in this channel.
+     * Asynchronously gets the current owner broker of the system topic in this channel.
      * @return the service url without the protocol prefix, 'http://'. e.g. broker-xyz:abcd
      *
      * ServiceUnitStateChannel elects the separate leader as the owner broker of the system topic in this channel.
-     * If there is no leader at the moment, it will throw a runtime exception.
      */
-    String getChannelOwner();
+    CompletableFuture<Optional<String>> getChannelOwnerAsync();
 
     /**
-     * Checks if the current broker is the owner broker of the system topic in this channel.
+     * Asynchronously checks if the current broker is the owner broker of the system topic in this channel.
      * @return True if the current broker is the owner. Otherwise, false.
      */
-    boolean isChannelOwner();
+    CompletableFuture<Boolean> isChannelOwnerAsync();
 
     /**
      * Handles the metadata session events to track
@@ -122,9 +118,9 @@ public interface ServiceUnitStateChannel extends Closeable {
      *                 the future object will complete and return the owner broker.
      *      Sub-case2: If the assigned broker does not take the ownership in time,
      *                 the future object will time out.
-     * Case 3: If none of them, it returns null.
+     * Case 3: If none of them, it returns Optional.empty().
      */
-    CompletableFuture<String> getOwnerAsync(String serviceUnit);
+    CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
      * Asynchronously publishes the service unit assignment event to the system topic in this channel.
@@ -153,5 +149,11 @@ public interface ServiceUnitStateChannel extends Closeable {
      * @return the completable future object staged from the event message sendAsync.
      */
     CompletableFuture<Void> publishSplitEventAsync(Split split);
+
+    /**
+     * Generates the metrics to monitor.
+     * @return a list of the metrics
+     */
+    List<Metrics> getMetrics();
 
 }

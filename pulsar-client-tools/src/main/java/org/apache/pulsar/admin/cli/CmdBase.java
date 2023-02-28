@@ -37,12 +37,16 @@ public abstract class CmdBase {
     private PulsarAdmin admin;
     private IUsageFormatter usageFormatter;
 
-    @Parameter(names = { "-h", "--help" }, help = true, hidden = true)
-    private boolean help;
+    @Parameter(names = { "--help", "-h" }, help = true, hidden = true)
+    private boolean help = false;
+
+    public boolean isHelp() {
+        return help;
+    }
 
     public CmdBase(String cmdName, Supplier<PulsarAdmin> adminSupplier) {
         this.adminSupplier = adminSupplier;
-        jcommander = new JCommander();
+        jcommander = new JCommander(this);
         usageFormatter = new CmdUsageFormatter(jcommander);
         jcommander.setProgramName("pulsar-admin " + cmdName);
         jcommander.setUsageFormatter(usageFormatter);
@@ -78,32 +82,38 @@ public abstract class CmdBase {
         String cmd = jcommander.getParsedCommand();
         if (cmd == null) {
             jcommander.usage();
-            return false;
-        } else {
-            JCommander obj = jcommander.getCommands().get(cmd);
-            CliCommand cmdObj = (CliCommand) obj.getObjects().get(0);
+            return help;
+        }
 
-            try {
-                cmdObj.run();
-                return true;
-            } catch (ParameterException e) {
-                System.err.println(e.getMessage());
-                System.err.println();
-                return false;
-            } catch (ConnectException e) {
-                System.err.println(e.getMessage());
-                System.err.println();
-                System.err.println("Error connecting to: " + getAdmin().getServiceUrl());
-                return false;
-            } catch (PulsarAdminException e) {
-                System.err.println(e.getHttpError());
-                System.err.println();
-                System.err.println("Reason: " + e.getMessage());
-                return false;
-            } catch (Exception e) {
-                e.printStackTrace();
-                return false;
-            }
+        JCommander obj = jcommander.getCommands().get(cmd);
+        CliCommand cmdObj = (CliCommand) obj.getObjects().get(0);
+
+        if (cmdObj.isHelp()) {
+            obj.setProgramName(jcommander.getProgramName() + " " + cmd);
+            obj.usage();
+            return true;
+        }
+
+        try {
+            cmdObj.run();
+            return true;
+        } catch (ParameterException e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            return false;
+        } catch (ConnectException e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            System.err.println("Error connecting to: " + getAdmin().getServiceUrl());
+            return false;
+        } catch (PulsarAdminException e) {
+            System.err.println(e.getHttpError());
+            System.err.println();
+            System.err.println("Reason: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
     }
 

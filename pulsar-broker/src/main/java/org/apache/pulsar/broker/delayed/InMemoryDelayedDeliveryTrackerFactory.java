@@ -22,6 +22,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 
@@ -36,7 +37,8 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
     private long fixedDelayDetectionLookahead;
 
     @Override
-    public void initialize(ServiceConfiguration config) {
+    public void initialize(PulsarService pulsarService) {
+        ServiceConfiguration config = pulsarService.getConfig();
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();

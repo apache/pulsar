@@ -96,7 +96,7 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         CloseableHttpResponse response = httpClient.execute(request);
 
         HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getThreadLocal().readValue(EntityUtils.toString(entity), LookupData.class);
+        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity), LookupData.class);
         System.err.println("Lookup data: " + ld);
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");

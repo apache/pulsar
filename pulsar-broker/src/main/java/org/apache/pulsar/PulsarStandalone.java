@@ -25,16 +25,18 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -251,8 +253,7 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean noFunctionsWorker = false;
 
     @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
-    private String fnWorkerConfigFile =
-            Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
+    private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
     @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
     private boolean noStreamStorage = false;
@@ -269,6 +270,11 @@ public class PulsarStandalone implements AutoCloseable {
     private boolean usingNewDefaultsPIP117;
 
     public void start() throws Exception {
+        if (config == null) {
+            log.error("Failed to load configuration");
+            System.exit(1);
+        }
+
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
 
         // Allow forcing to use ZK mode via an env variable. eg:
@@ -282,11 +288,6 @@ public class PulsarStandalone implements AutoCloseable {
         } else {
             // There's no existing ZK data directory, or we're already using RocksDB for metadata
             usingNewDefaultsPIP117 = true;
-        }
-
-        if (config == null) {
-            log.error("Failed to load configuration");
-            System.exit(1);
         }
 
         log.debug("--- setup PulsarStandaloneStarter ---");
@@ -305,8 +306,8 @@ public class PulsarStandalone implements AutoCloseable {
 
         // initialize the functions worker
         if (!this.isNoFunctionsWorker()) {
-            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
-                config, this.getFnWorkerConfigFile());
+            final String filepath = Path.of(getFnWorkerConfigFile()).toAbsolutePath().normalize().toString();
+            workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(config, filepath);
             if (usingNewDefaultsPIP117) {
                 workerConfig.setStateStorageProviderImplementation(
                         PulsarMetadataStateStoreProviderImpl.class.getName());
@@ -368,32 +369,31 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup completed ---");
     }
 
-    @VisibleForTesting
-    void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
-        ClusterResources cr = broker.getPulsarResources().getClusterResources();
-        TenantResources tr = broker.getPulsarResources().getTenantResources();
-        NamespaceResources nsr = broker.getPulsarResources().getNamespaceResources();
-
-        if (!cr.clusterExists(cluster)) {
-            cr.createCluster(cluster,
-                    ClusterData.builder()
-                            .serviceUrl(broker.getWebServiceAddress())
-                            .serviceUrlTls(broker.getWebServiceAddressTls())
-                            .brokerServiceUrl(broker.getBrokerServiceUrl())
-                            .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
-                            .build());
-        }
-
-        if (!tr.tenantExists(publicTenant)) {
-            tr.createTenant(publicTenant,
-                    TenantInfo.builder()
-                            .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
-                            .allowedClusters(Sets.newHashSet(cluster))
-                            .build());
-        }
-
-        if (!nsr.namespaceExists(ns)) {
-            broker.getAdminClient().namespaces().createNamespace(ns.toString());
+    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+        PulsarAdmin admin = broker.getAdminClient();
+        try {
+            final List<String> clusters = admin.clusters().getClusters();
+            if (!clusters.contains(cluster)) {
+                admin.clusters().createCluster(cluster, ClusterData.builder()
+                        .serviceUrl(broker.getWebServiceAddress())
+                        .serviceUrlTls(broker.getWebServiceAddressTls())
+                        .brokerServiceUrl(broker.getBrokerServiceUrl())
+                        .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
+                        .build());
+            }
+            final List<String> tenants = admin.tenants().getTenants();
+            if (!tenants.contains(publicTenant)) {
+                admin.tenants().createTenant(publicTenant, TenantInfo.builder()
+                        .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
+                        .allowedClusters(Sets.newHashSet(cluster))
+                        .build());
+            }
+            final List<String> namespaces = admin.namespaces().getNamespaces(publicTenant);
+            if (!namespaces.contains(ns.toString())) {
+                admin.namespaces().createNamespace(ns.toString(), config.getDefaultNumberOfNamespaceBundles());
+            }
+        } catch (PulsarAdminException e) {
+            log.error("Failed to create namespace {} on cluster {} and tenant {}", ns, cluster, publicTenant, e);
         }
     }
 

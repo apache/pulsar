@@ -352,9 +352,9 @@ public class Consumer {
         return writeAndFlushPromise;
     }
 
-    private void incrementUnackedMessages(int ackedMessages) {
+    private void incrementUnackedMessages(int unackedMessages) {
         if (Subscription.isIndividualAckMode(subType)
-                && addAndGetUnAckedMsgs(this, ackedMessages) >= getMaxUnackedMessages()
+                && addAndGetUnAckedMsgs(this, unackedMessages) >= getMaxUnackedMessages()
                 && getMaxUnackedMessages() > 0) {
             blockedConsumerOnUnackedMsgs = true;
         }
@@ -908,7 +908,7 @@ public class Consumer {
     public boolean equals(Object obj) {
         if (obj instanceof Consumer) {
             Consumer other = (Consumer) obj;
-            return Objects.equals(cnx.clientAddress(), other.cnx.clientAddress()) && consumerId == other.consumerId;
+            return consumerId == other.consumerId && Objects.equals(cnx.clientAddress(), other.cnx.clientAddress());
         }
         return false;
     }

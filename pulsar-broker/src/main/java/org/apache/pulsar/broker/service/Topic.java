@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -26,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
-import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -251,7 +252,7 @@ public interface Topic {
 
     EntryFilters getEntryFiltersPolicy();
 
-    Map<String, EntryFilterWithClassLoader> getEntryFilters();
+    List<EntryFilter> getEntryFilters();
 
     BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 

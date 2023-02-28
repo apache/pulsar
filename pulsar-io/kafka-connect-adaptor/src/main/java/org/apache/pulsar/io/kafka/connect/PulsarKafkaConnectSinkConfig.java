@@ -101,6 +101,6 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
 
     public static PulsarKafkaConnectSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), PulsarKafkaConnectSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), PulsarKafkaConnectSinkConfig.class);
     }
 }

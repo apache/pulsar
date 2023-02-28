@@ -71,6 +71,7 @@ import static org.testng.Assert.*;
  */
 @Slf4j
 public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
+    public static final String CONFLUENT_PLATFORM_VERSION = System.getProperty("confluent.version", "6.2.8");
 
     private static final String SOURCE_TYPE = "kafka";
 
@@ -139,7 +140,8 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     protected EnhancedKafkaContainer createKafkaContainer(PulsarCluster cluster) {
-        return (EnhancedKafkaContainer) new EnhancedKafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:6.0.1"))
+        return (EnhancedKafkaContainer) new EnhancedKafkaContainer(
+                DockerImageName.parse("confluentinc/cp-kafka:" + CONFLUENT_PLATFORM_VERSION))
                 .withEmbeddedZookeeper()
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
                         .withName(kafkaContainerName)
@@ -480,7 +482,6 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
     }
 
     public class SchemaRegistryContainer extends GenericContainer<SchemaRegistryContainer> {
-        public static final String CONFLUENT_PLATFORM_VERSION = "6.0.1";
         private static final int SCHEMA_REGISTRY_INTERNAL_PORT = 8081;
 
         public SchemaRegistryContainer(String boostrapServers) throws Exception {

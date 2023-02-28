@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
@@ -88,7 +89,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setManagedLedgerMaxEntriesPerLedger(5);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
-            config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             config.setMetadataStoreOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();

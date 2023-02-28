@@ -62,6 +62,9 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                             new PartitionedTopicMetadata(NUM_PARTITIONS));
             map = admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         }
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
         //init tc stores
         pulsarClient = PulsarClient.builder()
                 .serviceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl())

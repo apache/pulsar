@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -33,8 +33,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -309,57 +307,53 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(enabled = false)
-    public void testMaxPendingChunkMessages() throws Exception {
+    private void sendSingleChunk(Producer<String> producer, String uuid, int chunkId, int totalChunks)
+            throws PulsarClientException {
+        TypedMessageBuilderImpl<String> msg = (TypedMessageBuilderImpl<String>) producer.newMessage()
+                .value(String.format("chunk-%s-%d|", uuid, chunkId));
+        MessageMetadata msgMetadata = msg.getMetadataBuilder();
+        msgMetadata.setUuid(uuid)
+                .setChunkId(chunkId)
+                .setNumChunksFromMsg(totalChunks)
+                .setTotalChunkMsgSize(100);
+        msg.send();
+    }
 
+    @Test
+    public void testMaxPendingChunkMessages() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        this.conf.setMaxMessageSize(100);
-        final int totalMessages = 25;
         final String topicName = "persistent://my-property/my-ns/maxPending";
-        final int totalProducers = 25;
-        @Cleanup("shutdownNow")
-        ExecutorService executor = Executors.newFixedThreadPool(totalProducers);
 
         @Cleanup
-        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName("my-subscriber-name").acknowledgmentGroupTime(0, TimeUnit.SECONDS)
-                .maxPendingChunkedMessage(1).autoAckOldestChunkedMessageOnQueueFull(true)
-                .ackTimeout(5, TimeUnit.SECONDS).subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .maxPendingChunkedMessage(1)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
+        sendSingleChunk(producer, "0", 0, 2);
+        sendSingleChunk(producer, "1", 0, 2);
+        sendSingleChunk(producer, "1", 1, 2);
 
-        Producer<byte[]>[] producers = new Producer[totalProducers];
-        int totalPublishedMessages = totalProducers;
-        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
-        for (int i = 0; i < totalProducers; i++) {
-            producers[i] = producerBuilder.enableChunking(true).enableBatching(false).create();
-            int index = i;
-            executor.submit(() -> {
-                futures.add(producers[index].sendAsync(createMessagePayload(450).getBytes()));
-            });
-        }
+        // The chunked message of uuid 0 is discarded.
+        Message<String> receivedMsg = consumer.receive(5, TimeUnit.SECONDS);
+        assertEquals(receivedMsg.getValue(), "chunk-1-0|chunk-1-1|");
 
-        FutureUtil.waitForAll(futures).get();
+        consumer.acknowledge(receivedMsg);
+        consumer.redeliverUnacknowledgedMessages();
 
-        Message<byte[]> msg = null;
-        Set<String> messageSet = new HashSet<>();
-        for (int i = 0; i < totalMessages; i++) {
-            msg = consumer.receive(1, TimeUnit.SECONDS);
-            if (msg == null) {
-                break;
-            }
-            String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
-            messageSet.add(receivedMessage);
-            consumer.acknowledge(msg);
-        }
+        sendSingleChunk(producer, "0", 1, 2);
 
-        log.info("messageSet size: {}, totalPublishedMessages: {}", messageSet.size(), totalPublishedMessages);
-        assertNotEquals(messageSet.size(), totalPublishedMessages);
-
-        for (int i = 0; i < totalProducers; i++) {
-            producers[i].close();
-        }
+        // Ensure that the chunked message of uuid 0 is discarded.
+        assertNull(consumer.receive(5, TimeUnit.SECONDS));
     }
 
     /**

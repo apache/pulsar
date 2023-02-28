@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
 import java.util.Set;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
@@ -47,10 +48,12 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     private int sendingTaskCounter = 0;
     private final StreamingEntryReader streamingEntryReader = new StreamingEntryReader((ManagedCursorImpl) cursor,
             this, topic);
+    private final Executor topicExecutor;
 
     public PersistentStreamingDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
                                                           Subscription subscription) {
         super(topic, cursor, subscription);
+        this.topicExecutor = topic.getBrokerService().getTopicOrderedExecutor().chooseThread(topic.getName());
     }
 
     /**
@@ -126,7 +129,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     public void canReadMoreEntries(boolean withBackoff) {
         havePendingRead = false;
         topic.getBrokerService().executor().schedule(() -> {
-        topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(topic.getName(), SafeRun.safeRun(() -> {
+            topicExecutor.execute(SafeRun.safeRun(() -> {
                 synchronized (PersistentStreamingDispatcherMultipleConsumers.this) {
                     if (!havePendingRead) {
                         log.info("[{}] Scheduling read operation", name);

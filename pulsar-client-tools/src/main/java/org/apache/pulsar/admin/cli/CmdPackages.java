@@ -100,7 +100,7 @@ class CmdPackages extends CmdBase {
         @Parameter(names = "--contact", description = "contact information of a package")
         private String contact;
 
-        @DynamicParameter(names = {"--properties", "-P"}, description = "external infromations of a package")
+        @DynamicParameter(names = {"--properties", "-P"}, description = "external information of a package")
         private Map<String, String> properties = new HashMap<>();
 
         @Parameter(names = "--path", description = "file path of the package", required = true)

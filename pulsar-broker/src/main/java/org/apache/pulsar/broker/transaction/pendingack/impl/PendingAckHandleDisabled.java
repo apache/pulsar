@@ -93,7 +93,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
     }
 

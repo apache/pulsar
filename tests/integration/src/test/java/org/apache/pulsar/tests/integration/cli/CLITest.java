@@ -83,6 +83,7 @@ public class CLITest extends PulsarTestSuite {
         final String namespace = "public/" + namespaceLocalName;
         assertEquals(0, result.getExitCode());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
 
         final String persistentTopicName = TopicName.get(

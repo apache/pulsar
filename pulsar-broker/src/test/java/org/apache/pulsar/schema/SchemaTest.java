@@ -34,12 +34,16 @@ import com.google.common.collect.Sets;
 import java.io.ByteArrayInputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -492,13 +496,17 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         // set schema
-        SchemaInfo schemaInfo = SchemaInfoImpl
-                .builder()
-                .schema(new byte[0])
-                .name("dummySchema")
-                .type(schema)
-                .build();
-        admin.schemas().createSchema(topic, schemaInfo);
+        if (!schema.equals(SchemaType.BYTES)) {
+            // don't upload bytes schema with admin API
+            // because null schema means the BYTES schema
+            SchemaInfo schemaInfo = SchemaInfoImpl
+                    .builder()
+                    .schema(new byte[0])
+                    .name("dummySchema")
+                    .type(schema)
+                    .build();
+            admin.schemas().createSchema(topic, schemaInfo);
+        }
 
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
@@ -523,7 +531,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<GenericRecord> message2 = consumer2.receive();
         if (schema == SchemaType.BYTES) {
             assertEquals(schema, message.getReaderSchema().get().getSchemaInfo().getType());
-            assertEquals(schema, message2.getReaderSchema().get().getSchemaInfo().getType());
+            // default schema of AUTO_CONSUME is BYTES
+            assertTrue(message2.getReaderSchema().get().toString().contains("BYTES"));
         } else if (schema == SchemaType.NONE) {
             // schema NONE is always reported as BYTES
             assertEquals(SchemaType.BYTES, message.getReaderSchema().get().getSchemaInfo().getType());
@@ -1267,6 +1276,57 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<User> message2 = consumer.receive();
 
         assertThrows(SchemaSerializationException.class, message2::getValue);
+    }
+
+    @Test
+    public void testCreateSchemaInParallel() throws Exception {
+        final String namespace = "test-namespace-" + randomName(16);
+        String ns = PUBLIC_TENANT + "/" + namespace;
+        admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
+
+        final String topic = getTopicName(ns, "testCreateSchemaInParallel");
+        ExecutorService executor = Executors.newFixedThreadPool(16);
+        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
+        CountDownLatch latch = new CountDownLatch(16);
+        for (int i = 0; i < 16; i++) {
+            executor.execute(() -> {
+                producers.add(pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                        .topic(topic).createAsync());
+                latch.countDown();
+            });
+        }
+        latch.await();
+        FutureUtil.waitForAll(producers).join();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
+        producers.clear();
+
+        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers2 = new ArrayList<>(16);
+        CountDownLatch latch2 = new CountDownLatch(16);
+        for (int i = 0; i < 16; i++) {
+            executor.execute(() -> {
+                producers2.add(pulsarClient.newProducer(Schema.AVRO(Schemas.PersonThree.class))
+                        .topic(topic).createAsync());
+                latch2.countDown();
+            });
+        }
+        latch2.await();
+        FutureUtil.waitForAll(producers2).join();
+        assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
+        producers.forEach(p -> {
+            try {
+                p.join().close();
+            } catch (Exception ignore) {
+            }
+        });
+        producers2.forEach(p -> {
+            try {
+                p.join().close();
+            } catch (Exception ignore) {
+            }
+        });
+        producers.clear();
+        producers2.clear();
+        executor.shutdownNow();
     }
 
     @EqualsAndHashCode
