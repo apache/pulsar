@@ -614,8 +614,8 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
     }
 
     @Override
-    protected void beforePulsarStartMocks(PulsarService pulsar) throws Exception {
-        super.beforePulsarStartMocks(pulsar);
+    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
+        super.beforePulsarStart(pulsar);
         doAnswer(i0 -> {
             ManagedLedgerFactory factory = (ManagedLedgerFactory) spy(i0.callRealMethod());
             doAnswer(i1 -> {

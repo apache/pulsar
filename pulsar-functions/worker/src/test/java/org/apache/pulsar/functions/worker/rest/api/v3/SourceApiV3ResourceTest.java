@@ -381,8 +381,8 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have "
-            + "the correct format.*")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Failed to extract source class"
+            + " from archive")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOInvalidNar())) {
             testRegisterSourceMissingArguments(

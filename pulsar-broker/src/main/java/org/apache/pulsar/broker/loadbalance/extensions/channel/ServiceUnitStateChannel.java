@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
@@ -116,9 +118,9 @@ public interface ServiceUnitStateChannel extends Closeable {
      *                 the future object will complete and return the owner broker.
      *      Sub-case2: If the assigned broker does not take the ownership in time,
      *                 the future object will time out.
-     * Case 3: If none of them, it returns null.
+     * Case 3: If none of them, it returns Optional.empty().
      */
-    CompletableFuture<String> getOwnerAsync(String serviceUnit);
+    CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
      * Asynchronously publishes the service unit assignment event to the system topic in this channel.
@@ -147,5 +149,11 @@ public interface ServiceUnitStateChannel extends Closeable {
      * @return the completable future object staged from the event message sendAsync.
      */
     CompletableFuture<Void> publishSplitEventAsync(Split split);
+
+    /**
+     * Generates the metrics to monitor.
+     * @return a list of the metrics
+     */
+    List<Metrics> getMetrics();
 
 }

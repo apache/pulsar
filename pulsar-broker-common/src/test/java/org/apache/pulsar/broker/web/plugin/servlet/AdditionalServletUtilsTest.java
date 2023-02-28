@@ -50,7 +50,7 @@ public class AdditionalServletUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockAdditionalServlet.class;
         when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
                 .thenReturn(listenerClass);
@@ -80,7 +80,7 @@ public class AdditionalServletUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = MockAdditionalServlet.class;
         when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
                 .thenReturn(listenerClass);
@@ -108,7 +108,7 @@ public class AdditionalServletUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class listenerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(listenerClass);

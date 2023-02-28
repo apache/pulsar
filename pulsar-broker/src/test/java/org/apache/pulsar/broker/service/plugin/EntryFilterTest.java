@@ -42,19 +42,22 @@ public class EntryFilterTest implements EntryFilter {
         String matchValueReject = metadata.getOrDefault("matchValueReject", "REJECT");
         String matchValueReschedule = metadata.getOrDefault("matchValueReschedule", "RESCHEDULE");
         List<KeyValue> list = context.getMsgMetadata().getPropertiesList();
+        String debug =
+                list.stream().filter(kv -> "debug".equalsIgnoreCase(kv.getKey())).findFirst().map(KeyValue::getValue)
+                        .orElse("-");
         // filter by string
         for (KeyValue keyValue : list) {
             if (matchValueAccept.equalsIgnoreCase(keyValue.getKey())) {
-                log.info("metadata {} key {} outcome ACCEPT", metadata, keyValue.getKey());
+                log.info("metadata {} key {} debug '{}' outcome ACCEPT", metadata, keyValue.getKey(), debug);
                 return FilterResult.ACCEPT;
             } else if (matchValueReject.equalsIgnoreCase(keyValue.getKey())){
-                log.info("metadata {} key {} outcome REJECT", metadata, keyValue.getKey());
+                log.info("metadata {} key {} debug '{}' outcome REJECT", metadata, keyValue.getKey(), debug);
                 return FilterResult.REJECT;
             } else if (matchValueReschedule.equalsIgnoreCase(keyValue.getKey())){
-                log.info("metadata {} key {} outcome RESCHEDULE", metadata, keyValue.getKey());
+                log.info("metadata {} key {} debug '{}' outcome RESCHEDULE", metadata, keyValue.getKey(), debug);
                 return FilterResult.RESCHEDULE;
             } else {
-                log.info("metadata {} key {} outcome ??", metadata, keyValue.getKey());
+                log.info("metadata {} key {} debug '{}' outcome ??", metadata, keyValue.getKey(), debug);
             }
         }
         return null;

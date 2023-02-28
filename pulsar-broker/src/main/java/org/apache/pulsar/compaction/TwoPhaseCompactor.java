@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 public class TwoPhaseCompactor extends Compactor {
     private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
-    private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
+    protected static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     private final Duration phaseOneLoopReadTimeout;
 
     public TwoPhaseCompactor(ServiceConfiguration conf,
@@ -309,7 +309,7 @@ public class TwoPhaseCompactor extends Compactor {
         });
     }
 
-    private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
+    protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk, Map<String, byte[]> metadata) {
         CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
 
         try {
@@ -332,7 +332,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
+    protected CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         try {
             bk.asyncDeleteLedger(lh.getId(),
@@ -349,7 +349,7 @@ public class TwoPhaseCompactor extends Compactor {
         return bkf;
     }
 
-    private CompletableFuture<Void> closeLedger(LedgerHandle lh) {
+    protected CompletableFuture<Void> closeLedger(LedgerHandle lh) {
         CompletableFuture<Void> bkf = new CompletableFuture<>();
         try {
             lh.asyncClose((rc, ledger, ctx) -> {

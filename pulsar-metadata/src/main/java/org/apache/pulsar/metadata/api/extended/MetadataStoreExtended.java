@@ -22,6 +22,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -81,5 +82,15 @@ public interface MetadataStoreExtended extends MetadataStore {
      */
     default Optional<MetadataEventSynchronizer> getMetadataEventSynchronizer() {
         return Optional.empty();
+    }
+
+    /**
+     * Handles a metadata synchronizer event.
+     *
+     * @param event
+     * @return completed future when the event is handled
+     */
+    default CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
+        return CompletableFuture.completedFuture(null);
     }
 }

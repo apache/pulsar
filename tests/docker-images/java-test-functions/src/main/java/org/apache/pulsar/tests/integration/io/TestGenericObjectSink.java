@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.io;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.protobuf.DynamicMessage;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericRecord;
@@ -99,6 +100,12 @@ public class TestGenericObjectSink implements Sink<GenericObject> {
         if (record.getSchema().getSchemaInfo().getType() == SchemaType.JSON) {
             JsonNode nativeGenericRecord = (JsonNode) record.getValue().getNativeObject();
             log.info("NodeType from JsonNode generic object {}", nativeGenericRecord.getNodeType());
+        }
+
+        // testing that actually the Sink is able to use Native JSON
+        if (record.getSchema().getSchemaInfo().getType() == SchemaType.PROTOBUF_NATIVE) {
+            DynamicMessage dynamicMessage = (DynamicMessage) record.getValue().getNativeObject();
+            log.info("Schema from PROTOBUF_NATIVE generic object {}", dynamicMessage.getAllFields());
         }
 
         record.ack();

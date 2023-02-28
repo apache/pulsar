@@ -25,11 +25,51 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-io</artifactId>
-    <version>2.11.0-SNAPSHOT</version>
+    <version>2.12.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-io-debezium</artifactId>
   <name>Pulsar IO :: Debezium</name>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-sasl-digest</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-sasl-external</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-sasl-gs2</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-sasl-oauth2</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-sasl-plain</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-sasl-scram</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.wildfly.security</groupId>
+        <artifactId>wildfly-elytron-password-impl</artifactId>
+        <version>${wildfly-elytron.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <modules>
     <module>core</module>

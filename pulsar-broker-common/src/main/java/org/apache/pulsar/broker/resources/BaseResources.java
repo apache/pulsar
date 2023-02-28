@@ -93,6 +93,13 @@ public class BaseResources<T> {
         return cache.get(path);
     }
 
+    protected CompletableFuture<Optional<T>> refreshAndGetAsync(String path) {
+        return store.sync(path).thenCompose(___ -> {
+            cache.invalidate(path);
+            return cache.get(path);
+        });
+    }
+
     protected void set(String path, Function<T, T> modifyFunction) throws MetadataStoreException {
         try {
             setAsync(path, modifyFunction).get(operationTimeoutSec, TimeUnit.SECONDS);

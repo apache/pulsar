@@ -28,5 +28,4 @@ public class SmokeTest extends PulsarStandaloneTestSuite {
     public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
         super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
-
 }

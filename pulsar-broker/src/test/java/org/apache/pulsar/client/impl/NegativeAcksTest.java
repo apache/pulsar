@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.awaitility.Awaitility;
 import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
@@ -292,7 +293,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
                 .subscribe();
 
         MessageId messageId = new MessageIdImpl(3, 1, 0);
-        TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("topic-1", "topic-1", messageId);
+        TopicMessageId topicMessageId = TopicMessageId.create("topic-1", messageId);
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(3, 1, 0, 0);
         BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(3, 1, 0, 1);
         BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(3, 1, 0, 2);

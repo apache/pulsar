@@ -55,7 +55,7 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Long> createBucketSnapshot(
-            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments) {
+            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey) {
         return CompletableFuture.supplyAsync(() -> {
             long bucketId = maxBucketId.getAndIncrement();
             List<ByteBuf> entries = new ArrayList<>();

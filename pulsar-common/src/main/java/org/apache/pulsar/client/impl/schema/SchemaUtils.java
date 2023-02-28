@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonDeserializer;
@@ -339,13 +339,13 @@ public final class SchemaUtils {
      */
     public static String convertKeyValueSchemaInfoDataToString(
             KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
-        ObjectMapper objectMapper = ObjectMapperFactory.create();
+        ObjectReader objectReader = ObjectMapperFactory.getMapper().reader();
         KeyValue<Object, Object> keyValue = new KeyValue<>(
                 SchemaType.isPrimitiveType(kvSchemaInfo.getKey().getType()) ? ""
-                        : objectMapper.readTree(kvSchemaInfo.getKey().getSchema()),
+                        : objectReader.readTree(kvSchemaInfo.getKey().getSchema()),
                 SchemaType.isPrimitiveType(kvSchemaInfo.getValue().getType()) ? ""
-                        : objectMapper.readTree(kvSchemaInfo.getValue().getSchema()));
-        return objectMapper.writeValueAsString(keyValue);
+                        : objectReader.readTree(kvSchemaInfo.getValue().getSchema()));
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(keyValue);
     }
 
     private static byte[] getKeyOrValueSchemaBytes(JsonElement jsonElement) {

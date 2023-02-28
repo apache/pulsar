@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
+import java.util.ArrayList;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -272,6 +273,24 @@ public class SinkConfigUtilsTest {
         SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
         assertEquals(mergedConfig.getInputSpecs().get("test-input"), newSinkConfig.getInputSpecs().get("test-input"));
+
+        // make sure original sinkConfig was not modified
+        assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
+    }
+
+    @Test
+    public void testMergeDifferentInputSpecWithInputsSet() {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(false).receiverQueueSize(1000).build());
+
+        Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+        ConsumerConfig newConsumerConfig = ConsumerConfig.builder().isRegexPattern(false).serdeClassName("test-serde").receiverQueueSize(58).build();
+        inputSpecs.put("test-input", newConsumerConfig);
+        SinkConfig newSinkConfig = createUpdatedSinkConfig("inputSpecs", inputSpecs);
+        newSinkConfig.setInputs(new ArrayList<>());
+        newSinkConfig.getInputs().add("test-input");
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
+        assertEquals(mergedConfig.getInputSpecs().get("test-input"), newConsumerConfig);
 
         // make sure original sinkConfig was not modified
         assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);

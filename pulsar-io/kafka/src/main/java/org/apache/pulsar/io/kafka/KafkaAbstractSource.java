@@ -117,6 +117,8 @@ public abstract class KafkaAbstractSource<V> extends PushSource<V> {
         }
         props.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaSourceConfig.getGroupId());
         props.put(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, String.valueOf(kafkaSourceConfig.getFetchMinBytes()));
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                String.valueOf(kafkaSourceConfig.isAutoCommitEnabled()));
         props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG,
                 String.valueOf(kafkaSourceConfig.getAutoCommitIntervalMs()));
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, String.valueOf(kafkaSourceConfig.getSessionTimeoutMs()));

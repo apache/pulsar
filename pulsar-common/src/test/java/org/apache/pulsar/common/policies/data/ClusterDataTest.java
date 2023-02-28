@@ -21,6 +21,7 @@ package org.apache.pulsar.common.policies.data;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ClusterDataTest {
@@ -108,5 +109,81 @@ public class ClusterDataTest {
                         .serviceUrlTls(s3)
                         .build().hashCode());
 
+    }
+
+    @Test
+    public void testCheckProperties() {
+        String url1 = "/broker.messaging.c1.example.com:8080";
+        String url2 = "broker.messaging.c2.example.com:8080";
+        String url3 = "fdsafasfasdf";
+        String url4 = "pulsar://broker.messaging.c2.example.com:8080";
+        String url5 = "pulsar+ssl://broker.messaging.c2.example.com:8080";
+        String url6 = "http://broker.messaging.c2.example.com:8080";
+        String url7 = "https://broker.messaging.c2.example.com:8080";
+
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrl(url1).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrlTls(url1).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrl(url1).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrlTls(url1).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().proxyServiceUrl(url1).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrl(url2).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrlTls(url2).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrl(url2).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrlTls(url2).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().proxyServiceUrl(url2).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrl(url3).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrlTls(url3).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrl(url3).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrlTls(url3).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().proxyServiceUrl(url3).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrl(url4).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrlTls(url4).build().checkPropertiesIfPresent());
+        ClusterDataImpl.builder().brokerServiceUrl(url4).build().checkPropertiesIfPresent();
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrlTls(url4).build().checkPropertiesIfPresent());
+        ClusterDataImpl.builder().proxyServiceUrl(url4).build().checkPropertiesIfPresent();
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrl(url5).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrlTls(url5).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrl(url5).build().checkPropertiesIfPresent());
+        ClusterDataImpl.builder().brokerServiceUrlTls(url5).build().checkPropertiesIfPresent();
+        ClusterDataImpl.builder().proxyServiceUrl(url5).build().checkPropertiesIfPresent();
+        ClusterDataImpl.builder().serviceUrl(url6).build().checkPropertiesIfPresent();
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrlTls(url6).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrl(url6).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrlTls(url6).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().proxyServiceUrl(url6).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().serviceUrl(url7).build().checkPropertiesIfPresent());
+        ClusterDataImpl.builder().serviceUrlTls(url7).build().checkPropertiesIfPresent();
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrl(url7).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().brokerServiceUrlTls(url7).build().checkPropertiesIfPresent());
+        Assert.assertThrows(IllegalArgumentException.class, () ->
+                ClusterDataImpl.builder().proxyServiceUrl(url7).build().checkPropertiesIfPresent());
     }
 }

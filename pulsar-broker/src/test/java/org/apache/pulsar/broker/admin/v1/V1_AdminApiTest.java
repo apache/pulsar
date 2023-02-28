@@ -59,6 +59,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -176,6 +178,13 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         adminTls.close();
         super.internalCleanup();
         mockPulsarSetup.cleanup();
+    }
+
+    @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        pulsarTestContextBuilder.spyConfigCustomizer(
+                // verify(compactor) is used in this test class
+                builder -> builder.compactor(SpyConfig.SpyType.SPY_ALSO_INVOCATIONS));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -543,7 +552,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
         Map<String, String> configMap = new HashMap<>();
         configMap.put("brokerShutdownTimeoutMs", Integer.toString(newValue));
         pulsar.getLocalMetadataStore().put("/admin/configuration",
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configMap),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(configMap),
                 Optional.empty()).join();
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
@@ -1496,7 +1505,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testJacksonWithTypeDifferencies() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"use\"]}";
-        IncompatiblePropertyAdmin r1 = ObjectMapperFactory.getThreadLocal().readerFor(IncompatiblePropertyAdmin.class)
+        IncompatiblePropertyAdmin r1 = ObjectMapperFactory.getMapper().reader().forType(IncompatiblePropertyAdmin.class)
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Set.of("use", "usw"));
         assertEquals(r1.someNewIntField, 0);

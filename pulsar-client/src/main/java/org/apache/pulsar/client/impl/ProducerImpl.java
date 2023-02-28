@@ -101,7 +101,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // Producer id, used to identify a producer within a single connection
     protected final long producerId;
 
-    // Variable is used through the atomic updater
+    // Variable is updated in a synchronized block
     private volatile long msgIdGenerator;
 
     private final OpSendMsgQueue pendingMessages;
@@ -168,10 +168,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final List<Throwable> previousExceptions = new CopyOnWriteArrayList<Throwable>();
 
     private boolean errorState;
-
-    @SuppressWarnings("rawtypes")
-    private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
-            .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
                         CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema,
@@ -487,7 +483,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
         // into chunks.
-        final long sequenceId = updateMessageMetadata(msgMetadata, uncompressedSize);
+        updateMessageMetadata(msgMetadata, uncompressedSize);
 
         // send in chunks
         int totalChunks;
@@ -527,7 +523,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         try {
             int readStartIndex = 0;
-            String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
             ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get(totalChunks) : null;
             byte[] schemaVersion = totalChunks > 1 && msg.getMessageBuilder().hasSchemaVersion()
                     ? msg.getMessageBuilder().getSchemaVersion() : null;
@@ -555,6 +550,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     return;
                 }
                 synchronized (this) {
+                    // Update the message metadata before computing the payload chunk size
+                    // to avoid a large message cannot be split into chunks.
+                    final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
+                    String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
+
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
                             compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
@@ -577,15 +577,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param uncompressedSize
      * @return the sequence id
      */
-    private long updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
-        final long sequenceId;
-        if (!msgMetadata.hasSequenceId()) {
-            sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
-            msgMetadata.setSequenceId(sequenceId);
-        } else {
-            sequenceId = msgMetadata.getSequenceId();
-        }
-
+    private void updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
         if (!msgMetadata.hasPublishTime()) {
             msgMetadata.setPublishTime(client.getClientClock().millis());
 
@@ -598,6 +590,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
             }
             msgMetadata.setUncompressedSize(uncompressedSize);
+        }
+    }
+
+    private long updateMessageMetadataSequenceId(final MessageMetadata msgMetadata) {
+        final long sequenceId;
+        if (!msgMetadata.hasSequenceId()) {
+            sequenceId = msgIdGenerator++;
+            msgMetadata.setSequenceId(sequenceId);
+        } else {
+            sequenceId = msgMetadata.getSequenceId();
         }
         return sequenceId;
     }
@@ -663,11 +665,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         boolean isBatchFull = batchMessageContainer.add(msg, callback);
                         lastSendFuture = callback.getFuture();
                         payload.release();
-                        if (isBatchFull) {
-                            batchMessageAndSend(false);
-                        } else {
-                            maybeScheduleBatchFlushTask();
-                        }
+                        triggerSendIfFullOrScheduleFlush(isBatchFull);
                     }
                     isLastSequenceIdPotentialDuplicated = false;
                 }
@@ -871,6 +869,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 && batchMessageContainer.hasSameTxn(msg);
     }
 
+    private void triggerSendIfFullOrScheduleFlush(boolean isBatchFull) {
+        if (isBatchFull) {
+            batchMessageAndSend(false);
+        } else {
+            maybeScheduleBatchFlushTask();
+        }
+    }
+
     private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accommodate large message with size {}", topic, producerName,
@@ -878,7 +884,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
         try {
             batchMessageAndSend(false);
-            batchMessageContainer.add(msg, callback);
+            boolean isBatchFull = batchMessageContainer.add(msg, callback);
+            triggerSendIfFullOrScheduleFlush(isBatchFull);
             lastSendFuture = callback.getFuture();
         } finally {
             payload.release();
