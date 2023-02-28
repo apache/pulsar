@@ -60,7 +60,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
 
     @Override
-    public synchronized Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public synchronized Multimap<String, String> findBundlesForUnloading(final LoadData loadData,
+                                                                         final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
         final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
