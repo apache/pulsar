@@ -21,17 +21,22 @@ package org.apache.pulsar.broker.loadbalance;
 import static org.testng.Assert.assertEquals;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 
 
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
 import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
+import org.apache.pulsar.broker.loadbalance.impl.RoundRobinBrokerSelector;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -182,6 +187,45 @@ public class ModularLoadManagerStrategyTest {
         brokerAvgResourceUsageWithWeight.put("4", 0.05d);
         strategyUpdater.set(strategy, brokerAvgResourceUsageWithWeight);
         assertEquals(strategy.selectBroker(candidates, bundleData, loadData, conf), Optional.of("1"));
+    }
+
+    public void testRoundRobinBrokerSelector() throws IllegalAccessException {
+        Set<String> brokers = new LinkedHashSet(Arrays.asList("1", "2", "3"));
+        int n = brokers.size();
+        RoundRobinBrokerSelector strategy = new RoundRobinBrokerSelector();
+
+        assertEquals(strategy.selectBroker(Set.of(), null, null, null), Optional.empty());
+
+        int i = 0;
+        for (; i < 10; i++) {
+            String id = (i % n) + 1 + "";
+            assertEquals(strategy.selectBroker(brokers, null, null, null), Optional.of(id));
+        }
+
+        Set<String> brokers2 = new LinkedHashSet(Arrays.asList("2", "3", "1"));
+        for (; i < 20; i++) {
+            String id = (i % n) + 1 + "";
+            assertEquals(strategy.selectBroker(brokers2, null, null, null), Optional.of(id));
+        }
+
+        Set<String> brokers3 = new LinkedHashSet(Arrays.asList("1", "2", "4"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("4"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("1"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("4"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("1"));
+        assertEquals(strategy.selectBroker(brokers3, null, null, null), Optional.of("2"));
+
+        Set<String> brokers4 = new LinkedHashSet(Arrays.asList("2", "4"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("4"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("2"));
+        assertEquals(strategy.selectBroker(brokers4, null, null, null), Optional.of("4"));
+
+
+        FieldUtils.writeDeclaredField(strategy, "count", new AtomicInteger(Integer.MAX_VALUE), true);
+        assertEquals(strategy.selectBroker(brokers, null, null, null), Optional.of((Integer.MAX_VALUE % n) + 1 + ""));
+        assertEquals(((AtomicInteger) FieldUtils.readDeclaredField(strategy, "count", true)).get(), 0);
     }
 
     private BrokerData initBrokerData(double usage, double limit) {

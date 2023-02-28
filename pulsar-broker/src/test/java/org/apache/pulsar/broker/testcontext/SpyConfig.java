@@ -21,16 +21,32 @@ package org.apache.pulsar.broker.testcontext;
 
 import lombok.Value;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.mockito.Mockito;
 import org.mockito.internal.creation.instance.ConstructorInstantiator;
 
+/**
+ * Configuration for what kind of Mockito spy to use on collaborator objects
+ * of the PulsarService managed by {@link PulsarTestContext}.
+ *
+ * This configuration is applied using {@link PulsarTestContext.Builder#spyConfig(SpyConfig)} or by
+ * calling {@link PulsarTestContext.Builder#spyByDefault()} to enable spying for all configurable collaborator
+ * objects.
+ *
+ * For verifying interactions with Mockito's {@link Mockito#verify(Object)} method, the spy type must be set to
+ * {@link SpyType#SPY_ALSO_INVOCATIONS}. This is because the default spy type {@link SpyType#SPY}
+ * does not record invocations.
+ */
 @lombok.Builder(builderClassName = "Builder", toBuilder = true)
 @Value
 public class SpyConfig {
+    /**
+     * Type of spy to use.
+     */
     public enum SpyType {
-        NONE,
-        SPY,
-        SPY_ALSO_INVOCATIONS;
+        NONE, // No spy
+        SPY, // Spy without recording invocations
+        SPY_ALSO_INVOCATIONS; // Spy and record invocations
 
         public <T> T spy(T object) {
             if (object == null) {
@@ -63,21 +79,56 @@ public class SpyConfig {
         }
     }
 
-    private final SpyType pulsarBroker;
+    /**
+     * Spy configuration for {@link PulsarTestContext#getPulsarService()}.
+     */
+    private final SpyType pulsarService;
+    /**
+     * Spy configuration for {@link PulsarService#getPulsarResources()}.
+     */
     private final SpyType pulsarResources;
+    /**
+     * Spy configuration for {@link PulsarService#getBrokerService()}.
+     */
     private final SpyType brokerService;
+    /**
+     * Spy configuration for {@link PulsarService#getBookKeeperClient()}.
+     * In the test context, this is the same as {@link PulsarTestContext#getBookKeeperClient()} .
+     * It is a client that wraps an in-memory mock bookkeeper implementation.
+     */
     private final SpyType bookKeeperClient;
+    /**
+     * Spy configuration for {@link PulsarService#getCompactor()}.
+     */
+    private final SpyType compactor;
+    /**
+     * Spy configuration for {@link PulsarService#getNamespaceService()}.
+     */
+    private final SpyType namespaceService;
 
+    /**
+     * Create a builder for SpyConfig with no spies by default.
+     *
+     * @return a builder
+     */
     public static Builder builder() {
         return builder(SpyType.NONE);
     }
 
+    /**
+     * Create a builder for SpyConfig with the given spy type for all configurable collaborator objects.
+     *
+     * @param defaultSpyType the spy type to use for all configurable collaborator objects
+     * @return a builder
+     */
     public static Builder builder(SpyType defaultSpyType) {
         Builder spyConfigBuilder = new Builder();
-        spyConfigBuilder.pulsarBroker(defaultSpyType);
+        spyConfigBuilder.pulsarService(defaultSpyType);
         spyConfigBuilder.pulsarResources(defaultSpyType);
         spyConfigBuilder.brokerService(defaultSpyType);
         spyConfigBuilder.bookKeeperClient(defaultSpyType);
+        spyConfigBuilder.compactor(defaultSpyType);
+        spyConfigBuilder.namespaceService(defaultSpyType);
         return spyConfigBuilder;
     }
 }

@@ -68,7 +68,7 @@ class TopicStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-    public int delayedTrackerMemoryUsage;
+    public long delayedMessageIndexSizeInBytes;
 
     public void reset() {
         subscriptionsCount = 0;
@@ -106,7 +106,7 @@ class TopicStats {
         compactionCompactedEntriesCount = 0;
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
-        delayedTrackerMemoryUsage = 0;
+        delayedMessageIndexSizeInBytes = 0;
     }
 
     public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
@@ -159,7 +159,7 @@ class TopicStats {
         writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedTrackerMemoryUsage,
+        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
@@ -305,6 +305,9 @@ class TopicStats {
                     subsStats.filterRejectedMsgCount, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
                     subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_delayed_message_index_size_bytes",
+                    subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
 
             subsStats.consumerStat.forEach((c, consumerStats) -> {

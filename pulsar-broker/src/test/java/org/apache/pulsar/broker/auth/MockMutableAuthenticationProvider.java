@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.plugin;
+package org.apache.pulsar.broker.auth;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.common.api.AuthData;
+import javax.net.ssl.SSLSession;
+import java.net.SocketAddress;
 
-@Data
-public class EntryFilterDefinitions {
-    private final Map<String, EntryFilterMetaData> filters = new TreeMap<>();
+public class MockMutableAuthenticationProvider extends MockAuthenticationProvider {
+    public AuthenticationState newAuthState(AuthData authData,
+                                            SocketAddress remoteAddress,
+                                            SSLSession sslSession) {
+        return new MockMutableAuthenticationState(this);
+    }
 }

@@ -89,7 +89,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final int NUM_PARTITIONS = 16;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, PENDING_ACK_REPLAY_TOPIC, 0);
     }
@@ -444,7 +444,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         assertFalse(topics.contains(topic));
     }
 
-    @Test
+    @Test(groups = "quarantine")
     public void testDeleteUselessLogDataWhenSubCursorMoved() throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(5);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);

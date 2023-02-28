@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
@@ -41,8 +41,8 @@ public class ServiceUnitStateDataTest {
 
         Thread.sleep(10);
 
-        ServiceUnitStateData data2 = new ServiceUnitStateData(Assigned, "A", "B");
-        assertEquals(data2.state(), Assigned);
+        ServiceUnitStateData data2 = new ServiceUnitStateData(Assigning, "A", "B");
+        assertEquals(data2.state(), Assigning);
         assertEquals(data2.broker(), "A");
         assertEquals(data2.sourceBroker(), "B");
         assertThat(data2.timestamp()).isGreaterThan(data1.timestamp());
@@ -53,15 +53,20 @@ public class ServiceUnitStateDataTest {
         new ServiceUnitStateData(null, "A");
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNullBroker() {
         new ServiceUnitStateData(Owned, null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testEmptyBroker() {
+        new ServiceUnitStateData(Owned, "");
     }
 
     @Test
     public void jsonWriteAndReadTest() throws JsonProcessingException {
         ObjectMapper mapper = ObjectMapperFactory.create();
-        final ServiceUnitStateData src = new ServiceUnitStateData(Assigned, "A", "B");
+        final ServiceUnitStateData src = new ServiceUnitStateData(Assigning, "A", "B");
         String json = mapper.writeValueAsString(src);
         ServiceUnitStateData dst = mapper.readValue(json, ServiceUnitStateData.class);
         assertEquals(dst, src);

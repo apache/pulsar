@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Released;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import com.google.common.annotations.VisibleForTesting;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
@@ -50,40 +48,69 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
 
     @Override
     public boolean shouldKeepLeft(ServiceUnitStateData from, ServiceUnitStateData to) {
-        ServiceUnitState prevState = from == null ? Free : from.state();
-        ServiceUnitState state = to == null ? Free : to.state();
+        if (to == null) {
+            return false;
+        } else if (to.force()) {
+            return false;
+        }
+
+
+        ServiceUnitState prevState = state(from);
+        ServiceUnitState state = state(to);
+
         if (!ServiceUnitState.isValidTransition(prevState, state)) {
             return true;
         }
 
         if (checkBrokers) {
-            if (prevState == Free && (state == Assigned || state == Owned)) {
-                // Free -> Assigned || Owned broker check
-                return StringUtils.isBlank(to.broker());
-            } else if (prevState == Owned && state == Assigned) {
-                // Owned -> Assigned(transfer) broker check
-                return !StringUtils.equals(from.broker(), to.sourceBroker())
-                        || StringUtils.isBlank(to.broker())
-                        || StringUtils.equals(from.broker(), to.broker());
-            } else if (prevState == Assigned && state == Released) {
-                // Assigned -> Released(transfer) broker check
-                return !StringUtils.equals(from.broker(), to.broker())
-                        || !StringUtils.equals(from.sourceBroker(), to.sourceBroker());
-            } else if (prevState == Released && state == Owned) {
-                // Released -> Owned(transfer) broker check
-                return !StringUtils.equals(from.broker(), to.broker())
-                        || !StringUtils.equals(from.sourceBroker(), to.sourceBroker());
-            } else if (prevState == Assigned && state == Owned) {
-                // Assigned -> Owned broker check
-                return !StringUtils.equals(from.broker(), to.broker())
-                        || !StringUtils.equals(from.sourceBroker(), to.sourceBroker());
-            } else if (prevState == Owned && state == Splitting) {
-                // Owned -> Splitting broker check
-                return !StringUtils.equals(from.broker(), to.broker());
+            switch (prevState) {
+                case Owned:
+                    switch (state) {
+                        case Assigning:
+                            return invalidTransfer(from, to);
+                        case Splitting:
+                        case Releasing:
+                            return isNotBlank(to.sourceBroker()) || targetNotEquals(from, to);
+                    }
+                case Assigning:
+                    switch (state) {
+                        case Releasing:
+                            return isBlank(to.sourceBroker()) || notEquals(from, to);
+                        case Owned:
+                            return isNotBlank(to.sourceBroker()) || targetNotEquals(from, to);
+                    }
+                case Releasing:
+                    switch (state) {
+                        case Owned:
+                        case Free:
+                            return notEquals(from, to);
+                    }
+                case Splitting:
+                    switch (state) {
+                        case Deleted:
+                            return notEquals(from, to);
+                    }
+                case Free:
+                    switch (state) {
+                        case Assigning:
+                            return isNotBlank(to.sourceBroker());
+                    }
             }
         }
-
         return false;
     }
 
+    private boolean targetNotEquals(ServiceUnitStateData from, ServiceUnitStateData to) {
+        return !from.broker().equals(to.broker());
+    }
+
+    private boolean notEquals(ServiceUnitStateData from, ServiceUnitStateData to) {
+        return !from.broker().equals(to.broker())
+                || !StringUtils.equals(from.sourceBroker(), to.sourceBroker());
+    }
+
+    private boolean invalidTransfer(ServiceUnitStateData from, ServiceUnitStateData to) {
+        return !from.broker().equals(to.sourceBroker())
+                || from.broker().equals(to.broker());
+    }
 }
