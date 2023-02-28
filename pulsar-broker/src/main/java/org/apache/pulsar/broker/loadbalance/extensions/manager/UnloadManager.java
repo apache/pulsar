@@ -78,19 +78,13 @@ public class UnloadManager implements StateChangeListener {
     }
 
     @Override
-    public void handleEvent(String serviceUnit, ServiceUnitStateData data, EventStage stage, Throwable t) {
+    public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
         ServiceUnitState state = ServiceUnitStateData.state(data);
         switch (state) {
-            case Free, Owned -> {
-                if (stage.equals(EventStage.SUCCESS)) {
-                    this.complete(serviceUnit, null);
-                } else if (stage.equals(EventStage.FAILURE)){
-                    this.complete(serviceUnit, t);
-                }
-            }
+            case Free, Owned -> this.complete(serviceUnit, t);
             default -> {
                 if (log.isDebugEnabled()) {
-                    log.debug("Handling {}_{} for service unit {}", data, stage, serviceUnit);
+                    log.debug("Handling {} for service unit {}", data, serviceUnit);
                 }
             }
         }

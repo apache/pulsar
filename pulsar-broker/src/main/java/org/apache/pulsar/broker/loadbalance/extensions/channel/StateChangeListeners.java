@@ -44,27 +44,23 @@ public class StateChangeListeners {
     }
 
     /**
-     * Notify SUCCESS/FAILURE notification to all currently added listeners on completion of the future.
+     * Notify all currently added listeners on completion of the future.
      *
      * @return future of a new completion stage
      */
     public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
                                                        String serviceUnit,
                                                        ServiceUnitStateData data) {
-        return future.whenComplete((r, ex) -> notify(serviceUnit,
-                data,
-                ex == null ? StateChangeListener.EventStage.SUCCESS : StateChangeListener.EventStage.FAILURE,
-                ex));
+        return future.whenComplete((r, ex) -> notify(serviceUnit, data, ex));
     }
 
-    public void notify(String serviceUnit, ServiceUnitStateData data,
-                       StateChangeListener.EventStage stage, Throwable t) {
+    public void notify(String serviceUnit, ServiceUnitStateData data, Throwable t) {
         stateChangeListeners.forEach(listener -> {
             try {
-                listener.handleEvent(serviceUnit, data, stage, t);
+                listener.handleEvent(serviceUnit, data, t);
             } catch (Throwable ex) {
-                log.error("StateChangeListener: {} exception while handling {}_{} for service unit {}",
-                        listener, data, stage, serviceUnit, ex);
+                log.error("StateChangeListener: {} exception while handling {} for service unit {}",
+                        listener, data, serviceUnit, ex);
             }
         });
     }

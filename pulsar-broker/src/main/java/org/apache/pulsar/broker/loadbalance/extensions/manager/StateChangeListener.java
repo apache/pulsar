@@ -23,23 +23,11 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateD
 public interface StateChangeListener {
 
     /**
-     * Stages of events currently supported.
-     * before starting the event/successful completion/failed completion.
-     */
-    enum EventStage {
-        BEFORE,
-        SUCCESS,
-        FAILURE
-    }
-
-    /**
      * Handle the service unit state change.
      *
      * @param serviceUnit - Service Unit(Namespace bundle).
      * @param data - Service unit state data.
-     * @param stage - The event stage.
-     * @param t - Exception in case of FAILURE, if present/known.
+     * @param t - Exception, if present.
      */
-    void handleEvent(String serviceUnit, ServiceUnitStateData data,
-                     EventStage stage, Throwable t);
+    void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t);
 }

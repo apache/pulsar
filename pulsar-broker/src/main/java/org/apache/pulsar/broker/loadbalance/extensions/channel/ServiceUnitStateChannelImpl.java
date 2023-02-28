@@ -515,7 +515,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         ServiceUnitState state = state(data);
         try {
-            stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.BEFORE, null);
             switch (state) {
                 case Owned -> handleOwnEvent(serviceUnit, data);
                 case Assigning -> handleAssignEvent(serviceUnit, data);
@@ -598,7 +597,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.broker());
         }
-        stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
+        stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -644,7 +643,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
-        stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
+        stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -655,7 +654,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.completeExceptionally(new IllegalStateException(serviceUnit + "has been deleted."));
         }
-        stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
+        stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
         }
@@ -666,7 +665,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
-        stateChangeListeners.notify(serviceUnit, null, StateChangeListener.EventStage.SUCCESS, null);
+        stateChangeListeners.notify(serviceUnit, null, null);
         log(null, serviceUnit, null, null);
     }
 
