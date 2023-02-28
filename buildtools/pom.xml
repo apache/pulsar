@@ -130,7 +130,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.87.Final</version>
+      <version>4.1.89.Final</version>
       <scope>test</scope>
     </dependency>
     <dependency>
