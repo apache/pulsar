@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,7 +41,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
     protected final Class<T> schemaType;
     protected final EventType systemTopicType;
 
-    private final HashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
+    private final ConcurrentHashMap<NamespaceName, ReferenceCountedWriter<T>> refCountedWriterMap;
 
     // The class ReferenceCountedWriter will maintain the reference count,
     // when the reference count decrement to 0, it will be removed from writerFutureMap, the writer will be closed.
@@ -116,7 +115,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
         this.systemTopicType = systemTopicType;
         this.schemaType = schemaType;
         this.clients = new ConcurrentHashMap<>();
-        this.refCountedWriterMap = new HashMap<>();
+        this.refCountedWriterMap = new ConcurrentHashMap<>();
     }
 
     public CompletableFuture<SystemTopicClient.Writer<T>> createWriter(TopicName topicName) {
@@ -134,7 +133,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
         }
     }
 
-    public synchronized ReferenceCountedWriter<T> getReferenceWriter(TopicName topicName) {
+    public ReferenceCountedWriter<T> getReferenceWriter(TopicName topicName) {
         return refCountedWriterMap.compute(topicName.getNamespaceObject(), (k, v) -> {
             if (v == null) {
                 return new ReferenceCountedWriter<>(topicName.getNamespaceObject(),
