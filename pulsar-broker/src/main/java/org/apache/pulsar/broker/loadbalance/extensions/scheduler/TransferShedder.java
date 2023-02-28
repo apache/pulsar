@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.CoolDown;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBrokers;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.OutDatedData;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MinMaxPriorityQueue;
 import java.util.Map;
@@ -275,6 +276,17 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
             final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
             boolean transfer = conf.isLoadBalancerTransferEnabled();
+
+            Map<String, BrokerLookupData> availableBrokers;
+            try {
+                availableBrokers = context.brokerRegistry().getAvailableBrokerLookupDataAsync()
+                        .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (ExecutionException | InterruptedException | TimeoutException e) {
+                decision.skip(Unknown);
+                log.warn("Failed to fetch available brokers. Reason:{}. Stop unloading.", decision.getReason(), e);
+                return decision;
+            }
+
             while (true) {
                 if (!stats.hasTransferableBrokers()) {
                     if (debugMode) {
@@ -345,7 +357,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     for (var e : topBundlesLoadData) {
                         String bundle = e.bundleName();
                         if (!recentlyUnloadedBundles.containsKey(bundle)
-                                && isTransferable(context, bundle, maxBroker, Optional.ofNullable(minBroker))) {
+                                && isTransferable(context, availableBrokers,
+                                bundle, maxBroker, Optional.of(minBroker))) {
                             var bundleData = e.stats();
                             double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
                             if (remainingTopBundles > 1
@@ -353,7 +366,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                     || !atLeastOneBundleSelected)) {
                                 if (transfer) {
                                     selectedBundlesCache.put(maxBroker,
-                                            new Unload(maxBroker, bundle, Optional.ofNullable(minBroker)));
+                                            new Unload(maxBroker, bundle, Optional.of(minBroker)));
                                 } else {
                                     selectedBundlesCache.put(maxBroker,
                                             new Unload(maxBroker, bundle));
@@ -423,6 +436,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
 
     private boolean isTransferable(LoadManagerContext context,
+                                   Map<String, BrokerLookupData> availableBrokers,
                                    String bundle,
                                    String maxBroker,
                                    Optional<String> broker) {
@@ -435,7 +449,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespace, bundleRange);
 
-        if (!canTransferWithIsolationPoliciesToBroker(context, namespaceBundle, maxBroker, broker)) {
+        if (!canTransferWithIsolationPoliciesToBroker(context, availableBrokers, namespaceBundle, maxBroker, broker)) {
             return false;
         }
 
@@ -457,30 +471,22 @@ public class TransferShedder implements NamespaceUnloadStrategy {
      * Check the gave bundle and broker can be transfer or unload with isolation policies applied.
      *
      * @param context The load manager context.
+     * @param availableBrokers The available brokers.
      * @param namespaceBundle The bundle try to unload or transfer.
      * @param maxBroker The current broker.
      * @param minBroker The broker will be transfer to.
      * @return Can be transfer/unload or not.
      */
     private boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
+                                                             Map<String, BrokerLookupData> availableBrokers,
                                                              NamespaceBundle namespaceBundle,
                                                              String maxBroker,
                                                              Optional<String> minBroker) {
-        if (isolationPoliciesHelper == null ||
-                !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
+        if (isolationPoliciesHelper == null
+                || !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
             return true;
         }
-        int timeout = context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds();
         boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
-        Map<String, BrokerLookupData> availableBrokers;
-        try {
-            availableBrokers =
-                    context.brokerRegistry().getAvailableBrokerLookupDataAsync().get(timeout, TimeUnit.SECONDS);
-        } catch (ExecutionException | InterruptedException | TimeoutException e) {
-            log.error("Failed to fetch available brokers.", e);
-            return false;
-        }
-
         Set<String> candidates = isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, namespaceBundle);
 
         // Remove the current bundle owner broker.

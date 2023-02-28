@@ -28,6 +28,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.OutDatedData;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -47,6 +48,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
@@ -74,6 +76,7 @@ import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -267,6 +270,8 @@ public class TransferShedderTest {
         doReturn(topBundleLoadDataStore).when(ctx).topBundleLoadDataStore();
         var brokerRegister = mock(BrokerRegistry.class);
         doReturn(brokerRegister).when(ctx).brokerRegistry();
+        BrokerRegistry registry = ctx.brokerRegistry();
+        doReturn(CompletableFuture.completedFuture(Map.of())).when(registry).getAvailableBrokerLookupDataAsync();
         return ctx;
     }
 
@@ -375,6 +380,22 @@ public class TransferShedderTest {
         var expected = new UnloadDecision();
         expected.setLabel(Skip);
         expected.skip(NoBundles);
+        expected.setLoadAvg(setupLoadAvg);
+        expected.setLoadStd(setupLoadStd);
+        assertEquals(res, expected);
+    }
+
+    @Test
+    public void testGetAvailableBrokersFailed() {
+        TransferShedder transferShedder = new TransferShedder();
+        var ctx = setupContext();
+        BrokerRegistry registry = ctx.brokerRegistry();
+        doReturn(FutureUtil.failedFuture(new TimeoutException())).when(registry).getAvailableBrokerLookupDataAsync();
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+
+        var expected = new UnloadDecision();
+        expected.setLabel(Skip);
+        expected.skip(Unknown);
         expected.setLoadAvg(setupLoadAvg);
         expected.setLoadStd(setupLoadStd);
         assertEquals(res, expected);
