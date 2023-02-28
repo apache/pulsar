@@ -104,19 +104,19 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-        this.lastMutableBucket = new MutableBucket(dispatcher, bucketSnapshotStorage);
+        this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), bucketSnapshotStorage);
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
-        ManagedCursor cursor = this.lastMutableBucket.dispatcher.getCursor();
+        ManagedCursor cursor = this.lastMutableBucket.getCursor();
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
         cursor.getCursorProperties().keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
                 ImmutableBucket immutableBucket =
-                        new ImmutableBucket(dispatcher, this.lastMutableBucket.bucketSnapshotStorage,
+                        new ImmutableBucket(dispatcher.getName(), cursor, this.lastMutableBucket.bucketSnapshotStorage,
                                 Long.parseLong(keys[1]), Long.parseLong(keys[2]));
                 putAndCleanOverlapRange(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
                         immutableBucket, toBeDeletedBucketMap);

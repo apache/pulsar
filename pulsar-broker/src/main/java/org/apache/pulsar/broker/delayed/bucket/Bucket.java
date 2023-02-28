@@ -28,9 +28,9 @@ import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
@@ -42,7 +42,9 @@ abstract class Bucket {
     static final String DELIMITER = "_";
     static final int MaxRetryTimes = 3;
 
-    protected final PersistentDispatcherMultipleConsumers dispatcher;
+    protected final String dispatcherName;
+
+    protected final ManagedCursor cursor;
     protected final BucketSnapshotStorage bucketSnapshotStorage;
 
     long startLedgerId;
@@ -63,9 +65,9 @@ abstract class Bucket {
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
 
-    Bucket(PersistentDispatcherMultipleConsumers dispatcher,
+    Bucket(String dispatcherName, ManagedCursor cursor,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        this(dispatcher, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
+        this(dispatcherName, cursor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -117,7 +119,7 @@ abstract class Bucket {
             return bucketIdOptional.get();
         }
 
-        String bucketIdStr = dispatcher.getCursor().getCursorProperties().get(bucketKey());
+        String bucketIdStr = cursor.getCursorProperties().get(bucketKey());
         long bucketId = Long.parseLong(bucketIdStr);
         setBucketId(bucketId);
         return bucketId;
@@ -131,15 +133,15 @@ abstract class Bucket {
                 () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
                         .whenComplete((__, ex) -> {
                             if (ex != null) {
-                                log.warn("[{}] Failed to create bucket snapshot. bucketKey: {}, bucketId: {}",
-                                        dispatcher.getName(), bucketKey, bucketId, ex);
+                                log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
+                                        dispatcherName, bucketKey, ex);
                             }
                         }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
                         log.warn("[{}] Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
-                                dispatcher.getName(), bucketKey, bucketId);
+                                dispatcherName, bucketKey, newBucketId, ex);
                         return null;
                     }).thenApply(__ -> newBucketId);
                 });
@@ -147,12 +149,12 @@ abstract class Bucket {
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         Objects.requireNonNull(bucketId);
-        return executeWithRetry(() -> dispatcher.getCursor().putCursorProperty(bucketKey, String.valueOf(bucketId)),
+        return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
                 ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
     }
 
     protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
-        return executeWithRetry(() -> dispatcher.getCursor().removeCursorProperty(bucketKey),
+        return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
                 ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
     }
 }
