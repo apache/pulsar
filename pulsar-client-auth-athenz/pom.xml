@@ -48,6 +48,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.yahoo.athenz</groupId>
+      <artifactId>athenz-cert-refresher</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
     </dependency>
