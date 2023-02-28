@@ -221,7 +221,7 @@ public class ConnectionPool implements AutoCloseable {
             // there is a race condition in which
             // cleanupConnection is called before caching this result
             // and so the clean up fails
-            cleanupConnection(logicalAddress, randomKey, result);
+            cleanupConnection(logicalAddress, randomKey, completableFuture);
             return completableFuture;
         }
 
