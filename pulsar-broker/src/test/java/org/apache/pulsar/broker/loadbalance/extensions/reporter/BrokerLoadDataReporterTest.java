@@ -65,6 +65,7 @@ public class BrokerLoadDataReporterTest {
         doReturn(Executors.newSingleThreadScheduledExecutor()).when(pulsar).getLoadManagerExecutor();
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
         brokerStats = new BrokerStats(0);
+        brokerStats.topics = 6;
         brokerStats.bundleCount = 5;
         brokerStats.msgRateIn = 3;
         brokerStats.msgRateOut = 4;
