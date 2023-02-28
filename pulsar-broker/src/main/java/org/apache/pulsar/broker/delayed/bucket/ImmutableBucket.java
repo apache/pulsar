@@ -160,6 +160,8 @@ class ImmutableBucket extends Bucket {
                 String bucketKey = bucketKey();
                 long bucketId = getAndUpdateBucketId();
                 try {
+                    // Because bucketSnapshotStorage.deleteBucketSnapshot may be use the same thread with clear,
+                    // so we can't block deleteBucketSnapshot when clearing the bucket snapshot.
                     removeBucketCursorProperty(bucketKey())
                             .thenApply(__ -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId).exceptionally(ex -> {
                                 log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
