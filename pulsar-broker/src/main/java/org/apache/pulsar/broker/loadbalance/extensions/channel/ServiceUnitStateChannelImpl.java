@@ -598,9 +598,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.broker());
         }
-        // If transfer to another broker,
-        // then the unload-manager can't receive the transfer complete event in same broker,
-        // so we need complete here when own the bundle.
         stateChangeListeners.notify(serviceUnit, data, StateChangeListener.EventStage.SUCCESS, null);
         if (isTargetBroker(data.broker())) {
             log(null, serviceUnit, data, null);
