@@ -73,6 +73,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
@@ -396,7 +397,18 @@ public class ProxyConnection extends PulsarHandler {
             }
 
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = service.newLookupProxyHandler(this);
+            try {
+                lookupProxyHandler =
+                        Reflections.createInstance(service.getConfiguration().getLookupHandler(), LookupProxyHandler.class,
+                                Thread.currentThread()
+                                        .getContextClassLoader());
+                lookupProxyHandler.initialize(service, this);
+            } catch (Exception e) {
+                LOG.error("Failed to initialize lookup proxy handler", e);
+                ctx().writeAndFlush(Commands.newError(-1, ServerError.ServiceNotReady,
+                        "Failed to initialize lookup proxy handler")).addListener(ChannelFutureListener.CLOSE);
+                return;
+            }
             if (service.getConfiguration().isAuthenticationEnabled()
                     && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
                 authRefreshTask = ctx.executor().scheduleAtFixedRate(

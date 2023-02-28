@@ -195,6 +195,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
+        doc = "The lookup handler class name"
+    )
+    private String lookupHandler = "org.apache.pulsar.proxy.server.DefaultLookupProxyHandler";
+
+    @FieldContext(
+        category = CATEGORY_BROKER_DISCOVERY,
         doc = "The web service url points to the function worker cluster."
             + " Only configure it when you setup function workers in a separate cluster"
     )

@@ -110,9 +110,9 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    private final class TestLookupProxyHandler extends LookupProxyHandler {
+    private final class TestLookupProxyHandler extends DefaultLookupProxyHandler {
         public TestLookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
-            super(proxy, proxyConnection);
+            super.initialize(proxy, proxyConnection);
         }
 
         @Override
