@@ -142,4 +142,8 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
         throw new UnsupportedOperationException();
     }
 
+    public ExtensibleLoadManagerImpl get() {
+        return loadManager;
+    }
+
 }

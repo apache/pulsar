@@ -602,8 +602,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *              .build())
      *          .subscribe();
      * </pre>
-     * When a dead letter policy is specified, and no ackTimeoutMillis is specified,
-     * then the acknowledgment timeout is set to 30000 milliseconds.
      */
     ConsumerBuilder<T> deadLetterPolicy(DeadLetterPolicy deadLetterPolicy);
 

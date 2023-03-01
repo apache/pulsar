@@ -2672,7 +2672,7 @@ public class PersistentTopicsBase extends AdminResource {
                         if (topicMetadata.partitions > 0) {
                             log.warn("[{}] Not supported operation on partitioned-topic {} {}",
                                     clientAppId(), topicName, subName);
-                            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                            throw new CompletionException(new RestException(Status.METHOD_NOT_ALLOWED,
                                     "Reset-cursor at position is not allowed for partitioned-topic"));
                         }
                         return CompletableFuture.completedFuture(null);

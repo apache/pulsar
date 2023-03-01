@@ -75,6 +75,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -142,6 +143,7 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @SuppressWarnings("unchecked")
@@ -289,6 +291,34 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Connected);
         CommandConnected response = (CommandConnected) getResponse();
         assertEquals(response.getProtocolVersion(), currentProtocolVersion);
+        channel.finish();
+    }
+
+    @DataProvider(name = "clientVersions")
+    public Object[][] clientVersions() {
+        return new Object[][]{
+                {"Pulsar Client", true},
+                {"Pulsar Go 0.2.1", true},
+                {"Pulsar-Client-Java-v1.15.2", true},
+                {"pulsar-java-3.0.0", true},
+                {"", false},
+                {" ", false}
+        };
+    }
+
+    @Test(dataProvider = "clientVersions")
+    public void testStoreClientVersionWhenNotBlank(String clientVersion, boolean expectSetToClientVersion) throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect("", "", clientVersion);
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        assertEquals(serverCnx.getClientVersion(), expectSetToClientVersion ? clientVersion : null);
         channel.finish();
     }
 
@@ -487,10 +517,13 @@ public class ServerCnxTest {
         when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
         when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
         svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticationRefreshCheckSeconds(30);
 
         resetChannel();
         assertTrue(channel.isActive());
         assertEquals(serverCnx.getState(), State.Start);
+        // Don't want the keep alive task affecting which messages are handled
+        serverCnx.cancelKeepAliveTask();
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", "");
         channel.writeInbound(clientCommand);
@@ -503,7 +536,7 @@ public class ServerCnxTest {
 
         // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
         // and then force channel to run the task
-        serverCnx.refreshAuthenticationCredentials();
+        channel.advanceTimeBy(30, TimeUnit.SECONDS);
         channel.runPendingTasks();
         Object responseAuthChallenge1 = getResponse();
         assertTrue(responseAuthChallenge1 instanceof CommandAuthChallenge);
@@ -513,7 +546,7 @@ public class ServerCnxTest {
         channel.writeInbound(authResponse1);
 
         // Trigger the ServerCnx to check if authentication is expired again
-        serverCnx.refreshAuthenticationCredentials();
+        channel.advanceTimeBy(30, TimeUnit.SECONDS);
         assertTrue(channel.hasPendingTasks(), "This test assumes there are pending tasks to run.");
         channel.runPendingTasks();
         Object responseAuthChallenge2 = getResponse();
@@ -539,10 +572,13 @@ public class ServerCnxTest {
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthenticateOriginalAuthData(true);
         svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+        svcConfig.setAuthenticationRefreshCheckSeconds(30);
 
         resetChannel();
         assertTrue(channel.isActive());
         assertEquals(serverCnx.getState(), State.Start);
+        // Don't want the keep alive task affecting which messages are handled
+        serverCnx.cancelKeepAliveTask();
 
         ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
                 null, "pass.client", "pass.client", authMethodName);
@@ -559,7 +595,7 @@ public class ServerCnxTest {
 
         // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
         // and then force channel to run the task
-        serverCnx.refreshAuthenticationCredentials();
+        channel.advanceTimeBy(30, TimeUnit.SECONDS);
         assertTrue(channel.hasPendingTasks(), "This test assumes there are pending tasks to run.");
         channel.runPendingTasks();
         Object responseAuthChallenge1 = getResponse();
@@ -570,7 +606,7 @@ public class ServerCnxTest {
         channel.writeInbound(authResponse1);
 
         // Trigger the ServerCnx to check if authentication is expired again
-        serverCnx.refreshAuthenticationCredentials();
+        channel.advanceTimeBy(30, TimeUnit.SECONDS);
         channel.runPendingTasks();
         Object responseAuthChallenge2 = getResponse();
         assertTrue(responseAuthChallenge2 instanceof CommandAuthChallenge);
@@ -606,6 +642,8 @@ public class ServerCnxTest {
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.proxy");
         // Invalid combinations where the original principal is set to a non-proxy role
         verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client1", "pass.client");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client1");
     }
 
     private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
@@ -1022,6 +1060,54 @@ public class ServerCnxTest {
                     assertEquals(arg.getSubscription(), subscriptionName);
                     return true;
                 }));
+    }
+
+    @Test
+    public void testRefreshOriginalPrincipalWithAuthDataForwardedFromProxy() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockMutableAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        String proxyRole = "pass.proxy";
+        String clientRole = "pass.client";
+        ByteBuf connect = Commands.newConnect(authMethodName, proxyRole, "test", "localhost",
+                clientRole, clientRole, authMethodName);
+        channel.writeInbound(connect);
+        Object connectResponse = getResponse();
+        assertTrue(connectResponse instanceof CommandConnected);
+        assertEquals(serverCnx.getOriginalAuthData().getCommandData(), clientRole);
+        assertEquals(serverCnx.getOriginalAuthState().getAuthRole(), clientRole);
+        assertEquals(serverCnx.getOriginalPrincipal(), clientRole);
+        assertEquals(serverCnx.getAuthData().getCommandData(), proxyRole);
+        assertEquals(serverCnx.getAuthRole(), proxyRole);
+        assertEquals(serverCnx.getAuthState().getAuthRole(), proxyRole);
+
+        // Request refreshing the original auth.
+        // Expected:
+        // 1. Original role and original data equals to "pass.RefreshOriginAuthData".
+        // 2. The broker disconnects the client, because the new role doesn't equal the old role.
+        String newClientRole = "pass.RefreshOriginAuthData";
+        ByteBuf refreshAuth = Commands.newAuthResponse(authMethodName,
+                AuthData.of(newClientRole.getBytes(StandardCharsets.UTF_8)), 0, "test");
+        channel.writeInbound(refreshAuth);
+
+        assertEquals(serverCnx.getOriginalAuthData().getCommandData(), newClientRole);
+        assertEquals(serverCnx.getOriginalAuthState().getAuthRole(), newClientRole);
+        assertEquals(serverCnx.getAuthData().getCommandData(), proxyRole);
+        assertEquals(serverCnx.getAuthRole(), proxyRole);
+        assertEquals(serverCnx.getAuthState().getAuthRole(), proxyRole);
+
+        assertFalse(channel.isOpen());
+        assertFalse(channel.isActive());
     }
 
     @Test(timeOut = 30000)
