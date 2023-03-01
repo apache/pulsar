@@ -22,6 +22,7 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
@@ -59,7 +60,8 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     private final Map<String, Double> brokerAvgResourceUsage = new HashMap<>();
 
     @Override
-    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public synchronized Multimap<String, String> findBundlesForUnloading(final LoadData loadData,
+                                                                         final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
         final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
@@ -75,7 +77,6 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         loadData.getBrokerData().forEach((broker, brokerData) -> {
             final LocalBrokerData localData = brokerData.getLocalData();
             final double currentUsage = brokerAvgResourceUsage.getOrDefault(broker, 0.0);
-
             if (currentUsage < avgUsage + threshold) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] broker is not overloaded, ignoring at this point", broker);
@@ -232,6 +233,10 @@ public class ThresholdShedder implements LoadSheddingStrategy {
             }
         }
         return Pair.of(hasBrokerBelowLowerBound, maxUsageBrokerName);
+    }
+    @Override
+    public synchronized void onActiveBrokersChange(Set<String> newBrokers) {
+        brokerAvgResourceUsage.keySet().removeIf((key) -> !newBrokers.contains(key));
     }
 
 }
