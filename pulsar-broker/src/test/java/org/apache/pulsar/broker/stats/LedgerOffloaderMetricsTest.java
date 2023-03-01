@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
