@@ -50,7 +50,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -1077,42 +1076,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
         if (poolMessages) {
-            releasePooledMessages();
+            releasePooledMessagesAndStopAcceptNew();
         }
     }
 
     /**
-     * If enabled pooled messages, we should release the messages after closing consumer.
-     *   1. Call "clearIncomingMessages" regardless of whether "internalPinnedExecutor" has shutdown or not.
-     *   2. Increment epoch will auto release all messages which received after close.
-     *   3. Call "clearIncomingMessages" in "internalPinnedExecutor" is used to clear messages in flight.
+     * If enabled pooled messages, we should release the messages after closing consumer and stop accept the new
+     * messages.
      */
-    private void releasePooledMessages() {
-        // Increment epoch.
-        CONSUMER_EPOCH.incrementAndGet(this);
-        // Try clear the incoming queue in internalPinnedExecutor-thread.
-        boolean executorIsShutdown;
-        try {
-            if (!(executorIsShutdown = internalPinnedExecutor.isShutdown())) {
-                internalPinnedExecutor.execute(this::clearIncomingMessages);
-            }
-        } catch (RejectedExecutionException rejectedExecutionException) {
-            executorIsShutdown = true;
-        }
-        // If internalPinnedExecutor is shutdown, try await termination and clear the incoming queue.
-        if (executorIsShutdown) {
-            boolean awaitTerminationSuccess = false;
-            try {
-                awaitTerminationSuccess = internalPinnedExecutor.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                // Current thread is interrupted, so awaitTerminationSuccess will be false.
-            }
-            if (!awaitTerminationSuccess){
-                log.warn("[{}] [{}] Failed to wait for in-flight messages, there is a small probability that client"
-                        + " memory leaks will occur", topicName, subscription);
-            }
-        }
-        // Call "clearIncomingMessages" regardless of whether "internalPinnedExecutor" has shutdown or not.
+    private void releasePooledMessagesAndStopAcceptNew() {
+        incomingMessages.terminate(message -> message.release());
         clearIncomingMessages();
     }
 
