@@ -50,14 +50,19 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
     public boolean shouldKeepLeft(ServiceUnitStateData from, ServiceUnitStateData to) {
         if (to == null) {
             return false;
-        } else if (to.force()) {
+        }
+
+        // Skip the compaction case where from = null and to.versionId > 1
+        if (from != null && from.versionId() + 1 != to.versionId()) {
+            return true;
+        }
+
+        if (to.force()) {
             return false;
         }
 
-
         ServiceUnitState prevState = state(from);
         ServiceUnitState state = state(to);
-
         if (!ServiceUnitState.isValidTransition(prevState, state)) {
             return true;
         }

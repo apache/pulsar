@@ -54,6 +54,7 @@ import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -88,20 +89,24 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
     private ServiceUnitState testState = Init;
 
+    private ServiceUnitStateData testData = null;
+
     private static Random RANDOM = new Random();
 
 
     private ServiceUnitStateData testValue(ServiceUnitState state, String broker) {
         if (state == Init) {
-            return null;
+            testData = null;
+        } else {
+            testData = new ServiceUnitStateData(state, broker, versionId(testData) + 1);
         }
-        return new ServiceUnitStateData(state, broker);
+
+        return testData;
     }
 
     private ServiceUnitStateData testValue(String broker) {
-        ServiceUnitState to = nextValidStateNonSplit(testState);
-        testState = to;
-        return testValue(to, broker);
+        testState = nextValidStateNonSplit(testState);
+        return testValue(testState, broker);
     }
 
     private ServiceUnitState nextValidState(ServiceUnitState from) {
@@ -149,6 +154,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         strategy.checkBrokers(false);
 
         testState = Init;
+        testData = null;
     }
 
 
@@ -202,13 +208,14 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             ServiceUnitState state = invalid ? nextInvalidState(prevState) :
                     nextValidState(prevState);
             ServiceUnitStateData value;
+            long versionId = versionId(prev) + 1;
             if (invalid) {
-                value = new ServiceUnitStateData(state, key + ":" + j, false);
+                value = new ServiceUnitStateData(state, key + ":" + j, false, versionId);
             } else {
                 if (state == Init) {
-                    value = new ServiceUnitStateData(state, key + ":" + j, true);
+                    value = new ServiceUnitStateData(state, key + ":" + j, true, versionId);
                 } else {
-                    value = new ServiceUnitStateData(state, key + ":" + j, false);
+                    value = new ServiceUnitStateData(state, key + ":" + j, false, versionId);
                 }
             }
 
@@ -560,15 +567,16 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         String bundle = "bundle1";
         String src = "broker0";
         String dst = "broker1";
-        producer.newMessage().key(bundle).value(new ServiceUnitStateData(Owned, src)).send();
+        long versionId = 1;
+        producer.newMessage().key(bundle).value(new ServiceUnitStateData(Owned, src, versionId++)).send();
         for (int i = 0; i < 3; i++) {
-            var assignedStateData = new ServiceUnitStateData(Assigning, dst, src);
+            var assignedStateData = new ServiceUnitStateData(Assigning, dst, src, versionId++);
             producer.newMessage().key(bundle).value(assignedStateData).send();
             producer.newMessage().key(bundle).value(assignedStateData).send();
-            var releasedStateData = new ServiceUnitStateData(Releasing, dst, src);
+            var releasedStateData = new ServiceUnitStateData(Releasing, dst, src, versionId++);
             producer.newMessage().key(bundle).value(releasedStateData).send();
             producer.newMessage().key(bundle).value(releasedStateData).send();
-            var ownedStateData = new ServiceUnitStateData(Owned, dst, src);
+            var ownedStateData = new ServiceUnitStateData(Owned, dst, src, versionId++);
             producer.newMessage().key(bundle).value(ownedStateData).send();
             producer.newMessage().key(bundle).value(ownedStateData).send();
             compactor.compact(topic, strategy).get();
@@ -944,5 +952,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
             assertNull(none);
         }
+    }
+
+    public static long versionId(ServiceUnitStateData data) {
+        return data == null ? ServiceUnitStateChannelImpl.VERSION_ID_INIT - 1 : data.versionId();
     }
 }

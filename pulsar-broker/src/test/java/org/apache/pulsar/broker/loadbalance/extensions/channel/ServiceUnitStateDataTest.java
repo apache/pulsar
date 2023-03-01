@@ -33,15 +33,16 @@ public class ServiceUnitStateDataTest {
 
     @Test
     public void testConstructors() throws InterruptedException {
-        ServiceUnitStateData data1 = new ServiceUnitStateData(Owned, "A");
+        ServiceUnitStateData data1 = new ServiceUnitStateData(Owned, "A", 1);
         assertEquals(data1.state(), Owned);
         assertEquals(data1.broker(), "A");
         assertNull(data1.sourceBroker());
-        assertThat(data1.timestamp()).isGreaterThan(0);;
+        assertThat(data1.timestamp()).isGreaterThan(0);
+        ;
 
         Thread.sleep(10);
 
-        ServiceUnitStateData data2 = new ServiceUnitStateData(Assigning, "A", "B");
+        ServiceUnitStateData data2 = new ServiceUnitStateData(Assigning, "A", "B", 1);
         assertEquals(data2.state(), Assigning);
         assertEquals(data2.broker(), "A");
         assertEquals(data2.sourceBroker(), "B");
@@ -50,23 +51,28 @@ public class ServiceUnitStateDataTest {
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testNullState() {
-        new ServiceUnitStateData(null, "A");
+        new ServiceUnitStateData(null, "A", 1);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNullBroker() {
-        new ServiceUnitStateData(Owned, null);
+        new ServiceUnitStateData(Owned, null, 1);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testEmptyBroker() {
-        new ServiceUnitStateData(Owned, "");
+        new ServiceUnitStateData(Owned, "", 1);
+    }
+
+    @Test
+    public void testZeroVersionId() {
+        new ServiceUnitStateData(Owned, "A", Long.MAX_VALUE + 1);
     }
 
     @Test
     public void jsonWriteAndReadTest() throws JsonProcessingException {
         ObjectMapper mapper = ObjectMapperFactory.create();
-        final ServiceUnitStateData src = new ServiceUnitStateData(Assigning, "A", "B");
+        final ServiceUnitStateData src = new ServiceUnitStateData(Assigning, "A", "B", 1);
         String json = mapper.writeValueAsString(src);
         ServiceUnitStateData dst = mapper.readValue(json, ServiceUnitStateData.class);
         assertEquals(dst, src);
