@@ -123,6 +123,7 @@ public class CompactorTool {
             clientBuilder
                     .serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
