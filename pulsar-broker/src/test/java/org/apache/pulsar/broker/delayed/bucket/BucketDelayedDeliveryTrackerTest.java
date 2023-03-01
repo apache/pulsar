@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.testcontainers.shaded.org.apache.commons.lang3.mutable.MutableLong;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -138,7 +139,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                                     true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
                     }};
-            case "testMergeSnapshot", "testWithBkException", "testWithCreateEx" -> new Object[][]{{
+            case "testMergeSnapshot", "testWithBkException", "testWithCreateFailDowngrade" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10)
             }};
@@ -365,7 +366,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             tracker.addMessage(i, i, i * 10);
         }
 
-        assertEquals(0, tracker.getImmutableBuckets().asMapOfRanges().size());
+        Awaitility.await().untilAsserted(() -> assertEquals(0, tracker.getImmutableBuckets().asMapOfRanges().size()));
 
         clockTime.set(5 * 10);
 
