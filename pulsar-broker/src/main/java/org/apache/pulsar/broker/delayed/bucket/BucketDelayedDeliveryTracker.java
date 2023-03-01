@@ -300,11 +300,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
                 try {
                     asyncMergeBucketSnapshot().get(2 * AsyncOperationTimeoutSeconds * MaxRetryTimes, TimeUnit.SECONDS);
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                    if (e instanceof InterruptedException) {
-                        Thread.currentThread().interrupt();
-                    }
-                    throw new RuntimeException(e);
+                } catch (Exception e) {
+                    // Ignore exception to merge bucket on the next schedule.
+                    log.error("[{}] An exception occurs when merge bucket snapshot.", dispatcher.getName(), e);
                 }
             }
         }
@@ -519,6 +517,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
                 } catch (Exception e) {
                     // Ignore exception to reload this segment on the next schedule.
+                    log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{}",
+                            dispatcher.getName(), bucket.bucketKey(), e);
                     break;
                 }
             }
