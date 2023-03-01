@@ -24,9 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -134,7 +132,11 @@ class ImmutableBucket extends Bucket {
     }
 
     CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
-        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), currentSegmentEntryId,
+        int nextSegmentEntryId = currentSegmentEntryId + 1;
+        if (nextSegmentEntryId > lastSegmentEntryId) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
                 lastSegmentEntryId);
     }
 
@@ -155,9 +157,19 @@ class ImmutableBucket extends Bucket {
         getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
             if (delete) {
                 snapshotGenerateFuture.cancel(true);
+                String bucketKey = bucketKey();
+                long bucketId = getAndUpdateBucketId();
                 try {
-                    asyncDeleteBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    // Because bucketSnapshotStorage.deleteBucketSnapshot may be use the same thread with clear,
+                    // so we can't block deleteBucketSnapshot when clearing the bucket snapshot.
+                    removeBucketCursorProperty(bucketKey())
+                            .thenApply(__ -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId).exceptionally(ex -> {
+                                log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                        bucketId, bucketKey, ex);
+                                return null;
+                            })).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}", bucketId, bucketKey, e);
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
