@@ -33,9 +33,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
@@ -174,8 +174,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Pulsar service used to initialize this.
     private PulsarService pulsar;
 
-    // Executor service used to regularly update broker data.
-    private final ScheduledExecutorService scheduler;
+    // Executor service used to update broker data.
+    private final ExecutorService executors;
 
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
@@ -215,7 +215,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        scheduler = Executors.newSingleThreadScheduledExecutor(
+        executors = Executors.newSingleThreadExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = new HashMap<>();
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
@@ -276,7 +276,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         // register listeners for domain changes
         pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
                 .registerListener(__ -> {
-                    scheduler.execute(() -> refreshBrokerToFailureDomainMap());
+                    executors.execute(() -> refreshBrokerToFailureDomainMap());
                 });
 
         loadSheddingPipeline.add(createLoadSheddingStrategy());
@@ -290,7 +290,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     });
 
             try {
-                scheduler.execute(ModularLoadManagerImpl.this::updateAll);
+                executors.execute(ModularLoadManagerImpl.this::updateAll);
             } catch (RejectedExecutionException e) {
                 // Executor is shutting down
             }
@@ -982,7 +982,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
-        scheduler.shutdownNow();
+        executors.shutdownNow();
 
         try {
             brokersData.close();
