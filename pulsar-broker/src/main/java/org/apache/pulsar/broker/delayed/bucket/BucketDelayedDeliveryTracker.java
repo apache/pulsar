@@ -234,6 +234,45 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             DelayedIndex lastDelayedIndex = immutableBucketDelayedIndexPair.getRight();
             snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId(),
                     immutableBucket);
+
+            immutableBucket.getSnapshotCreateFuture().ifPresent(createFuture -> {
+                CompletableFuture<Long> future = createFuture.whenComplete((__, ex) -> {
+                    if (ex == null) {
+                        log.info("[{}] Creat bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
+                                immutableBucket.bucketKey());
+                        return;
+                    }
+
+                    //TODO Record create snapshot failed
+                    log.error("[{}] Failed to create bucket snapshot, bucketKey: {}",
+                            dispatcher.getName(), immutableBucket.bucketKey(), ex);
+
+                    // Put the index back into the shared queue and downgrade to memory mode
+                    synchronized (BucketDelayedDeliveryTracker.this) {
+                        immutableBucket.getSnapshotSegments().ifPresent(snapshotSegments -> {
+                            for (DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment snapshotSegment :
+                                    snapshotSegments) {
+                                for (DelayedIndex delayedIndex : snapshotSegment.getIndexesList()) {
+                                    sharedBucketPriorityQueue.add(delayedIndex.getTimestamp(),
+                                            delayedIndex.getLedgerId(), delayedIndex.getEntryId());
+                                }
+                            }
+                            immutableBucket.setSnapshotSegments(null);
+                        });
+
+                        immutableBucket.setCurrentSegmentEntryId(immutableBucket.lastSegmentEntryId);
+                        immutableBuckets.remove(
+                                Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId));
+
+                        immutableBucket.setSnapshotCreateFuture(null);
+                    }
+                });
+                synchronized (BucketDelayedDeliveryTracker.this) {
+                    if (!future.isDone()) {
+                        immutableBucket.setSnapshotCreateFuture(future);
+                    }
+                }
+            });
         }
     }
 

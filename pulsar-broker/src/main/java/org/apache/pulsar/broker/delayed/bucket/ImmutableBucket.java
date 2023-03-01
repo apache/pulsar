@@ -24,9 +24,11 @@ import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
@@ -39,9 +41,17 @@ import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
 @Slf4j
 class ImmutableBucket extends Bucket {
+
+    @Setter
+    private volatile List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
+
     ImmutableBucket(String dispatcherName, ManagedCursor cursor,
                     BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
         super(dispatcherName, cursor, storage, startLedgerId, endLedgerId);
+    }
+
+    public Optional<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getSnapshotSegments() {
+        return Optional.ofNullable(snapshotSegments);
     }
 
     CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry() {

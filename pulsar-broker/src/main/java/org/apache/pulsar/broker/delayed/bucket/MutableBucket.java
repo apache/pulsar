@@ -131,6 +131,10 @@ class MutableBucket extends Bucket implements AutoCloseable {
         bucket.setNumberBucketDelayedMessages(numMessages);
         bucket.setLastSegmentEntryId(lastSegmentEntryId);
 
+        // Skip first segment, because it has already been loaded
+        List<SnapshotSegment> snapshotSegments = bucketSnapshotSegments.subList(1, bucketSnapshotSegments.size());
+        bucket.setSnapshotSegments(snapshotSegments);
+
         // Add the first snapshot segment last message to snapshotSegmentLastMessageTable
         checkArgument(!bucketSnapshotSegments.isEmpty());
         SnapshotSegment snapshotSegment = bucketSnapshotSegments.get(0);
@@ -140,15 +144,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
         CompletableFuture<Long> future = asyncSaveBucketSnapshot(bucket,
                 bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
-        future.whenComplete((__, ex) -> {
-            if (ex != null) {
-                //TODO Record create snapshot failed
-                log.error("[{}] Failed to create bucket snapshot, bucketKey: {}, ex: ",
-                        dispatcherName, bucketKey(), ex);
-            } else {
-                log.info("[{}] Creat bucket snapshot finish, bucketKey: {}", dispatcherName, bucket.bucketKey());
-            }
-        });
 
         return result;
     }
