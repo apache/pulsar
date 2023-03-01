@@ -21,6 +21,7 @@ package org.apache.pulsar.websocket.proxy;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
@@ -64,7 +65,8 @@ public class ProxyIdleTimeoutTest extends ProducerConsumerBase {
         config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
         config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        doReturn(new ZKMetadataStore(mockZooKeeperGlobal))
+                .when(service).createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
         log.info("Proxy Server Started");

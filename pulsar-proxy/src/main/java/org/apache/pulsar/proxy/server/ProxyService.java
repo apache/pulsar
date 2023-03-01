@@ -427,12 +427,14 @@ public class ProxyService implements Closeable {
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
         return PulsarResources.createMetadataStore(proxyConfig.getMetadataStoreUrl(),
-                proxyConfig.getMetadataStoreSessionTimeoutMillis());
+                proxyConfig.getMetadataStoreSessionTimeoutMillis(),
+                proxyConfig.isZooKeeperAllowReadOnlyOperations());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
-                proxyConfig.getMetadataStoreSessionTimeoutMillis());
+        return PulsarResources.createConfigMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
+                proxyConfig.getMetadataStoreSessionTimeoutMillis(),
+                proxyConfig.isZooKeeperAllowReadOnlyOperations());
     }
 
     public Authentication getProxyClientAuthenticationPlugin() {
