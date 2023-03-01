@@ -1491,6 +1491,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean tlsAllowInsecureConnection = false;
     @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Whether the hostname is validated when the broker creates a TLS connection with other brokers"
+    )
+    private boolean tlsHostnameVerificationEnabled = false;
+    @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
             + "Example:- [TLSv1.3, TLSv1.2]"
