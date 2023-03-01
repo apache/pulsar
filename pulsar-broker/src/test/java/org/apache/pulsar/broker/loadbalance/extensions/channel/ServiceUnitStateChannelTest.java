@@ -152,13 +152,15 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     }
 
     @BeforeMethod
-    protected void initTableViews() throws Exception {
+    protected void initChannels() throws Exception {
         cleanTableView(channel1, bundle);
         cleanTableView(channel2, bundle);
         cleanOwnershipMonitorCounters(channel1);
         cleanOwnershipMonitorCounters(channel2);
         cleanOpsCounters(channel1);
         cleanOpsCounters(channel2);
+        cleanMetadataState(channel1);
+        cleanMetadataState(channel2);
     }
 
 
@@ -491,6 +493,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, getOwnerRequests2.size());
 
         // recovered, check the monitor update state : Assigned -> Owned
+        doReturn(Optional.of(lookupServiceAddress1)).when(brokerSelector).select(any(), any(), any());
         FieldUtils.writeDeclaredField(channel2, "producer", producer, true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
@@ -937,7 +940,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, "b1", 1));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, null, "b1", 1));
         channel1.getOwnerAsync(bundle);
 
         overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, "b1", 1));
@@ -1361,6 +1364,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel, "totalInactiveBrokerCleanupScheduledCnt", 0, true);
         FieldUtils.writeDeclaredField(channel, "totalInactiveBrokerCleanupIgnoredCnt", 0, true);
         FieldUtils.writeDeclaredField(channel, "totalInactiveBrokerCleanupCancelledCnt", 0, true);
+    }
+
+    private void cleanMetadataState(ServiceUnitStateChannel channel) throws IllegalAccessException {
+        channel.handleMetadataSessionEvent(SessionReestablished);
+        FieldUtils.writeDeclaredField(channel, "lastMetadataSessionEventTimestamp", 0L, true);
     }
 
     private static long getCleanupMetric(ServiceUnitStateChannel channel, String metric)
