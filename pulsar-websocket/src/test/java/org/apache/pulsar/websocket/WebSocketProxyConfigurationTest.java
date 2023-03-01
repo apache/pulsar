@@ -19,9 +19,11 @@
 package org.apache.pulsar.websocket;
 
 
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.testng.annotations.Test;
+import org.testng.Assert;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -86,5 +88,19 @@ public class WebSocketProxyConfigurationTest {
         stream.close();
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 100);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
+    }
+
+    @Test
+    public void testConfigurationConversionUsedByWebSocketProxyStarter() {
+        WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
+        // Use non-default values for testing
+        config.setTlsAllowInsecureConnection(true);
+        Assert.assertFalse(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
+        config.setTlsHostnameVerificationEnabled(true);
+        ServiceConfiguration brokerConf = PulsarConfigurationLoader.convertFrom(config);
+        Assert.assertTrue(brokerConf.isTlsAllowInsecureConnection(),
+                "TlsAllowInsecureConnection should convert correctly");
+        Assert.assertTrue(brokerConf.isTlsHostnameVerificationEnabled(),
+                "TlsHostnameVerificationEnabled should convert correctly");
     }
 }
