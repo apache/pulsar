@@ -82,7 +82,8 @@ public class CompactorTool {
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
         if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
-                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+                    .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
             if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientBuilder.useKeyStoreTls(true)
                         .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
