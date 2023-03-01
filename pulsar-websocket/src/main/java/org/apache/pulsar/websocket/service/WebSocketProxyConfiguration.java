@@ -98,6 +98,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
     private String brokerClientTrustCertsFilePath = "";
 
+    // Note: name matches the ServiceConfiguration name to ensure correct mapping
+    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
+    private boolean tlsHostnameVerificationEnabled = false;
     // Number of IO threads in Pulsar Client used in WebSocket proxy
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
@@ -124,6 +127,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Path for the trusted TLS certificate file
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
+    @FieldContext(doc = "Accept untrusted TLS certificate from client and broker")
     private boolean tlsAllowInsecureConnection = false;
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.

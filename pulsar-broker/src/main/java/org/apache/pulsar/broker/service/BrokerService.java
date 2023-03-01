@@ -1150,7 +1150,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     configTlsSettings(clientBuilder, serviceUrlTls,
                             data.isBrokerClientTlsEnabledWithKeyStore(), data.isTlsAllowInsecureConnection(),
                             data.getBrokerClientTlsTrustStoreType(), data.getBrokerClientTlsTrustStore(),
-                            data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath());
+                            data.getBrokerClientTlsTrustStorePassword(), data.getBrokerClientTrustCertsFilePath(),
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                    );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
                             pulsar.getConfiguration().isBrokerClientTlsEnabledWithKeyStore(),
@@ -1158,7 +1160,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                             pulsar.getConfiguration().getBrokerClientTlsTrustStoreType(),
                             pulsar.getConfiguration().getBrokerClientTlsTrustStore(),
                             pulsar.getConfiguration().getBrokerClientTlsTrustStorePassword(),
-                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
+                            pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                    );
                 } else {
                     clientBuilder.serviceUrl(
                             isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
@@ -1184,11 +1188,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private void configTlsSettings(ClientBuilder clientBuilder, String serviceUrl,
                                    boolean brokerClientTlsEnabledWithKeyStore, boolean isTlsAllowInsecureConnection,
                                    String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
-                                   String brokerClientTlsTrustStorePassword, String brokerClientTrustCertsFilePath) {
+                                   String brokerClientTlsTrustStorePassword, String brokerClientTrustCertsFilePath,
+                                   boolean isTlsHostnameVerificationEnabled) {
         clientBuilder
                 .serviceUrl(serviceUrl)
                 .enableTls(true)
-                .allowTlsInsecureConnection(isTlsAllowInsecureConnection);
+                .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1226,7 +1233,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
-                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
+                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection())
+                            .enableTlsHostnameVerification(conf.isTlsHostnameVerificationEnabled());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())

@@ -114,6 +114,7 @@ public class CompactorTool {
                             ServiceConfigurationUtils.getAppliedAdvertisedAddress(brokerConfig, true),
                             brokerConfig.getBrokerServicePortTls().get()))
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled())
                     .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         } else {
