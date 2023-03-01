@@ -179,8 +179,8 @@ public class LocalRunner implements AutoCloseable {
     @Parameter(names = "--tlsAllowInsecureConnection", description = "Allow insecure tls connection\n",
             hidden = true, arity = 1)
     protected boolean tlsAllowInsecureConnection;
-    @Parameter(names = "--tlsHostNameVerificationEnabled", description = "Enable hostname verification", hidden = true
-            , arity = 1)
+    @Parameter(names = {"--tlsHostNameVerificationEnabled", "--tlsHostnameVerificationEnabled"},
+            description = "Enable hostname verification", hidden = true, arity = 1)
     protected boolean tlsHostNameVerificationEnabled;
     @Parameter(names = "--tlsTrustCertFilePath", description = "tls trust cert file path", hidden = true)
     protected String tlsTrustCertFilePath;

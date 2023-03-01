@@ -82,8 +82,8 @@ public class PulsarAdminTool {
         @Parameter(names = { "--tls-trust-cert-path" }, description = "Allow TLS trust cert file path")
         String tlsTrustCertsFilePath;
 
-        @Parameter(names = { "--tls-enable-hostname-verification" },
-                description = "Enable TLS common name verification")
+        @Parameter(names = { "--tls-enable-hostname-verification", "--hostname-verification-enabled" },
+                description = "Enable TLS hostname verification")
         Boolean tlsEnableHostnameVerification;
 
         @Parameter(names = {"--tls-provider"}, description = "Set up TLS provider. "

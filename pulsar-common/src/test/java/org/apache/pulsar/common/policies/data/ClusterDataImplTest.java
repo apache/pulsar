@@ -42,6 +42,7 @@ public class ClusterDataImplTest {
                 .peerClusterNames(new LinkedHashSet<>())
                 .brokerClientTlsEnabled(true)
                 .tlsAllowInsecureConnection(false)
+                .tlsHostnameVerificationEnabled(true)
                 .brokerClientTlsEnabledWithKeyStore(true)
                 .brokerClientTlsTrustStoreType("JKS")
                 .brokerClientTlsTrustStore("/my/trust/store")

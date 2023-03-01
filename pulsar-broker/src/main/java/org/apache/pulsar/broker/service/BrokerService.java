@@ -1295,6 +1295,10 @@ public class BrokerService implements Closeable {
                 }
                 String serviceUrlTls = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
                         : data.getServiceUrlTls();
+                // In the event that the zookeeper data has not been updated, allow local broker config to
+                // override the cluster config.
+                final boolean hostnameVerificationEnabled = data.isTlsHostnameVerificationEnabled()
+                        || pulsar.getConfiguration().isTlsHostnameVerificationEnabled();
                 if (data.isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
                             data.isBrokerClientTlsEnabledWithKeyStore(),
@@ -1308,7 +1312,7 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
                             data.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            hostnameVerificationEnabled
                     );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
@@ -1323,7 +1327,7 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
                             pulsar.getConfiguration().getBrokerClientKeyFilePath(),
                             pulsar.getConfiguration().getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            hostnameVerificationEnabled
                     );
                 } else {
                     clientBuilder.serviceUrl(
@@ -1432,6 +1436,10 @@ public class BrokerService implements Closeable {
                 }
                 String adminApiUrl = isTlsEnabled ? data.getServiceUrlTls() : data.getServiceUrl();
                 builder.serviceHttpUrl(adminApiUrl);
+                // In the event that the zookeeper data has not been updated, allow local broker config to
+                // override the cluster config.
+                final boolean hostnameVerificationEnabled = data.isTlsHostnameVerificationEnabled()
+                        || pulsar.getConfiguration().isTlsHostnameVerificationEnabled();
                 if (data.isBrokerClientTlsEnabled()) {
                     configAdminTlsSettings(builder,
                             data.isBrokerClientTlsEnabledWithKeyStore(),
@@ -1445,7 +1453,7 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
                             data.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            hostnameVerificationEnabled
                     );
                 } else if (conf.isBrokerClientTlsEnabled()) {
                     configAdminTlsSettings(builder,
@@ -1460,7 +1468,7 @@ public class BrokerService implements Closeable {
                             conf.getBrokerClientTrustCertsFilePath(),
                             conf.getBrokerClientKeyFilePath(),
                             conf.getBrokerClientCertificateFilePath(),
-                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                            hostnameVerificationEnabled
                     );
                 }
 
