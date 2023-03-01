@@ -50,6 +50,7 @@ import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+import org.testcontainers.shaded.org.apache.commons.lang3.mutable.MutableLong;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -258,12 +259,21 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         tracker.addMessage(111, 1011, 111 * 10);
 
+        MutableLong delayedMessagesInSnapshot = new MutableLong();
+        tracker.getImmutableBuckets().asMapOfRanges().forEach((k, v) -> {
+            delayedMessagesInSnapshot.add(v.getNumberBucketDelayedMessages());
+        });
+
         tracker.close();
 
         tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
                 true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10);
 
-        assertEquals(110, tracker.getNumberOfDelayedMessages());
+        assertEquals(tracker.getNumberOfDelayedMessages(), delayedMessagesInSnapshot.getValue());
+
+        for (int i = 1; i <= 110; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
 
         clockTime.set(110 * 10);
 
@@ -303,14 +313,18 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         tracker.addMessage(111, 1011, 111 * 10);
 
-        tracker.close();
+        MutableLong delayedMessagesInSnapshot = new MutableLong();
+        tracker.getImmutableBuckets().asMapOfRanges().forEach((k, v) -> {
+            delayedMessagesInSnapshot.add(v.getNumberBucketDelayedMessages());
+        });
 
-        clockTime.set(30 * 10);
+        tracker.close();
 
         tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
                 true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10);
 
-        assertEquals(80, tracker.getNumberOfDelayedMessages());
+        Long delayedMessagesInSnapshotValue = delayedMessagesInSnapshot.getValue();
+        assertEquals(tracker.getNumberOfDelayedMessages(), delayedMessagesInSnapshotValue);
 
         clockTime.set(110 * 10);
 
@@ -325,7 +339,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(tracker.getScheduledMessages(100).size(), 0);
 
-        assertEquals(tracker.getScheduledMessages(100).size(), 80);
+        assertEquals(tracker.getScheduledMessages(100).size(), delayedMessagesInSnapshotValue);
 
         assertTrue(mockBucketSnapshotStorage.createExceptionQueue.isEmpty());
         assertTrue(mockBucketSnapshotStorage.getMetaDataExceptionQueue.isEmpty());
