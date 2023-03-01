@@ -438,10 +438,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
-                final int lastSegmentEntryId = bucket.currentSegmentEntryId;
+                final int preSegmentEntryId = bucket.currentSegmentEntryId;
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
-                            dispatcher.getName(), bucket.bucketKey(), lastSegmentEntryId + 1);
+                            dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1);
                 }
                 // All message of current snapshot segment are scheduled, load next snapshot segment
                 // TODO make it asynchronous and not blocking this process
@@ -464,7 +464,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         if (ex != null) {
                             // Back bucket state
                             snapshotSegmentLastIndexTable.put(ledgerId, entryId, bucket);
-                            bucket.setCurrentSegmentEntryId(lastSegmentEntryId);
+                            bucket.setCurrentSegmentEntryId(preSegmentEntryId);
 
                             log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}",
                                     dispatcher.getName(), bucket.bucketKey(), ex);
