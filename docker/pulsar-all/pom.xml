@@ -144,7 +144,6 @@
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
                         </tags>
                         <args>
                           <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
