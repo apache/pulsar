@@ -340,8 +340,8 @@ The Apache Software License, Version 2.0
   * Jmxutils
     - jmxutils-1.21.jar
   * LevelDB
-    - leveldb-0.12.jar
-    - leveldb-api-0.12.jar
+    - leveldb-0.10.jar
+    - leveldb-api-0.10.jar
   * Log4j
     - log4j-api-2.18.0.jar
     - log4j-core-2.18.0.jar
