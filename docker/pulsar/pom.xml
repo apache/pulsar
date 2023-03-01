@@ -82,7 +82,6 @@
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
                         </tags>
                         <buildx>
                           <platforms>
