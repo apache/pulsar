@@ -50,6 +50,8 @@ import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+import org.testcontainers.shaded.org.apache.commons.lang3.mutable.MutableLong;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -77,6 +79,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         bucketSnapshotStorage.start();
         ManagedCursor cursor = new MockManagedCursor("my_test_cursor");
         doReturn(cursor).when(dispatcher).getCursor();
+        doReturn(cursor.getName()).when(dispatcher).getName();
 
         final String methodName = method.getName();
         return switch (methodName) {
@@ -136,7 +139,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                             new BucketDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                                     true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 50)
                     }};
-            case "testMergeSnapshot" -> new Object[][]{{
+            case "testMergeSnapshot", "testWithBkException", "testWithCreateFailDowngrade" -> new Object[][]{{
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 100000, clock,
                             true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10)
             }};
@@ -255,10 +258,122 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(10, size);
 
+        tracker.addMessage(111, 1011, 111 * 10);
+
+        MutableLong delayedMessagesInSnapshot = new MutableLong();
+        tracker.getImmutableBuckets().asMapOfRanges().forEach((k, v) -> {
+            delayedMessagesInSnapshot.add(v.getNumberBucketDelayedMessages());
+        });
+
+        tracker.close();
+
+        tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
+                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10);
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), delayedMessagesInSnapshot.getValue());
+
+        for (int i = 1; i <= 110; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
         clockTime.set(110 * 10);
 
         NavigableSet<PositionImpl> scheduledMessages = tracker.getScheduledMessages(110);
         for (int i = 1; i <= 110; i++) {
+            PositionImpl position = scheduledMessages.pollFirst();
+            assertEquals(position, PositionImpl.get(i, i));
+        }
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testWithBkException(BucketDelayedDeliveryTracker tracker) {
+        MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
+        mockBucketSnapshotStorage.injectCreateException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
+        mockBucketSnapshotStorage.injectGetMetaDataException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Get entry"));
+        mockBucketSnapshotStorage.injectDeleteException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Delete entry"));
+
+        assertEquals(1, mockBucketSnapshotStorage.createExceptionQueue.size());
+        assertEquals(1, mockBucketSnapshotStorage.getMetaDataExceptionQueue.size());
+        assertEquals(1, mockBucketSnapshotStorage.getSegmentExceptionQueue.size());
+        assertEquals(1, mockBucketSnapshotStorage.deleteExceptionQueue.size());
+
+        for (int i = 1; i <= 110; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        assertEquals(110, tracker.getNumberOfDelayedMessages());
+
+        int size = tracker.getImmutableBuckets().asMapOfRanges().size();
+
+        assertEquals(10, size);
+
+        tracker.addMessage(111, 1011, 111 * 10);
+
+        MutableLong delayedMessagesInSnapshot = new MutableLong();
+        tracker.getImmutableBuckets().asMapOfRanges().forEach((k, v) -> {
+            delayedMessagesInSnapshot.add(v.getNumberBucketDelayedMessages());
+        });
+
+        tracker.close();
+
+        tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
+                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), 10);
+
+        Long delayedMessagesInSnapshotValue = delayedMessagesInSnapshot.getValue();
+        assertEquals(tracker.getNumberOfDelayedMessages(), delayedMessagesInSnapshotValue);
+
+        clockTime.set(110 * 10);
+
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout1, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout2, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout3, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout4, op: Get entry"));
+
+        assertEquals(tracker.getScheduledMessages(100).size(), 0);
+
+        assertEquals(tracker.getScheduledMessages(100).size(), delayedMessagesInSnapshotValue);
+
+        assertTrue(mockBucketSnapshotStorage.createExceptionQueue.isEmpty());
+        assertTrue(mockBucketSnapshotStorage.getMetaDataExceptionQueue.isEmpty());
+        assertTrue(mockBucketSnapshotStorage.getSegmentExceptionQueue.isEmpty());
+        assertTrue(mockBucketSnapshotStorage.deleteExceptionQueue.isEmpty());
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testWithCreateFailDowngrade(BucketDelayedDeliveryTracker tracker) {
+        MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
+        mockBucketSnapshotStorage.injectCreateException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
+        mockBucketSnapshotStorage.injectCreateException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
+        mockBucketSnapshotStorage.injectCreateException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
+        mockBucketSnapshotStorage.injectCreateException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout, op: Create entry"));
+
+        assertEquals(4, mockBucketSnapshotStorage.createExceptionQueue.size());
+
+        for (int i = 1; i <= 6; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        Awaitility.await().untilAsserted(() -> assertEquals(0, tracker.getImmutableBuckets().asMapOfRanges().size()));
+
+        clockTime.set(5 * 10);
+
+        assertEquals(6, tracker.getNumberOfDelayedMessages());
+
+        NavigableSet<PositionImpl> scheduledMessages = tracker.getScheduledMessages(5);
+        for (int i = 1; i <= 5; i++) {
             PositionImpl position = scheduledMessages.pollFirst();
             assertEquals(position, PositionImpl.get(i, i));
         }

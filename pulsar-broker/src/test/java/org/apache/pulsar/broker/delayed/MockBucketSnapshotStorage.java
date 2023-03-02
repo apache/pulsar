@@ -23,8 +23,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
@@ -53,9 +56,35 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
         this.maxBucketId = new AtomicLong();
     }
 
+    public Queue<Throwable> createExceptionQueue = new LinkedList<>();
+    public Queue<Throwable> getMetaDataExceptionQueue = new LinkedList<>();
+    public Queue<Throwable> getSegmentExceptionQueue = new LinkedList<>();
+    public Queue<Throwable> deleteExceptionQueue = new LinkedList<>();
+
+
+    public void injectCreateException(Throwable throwable) {
+        createExceptionQueue.add(throwable);
+    }
+
+    public void injectGetMetaDataException(Throwable throwable) {
+        getMetaDataExceptionQueue.add(throwable);
+    }
+
+    public void injectGetSegmentException(Throwable throwable) {
+        getSegmentExceptionQueue.add(throwable);
+    }
+
+    public void injectDeleteException(Throwable throwable) {
+        deleteExceptionQueue.add(throwable);
+    }
+
     @Override
     public CompletableFuture<Long> createBucketSnapshot(
             SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey) {
+        Throwable throwable = createExceptionQueue.poll();
+        if (throwable != null) {
+            return FutureUtil.failedFuture(throwable);
+        }
         return CompletableFuture.supplyAsync(() -> {
             long bucketId = maxBucketId.getAndIncrement();
             List<ByteBuf> entries = new ArrayList<>();
@@ -81,6 +110,10 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
+        Throwable throwable = getMetaDataExceptionQueue.poll();
+        if (throwable != null) {
+            return FutureUtil.failedFuture(throwable);
+        }
         return CompletableFuture.supplyAsync(() -> {
             ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(0);
             SnapshotMetadata snapshotMetadata;
@@ -96,6 +129,10 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
     @Override
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
+        Throwable throwable = getSegmentExceptionQueue.poll();
+        if (throwable != null) {
+            return FutureUtil.failedFuture(throwable);
+        }
         return CompletableFuture.supplyAsync(() -> {
             List<SnapshotSegment> snapshotSegments = new ArrayList<>();
             long lastEntryId = Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
@@ -115,6 +152,10 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+        Throwable throwable = deleteExceptionQueue.poll();
+        if (throwable != null) {
+            return FutureUtil.failedFuture(throwable);
+        }
         return CompletableFuture.supplyAsync(() -> {
             List<ByteBuf> remove = this.bucketSnapshots.remove(bucketId);
             if (remove != null) {
