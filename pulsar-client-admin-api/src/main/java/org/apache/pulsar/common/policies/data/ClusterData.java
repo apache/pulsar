@@ -55,6 +55,16 @@ public interface ClusterData {
 
     String getBrokerClientTrustCertsFilePath();
 
+    String getBrokerClientCertificateFilePath();
+
+    String getBrokerClientKeyFilePath();
+
+    String getBrokerClientTlsKeyStoreType();
+
+    String getBrokerClientTlsKeyStorePassword();
+
+    String getBrokerClientTlsKeyStore();
+
     String getListenerName();
 
     interface Builder {
@@ -89,6 +99,16 @@ public interface ClusterData {
         Builder brokerClientTlsTrustStorePassword(String trustStorePassword);
 
         Builder brokerClientTrustCertsFilePath(String trustCertsFilePath);
+
+        Builder brokerClientCertificateFilePath(String certificateFilePath);
+
+        Builder brokerClientKeyFilePath(String keyFilePath);
+
+        Builder brokerClientTlsKeyStoreType(String keyStoreType);
+
+        Builder brokerClientTlsKeyStorePassword(String keyStorePassword);
+
+        Builder brokerClientTlsKeyStore(String keyStore);
 
         Builder listenerName(String listenerName);
 
