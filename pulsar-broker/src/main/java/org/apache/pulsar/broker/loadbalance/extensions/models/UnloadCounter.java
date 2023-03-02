@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.models;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Skip;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Success;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Admin;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Balanced;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.CoolDown;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBrokers;
@@ -30,11 +31,13 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.commons.lang3.mutable.MutableLong;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
 import org.apache.pulsar.common.stats.Metrics;
 
 /**
@@ -45,36 +48,63 @@ public class UnloadCounter {
     long unloadBrokerCount = 0;
     long unloadBundleCount = 0;
 
-    final Map<UnloadDecision.Label, Map<UnloadDecision.Reason, MutableLong>> breakdownCounters;
+    @Getter
+    @VisibleForTesting
+    final Map<UnloadDecision.Label, Map<UnloadDecision.Reason, AtomicLong>> breakdownCounters;
 
+    @Getter
+    @VisibleForTesting
     double loadAvg;
+    @Getter
+    @VisibleForTesting
     double loadStd;
+
+    private volatile long updatedAt = 0;
 
     public UnloadCounter() {
         breakdownCounters = Map.of(
                 Success, Map.of(
-                        Overloaded, new MutableLong(),
-                        Underloaded, new MutableLong()),
+                        Overloaded, new AtomicLong(),
+                        Underloaded, new AtomicLong(),
+                        Admin, new AtomicLong()),
                 Skip, Map.of(
-                        Balanced, new MutableLong(),
-                        NoBundles, new MutableLong(),
-                        CoolDown, new MutableLong(),
-                        OutDatedData, new MutableLong(),
-                        NoLoadData, new MutableLong(),
-                        NoBrokers, new MutableLong(),
-                        Unknown, new MutableLong()),
+                        Balanced, new AtomicLong(),
+                        NoBundles, new AtomicLong(),
+                        CoolDown, new AtomicLong(),
+                        OutDatedData, new AtomicLong(),
+                        NoLoadData, new AtomicLong(),
+                        NoBrokers, new AtomicLong(),
+                        Unknown, new AtomicLong()),
                 Failure, Map.of(
-                        Unknown, new MutableLong())
+                        Unknown, new AtomicLong())
         );
     }
 
     public void update(UnloadDecision decision) {
-        var unloads = decision.getUnloads();
-        unloadBrokerCount += unloads.keySet().size();
-        unloadBundleCount += unloads.values().size();
-        breakdownCounters.get(decision.getLabel()).get(decision.getReason()).increment();
-        loadAvg = decision.loadAvg;
-        loadStd = decision.loadStd;
+        if (decision.getLabel() == Success) {
+            unloadBundleCount++;
+        }
+        breakdownCounters.get(decision.getLabel()).get(decision.getReason()).incrementAndGet();
+        updatedAt = System.currentTimeMillis();
+    }
+
+    public void update(UnloadDecision.Label label, UnloadDecision.Reason reason) {
+        if (label == Success) {
+            unloadBundleCount++;
+        }
+        breakdownCounters.get(label).get(reason).incrementAndGet();
+        updatedAt = System.currentTimeMillis();
+    }
+
+    public void updateLoadData(double loadAvg, double loadStd) {
+        this.loadAvg = loadAvg;
+        this.loadStd = loadStd;
+        updatedAt = System.currentTimeMillis();
+    }
+
+    public void updateUnloadBrokerCount(int unloadBrokerCount) {
+        this.unloadBrokerCount += unloadBrokerCount;
+        updatedAt = System.currentTimeMillis();
     }
 
     public List<Metrics> toMetrics(String advertisedBrokerAddress) {
@@ -124,5 +154,9 @@ public class UnloadCounter {
         }
 
         return metrics;
+    }
+
+    public long updatedAt() {
+        return updatedAt;
     }
 }

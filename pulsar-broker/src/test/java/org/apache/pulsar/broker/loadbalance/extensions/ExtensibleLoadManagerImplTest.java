@@ -561,20 +561,20 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             FieldUtils.writeDeclaredField(unloadCounter, "loadStd", 0.3, true);
             FieldUtils.writeDeclaredField(unloadCounter, "breakdownCounters", Map.of(
                     Success, new LinkedHashMap<>() {{
-                        put(Overloaded, new MutableLong(1));
-                        put(Underloaded, new MutableLong(2));
+                        put(Overloaded, new AtomicLong(1));
+                        put(Underloaded, new AtomicLong(2));
                     }},
                     Skip, new LinkedHashMap<>() {{
-                        put(Balanced, new MutableLong(3));
-                        put(NoBundles, new MutableLong(4));
-                        put(CoolDown, new MutableLong(5));
-                        put(OutDatedData, new MutableLong(6));
-                        put(NoLoadData, new MutableLong(7));
-                        put(NoBrokers, new MutableLong(8));
-                        put(Unknown, new MutableLong(9));
+                        put(Balanced, new AtomicLong(3));
+                        put(NoBundles, new AtomicLong(4));
+                        put(CoolDown, new AtomicLong(5));
+                        put(OutDatedData, new AtomicLong(6));
+                        put(NoLoadData, new AtomicLong(7));
+                        put(NoBrokers, new AtomicLong(8));
+                        put(Unknown, new AtomicLong(9));
                     }},
                     Failure, Map.of(
-                            Unknown, new MutableLong(10))
+                            Unknown, new AtomicLong(10))
             ), true);
             unloadMetrics.set(unloadCounter.toMetrics(pulsar.getAdvertisedAddress()));
         }

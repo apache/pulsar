@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Success;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Admin;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Follower;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
 import com.google.common.annotations.VisibleForTesting;
@@ -204,8 +206,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 });
         this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
         this.brokerRegistry.start();
-        this.unloadManager = new UnloadManager();
         this.splitManager = new SplitManager(splitCounter);
+        this.unloadManager = new UnloadManager(unloadCounter);
         this.serviceUnitStateChannel.listen(unloadManager);
         this.serviceUnitStateChannel.listen(splitManager);
         this.leaderElectionService.start();
@@ -265,7 +267,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         interval, TimeUnit.MILLISECONDS);
 
         this.unloadScheduler = new UnloadScheduler(
-                pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel);
+                pulsar, pulsar.getLoadManagerExecutor(), unloadManager,
+                context, serviceUnitStateChannel, unloadCounter, unloadMetrics);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
                 pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
@@ -401,16 +404,21 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         log.warn(msg);
                         throw new IllegalArgumentException(msg);
                     }
-                    return unloadAsync(new Unload(sourceBroker, bundle.toString(), destinationBroker),
+                    Unload unload = new Unload(sourceBroker, bundle.toString(), destinationBroker);
+                    UnloadDecision unloadDecision =
+                            new UnloadDecision(unload, Success, Admin);
+                    return unloadAsync(unloadDecision,
                             conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
                 });
     }
 
-    private CompletableFuture<Void> unloadAsync(Unload unload,
+    private CompletableFuture<Void> unloadAsync(UnloadDecision unloadDecision,
                                                long timeout,
                                                TimeUnit timeoutUnit) {
+        Unload unload = unloadDecision.getUnload();
         CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
-        return unloadManager.waitAsync(future, unload.serviceUnit(), timeout, timeoutUnit);
+        return unloadManager.waitAsync(future, unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
+                .thenRun(() -> unloadCounter.updateUnloadBrokerCount(1));
     }
 
     @Override
