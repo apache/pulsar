@@ -39,7 +39,7 @@ public class BrokerOperabilityMetrics {
     private final LongAdder connectionCreateFailCount;
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
-    private final Counter topicLoadFailed = Counter.build("topic_load_failed", "-").register();
+    private static final Counter topicLoadFailed = Counter.build("topic_load_failed", "-").register();
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
