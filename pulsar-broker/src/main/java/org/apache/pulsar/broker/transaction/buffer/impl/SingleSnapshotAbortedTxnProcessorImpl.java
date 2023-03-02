@@ -58,7 +58,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotService().getReferenceWriter(TopicName.get(topic.getName()));
+                .getTxnBufferSnapshotService().getReferenceWriter(TopicName.get(topic.getName()).getNamespaceObject());
         this.takeSnapshotWriter.getFuture().exceptionally((ex) -> {
                     log.error("{} Failed to create snapshot writer", topic.getName());
                     topic.close();
