@@ -418,13 +418,16 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
      * by {@param itemAfterTerminatedHandler}.
      */
     public void terminate(@Nullable Consumer<T> itemAfterTerminatedHandler) {
-        terminated = true;
-        if (itemAfterTerminatedHandler != null) {
-            this.itemAfterTerminatedHandler = itemAfterTerminatedHandler;
-        }
         // After wait for the in-flight item enqueue, it means the operation of terminate is finished.
         long stamp = tailLock.writeLock();
-        tailLock.unlockWrite(stamp);
+        try {
+            terminated = true;
+            if (itemAfterTerminatedHandler != null) {
+                this.itemAfterTerminatedHandler = itemAfterTerminatedHandler;
+            }
+        } finally {
+            tailLock.unlockWrite(stamp);
+        }
     }
 
     public boolean isTerminated() {
