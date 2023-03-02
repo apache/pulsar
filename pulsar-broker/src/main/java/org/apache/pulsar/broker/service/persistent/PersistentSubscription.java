@@ -126,6 +126,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
+    private volatile CompletableFuture<Void> fenceFuture;
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -897,7 +898,13 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      */
     @Override
     public synchronized CompletableFuture<Void> disconnect() {
-        CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+        if (fenceFuture != null && !fenceFuture.isDone()){
+            return fenceFuture;
+        }
+        if (fenceFuture != null && fenceFuture.isDone() && !fenceFuture.isCompletedExceptionally()){
+            return fenceFuture;
+        }
+        fenceFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
@@ -905,7 +912,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
                 .thenCompose(v -> close()).thenRun(() -> {
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
-                    disconnectFuture.complete(null);
+                    fenceFuture.complete(null);
                 }).exceptionally(exception -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
@@ -913,11 +920,32 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     }
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
-                    disconnectFuture.completeExceptionally(exception);
+                    fenceFuture.completeExceptionally(exception);
                     return null;
                 });
 
-        return disconnectFuture;
+        return fenceFuture;
+    }
+
+    /**
+     * Resume subscription after topic deletion or close failure.
+     */
+    public synchronized CompletableFuture<Void> resumeAfterFence() {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        fenceFuture.whenComplete((ignore, ignore2) -> {
+            try {
+                if (IS_FENCED_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                    if (dispatcher != null) {
+                        dispatcher.reset();
+                    }
+                }
+                result.complete(null);
+            } catch (Exception ex){
+                result.completeExceptionally(ex);
+                log.error("[{}] Resume subscription[{}] failure: {}", topicName, subName, ex.getMessage(), ex);
+            }
+        });
+        return result;
     }
 
     /**
