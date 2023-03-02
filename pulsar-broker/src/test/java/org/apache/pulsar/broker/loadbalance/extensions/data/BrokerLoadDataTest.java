@@ -59,7 +59,7 @@ public class BrokerLoadDataTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        data.update(usage1, 1, 2, 3, 4, 5, conf);
+        data.update(usage1, 1, 2, 3, 4, 5, 6, conf);
         
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
@@ -71,6 +71,7 @@ public class BrokerLoadDataTest {
         assertEquals(data.getMsgRateIn(), 3.0);
         assertEquals(data.getMsgRateOut(), 4.0);
         assertEquals(data.getBundleCount(), 5);
+        assertEquals(data.getTopics(), 6);
         assertEquals(data.getMaxResourceUsage(), 0.04); // skips memory usage
         assertEquals(data.getWeightedMaxEMA(), 2);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
@@ -87,7 +88,7 @@ public class BrokerLoadDataTest {
         usage2.setDirectMemory(directMemory);
         usage2.setBandwidthIn(bandwidthIn);
         usage2.setBandwidthOut(bandwidthOut);
-        data.update(usage2, 5, 6, 7, 8, 9, conf);
+        data.update(usage2, 5, 6, 7, 8, 9, 10, conf);
 
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
@@ -99,6 +100,7 @@ public class BrokerLoadDataTest {
         assertEquals(data.getMsgRateIn(), 7.0);
         assertEquals(data.getMsgRateOut(), 8.0);
         assertEquals(data.getBundleCount(), 9);
+        assertEquals(data.getTopics(), 10);
         assertEquals(data.getMaxResourceUsage(), 3.0);
         assertEquals(data.getWeightedMaxEMA(), 1.875);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
@@ -137,7 +139,7 @@ public class BrokerLoadDataTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        other.update(usage1, 1, 2, 3, 4, 5, conf);
+        other.update(usage1, 1, 2, 3, 4, 5, 6, conf);
         data.update(other);
 
         assertEquals(data, other);

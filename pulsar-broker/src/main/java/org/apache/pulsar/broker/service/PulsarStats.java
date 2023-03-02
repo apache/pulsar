@@ -132,6 +132,7 @@ public class PulsarStats implements Closeable {
                                 k -> new NamespaceBundleStats());
                         currentBundleStats.reset();
                         currentBundleStats.topics = topics.size();
+                        brokerStats.topics += topics.size();
 
                         topicStatsStream.startObject(NamespaceBundle.getBundleRange(bundle));
 

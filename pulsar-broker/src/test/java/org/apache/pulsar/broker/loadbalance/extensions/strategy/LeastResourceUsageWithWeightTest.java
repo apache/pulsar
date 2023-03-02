@@ -168,7 +168,7 @@ public class LeastResourceUsageWithWeightTest {
     private BrokerLoadData createBrokerData(LoadManagerContext ctx, double usage, double limit) {
         var brokerLoadData = new BrokerLoadData();
         SystemResourceUsage usages = createUsage(usage, limit);
-        brokerLoadData.update(usages, 1, 1, 1, 1, 1,
+        brokerLoadData.update(usages, 1, 1, 1, 1, 1, 1,
                 ctx.brokerConfiguration());
         return brokerLoadData;
     }
@@ -185,7 +185,7 @@ public class LeastResourceUsageWithWeightTest {
 
     private void updateLoad(LoadManagerContext ctx, String broker, double usage) {
         ctx.brokerLoadDataStore().get(broker).get().update(createUsage(usage, 100.0),
-                1, 1, 1, 1, 1, ctx.brokerConfiguration());
+                1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
     public static LoadManagerContext getContext() {

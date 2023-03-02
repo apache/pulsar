@@ -57,6 +57,7 @@ public class BrokerLoadData {
     private double msgRateIn; // messages/sec
     private double msgRateOut; // messages/sec
     private int bundleCount;
+    private int topics;
 
     // Load data features computed from the above resources.
     private double maxResourceUsage; // max of resource usages
@@ -113,6 +114,7 @@ public class BrokerLoadData {
                        double msgRateIn,
                        double msgRateOut,
                        int bundleCount,
+                       int topics,
                        ServiceConfiguration conf) {
         updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
         this.msgThroughputIn = msgThroughputIn;
@@ -120,6 +122,7 @@ public class BrokerLoadData {
         this.msgRateIn = msgRateIn;
         this.msgRateOut = msgRateOut;
         this.bundleCount = bundleCount;
+        this.topics = topics;
         updateFeatures(conf);
         updatedAt = System.currentTimeMillis();
     }
@@ -137,6 +140,7 @@ public class BrokerLoadData {
         msgRateIn = other.msgRateIn;
         msgRateOut = other.msgRateOut;
         bundleCount = other.bundleCount;
+        topics = other.topics;
         weightedMaxEMA = other.weightedMaxEMA;
         maxResourceUsage = other.maxResourceUsage;
         updatedAt = other.updatedAt;
