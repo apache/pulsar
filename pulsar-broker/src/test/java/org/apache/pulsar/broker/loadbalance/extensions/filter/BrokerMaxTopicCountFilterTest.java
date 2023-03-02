@@ -32,10 +32,10 @@ import java.util.Map;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit test for {@link LargeTopicCountFilter}.
+ * Unit test for {@link BrokerMaxTopicCountFilter}.
  */
 @Test(groups = "broker")
-public class LargeTopicCountFilterTest extends BrokerFilterTestBase {
+public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
 
     @Test
     public void test() throws IllegalAccessException, BrokerFilterException {
@@ -51,7 +51,7 @@ public class LargeTopicCountFilterTest extends BrokerFilterTestBase {
         store.pushAsync("broker2", new BrokerLoadData());
         store.pushAsync("broker3", exceedMaxTopicLoadData);
 
-        LargeTopicCountFilter filter = new LargeTopicCountFilter();
+        BrokerMaxTopicCountFilter filter = new BrokerMaxTopicCountFilter();
         Map<String, BrokerLookupData> originalBrokers = Map.of(
                 "broker1", getLookupData(),
                 "broker2", getLookupData(),

@@ -25,9 +25,9 @@ import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 
-public class LargeTopicCountFilter implements BrokerFilter {
+public class BrokerMaxTopicCountFilter implements BrokerFilter {
 
-    public static final String FILTER_NAME = "large_topic_count_filter";
+    public static final String FILTER_NAME = "broker_max_topic_count_filter";
 
     @Override
     public String name() {
