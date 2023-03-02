@@ -1533,8 +1533,10 @@ public class TransactionTest extends TransactionTestBase {
                 = mock(SystemTopicTxnBufferSnapshotService.class);
         SystemTopicClient.Writer<TransactionBufferSnapshot> writer = mock(SystemTopicClient.Writer.class);
         when(writer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
-        when(systemTopicTxnBufferSnapshotService.createWriter(any()))
-                .thenReturn(CompletableFuture.completedFuture(writer));
+        ReferenceCountedWriter<TransactionBufferSnapshot> refCounterWriter = mock(ReferenceCountedWriter.class);
+        doReturn(CompletableFuture.completedFuture(writer)).when(refCounterWriter).getFuture();
+        when(systemTopicTxnBufferSnapshotService.getReferenceWriter(any()))
+                .thenReturn(refCounterWriter);
         TransactionBufferSnapshotServiceFactory transactionBufferSnapshotServiceFactory =
                 mock(TransactionBufferSnapshotServiceFactory.class);
         when(transactionBufferSnapshotServiceFactory.getTxnBufferSnapshotService())

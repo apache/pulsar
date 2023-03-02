@@ -706,7 +706,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 new TransactionBufferSnapshotServiceFactory(pulsarClient).getTxnBufferSnapshotIndexService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotIndexes> indexesWriter =
-                transactionBufferSnapshotIndexService.createWriter(TopicName.get(SNAPSHOT_INDEX)).get();
+                transactionBufferSnapshotIndexService.getReferenceWriter(
+                        TopicName.get(SNAPSHOT_INDEX)).getFuture().get();
 
         SystemTopicClient.Reader<TransactionBufferSnapshotIndexes> indexesReader =
                 transactionBufferSnapshotIndexService.createReader(TopicName.get(SNAPSHOT_INDEX)).get();
@@ -767,7 +768,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 new TransactionBufferSnapshotServiceFactory(pulsarClient).getTxnBufferSnapshotSegmentService();
 
         SystemTopicClient.Writer<TransactionBufferSnapshotSegment>
-                segmentWriter = transactionBufferSnapshotSegmentService.createWriter(snapshotSegmentTopicName).get();
+                segmentWriter = transactionBufferSnapshotSegmentService
+                .getReferenceWriter(snapshotSegmentTopicName).getFuture().get();
 
         // write two snapshot to snapshot segment topic
         TransactionBufferSnapshotSegment snapshot =

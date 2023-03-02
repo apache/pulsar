@@ -181,7 +181,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     public synchronized CompletableFuture<Void> closeAsync() {
         if (!isClosed) {
             isClosed = true;
-            takeSnapshotWriter.close();
+            takeSnapshotWriter.release();
         }
         return CompletableFuture.completedFuture(null);
     }

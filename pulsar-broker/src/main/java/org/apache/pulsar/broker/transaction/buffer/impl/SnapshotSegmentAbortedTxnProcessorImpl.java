@@ -443,10 +443,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         private final PersistentTopic topic;
 
         //Persistent snapshot segment and index at the single thread.
-        private final ReferenceCountedWriter<TransactionBufferSnapshotSegment>
-                snapshotSegmentsWriterFuture;
-        private final ReferenceCountedWriter<TransactionBufferSnapshotIndexes>
-                snapshotIndexWriterFuture;
+        private final ReferenceCountedWriter<TransactionBufferSnapshotSegment> snapshotSegmentsWriter;
+        private final ReferenceCountedWriter<TransactionBufferSnapshotIndexes> snapshotIndexWriter;
 
         private volatile boolean closed = false;
 
@@ -473,18 +471,18 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         public PersistentWorker(PersistentTopic topic) {
             this.topic = topic;
-            this.snapshotSegmentsWriterFuture = this.topic.getBrokerService().getPulsar()
+            this.snapshotSegmentsWriter = this.topic.getBrokerService().getPulsar()
                     .getTransactionBufferSnapshotServiceFactory()
                     .getTxnBufferSnapshotSegmentService().getReferenceWriter(TopicName.get(topic.getName()));
-            this.snapshotSegmentsWriterFuture.getFuture().exceptionally(ex -> {
+            this.snapshotSegmentsWriter.getFuture().exceptionally(ex -> {
                         log.error("{} Failed to create snapshot index writer", topic.getName());
                         topic.close();
                         return null;
                     });
-            this.snapshotIndexWriterFuture =  this.topic.getBrokerService().getPulsar()
+            this.snapshotIndexWriter =  this.topic.getBrokerService().getPulsar()
                     .getTransactionBufferSnapshotServiceFactory()
                     .getTxnBufferSnapshotIndexService().getReferenceWriter(TopicName.get(topic.getName()));
-            this.snapshotIndexWriterFuture.getFuture().exceptionally((ex) -> {
+            this.snapshotIndexWriter.getFuture().exceptionally((ex) -> {
                         log.error("{} Failed to create snapshot writer", topic.getName());
                         topic.close();
                         return null;
@@ -634,7 +632,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             transactionBufferSnapshotSegment.setPersistentPositionLedgerId(
                     abortedMarkerPersistentPosition.getLedgerId());
 
-            return snapshotSegmentsWriterFuture.getFuture().thenCompose(segmentWriter -> {
+            return snapshotSegmentsWriter.getFuture().thenCompose(segmentWriter -> {
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());
                 return segmentWriter.writeAsync(buildKey(this.sequenceID.get()), transactionBufferSnapshotSegment);
             }).thenCompose((messageId) -> {
@@ -671,7 +669,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
             List<CompletableFuture<Void>> results = new ArrayList<>();
             for (PositionImpl positionNeedToDelete : positionNeedToDeletes) {
                 long sequenceIdNeedToDelete = indexes.get(positionNeedToDelete).getSequenceID();
-                CompletableFuture<Void> res = snapshotSegmentsWriterFuture.getFuture()
+                CompletableFuture<Void> res = snapshotSegmentsWriter.getFuture()
                         .thenCompose(writer -> writer.deleteAsync(buildKey(sequenceIdNeedToDelete), null))
                         .thenCompose(messageId -> {
                             if (log.isDebugEnabled()) {
@@ -698,7 +696,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
-            CompletableFuture<Void> res = snapshotIndexWriterFuture.getFuture()
+            CompletableFuture<Void> res = snapshotIndexWriter.getFuture()
                     .thenCompose((indexesWriter) -> {
                         snapshotIndexes.setIndexList(indexes.values().stream().toList());
                         snapshotIndexes.setSnapshot(snapshotSegment);
@@ -715,7 +713,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> clearSnapshotSegmentAndIndexes() {
             CompletableFuture<Void> res = persistentWorker.clearAllSnapshotSegments()
-                    .thenCompose((ignore) -> snapshotIndexWriterFuture.getFuture()
+                    .thenCompose((ignore) -> snapshotIndexWriter.getFuture()
                             .thenCompose(indexesWriter -> indexesWriter.writeAsync(topic.getName(), null)))
                     .thenRun(() ->
                             log.debug("Successes to clear the snapshot segment and indexes for the topic [{}]",
@@ -750,7 +748,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                                 Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
                                         .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
                                 if (topic.getName().equals(message.getValue().getTopicName())) {
-                                   snapshotSegmentsWriterFuture.getFuture().get().write(message.getKey(), null);
+                                   snapshotSegmentsWriter.getFuture().get().write(message.getKey(), null);
                                 }
                             }
                             return CompletableFuture.completedFuture(null);
@@ -766,8 +764,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
         synchronized CompletableFuture<Void> closeAsync() {
             if (!closed) {
                 closed = true;
-                this.snapshotIndexWriterFuture.close();
-                this.snapshotSegmentsWriterFuture.close();
+                snapshotSegmentsWriter.release();
+                snapshotIndexWriter.release();
             }
             return CompletableFuture.completedFuture(null);
         }

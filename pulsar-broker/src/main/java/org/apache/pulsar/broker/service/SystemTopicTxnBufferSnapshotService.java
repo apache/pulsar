@@ -70,41 +70,27 @@ public class SystemTopicTxnBufferSnapshotService<T> {
             return future;
         }
 
-        private void retain() {
-            operationValidate(true);
-            this.referenceCount.incrementAndGet();
+        private synchronized boolean retain() {
+            return this.referenceCount.incrementAndGet() > 0;
         }
 
-        private long release() {
-            operationValidate(false);
-            return this.referenceCount.decrementAndGet();
-        }
-
-        private void operationValidate(boolean isRetain) {
-            if (this.referenceCount.get() == 0) {
-                throw new RuntimeException(
-                        "[" + namespaceName + "] The reference counted transaction buffer snapshot writer couldn't "
-                                + "be " + (isRetain ? "retained" : "released") + ", refCnt is 0.");
-            }
-        }
-
-        public void close() {
-            if (release() == 0) {
+        public synchronized void release() {
+            if (this.referenceCount.decrementAndGet() <= 0) {
                 snapshotService.refCountedWriterMap.remove(namespaceName, this);
                 future.thenAccept(writer -> {
                     final String topicName = writer.getSystemTopicClient().getTopicName().toString();
                     writer.closeAsync().exceptionally(t -> {
                         if (t != null) {
-                            log.error("[{}] Failed to close writer.", topicName, t);
+                            log.error("[{}] Failed to close TB snapshot writer.", topicName, t);
                         } else {
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Success to close writer.", topicName);
+                                log.debug("[{}] Success to close TB snapshot writer.", topicName);
                             }
                         }
                         return null;
                     });
                 });
-            }
+            };
         }
 
     }
@@ -116,10 +102,6 @@ public class SystemTopicTxnBufferSnapshotService<T> {
         this.schemaType = schemaType;
         this.clients = new ConcurrentHashMap<>();
         this.refCountedWriterMap = new ConcurrentHashMap<>();
-    }
-
-    public CompletableFuture<SystemTopicClient.Writer<T>> createWriter(TopicName topicName) {
-        return getTransactionBufferSystemTopicClient(topicName).newWriterAsync();
     }
 
     public CompletableFuture<SystemTopicClient.Reader<T>> createReader(TopicName topicName) {
@@ -135,13 +117,12 @@ public class SystemTopicTxnBufferSnapshotService<T> {
 
     public ReferenceCountedWriter<T> getReferenceWriter(TopicName topicName) {
         return refCountedWriterMap.compute(topicName.getNamespaceObject(), (k, v) -> {
-            if (v == null) {
+            if (v != null && v.retain()) {
+                return v;
+            } else {
                 return new ReferenceCountedWriter<>(topicName.getNamespaceObject(),
                         getTransactionBufferSystemTopicClient(topicName).newWriterAsync(), this);
-            } else {
-                v.retain();
             }
-            return v;
         });
     }
 
