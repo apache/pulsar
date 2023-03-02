@@ -132,18 +132,18 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public void put(T e) {
-        if (terminated){
-            if (itemAfterTerminatedHandler != null) {
-                itemAfterTerminatedHandler.accept(e);
-            }
-            return;
-        }
-
         long stamp = tailLock.writeLock();
 
         boolean wasEmpty = false;
 
         try {
+            if (terminated){
+                if (itemAfterTerminatedHandler != null) {
+                    itemAfterTerminatedHandler.accept(e);
+                }
+                return;
+            }
+
             if (SIZE_UPDATER.get(this) == data.length) {
                 expandArray();
             }
