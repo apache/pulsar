@@ -42,6 +42,8 @@ abstract class Bucket {
     static final String DELIMITER = "_";
     static final int MaxRetryTimes = 3;
 
+    protected final String dispatcherName;
+
     protected final ManagedCursor cursor;
     protected final BucketSnapshotStorage bucketSnapshotStorage;
 
@@ -54,17 +56,18 @@ abstract class Bucket {
 
     int lastSegmentEntryId;
 
-    int currentSegmentEntryId;
+    volatile int currentSegmentEntryId;
 
-    long snapshotLength;
+    volatile long snapshotLength;
 
     private volatile Long bucketId;
 
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
 
-    Bucket(ManagedCursor cursor, BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        this(cursor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
+    Bucket(String dispatcherName, ManagedCursor cursor,
+           BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
+        this(dispatcherName, cursor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -126,13 +129,19 @@ abstract class Bucket {
             ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
             List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
-        return bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
-                .thenCompose(newBucketId -> {
+        return executeWithRetry(
+                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
+                        .whenComplete((__, ex) -> {
+                            if (ex != null) {
+                                log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
+                                        dispatcherName, bucketKey, ex);
+                            }
+                        }), BucketSnapshotPersistenceException.class, MaxRetryTimes).thenCompose(newBucketId -> {
                     bucket.setBucketId(newBucketId);
 
                     return putBucketKeyId(bucketKey, newBucketId).exceptionally(ex -> {
-                        log.warn("Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
-                                bucketKey, bucketId);
+                        log.warn("[{}] Failed to record bucketId to cursor property, bucketKey: {}, bucketId: {}",
+                                dispatcherName, bucketKey, newBucketId, ex);
                         return null;
                     }).thenApply(__ -> newBucketId);
                 });

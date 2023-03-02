@@ -27,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
@@ -73,6 +74,11 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();
+
+        if (this.pulsarSourceConfig.getSkipToLatest() != null && this.pulsarSourceConfig.getSkipToLatest()) {
+            consumer.seek(MessageId.latest);
+        }
+
         inputConsumers.add(consumer);
     }
 

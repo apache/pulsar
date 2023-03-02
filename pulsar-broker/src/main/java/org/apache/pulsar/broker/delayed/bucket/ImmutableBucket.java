@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.AsyncOperationTimeoutSeconds;
 import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
@@ -40,8 +41,17 @@ import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
 @Slf4j
 class ImmutableBucket extends Bucket {
-    ImmutableBucket(ManagedCursor cursor, BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        super(cursor, storage, startLedgerId, endLedgerId);
+
+    @Setter
+    private volatile List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
+
+    ImmutableBucket(String dispatcherName, ManagedCursor cursor,
+                    BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
+        super(dispatcherName, cursor, storage, startLedgerId, endLedgerId);
+    }
+
+    public Optional<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getSnapshotSegments() {
+        return Optional.ofNullable(snapshotSegments);
     }
 
     CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry() {
@@ -54,61 +64,65 @@ class ImmutableBucket extends Bucket {
 
     private CompletableFuture<List<DelayedIndex>> asyncLoadNextBucketSnapshotEntry(boolean isRecover,
                                                                                    Supplier<Long> cutoffTimeSupplier) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Load next bucket snapshot data, bucket: {}", cursor.getName(), this);
+        final long bucketId = getAndUpdateBucketId();
+        final CompletableFuture<Integer> loadMetaDataFuture;
+        if (isRecover) {
+            final long cutoffTime = cutoffTimeSupplier.get();
+            // Load Metadata of bucket snapshot
+            final String bucketKey = bucketKey();
+            loadMetaDataFuture = executeWithRetry(() -> bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
+                    .whenComplete((___, ex) -> {
+                        if (ex != null) {
+                            log.warn("[{}] Failed to get bucket snapshot metadata,"
+                                            + " bucketKey: {}, bucketId: {}",
+                                    dispatcherName, bucketKey, bucketId, ex);
+                        }
+                    }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                    .thenApply(snapshotMetadata -> {
+                        List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata> metadataList =
+                                snapshotMetadata.getMetadataListList();
+
+                        // Skip all already reach schedule time snapshot segments
+                        int nextSnapshotEntryIndex = 0;
+                        while (nextSnapshotEntryIndex < metadataList.size()
+                                && metadataList.get(nextSnapshotEntryIndex).getMaxScheduleTimestamp() <= cutoffTime) {
+                            nextSnapshotEntryIndex++;
+                        }
+
+                        this.setLastSegmentEntryId(metadataList.size());
+                        this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
+
+                        return nextSnapshotEntryIndex + 1;
+                    });
+        } else {
+            loadMetaDataFuture = CompletableFuture.completedFuture(currentSegmentEntryId + 1);
         }
 
-        // Wait bucket snapshot create finish
-        CompletableFuture<Void> snapshotCreateFuture =
-                getSnapshotCreateFuture().orElseGet(() -> CompletableFuture.completedFuture(null))
-                        .thenApply(__ -> null);
-
-        return snapshotCreateFuture.thenCompose(__ -> {
-            final long bucketId = getAndUpdateBucketId();
-            final CompletableFuture<Integer> loadMetaDataFuture;
-            if (isRecover) {
-                final long cutoffTime = cutoffTimeSupplier.get();
-                // Load Metadata of bucket snapshot
-                loadMetaDataFuture = bucketSnapshotStorage.getBucketSnapshotMetadata(bucketId)
-                        .thenApply(snapshotMetadata -> {
-                    List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata> metadataList =
-                            snapshotMetadata.getMetadataListList();
-
-                    // Skip all already reach schedule time snapshot segments
-                    int nextSnapshotEntryIndex = 0;
-                    while (nextSnapshotEntryIndex < metadataList.size()
-                            && metadataList.get(nextSnapshotEntryIndex).getMaxScheduleTimestamp() <= cutoffTime) {
-                        nextSnapshotEntryIndex++;
-                    }
-
-                    this.setLastSegmentEntryId(metadataList.size());
-                    this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
-
-                    return nextSnapshotEntryIndex + 1;
-                });
-            } else {
-                loadMetaDataFuture = CompletableFuture.completedFuture(currentSegmentEntryId + 1);
+        return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
+            if (nextSegmentEntryId > lastSegmentEntryId) {
+                return CompletableFuture.completedFuture(null);
             }
 
-            return loadMetaDataFuture.thenCompose(nextSegmentEntryId -> {
-                if (nextSegmentEntryId > lastSegmentEntryId) {
-                    return CompletableFuture.completedFuture(null);
-                }
+            return executeWithRetry(
+                    () -> bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId,
+                            nextSegmentEntryId).whenComplete((___, ex) -> {
+                        if (ex != null) {
+                            log.warn("[{}] Failed to get bucket snapshot segment. bucketKey: {}, bucketId: {}",
+                                    dispatcherName, bucketKey(), bucketId, ex);
+                        }
+                    }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                    .thenApply(bucketSnapshotSegments -> {
+                        if (CollectionUtils.isEmpty(bucketSnapshotSegments)) {
+                            return Collections.emptyList();
+                        }
 
-                return bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId, nextSegmentEntryId)
-                        .thenApply(bucketSnapshotSegments -> {
-                            if (CollectionUtils.isEmpty(bucketSnapshotSegments)) {
-                                return Collections.emptyList();
-                            }
-
-                            DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment snapshotSegment =
-                                    bucketSnapshotSegments.get(0);
-                            List<DelayedMessageIndexBucketSnapshotFormat.DelayedIndex> indexList =
-                                    snapshotSegment.getIndexesList();
-                            this.setCurrentSegmentEntryId(nextSegmentEntryId);
-                            return indexList;
-                        });
-            });
+                        DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment snapshotSegment =
+                                bucketSnapshotSegments.get(0);
+                        List<DelayedMessageIndexBucketSnapshotFormat.DelayedIndex> indexList =
+                                snapshotSegment.getIndexesList();
+                        this.setCurrentSegmentEntryId(nextSegmentEntryId);
+                        return indexList;
+                    });
         });
     }
 
@@ -134,18 +148,38 @@ class ImmutableBucket extends Bucket {
     }
 
     CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
-        return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), currentSegmentEntryId,
-                lastSegmentEntryId);
+        int nextSegmentEntryId = currentSegmentEntryId + 1;
+        if (nextSegmentEntryId > lastSegmentEntryId) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+        return executeWithRetry(() -> {
+            return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
+                    lastSegmentEntryId).whenComplete((__, ex) -> {
+                if (ex != null) {
+                    log.warn("[{}] Failed to get remain bucket snapshot segment, bucketKey: {}.",
+                            dispatcherName, bucketKey(), ex);
+                }
+            });
+        }, BucketSnapshotPersistenceException.class, MaxRetryTimes);
     }
 
     CompletableFuture<Void> asyncDeleteBucketSnapshot() {
         String bucketKey = bucketKey();
         long bucketId = getAndUpdateBucketId();
         return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
-                bucketSnapshotStorage.deleteBucketSnapshot(bucketId)).whenComplete((__, ex) -> {
+                executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId).whenComplete((___, ex) -> {
+                            if (ex != null) {
+                                log.warn("[{}] Failed to delete bucket snapshot. bucketKey: {}, bucketId: {}",
+                                        dispatcherName, bucketKey, bucketId, ex);
+                            }
+                        }),
+                        BucketSnapshotPersistenceException.class, MaxRetryTimes)).whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.warn("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                                bucketId, bucketKey, ex);
+                        log.warn("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                dispatcherName, bucketId, bucketKey, ex);
+                    } else {
+                        log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
+                                 dispatcherName, bucketId, bucketKey);
                     }
         });
     }
@@ -155,9 +189,19 @@ class ImmutableBucket extends Bucket {
         getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
             if (delete) {
                 snapshotGenerateFuture.cancel(true);
+                String bucketKey = bucketKey();
+                long bucketId = getAndUpdateBucketId();
                 try {
-                    asyncDeleteBucketSnapshot().get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                    // Because bucketSnapshotStorage.deleteBucketSnapshot may be use the same thread with clear,
+                    // so we can't block deleteBucketSnapshot when clearing the bucket snapshot.
+                    removeBucketCursorProperty(bucketKey())
+                            .thenApply(__ -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId).exceptionally(ex -> {
+                                log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                        bucketId, bucketKey, ex);
+                                return null;
+                            })).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+                } catch (Exception e) {
+                    log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}", bucketId, bucketKey, e);
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
@@ -167,8 +211,8 @@ class ImmutableBucket extends Bucket {
                 try {
                     snapshotGenerateFuture.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
                 } catch (Exception e) {
-                    log.warn("Failed wait to snapshot generate, bucketId: {}, bucketKey: {}", getBucketId(),
-                            bucketKey());
+                    log.warn("[{}] Failed wait to snapshot generate, bucketId: {}, bucketKey: {}", dispatcherName,
+                            getBucketId(), bucketKey());
                 }
             }
         });

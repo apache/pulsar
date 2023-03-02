@@ -137,7 +137,7 @@ public class TopicStatsImpl implements TopicStats {
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
     /** The size of InMemoryDelayedDeliveryTracer memory usage. */
-    public int delayedMessageIndexSizeInBytes;
+    public long delayedMessageIndexSizeInBytes;
 
     /** The compaction stats. */
     public CompactionStatsImpl compaction;

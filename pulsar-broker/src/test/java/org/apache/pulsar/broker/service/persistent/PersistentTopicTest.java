@@ -24,12 +24,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -39,8 +41,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -48,7 +48,15 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -331,10 +339,14 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         int topicLevelNum = 0;
         int namespaceLevelNum = 0;
+        int subscriptionLevelNum = 0;
         for (PrometheusMetricsTest.Metric metric : metrics) {
             if (exposeTopicLevelMetrics && metric.tags.get("topic").equals(topic)) {
                 Assert.assertTrue(metric.value > 0);
                 topicLevelNum++;
+                if ("test_sub".equals(metric.tags.get("subscription"))) {
+                    subscriptionLevelNum++;
+                }
             } else if (!exposeTopicLevelMetrics && metric.tags.get("namespace").equals(namespace)) {
                 Assert.assertTrue(metric.value > 0);
                 namespaceLevelNum++;
@@ -343,11 +355,16 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         if (exposeTopicLevelMetrics) {
             Assert.assertTrue(topicLevelNum > 0);
+            Assert.assertTrue(subscriptionLevelNum > 0);
             Assert.assertEquals(0, namespaceLevelNum);
         } else {
             Assert.assertTrue(namespaceLevelNum > 0);
             Assert.assertEquals(topicLevelNum, 0);
         }
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertTrue(stats.getSubscriptions().get("test_sub").getDelayedMessageIndexSizeInBytes() > 0);
+        assertTrue(stats.getDelayedMessageIndexSizeInBytes() > 0);
     }
 
     @Test

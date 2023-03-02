@@ -213,7 +213,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
 
     CompletableFuture<Channel> initializeClientCnx(Channel ch,
                                                    InetSocketAddress logicalAddress,
-                                                   InetSocketAddress resolvedPhysicalAddress) {
+                                                   InetSocketAddress unresolvedPhysicalAddress) {
         return NettyFutureUtil.toCompletableFuture(ch.eventLoop().submit(() -> {
             final ClientCnx cnx = (ClientCnx) ch.pipeline().get("handler");
 
@@ -221,15 +221,13 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                 throw new IllegalStateException("Missing ClientCnx. This should not happen.");
             }
 
-            // Need to do our own equality because the physical address is resolved already
-            if (!(logicalAddress.getHostString().equalsIgnoreCase(resolvedPhysicalAddress.getHostString())
-                    && logicalAddress.getPort() == resolvedPhysicalAddress.getPort())) {
+            if (!logicalAddress.equals(unresolvedPhysicalAddress)) {
                 // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
                 // it can be specified when sending the CommandConnect.
                 cnx.setTargetBroker(logicalAddress);
             }
 
-            cnx.setRemoteHostName(resolvedPhysicalAddress.getHostString());
+            cnx.setRemoteHostName(unresolvedPhysicalAddress.getHostString());
 
             return ch;
         }));

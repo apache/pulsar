@@ -132,7 +132,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
     /** The size of InMemoryDelayedDeliveryTracer memory usage. */
-    public long delayedTrackerMemoryUsage;
+    public long delayedMessageIndexSizeInBytes;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;
@@ -170,7 +170,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         earliestMsgPublishTimeInBacklog = 0L;
-        delayedTrackerMemoryUsage = 0;
+        delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
         filterAcceptedMsgCount = 0;
@@ -210,7 +210,6 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
-        this.delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
         if (this.earliestMsgPublishTimeInBacklog != 0 && stats.earliestMsgPublishTimeInBacklog != 0) {
             this.earliestMsgPublishTimeInBacklog = Math.min(
                     this.earliestMsgPublishTimeInBacklog,
@@ -222,6 +221,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
                     stats.earliestMsgPublishTimeInBacklog
             );
         }
+        this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;

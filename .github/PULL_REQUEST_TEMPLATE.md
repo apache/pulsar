@@ -1,7 +1,7 @@
 <!--
 ### Contribution Checklist
   
-  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#heading=h.trs9rsex3xom)*. 
+  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*. 
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
   

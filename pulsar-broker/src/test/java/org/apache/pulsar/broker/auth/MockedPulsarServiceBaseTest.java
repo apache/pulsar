@@ -84,6 +84,13 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public final static String CLIENT_KEYSTORE_PW = "111111";
     public final static String CLIENT_TRUSTSTORE_PW = "111111";
 
+    public final static String PROXY_KEYSTORE_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy.keystore.jks");
+    public final static String PROXY_KEYSTORE_PW = "111111";
+    public final static String PROXY_AND_CLIENT_TRUSTSTORE_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/jks/proxy-and-client.truststore.jks");
+    public final static String PROXY_AND_CLIENT_TRUSTSTORE_PW = "111111";
+
     public final static String CLIENT_KEYSTORE_CN = "clientuser";
     public final static String KEYSTORE_TYPE = "JKS";
 
