@@ -30,6 +30,7 @@ import org.apache.pulsar.common.stats.Metrics;
 /**
  */
 public class BrokerOperabilityMetrics {
+    private static final Counter TOPIC_LOAD_FAILED = Counter.build("topic_load_failed", "-").register();
     private final List<Metrics> metricsList;
     private final String localCluster;
     private final DimensionStats topicLoadStats;
@@ -39,7 +40,6 @@ public class BrokerOperabilityMetrics {
     private final LongAdder connectionCreateFailCount;
     private final LongAdder connectionTotalClosedCount;
     private final LongAdder connectionActive;
-    private static final Counter topicLoadFailed = Counter.build("topic_load_failed", "-").register();
 
     public BrokerOperabilityMetrics(String localCluster, String brokerName) {
         this.metricsList = new ArrayList<>();
@@ -87,7 +87,7 @@ public class BrokerOperabilityMetrics {
 
     Metrics getTopicLoadMetrics() {
         Metrics metrics = getDimensionMetrics("topic_load_times", "topic_load", topicLoadStats);
-        metrics.put("brk_topic_load_failed_count", topicLoadFailed.get());
+        metrics.put("brk_topic_load_failed_count", TOPIC_LOAD_FAILED.get());
         return metrics;
     }
 
@@ -117,7 +117,7 @@ public class BrokerOperabilityMetrics {
     }
 
     public void recordTopicLoadFailed() {
-        this.topicLoadFailed.inc();
+        this.TOPIC_LOAD_FAILED.inc();
     }
 
     public void recordConnectionCreate() {
