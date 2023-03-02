@@ -931,20 +931,28 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      * Resume subscription after topic deletion or close failure.
      */
     public synchronized CompletableFuture<Void> resumeAfterFence() {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        fenceFuture.whenComplete((ignore, ignore2) -> {
+        java.util.function.Consumer<CompletableFuture> resetFenceTask = future -> {
             try {
                 if (IS_FENCED_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
                 }
-                result.complete(null);
+                future.complete(null);
             } catch (Exception ex){
-                result.completeExceptionally(ex);
                 log.error("[{}] Resume subscription[{}] failure: {}", topicName, subName, ex.getMessage(), ex);
+                future.completeExceptionally(ex);
             }
-        });
+        };
+
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        if (fenceFuture == null){
+            resetFenceTask.accept(result);
+        } else {
+            fenceFuture.whenComplete((ignore, ignore2) -> {
+                resetFenceTask.accept(result);
+            });
+        }
         return result;
     }
 
