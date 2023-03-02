@@ -416,6 +416,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> readReverse(Boolean readReverse) {
+        conf.setReadReverse(readReverse);
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> subscriptionTopicsMode(@NonNull RegexSubscriptionMode mode) {
         conf.setRegexSubscriptionMode(mode);
         return this;
