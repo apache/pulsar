@@ -3845,7 +3845,7 @@ public class PersistentTopicsBase extends AdminResource {
                         final String topicNamePartition = topicName.getPartition(i).toString();
 
                         subscriptionFutures.add(admin.topics().createSubscriptionAsync(topicNamePartition,
-                                subscription, MessageId.latest));
+                                subscription, MessageId.earliest));
                     }
                 });
 
