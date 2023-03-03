@@ -1689,7 +1689,7 @@ public class TransactionTest extends TransactionTestBase {
         admin.topics().createPartitionedTopic(topic, partitionCount);
 
         Class<SystemTopicTxnBufferSnapshotService> clazz = SystemTopicTxnBufferSnapshotService.class;
-        Field field = clazz.getDeclaredField("writerMap");
+        Field field = clazz.getDeclaredField("refCountedWriterMap");
         field.setAccessible(true);
         // inject a failed writer future
         CompletableFuture<SystemTopicClient.Writer<?>> writerFuture = new CompletableFuture<>();
