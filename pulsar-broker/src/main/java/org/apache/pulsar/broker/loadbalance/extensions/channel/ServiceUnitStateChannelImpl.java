@@ -72,6 +72,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
@@ -117,6 +118,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
+    private final StateChangeListeners stateChangeListeners;
     private final LeaderElectionService leaderElectionService;
     private BrokerSelectionStrategy brokerSelector;
     private BrokerRegistry brokerRegistry;
@@ -191,6 +193,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
                 CompletableFuture<String>>newBuilder().build();
         this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
+        this.stateChangeListeners = new StateChangeListeners();
         this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateCleanUpDelayTimeInSeconds()
                 * 1000;
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
@@ -355,6 +358,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 monitorTask.cancel(true);
                 monitorTask = null;
                 log.info("Successfully cancelled the cleanup tasks");
+            }
+
+            if (stateChangeListeners != null) {
+                stateChangeListeners.close();
             }
 
             log.info("Successfully closed the channel.");
@@ -619,6 +626,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(data.dstBroker());
         }
+        stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
         }
@@ -628,7 +636,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTargetBroker(data.dstBroker())) {
             ServiceUnitStateData next = new ServiceUnitStateData(
                     Owned, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-            pubAsync(serviceUnit, next)
+            stateChangeListeners.notifyOnCompletion(pubAsync(serviceUnit, next), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
     }
@@ -644,15 +652,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));
             }
-            closeServiceUnit(serviceUnit)
-                    .thenCompose(__ -> pubAsync(serviceUnit, next))
+            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit)
+                            .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
     }
 
     private void handleSplitEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.sourceBroker())) {
-            splitServiceUnit(serviceUnit, data)
+            stateChangeListeners.notifyOnCompletion(splitServiceUnit(serviceUnit, data), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, null));
         }
     }
@@ -662,6 +670,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
+        stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.sourceBroker())) {
             log(null, serviceUnit, data, null);
         }
@@ -672,6 +681,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.completeExceptionally(new IllegalStateException(serviceUnit + "has been deleted."));
         }
+        stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.sourceBroker())) {
             log(null, serviceUnit, data, null);
         }
@@ -682,6 +692,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
+        stateChangeListeners.notify(serviceUnit, null, null);
         log(null, serviceUnit, null, null);
     }
 
@@ -1301,5 +1312,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         metrics.add(metric);
 
         return metrics;
+    }
+
+    @Override
+    public void listen(StateChangeListener listener) {
+        this.stateChangeListeners.addListener(listener);
     }
 }
