@@ -126,7 +126,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.15.3</bookkeeper.version>
+    <bookkeeper.version>4.15.4-SNAPSHOT</bookkeeper.version>
     <zookeeper.version>3.8.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
@@ -2435,6 +2435,13 @@ flexible messaging model and an intuitive client API.</description>
       <url>https://maven.restlet.talend.com</url>
       <snapshots>
         <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>local-maven-repo</id>
+      <url>file:///home/kannar/.m2/repository</url>
+      <snapshots>
+        <enabled>true</enabled>
       </snapshots>
     </repository>
   </repositories>

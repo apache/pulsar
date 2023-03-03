@@ -132,6 +132,9 @@ message ManagedCursorInfo {
     // Additional custom properties associated with
     // the cursor
     repeated StringProperty cursorProperties = 8;
+
+    // Is cursor readReverse
+    optional bool readReverse = 9;
 }
 
 enum CompressionType {

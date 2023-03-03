@@ -2428,7 +2428,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
             }
 
-            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, properties);
+            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, false, properties);
         }).thenCompose(subscription -> {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
@@ -4441,7 +4441,7 @@ public class PersistentTopicsBase extends AdminResource {
             Subscription sub = topic.getSubscription(subName);
             if (sub == null) {
                 sub = topic.createSubscription(subName,
-                        InitialPosition.Earliest, false, null).get();
+                        InitialPosition.Earliest, false, false, null).get();
             }
 
             return checkNotNull(sub);

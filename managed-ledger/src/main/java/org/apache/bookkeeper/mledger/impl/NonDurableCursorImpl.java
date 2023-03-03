@@ -37,7 +37,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
 
     NonDurableCursorImpl(BookKeeper bookkeeper, ManagedLedgerConfig config, ManagedLedgerImpl ledger, String cursorName,
                          PositionImpl startCursorPosition, CommandSubscribe.InitialPosition initialPosition,
-                         boolean isReadCompacted) {
+                         boolean isReadReverse, boolean isReadCompacted) {
         super(bookkeeper, config, ledger, cursorName);
         this.readCompacted = isReadCompacted;
 

@@ -42,6 +42,7 @@ class OpFindNewest implements ReadEntryCallback {
     }
 
     PositionImpl searchPosition;
+    boolean readReverse;
     long min;
     long max;
     Position lastMatchedPosition = null;
@@ -60,6 +61,24 @@ class OpFindNewest implements ReadEntryCallback {
         this.max = numberOfEntries;
 
         this.searchPosition = startPosition;
+        this.readReverse = false;
+        this.state = State.checkFirst;
+    }
+
+    public OpFindNewest(ManagedCursorImpl cursor, PositionImpl startPosition, boolean readReverse,
+                        Predicate<Entry> condition, long numberOfEntries, FindEntryCallback callback, Object ctx) {
+        this.cursor = cursor;
+        this.ledger = cursor.ledger;
+        this.startPosition = startPosition;
+        this.callback = callback;
+        this.condition = condition;
+        this.ctx = ctx;
+
+        this.min = 0;
+        this.max = numberOfEntries;
+
+        this.searchPosition = startPosition;
+        this.readReverse = readReverse;
         this.state = State.checkFirst;
     }
 
@@ -76,6 +95,7 @@ class OpFindNewest implements ReadEntryCallback {
         this.max = numberOfEntries;
 
         this.searchPosition = startPosition;
+        this.readReverse = false;
         this.state = State.checkFirst;
     }
 
@@ -142,7 +162,8 @@ class OpFindNewest implements ReadEntryCallback {
     }
 
     public void find() {
-        if (cursor != null ? cursor.hasMoreEntries(searchPosition) : ledger.hasMoreEntries(searchPosition)) {
+        if (cursor != null ? cursor.hasMoreEntries(searchPosition) : ledger.hasMoreEntries(searchPosition,
+                cursor.isReadReverse())) {
             ledger.asyncReadEntry(searchPosition, this, null);
         } else {
             callback.findEntryComplete(lastMatchedPosition, OpFindNewest.this.ctx);

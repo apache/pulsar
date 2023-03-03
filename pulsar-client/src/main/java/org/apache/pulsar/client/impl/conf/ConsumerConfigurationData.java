@@ -79,7 +79,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             name = "readReverse",
             value = "Read reverse"
     )
-    private Boolean readReverse = false;
+    private boolean readReverse = false;
 
     @ApiModelProperty(
             name = "subscriptionType",

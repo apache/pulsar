@@ -35,6 +35,13 @@ public interface Position {
      */
     Position getNext();
 
+    /**
+     * Get the position of the entry previous to this one. The returned position might point to a non-existing entry
+     *
+     * @return the position of the previous logical entry
+     */
+    Position getPrevious();
+
     long getLedgerId();
 
     long getEntryId();

@@ -3024,8 +3024,40 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             ledger.addEntry(content.getBytes());
         }
         // Open Cursor also adds cursor into activeCursor-container
-        ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest);
-        ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest);
+        ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest, false);
+        ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest, false);
+
+        // Since getReadPosition returns the next position, we decrease the entryId by 1
+        PositionImpl p1 = (PositionImpl) latestCursor.getReadPosition();
+        PositionImpl p2 = (PositionImpl) earliestCursor.getReadPosition();
+
+        Pair<PositionImpl, Long> latestPositionAndCounter = ledger.getLastPositionAndCounter();
+        Pair<PositionImpl, Long> earliestPositionAndCounter = ledger.getFirstPositionAndCounter();
+
+        assertEquals(latestPositionAndCounter.getLeft().getNext(), p1);
+        assertEquals(earliestPositionAndCounter.getLeft().getNext(), p2);
+
+        assertEquals(latestPositionAndCounter.getRight().longValue(), totalInsertedEntries);
+        assertEquals(earliestPositionAndCounter.getRight().longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog(false));
+
+        ledger.close();
+
+    }
+
+    @Test
+    public void testConsumerSubscriptionReadReverse() throws Exception{
+        final int MAX_ENTRY_PER_LEDGER = 2;
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(MAX_ENTRY_PER_LEDGER);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger", config);
+
+        final int totalInsertedEntries = 20;
+        for (int i = 0; i < totalInsertedEntries; i++) {
+            String content = "entry" + i; // 5 bytes
+            ledger.addEntry(content.getBytes());
+        }
+        // Open Cursor also adds cursor into activeCursor-container
+        ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest, false);
+        ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest, false);
 
         // Since getReadPosition returns the next position, we decrease the entryId by 1
         PositionImpl p1 = (PositionImpl) latestCursor.getReadPosition();
@@ -3714,7 +3746,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
 
         // Verify the ReadHandle can be reopened.
-        ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest);
+        ManagedCursor cursor3 = ledger.openCursor("test-cursor3", InitialPosition.Earliest, false);
         entryList = cursor3.readEntries(3);
         assertEquals(entryList.size(), 3);
         assertEquals(ledger.ledgerCache.size(), 2);

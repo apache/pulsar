@@ -58,10 +58,18 @@ public class ManagedCursorContainerTest {
         Position position;
         String name;
 
+        boolean readReverse;
+
         public MockManagedCursor(ManagedCursorContainer container, String name, Position position) {
+            this(container, name, position, false);
+        }
+
+        public MockManagedCursor(ManagedCursorContainer container, String name, Position position,
+                                 boolean readReverse) {
             this.container = container;
             this.name = name;
             this.position = position;
+            this.readReverse = readReverse;
         }
 
         @Override
@@ -412,6 +420,11 @@ public class ManagedCursorContainerTest {
         @Override
         public boolean isClosed() {
             return false;
+        }
+
+        @Override
+        public boolean isReadReverse() {
+            return readReverse;
         }
     }
 

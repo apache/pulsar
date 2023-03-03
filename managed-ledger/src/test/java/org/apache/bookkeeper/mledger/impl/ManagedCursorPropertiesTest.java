@@ -91,7 +91,8 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         cursorProperties.put("custom1", "one");
         cursorProperties.put("custom2", "two");
 
-        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, Collections.emptyMap(), cursorProperties);
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, false,
+                Collections.emptyMap(), cursorProperties);
 
         assertEquals(c1.getProperties(), Collections.emptyMap());
         assertEquals(c1.getCursorProperties(), cursorProperties);
@@ -170,7 +171,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         cursorProperties.put("custom1", "one");
         cursorProperties.put("custom2", "two");
 
-        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, properties, cursorProperties);
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, false, properties, cursorProperties);
         assertEquals(c1.getProperties(), properties);
         assertEquals(c1.getCursorProperties(), cursorProperties);
 
@@ -197,7 +198,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         cursorProperties.put("custom1", "one");
         cursorProperties.put("custom2", "two");
 
-        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, properties, cursorProperties);
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, false, properties, cursorProperties);
         assertEquals(c1.getProperties(), properties);
         assertEquals(c1.getCursorProperties(), cursorProperties);
 

@@ -263,7 +263,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  SubType subType, int priorityLevel, String consumerName,
                                                  boolean isDurable, MessageId startMessageId,
                                                  Map<String, String> metadata, boolean readCompacted,
-                                                 InitialPosition initialPosition,
+                                                 InitialPosition initialPosition, boolean readReverse,
                                                  long resetStartMessageBackInSec, boolean replicateSubscriptionState,
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
@@ -373,7 +373,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-            boolean replicateSubscriptionState, Map<String, String> properties) {
+            boolean readReverse, boolean replicateSubscriptionState, Map<String, String> properties) {
         return CompletableFuture.completedFuture(new NonPersistentSubscription(this, subscriptionName, true,
                 properties));
     }

@@ -225,8 +225,8 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException,
-            ManagedLedgerException;
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, boolean readReverse)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
@@ -245,8 +245,8 @@ public interface ManagedLedger {
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
-                             Map<String, String> cursorProperties)
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, boolean readReverse,
+                             Map<String, Long> properties, Map<String, String> cursorProperties)
             throws InterruptedException, ManagedLedgerException;
 
     /**
@@ -267,7 +267,7 @@ public interface ManagedLedger {
     ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName) throws ManagedLedgerException;
     ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName, InitialPosition initialPosition,
-                                      boolean isReadCompacted) throws ManagedLedgerException;
+                                      boolean isReadReverse, boolean isReadCompacted) throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -338,6 +338,24 @@ public interface ManagedLedger {
      *            the name associated with the ManagedCursor
      * @param initialPosition
      *            if null, the cursor will be set at latest position when first created
+     * @param readReverse
+     *            if true, the cursor will read ledger from current to previous messages
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncOpenCursor(String name, InitialPosition initialPosition, boolean readReverse,
+                         OpenCursorCallback callback, Object ctx);
+
+    /**
+     * Open a ManagedCursor asynchronously.
+     *
+     * @see #openCursor(String)
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param initialPosition
+     *            if null, the cursor will be set at latest position when first created
      * @param cursorProperties
      *            the properties for the Cursor
      * @param callback
@@ -347,6 +365,27 @@ public interface ManagedLedger {
      */
     void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
                          Map<String, String> cursorProperties, OpenCursorCallback callback, Object ctx);
+
+    /**
+     * Open a ManagedCursor asynchronously.
+     *
+     * @see #openCursor(String)
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param initialPosition
+     *            if null, the cursor will be set at latest position when first created
+     * @param readReverse
+     *            if true, the cursor will read ledger from current to previous messages
+     * @param cursorProperties
+     *            the properties for the Cursor
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncOpenCursor(String name, InitialPosition initialPosition, boolean readReverse,
+                         Map<String, Long> properties, Map<String, String> cursorProperties,
+                         OpenCursorCallback callback, Object ctx);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger.

@@ -168,7 +168,7 @@ public interface Topic {
                                           int priorityLevel, String consumerName, boolean isDurable,
                                           MessageId startMessageId,
                                           Map<String, String> metadata, boolean readCompacted,
-                                          InitialPosition initialPosition,
+                                          InitialPosition initialPosition, boolean readReverse,
                                           long startMessageRollbackDurationSec, boolean replicateSubscriptionState,
                                           KeySharedMeta keySharedMeta);
 
@@ -180,7 +180,7 @@ public interface Topic {
     CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-            boolean replicateSubscriptionState, Map<String, String> properties);
+            boolean readReverse, boolean replicateSubscriptionState, Map<String, String> properties);
 
     CompletableFuture<Void> unsubscribe(String subName);
 

@@ -79,8 +79,8 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(topic, false).get().get();
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(pendingAckLogIndexMinLag);
-        CompletableFuture<Subscription> subscriptionFuture = persistentTopic .createSubscription("test",
-                CommandSubscribe.InitialPosition.Earliest, false, null);
+        CompletableFuture<Subscription> subscriptionFuture = persistentTopic.createSubscription("test",
+                CommandSubscribe.InitialPosition.Earliest, false, false,null);
         PersistentSubscription subscription = (PersistentSubscription) subscriptionFuture.get();
         ManagedCursor managedCursor = subscription.getCursor();
         this.managedCursorMock = spy(managedCursor);

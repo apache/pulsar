@@ -1453,13 +1453,13 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
-                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class),
+                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), false, any(OpenCursorCallback.class),
                         any());
 
         doAnswer(invocationOnMock -> {
             ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
             return null;
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), false, any(Map.class),
                 any(Map.class), any(OpenCursorCallback.class), any());
 
         doAnswer(invocationOnMock -> {
@@ -2156,7 +2156,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doAnswer((Answer<Object>) invocationOnMock -> {
             ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(mockCursor, null);
             return null;
-        }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any(), any());
+        }).when(mockLedger).asyncOpenCursor(any(), any(), any(), any(), any(), any(), any());
         PersistentTopic topic = new PersistentTopic(successTopicName, mockLedger, brokerService);
 
         CommandSubscribe cmd = new CommandSubscribe()
@@ -2167,6 +2167,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 .setSubscription(successSubName)
                 .setConsumerName("consumer-name")
                 .setReadCompacted(false)
+                .setReadReverse(false)
                 .setRequestId(1)
                 .setSubType(SubType.Exclusive);
 

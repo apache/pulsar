@@ -2504,7 +2504,7 @@ public class ServerCnxTest {
             ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
-                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class), any(Map.class),
+                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), true, any(Map.class), any(Map.class),
                         any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {

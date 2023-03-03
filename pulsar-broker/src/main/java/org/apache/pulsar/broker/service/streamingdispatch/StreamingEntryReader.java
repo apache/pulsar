@@ -112,7 +112,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
         if (!managedLedger.isValidPosition(nextReadPosition)) {
             nextReadPosition = managedLedger.getNextValidPosition(nextReadPosition);
         }
-        boolean hasEntriesToRead = managedLedger.hasMoreEntries(nextReadPosition);
+        boolean hasEntriesToRead = managedLedger.hasMoreEntries(nextReadPosition, this.cursor.isReadReverse());
         currentReadSizeByte.set(0);
         STATE_UPDATER.set(this, State.Issued);
         this.maxReadSizeByte = maxReadSizeByte;
@@ -120,12 +120,16 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             PendingReadEntryRequest pendingReadEntryRequest = PendingReadEntryRequest.create(ctx, nextReadPosition);
             // Make sure once we start putting request into pending requests queue, we won't put any following request
             // to issued requests queue in order to guarantee the order.
-            if (hasEntriesToRead && managedLedger.hasMoreEntries(nextReadPosition)) {
+            if (hasEntriesToRead && managedLedger.hasMoreEntries(nextReadPosition, this.cursor.isReadReverse())) {
                 issuedReads.offer(pendingReadEntryRequest);
             } else {
                 pendingReads.offer(pendingReadEntryRequest);
             }
-            nextReadPosition = managedLedger.getNextValidPosition(nextReadPosition);
+            if (this.cursor.isReadReverse()) {
+                nextReadPosition = managedLedger.getPreviousPosition(nextReadPosition);
+            } else {
+                nextReadPosition = managedLedger.getNextValidPosition(nextReadPosition);
+            }
         }
 
         // Issue requests.
@@ -140,7 +144,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             }
             // If new entries are available after we put request into pending queue, fire read.
             // Else register callback with managed ledger to get notify when new entries are available.
-            if (managedLedger.hasMoreEntries(pendingReads.peek().position)) {
+            if (managedLedger.hasMoreEntries(pendingReads.peek().position, this.cursor.isReadReverse())) {
                 entriesAvailable();
             } else if (managedLedger.isTerminated()) {
                 dispatcher.notifyConsumersEndOfTopic();
@@ -307,14 +311,19 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             if (!managedLedger.isValidPosition(pendingReads.peek().position)) {
                 pendingReads.peek().position = managedLedger.getNextValidPosition(pendingReads.peek().position);
             }
-            while (!pendingReads.isEmpty() && managedLedger.hasMoreEntries(pendingReads.peek().position)) {
+            while (!pendingReads.isEmpty() && managedLedger.hasMoreEntries(pendingReads.peek().position,
+                    this.cursor.isReadReverse())) {
                 PendingReadEntryRequest next = pendingReads.poll();
                 issuedReads.offer(next);
                 newlyIssuedRequests.add(next);
                 // Need to update the position because when the PendingReadEntryRequest is created, the position could
                 // be all set to managed ledger's last confirmed position.
                 if (!pendingReads.isEmpty()) {
-                    pendingReads.peek().position = managedLedger.getNextValidPosition(next.position);
+                    if (this.cursor.isReadReverse()) {
+                        pendingReads.peek().position = managedLedger.getPreviousPosition(next.position);
+                    } else {
+                        pendingReads.peek().position = managedLedger.getNextValidPosition(next.position);
+                    }
                 }
             }
 
@@ -327,7 +336,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
                     log.debug("[{}} Streaming entry reader has {} pending read requests waiting on new entry."
                             , cursor.getName(), pendingReads.size());
                 }
-                if (managedLedger.hasMoreEntries(pendingReads.peek().position)) {
+                if (managedLedger.hasMoreEntries(pendingReads.peek().position, this.cursor.isReadReverse())) {
                     entriesAvailable();
                 } else {
                     managedLedger.addWaitingEntryCallBack(this);

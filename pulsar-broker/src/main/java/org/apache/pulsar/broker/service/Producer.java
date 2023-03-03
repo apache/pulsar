@@ -398,6 +398,11 @@ public class Producer {
         }
 
         @Override
+        public Position getPrevious() {
+            return null;
+        }
+
+        @Override
         public long getLedgerId() {
             return ledgerId;
         }

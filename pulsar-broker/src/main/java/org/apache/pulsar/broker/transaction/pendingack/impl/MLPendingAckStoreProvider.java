@@ -122,7 +122,8 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                     public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                                         ledger.asyncOpenCursor(
                                                 MLPendingAckStore.getTransactionPendingAckStoreCursorName(),
-                                                InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
+                                                InitialPosition.Earliest, false,
+                                                new AsyncCallbacks.OpenCursorCallback() {
                                                     @Override
                                                     public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                                                         pendingAckStoreFuture.complete(new MLPendingAckStore(ledger,

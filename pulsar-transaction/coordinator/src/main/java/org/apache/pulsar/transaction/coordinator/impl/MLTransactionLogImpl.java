@@ -127,7 +127,8 @@ public class MLTransactionLogImpl implements TransactionLog {
                                 bufferedWriterMetrics);
 
                         managedLedger.asyncOpenCursor(TRANSACTION_SUBSCRIPTION_NAME,
-                                CommandSubscribe.InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
+                                CommandSubscribe.InitialPosition.Earliest, false,
+                                new AsyncCallbacks.OpenCursorCallback() {
                                     @Override
                                     public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                                         MLTransactionLogImpl.this.cursor = cursor;

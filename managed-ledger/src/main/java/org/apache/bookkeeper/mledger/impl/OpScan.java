@@ -46,10 +46,16 @@ class OpScan implements ReadEntriesCallback {
 
     PositionImpl searchPosition;
     Position lastSeenPosition = null;
+    boolean readReverse;
 
     public OpScan(ManagedCursorImpl cursor, int batchSize,
                   PositionImpl startPosition, Predicate<Entry> condition,
                   ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
+        this(cursor, batchSize, startPosition, false, condition, callback, ctx, maxEntries, timeOutMs);
+    }
+
+    public OpScan(ManagedCursorImpl cursor, int batchSize, PositionImpl startPosition, boolean readReverse,
+                  Predicate<Entry> condition, ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
         this.batchSize = batchSize;
         if (batchSize <= 0) {
             throw new IllegalArgumentException("batchSize " + batchSize);
@@ -60,6 +66,7 @@ class OpScan implements ReadEntriesCallback {
         this.condition = condition;
         this.ctx = ctx;
         this.searchPosition = startPosition;
+        this.readReverse = readReverse;
         this.remainingEntries.set(maxEntries);
         this.timeOutMs = timeOutMs;
     }

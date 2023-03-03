@@ -37,11 +37,18 @@ public class MockManagedCursor implements ManagedCursor {
 
     private final String name;
 
+    private final boolean readReverse;
+
     private final Map<String, String> cursorProperties;
 
     public MockManagedCursor(String name) {
+        this(name, false);
+    }
+
+    public MockManagedCursor(String name, boolean readReverse) {
         this.name = name;
         this.cursorProperties = new ConcurrentHashMap<>();
+        this.readReverse = readReverse;
     }
 
     @Override
@@ -408,5 +415,10 @@ public class MockManagedCursor implements ManagedCursor {
     @Override
     public boolean isClosed() {
         return false;
+    }
+
+    @Override
+    public boolean isReadReverse() {
+        return readReverse;
     }
 }

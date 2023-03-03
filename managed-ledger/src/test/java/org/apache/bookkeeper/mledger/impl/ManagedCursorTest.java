@@ -170,7 +170,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.addEntry(new byte[]{4});
         ledger.addEntry(new byte[]{5});
 
-        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_testOpenCursorWithNullInitialPosition", null);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_testOpenCursorWithNullInitialPosition",
+                null, false);
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
+    }
+
+    @Test
+    public void testOpenCursorWithReadReverse() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testOpenCursorWithReadReverse", config);
+        // Write some data.
+        ledger.addEntry(new byte[]{1});
+        ledger.addEntry(new byte[]{2});
+        ledger.addEntry(new byte[]{3});
+        ledger.addEntry(new byte[]{4});
+        ledger.addEntry(new byte[]{5});
+
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c_testOpenCursorWithReadReverse",
+                CommandSubscribe.InitialPosition.Latest, true);
         assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastConfirmedEntry());
     }
 
@@ -3313,7 +3330,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     public void testRecoverCursorAfterResetToLatestForNewEntry() throws Exception {
         ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForNewEntry");
-        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
+        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest, false);
 
         // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
         assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);
@@ -3367,7 +3384,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     public void testRecoverCursorAfterResetToLatestForMultipleEntries() throws Exception {
         ManagedLedger ml = factory.open("testRecoverCursorAfterResetToLatestForMultipleEntries");
-        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest);
+        ManagedCursorImpl c = (ManagedCursorImpl) ml.openCursor("sub", CommandSubscribe.InitialPosition.Latest, false);
 
         // A new cursor starts out with these values. The rest of the test assumes this, so we assert it here.
         assertEquals(c.getMarkDeletedPosition().getEntryId(), -1);

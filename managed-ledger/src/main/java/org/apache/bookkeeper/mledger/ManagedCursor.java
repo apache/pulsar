@@ -839,4 +839,10 @@ public interface ManagedCursor {
      * @return whether this cursor is closed.
      */
     boolean isClosed();
+
+    /**
+     * Checks if the cursor is read reverse mode.
+     * @return: whether this cursor is reading in a reverse way
+     */
+    boolean isReadReverse();
 }

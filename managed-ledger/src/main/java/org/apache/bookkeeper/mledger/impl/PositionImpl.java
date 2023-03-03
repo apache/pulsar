@@ -94,6 +94,15 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
         }
     }
 
+    @Override
+    public PositionImpl getPrevious() {
+        if (entryId > 0) {
+            return PositionImpl.get(ledgerId, entryId - 1);
+        } else {
+            return PositionImpl.get(ledgerId, 0);
+        }
+    }
+
     /**
      * Position after moving entryNum messages,
      * if entryNum < 1, then return the current position.

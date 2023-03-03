@@ -129,6 +129,60 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     }
 
     @Test
+    public void testSeekReadReverse() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testSeek";
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        // Disable pre-fetch in consumer to track the messages received
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .readReverse(true).subscriptionName("my-subscription").receiverQueueSize(0).subscribe();
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        assertNotNull(topicRef);
+        assertEquals(topicRef.getProducers().size(), 1);
+        assertEquals(topicRef.getSubscriptions().size(), 1);
+
+        List<MessageId> messageIds = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            MessageId msgId = producer.send(message.getBytes());
+            messageIds.add(msgId);
+        }
+
+        PersistentSubscription sub = topicRef.getSubscription("my-subscription");
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
+
+        consumer.seek(MessageId.latest);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
+
+        // Wait for consumer to reconnect
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seek(MessageId.earliest);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
+
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seek(messageIds.get(5));
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 5);
+
+        MessageIdImpl messageId = (MessageIdImpl) messageIds.get(5);
+        MessageIdImpl beforeEarliest = new MessageIdImpl(
+                messageId.getLedgerId() - 1, messageId.getEntryId(), messageId.getPartitionIndex());
+        MessageIdImpl afterLatest = new MessageIdImpl(
+                messageId.getLedgerId() + 1, messageId.getEntryId(), messageId.getPartitionIndex());
+
+        log.info("MessageId {}: beforeEarliest: {}, afterLatest: {}", messageId, beforeEarliest, afterLatest);
+
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seek(beforeEarliest);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
+
+        Awaitility.await().until(consumer::isConnected);
+        consumer.seek(afterLatest);
+        assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
+    }
+
+    @Test
     public void testSeekForBatch() throws Exception {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
         String subscriptionName = "my-subscription-batch";

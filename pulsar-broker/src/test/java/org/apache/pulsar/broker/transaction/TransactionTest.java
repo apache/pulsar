@@ -758,7 +758,7 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
         PersistentSubscription persistentSubscription = (PersistentSubscription) persistentTopic
                 .createSubscription("test",
-                CommandSubscribe.InitialPosition.Earliest, false, null).get();
+                CommandSubscribe.InitialPosition.Earliest, false, false,null).get();
 
         ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn(true).when(managedCursor).hasMoreEntries();

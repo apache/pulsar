@@ -1083,6 +1083,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean readCompacted = subscribe.hasReadCompacted() && subscribe.isReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
         final InitialPosition initialPosition = subscribe.getInitialPosition();
+        final boolean readReverse = subscribe.isReadReverse();
         final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
                 ? subscribe.getStartMessageRollbackDurationSec()
                 : -1;
@@ -1191,6 +1192,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .consumerName(consumerName).isDurable(isDurable)
                                     .startMessageId(startMessageId).metadata(metadata).readCompacted(readCompacted)
                                     .initialPosition(initialPosition)
+                                    .readReverse(readReverse)
                                     .startMessageRollbackDurationSec(startMessageRollbackDurationSec)
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
@@ -1440,7 +1442,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 }
                                 createInitSubFuture =
                                         topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
-                                                false, null);
+                                                false, false, null);
                             } else {
                                 createInitSubFuture = CompletableFuture.completedFuture(null);
                             }

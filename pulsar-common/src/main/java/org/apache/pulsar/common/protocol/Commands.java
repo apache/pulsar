@@ -561,24 +561,24 @@ public class Commands {
             SubType subType, int priorityLevel, String consumerName, long resetStartMessageBackInSeconds) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
                 true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false,
-                false /* isReplicated */, InitialPosition.Earliest, resetStartMessageBackInSeconds, null,
-                true /* createTopicIfDoesNotExist */);
+                /* readReverse */ false, false /* isReplicated */, InitialPosition.Earliest,
+                resetStartMessageBackInSeconds, null, true /* createTopicIfDoesNotExist */);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+            Map<String, String> metadata, boolean readCompacted, boolean readReverse, boolean isReplicated,
             InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec, SchemaInfo schemaInfo,
             boolean createTopicIfDoesNotExist) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
-                startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, null,
-                Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH);
+                isDurable, startMessageId, metadata, readCompacted, readReverse, isReplicated,
+                subscriptionInitialPosition, startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist,
+                null, Collections.emptyMap(), DEFAULT_CONSUMER_EPOCH);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
                SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-               Map<String, String> metadata, boolean readCompacted, boolean isReplicated,
+               Map<String, String> metadata, boolean readCompacted, boolean readReverse, boolean isReplicated,
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
                Map<String, String> subscriptionProperties, long consumerEpoch) {
@@ -590,6 +590,7 @@ public class Commands {
                 .setConsumerId(consumerId)
                 .setConsumerName(consumerName)
                 .setRequestId(requestId)
+                .setReadReverse(readReverse)
                 .setPriorityLevel(priorityLevel)
                 .setDurable(isDurable)
                 .setReadCompacted(readCompacted)

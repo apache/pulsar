@@ -273,7 +273,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
     ConsumerBuilder<T> subscriptionMode(SubscriptionMode subscriptionMode);
 
     /**
-     * Set the consumer to read from start message to previous
+     * Set the consumer to read from start message to previous.
      * @param readReverse the read reverse boolean
      * @return the consumer builder instance
      */

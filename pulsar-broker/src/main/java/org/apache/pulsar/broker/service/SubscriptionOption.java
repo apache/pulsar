@@ -44,6 +44,7 @@ public class SubscriptionOption {
     private Map<String, String> metadata;
     private boolean readCompacted;
     private CommandSubscribe.InitialPosition initialPosition;
+    private boolean readReverse;
     private long startMessageRollbackDurationSec;
     private boolean replicatedSubscriptionStateArg;
     private KeySharedMeta keySharedMeta;

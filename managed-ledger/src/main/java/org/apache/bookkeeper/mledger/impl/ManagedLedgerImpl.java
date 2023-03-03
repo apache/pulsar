@@ -892,19 +892,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException {
-        return openCursor(cursorName, InitialPosition.Latest);
+        return openCursor(cursorName, InitialPosition.Latest, false);
     }
 
-
     @Override
-    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition)
+    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition, boolean readReverse)
             throws InterruptedException, ManagedLedgerException {
-        return openCursor(cursorName, initialPosition, Collections.emptyMap(), Collections.emptyMap());
+        return openCursor(cursorName, initialPosition, readReverse, Collections.emptyMap(), Collections.emptyMap());
     }
 
     @Override
-    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition, Map<String, Long> properties,
-                                    Map<String, String> cursorProperties)
+    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition, boolean readReverse,
+                                    Map<String, Long> properties, Map<String, String> cursorProperties)
             throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
@@ -913,7 +912,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncOpenCursor(cursorName, initialPosition, properties, cursorProperties, new OpenCursorCallback() {
+        asyncOpenCursor(cursorName, initialPosition, readReverse, properties, cursorProperties,
+                new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 result.cursor = cursor;
@@ -942,19 +942,34 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx) {
-        this.asyncOpenCursor(cursorName, InitialPosition.Latest, callback, ctx);
+        this.asyncOpenCursor(cursorName, InitialPosition.Latest, false, callback, ctx);
     }
 
     @Override
     public void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
-            final OpenCursorCallback callback, final Object ctx) {
+                                final OpenCursorCallback callback, final Object ctx) {
         this.asyncOpenCursor(cursorName, initialPosition, Collections.emptyMap(), Collections.emptyMap(),
                 callback, ctx);
     }
 
     @Override
+    public void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition, boolean readReverse,
+                                final OpenCursorCallback callback, final Object ctx) {
+        this.asyncOpenCursor(cursorName, initialPosition, readReverse, Collections.emptyMap(), Collections.emptyMap(),
+                callback, ctx);
+    }
+
+    @Override
     public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
-            Map<String, Long> properties, Map<String, String> cursorProperties,
+                                             Map<String, Long> properties, Map<String, String> cursorProperties,
+                                             final OpenCursorCallback callback, final Object ctx) {
+        this.asyncOpenCursor(cursorName, initialPosition, false, Collections.emptyMap(), Collections.emptyMap(),
+                callback, ctx);
+    }
+
+    @Override
+    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition,
+            final boolean readReverse, Map<String, Long> properties, Map<String, String> cursorProperties,
                                              final OpenCursorCallback callback, final Object ctx) {
         try {
             checkManagedLedgerIsOpen();
@@ -989,7 +1004,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
         PositionImpl position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
-        cursor.initialize(position, properties, cursorProperties, new VoidCallback() {
+        cursor.initialize(position, readReverse, properties, cursorProperties, new VoidCallback() {
             @Override
             public void operationComplete() {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
@@ -1098,12 +1113,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName)
             throws ManagedLedgerException {
-        return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false);
+        return newNonDurableCursor(startPosition, subscriptionName, InitialPosition.Latest, false, false);
     }
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startCursorPosition, String cursorName,
-                                             InitialPosition initialPosition, boolean isReadCompacted)
+                                             InitialPosition initialPosition, boolean isReadReverse,
+                                             boolean isReadCompacted)
             throws ManagedLedgerException {
         Objects.requireNonNull(cursorName, "cursor name can't be null");
         checkManagedLedgerIsOpen();
@@ -1118,7 +1134,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         NonDurableCursorImpl cursor = new NonDurableCursorImpl(bookKeeper, config, this, cursorName,
-                (PositionImpl) startCursorPosition, initialPosition, isReadCompacted);
+                (PositionImpl) startCursorPosition, initialPosition, isReadReverse, isReadCompacted);
         cursor.setActive();
 
         log.info("[{}] Opened new cursor: {}", name, cursor);
@@ -2275,11 +2291,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return mbean;
     }
 
-    public boolean hasMoreEntries(PositionImpl position) {
+    public boolean hasMoreEntries(PositionImpl position, boolean readReverse) {
         PositionImpl lastPos = lastConfirmedEntry;
-        boolean result = position.compareTo(lastPos) <= 0;
+        PositionImpl firstPos = getFirstPosition();
+        boolean result;
+        if (readReverse) {
+            result = position.compareTo(firstPos) >= 0;
+        } else {
+            result = position.compareTo(lastPos) <= 0;
+        }
         if (log.isDebugEnabled()) {
-            log.debug("[{}] hasMoreEntries: pos={} lastPos={} res={}", name, position, lastPos, result);
+            log.debug("[{}] hasMoreEntries: pos={} lastPos={} readReverse={} res={}", name, position, lastPos,
+                    readReverse, result);
         }
         return result;
     }
@@ -3571,6 +3594,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public Long getNextValidLedger(long ledgerId) {
         return ledgers.ceilingKey(ledgerId + 1);
+    }
+
+    public Long getPreviousValidLedger(long ledgerId) {
+        return ledgers.ceilingKey(ledgerId - 1);
     }
 
     public PositionImpl getNextValidPosition(final PositionImpl position) {

@@ -211,7 +211,7 @@ public class PersistentDispatcherFailoverConsumerTest {
             ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
-                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class),
+                .asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), false, any(OpenCursorCallback.class),
                         any());
 
         // call deleteLedgerComplete on ledger asyncDelete
