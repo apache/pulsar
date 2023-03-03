@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.VERSION_ID_INIT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -84,22 +85,28 @@ public class UnloadManagerTest {
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Assigning, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Assigning, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Deleted, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Deleted, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Init, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Init, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Free, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Free, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
 
@@ -110,7 +117,8 @@ public class UnloadManagerTest {
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1"), null);
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
     }
@@ -125,7 +133,8 @@ public class UnloadManagerTest {
 
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent("bundle-1", new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1"),
+        manager.handleEvent("bundle-1",
+                new ServiceUnitStateData(ServiceUnitState.Owned, "broker-1", VERSION_ID_INIT),
                 new IllegalStateException("Failed stage."));
 
         try {

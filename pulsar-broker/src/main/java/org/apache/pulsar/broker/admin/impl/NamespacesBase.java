@@ -1048,7 +1048,7 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                             Optional<String> destinationBrokerOpt = Optional.ofNullable(destinationBroker);
                             return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                    authoritative, true, destinationBrokerOpt)
+                                    authoritative, true)
                                     .thenCompose(nsBundle -> pulsar().getNamespaceService()
                                             .unloadNamespaceBundle(nsBundle, destinationBrokerOpt));
                         }));

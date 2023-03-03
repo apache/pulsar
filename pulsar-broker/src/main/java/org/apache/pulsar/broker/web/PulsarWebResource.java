@@ -630,13 +630,6 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(
             NamespaceName fqnn, BundlesData bundles, String bundleRange,
             boolean authoritative, boolean readOnly) {
-        return validateNamespaceBundleOwnershipAsync(fqnn, bundles, bundleRange,
-                authoritative, readOnly, Optional.empty());
-    }
-
-    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(
-            NamespaceName fqnn, BundlesData bundles, String bundleRange,
-            boolean authoritative, boolean readOnly, Optional<String> destinationBroker) {
         NamespaceBundle nsBundle;
         try {
             nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
@@ -646,7 +639,7 @@ public abstract class PulsarWebResource {
         if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
             return CompletableFuture.completedFuture(nsBundle);
         }
-        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly, destinationBroker)
+        return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
                 .thenApply(__ -> nsBundle);
     }
 
@@ -711,7 +704,7 @@ public abstract class PulsarWebResource {
     }
 
     public CompletableFuture<Void> validateBundleOwnershipAsync(NamespaceBundle bundle, boolean authoritative,
-                                                                boolean readOnly, Optional<String> destinationBroker) {
+                                                                boolean readOnly) {
         NamespaceService nsService = pulsar().getNamespaceService();
         LookupOptions options = LookupOptions.builder()
                 .authoritative(authoritative)
@@ -730,17 +723,10 @@ public abstract class PulsarWebResource {
                                 if (!owned) {
                                     boolean newAuthoritative = this.isLeaderBroker();
                                     // Replace the host and port of the current request and redirect
-                                    UriBuilder builder = UriBuilder.fromUri(uri.getRequestUri())
-                                            .host(webUrl.get().getHost())
-                                            .port(webUrl.get().getPort())
-                                            .replaceQueryParam("authoritative", newAuthoritative);
-                                    if (destinationBroker.isPresent()
-                                            && ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
-                                        builder.replaceQueryParam("destinationBroker", destinationBroker);
-                                    } else {
-                                        builder.replaceQueryParam("destinationBroker", null);
-                                    }
-                                    URI redirect = builder.build();
+                                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
+                                            .port(webUrl.get().getPort()).replaceQueryParam("authoritative",
+                                                    newAuthoritative).replaceQueryParam("destinationBroker",
+                                                    null).build();
                                     log.debug("{} is not a service unit owned", bundle);
                                     // Redirect
                                     log.debug("Redirecting the rest call to {}", redirect);
