@@ -29,7 +29,7 @@ DEST_PATH=$1
 
 pushd $(dirname "$0")
 PULSAR_PATH=$(git rev-parse --show-toplevel)
-VERSION=`./get-project-version.py`
+VERSION=`python3 ./get-project-version.py`
 popd
 
 cp $PULSAR_PATH/target/apache-pulsar-$VERSION-src.tar.gz $DEST_PATH

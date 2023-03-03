@@ -23,6 +23,6 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 pushd $ROOT_DIR > /dev/null
 
 # Get the project version from the Maven pom.xml
-src/get-project-version.py
+python3 src/get-project-version.py
 
 popd > /dev/null
