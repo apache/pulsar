@@ -16,13 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.plugin;
+package org.apache.pulsar.broker.auth;
 
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 
-@Data
-public class EntryFilterDefinitions {
-    private final Map<String, EntryFilterMetaData> filters = new TreeMap<>();
+/**
+ * Class to use when verifying the behavior around expired authentication data because it will always return
+ * true when isExpired is called.
+ */
+public class MockAlwaysExpiredAuthenticationState extends MockMutableAuthenticationState {
+    MockAlwaysExpiredAuthenticationState(AuthenticationProvider provider) {
+        super(provider);
+    }
+
+    @Override
+    public boolean isExpired() {
+        return true;
+    }
 }

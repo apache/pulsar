@@ -1400,6 +1400,31 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean systemTopicEnabled = true;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "# Enable strict topic name check. Which includes two parts as follows:\n"
+                    + "# 1. Mark `-partition-` as a keyword.\n"
+                    + "# E.g.\n"
+                    + "    Create a non-partitioned topic.\n"
+                    + "      No corresponding partitioned topic\n"
+                    + "       - persistent://public/default/local-name (passed)\n"
+                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
+                    + "       - persistent://public/default/local-name-partition-0 (rejected by keyword)\n"
+                    + "      Has corresponding partitioned topic, partitions=2 and topic partition name "
+                    + "is persistent://public/default/local-name\n"
+                    + "       - persistent://public/default/local-name-partition-0 (passed,"
+                    + " Because it is the partition topic's sub-partition)\n"
+                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
+                    + "       - persistent://public/default/local-name-partition-4 (rejected,"
+                    + " Because it exceeds the number of maximum partitions)\n"
+                    + "    Create a partitioned topic(topic metadata)\n"
+                    + "       - persistent://public/default/local-name (passed)\n"
+                    + "       - persistent://public/default/local-name-partition-z (rejected by keyword)\n"
+                    + "       - persistent://public/default/local-name-partition-0 (rejected by keyword)\n"
+                    + "# 2. Allowed alphanumeric (a-zA-Z_0-9) and these special chars -=:. for topic name.\n"
+                    + "# NOTE: This flag will be removed in some major releases in the future.\n")
+    private boolean strictTopicNameEnabled = false;
+
+    @FieldContext(
             category = CATEGORY_SCHEMA,
             doc = "The schema compatibility strategy to use for system topics"
     )
@@ -1465,6 +1490,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Accept untrusted TLS certificate from client"
     )
     private boolean tlsAllowInsecureConnection = false;
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Whether the hostname is validated when the broker creates a TLS connection with other brokers"
+    )
+    private boolean tlsHostnameVerificationEnabled = false;
     @FieldContext(
         category = CATEGORY_TLS,
         doc = "Specify the tls protocols the broker will use to negotiate during TLS Handshake.\n\n"
@@ -2341,10 +2371,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private double loadBalancerCPUResourceWeight = 1.0;
 
+    @Deprecated(since = "3.0.0")
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "Memory Resource Usage Weight"
+            doc = "Memory Resource Usage Weight. Deprecated: Memory is no longer used as a load balancing item.",
+            deprecated = true
     )
     private double loadBalancerMemoryResourceWeight = 1.0;
 
@@ -2449,6 +2481,98 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Time to wait for the unloading of a namespace bundle"
     )
     private long namespaceBundleUnloadingTimeoutMs = 60000;
+
+    /**** --- Load Balancer Extension. --- ****/
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Option to enable the debug mode for the load balancer logics. "
+                    + "The debug mode prints more logs to provide more information "
+                    + "such as load balance states and decisions. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private boolean loadBalancerDebugModeEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "The target standard deviation of the resource usage across brokers "
+                    + "(100% resource usage is 1.0 load). "
+                    + "The shedder logic tries to distribute bundle load across brokers to meet this target std. "
+                    + "The smaller value will incur load balancing more frequently. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private double loadBalancerBrokerLoadTargetStd = 0.25;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Option to enable the bundle transfer mode when distributing bundle loads. "
+                    + "On: transfer bundles from overloaded brokers to underloaded "
+                    + "-- pre-assigns the destination broker upon unloading). "
+                    + "Off: unload bundles from overloaded brokers "
+                    + "-- post-assigns the destination broker upon lookups). "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private boolean loadBalancerTransferEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Maximum number of brokers to transfer bundle load for each unloading cycle. "
+                    + "The bigger value will incur more unloading/transfers for each unloading cycle. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private int loadBalancerMaxNumberOfBrokerTransfersPerCycle = 3;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Delay (in seconds) to the next unloading cycle after unloading. "
+                    + "The logic tries to give enough time for brokers to recompute load after unloading. "
+                    + "The bigger value will delay the next unloading cycle longer. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private long loadBalanceUnloadDelayInSeconds = 600;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Broker load data time to live (TTL in seconds). "
+                    + "The logic tries to avoid (possibly unavailable) brokers with out-dated load data, "
+                    + "and those brokers will be ignored in the load computation. "
+                    + "When tuning this value, please consider loadBalancerReportUpdateMaxIntervalMinutes. "
+                    + "The current default is loadBalancerReportUpdateMaxIntervalMinutes * 2. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private long loadBalancerBrokerLoadDataTTLInSeconds = 1800;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Percentage of bundles to compute topK bundle load data from each broker. "
+                    + "The load balancer distributes bundles across brokers, "
+                    + "based on topK bundle load data and other broker load data."
+                    + "The bigger value will increase the overhead of reporting many bundles in load data. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private double loadBalancerBundleLoadReportPercentage = 10;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "After this delay, the service-unit state channel tombstones any service units (e.g., bundles) "
+                    + "in semi-terminal states. For example, after splits, parent bundles will be `deleted`, "
+                    + "and then after this delay, the parent bundles' state will be `tombstoned` "
+                    + "in the service-unit state channel. "
+                    + "Pulsar does not immediately remove such semi-terminal states "
+                    + "to avoid unnecessary system confusion, "
+                    + "as the bundles in the `tombstoned` state might temporarily look available to reassign. "
+                    + "Rarely, one could lower this delay in order to aggressively clean "
+                    + "the service-unit state channel when there are a large number of bundles. "
+                    + "minimum value = 30 secs"
+                    + "(only used in load balancer extension logics)"
+    )
+    private long loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds = 604800;
 
     /**** --- Replication. --- ****/
     @FieldContext(

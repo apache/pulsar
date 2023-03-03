@@ -109,8 +109,8 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
 
 
     @Override
-    protected PulsarService startBroker(ServiceConfiguration conf) throws Exception {
-        PulsarService pulsar = startBrokerWithoutAuthorization(conf);
+    protected void startBroker() throws Exception {
+        super.startBroker();
         ensureClusterExists(pulsar, clusterName);
         ensureTenantExists(pulsar.getPulsarResources().getTenantResources(), TopicName.PUBLIC_TENANT, clusterName);
         ensureNamespaceExists(pulsar.getPulsarResources().getNamespaceResources(), DEFAULT_NAMESPACE,
@@ -119,7 +119,6 @@ public class TransactionBatchWriterMetricsTest extends MockedPulsarServiceBaseTe
                 clusterName);
         ensureTopicExists(pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources(),
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, 16);
-        return pulsar;
     }
 
     @Test

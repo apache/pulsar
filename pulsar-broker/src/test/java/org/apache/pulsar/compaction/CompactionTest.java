@@ -824,7 +824,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // capture opened ledgers
         Set<Long> ledgersOpened = Sets.newConcurrentHashSet();
-        when(mockBookKeeper.newOpenLedgerOp()).thenAnswer(
+        when(pulsarTestContext.getBookKeeperClient().newOpenLedgerOp()).thenAnswer(
                 (invocation) -> {
                     OpenBuilder builder = (OpenBuilder)spy(invocation.callRealMethod());
                     when(builder.withLedgerId(anyLong())).thenAnswer(

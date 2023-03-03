@@ -136,44 +136,45 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         this.metadataStoreStats = new MetadataStoreStats(metadataStoreName);
     }
 
-    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
-        if (synchronizer.isPresent()) {
-            synchronizer.get().registerSyncListener(event -> {
-                CompletableFuture<Void> result = new CompletableFuture<>();
-                get(event.getPath()).thenApply(res -> {
-                    Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
-                            : Collections.emptySet();
-                    if (res.isPresent()) {
-                        GetResult existingValue = res.get();
-                        if (shouldIgnoreEvent(event, existingValue)) {
-                            result.complete(null);
-                            return result;
-                        }
-                    }
-                    // else update the event
-                    CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
-                            ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
-                            : putInternal(event.getPath(), event.getValue(),
-                                    Optional.ofNullable(event.getExpectedVersion()), options);
-                    updateResult.thenApply(stat -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("successfully updated {}", event.getPath());
-                        }
-                        return result.complete(null);
-                    }).exceptionally(ex -> {
-                        log.warn("Failed to update metadata {}", event.getPath(), ex.getCause());
-                        if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
-                            result.complete(null);
-                        } else {
-                            result.completeExceptionally(ex);
-                        }
-                        return false;
-                    });
+    @Override
+    public CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        get(event.getPath()).thenApply(res -> {
+            Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
+                    : Collections.emptySet();
+            if (res.isPresent()) {
+                GetResult existingValue = res.get();
+                if (shouldIgnoreEvent(event, existingValue)) {
+                    result.complete(null);
                     return result;
-                });
-                return result;
+                }
+            }
+            // else update the event
+            CompletableFuture<?> updateResult = (event.getType() == NotificationType.Deleted)
+                    ? deleteInternal(event.getPath(), Optional.ofNullable(event.getExpectedVersion()))
+                    : putInternal(event.getPath(), event.getValue(),
+                    Optional.ofNullable(event.getExpectedVersion()), options);
+            updateResult.thenApply(stat -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("successfully updated {}", event.getPath());
+                }
+                return result.complete(null);
+            }).exceptionally(ex -> {
+                log.warn("Failed to update metadata {}", event.getPath(), ex.getCause());
+                if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                    result.complete(null);
+                } else {
+                    result.completeExceptionally(ex);
+                }
+                return false;
             });
-        }
+            return result;
+        });
+        return result;
+    }
+
+    protected void registerSyncLister(Optional<MetadataEventSynchronizer> synchronizer) {
+        synchronizer.ifPresent(s -> s.registerSyncListener(this::handleMetadataEvent));
     }
 
     @VisibleForTesting
@@ -465,7 +466,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storePut(path, data, optExpectedVersion,
                 (options != null && !options.isEmpty()) ? EnumSet.copyOf(options) : EnumSet.noneOf(CreateOption.class))
                 .thenApply(stat -> {
-                    NotificationType type = stat.getVersion() == 0 ? NotificationType.Created
+                    NotificationType type = stat.isFirstVersion() ? NotificationType.Created
                             : NotificationType.Modified;
                     if (type == NotificationType.Created) {
                         existsCache.synchronous().invalidate(path);

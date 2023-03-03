@@ -143,6 +143,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(this.maxReceiverQueueSize)
                         .maxNumBytes(userBatchReceivePolicy.getMaxNumBytes())
+                        .messagesFromMultiTopicsEnabled(userBatchReceivePolicy.isMessagesFromMultiTopicsEnabled())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
                 log.warn("BatchReceivePolicy maxNumMessages: {} is greater than maxReceiverQueueSize: {}, "
@@ -154,6 +155,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumMessages())
                         .maxNumBytes(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumBytes())
+                        .messagesFromMultiTopicsEnabled(userBatchReceivePolicy.isMessagesFromMultiTopicsEnabled())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
                 log.warn("BatchReceivePolicy maxNumMessages: {} or maxNumBytes: {} is less than 0. "
@@ -979,7 +981,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
+        String topicName = null;
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            // one batch receive request only can receive the same topic partition
+            // messages to ensure cumulative ack is not lost.
+            if (!this.batchReceivePolicy.isMessagesFromMultiTopicsEnabled()) {
+                // get the first message's `topicName` to check if
+                // the following message peeked is the same topic message.
+                if (messages.size() == 1) {
+                    topicName = messages.getMessageList().get(0).getTopicName();
+                }
+                // if the peeked message is not the same topic as the first message, return the batch receive result
+                if (topicName != null && !topicName.equals(msgPeeked.getTopicName())) {
+                    break;
+                }
+            }
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);

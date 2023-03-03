@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.12.0-SNAPSHOT</version>
+  <version>3.0.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -127,14 +127,14 @@ flexible messaging model and an intuitive client API.</description>
     <commons-compress.version>1.21</commons-compress.version>
 
     <bookkeeper.version>4.15.3</bookkeeper.version>
-    <zookeeper.version>3.8.0</zookeeper.version>
+    <zookeeper.version>3.8.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
     <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.86.Final</netty.version>
-    <netty-iouring.version>0.0.16.Final</netty-iouring.version>
+    <netty.version>4.1.89.Final</netty.version>
+    <netty-iouring.version>0.0.18.Final</netty-iouring.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -167,7 +167,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
-    <kafka-client.version>2.8.2</kafka-client.version>
+    <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
@@ -188,6 +188,8 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <!-- Override version that brings CVE-2022-3143 with debezium -->
+    <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop2.version>2.10.2</hadoop2.version>
@@ -214,7 +216,7 @@ flexible messaging model and an intuitive client API.</description>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
-    <lombok.version>1.18.24</lombok.version>
+    <lombok.version>1.18.26</lombok.version>
     <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -289,7 +291,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>7.4.4</dependency-check-maven.version>
+    <dependency-check-maven.version>8.0.1</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
@@ -885,6 +887,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zpe-java-client</artifactId>
+        <version>${athenz.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-cert-refresher</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 
@@ -2147,9 +2155,6 @@ flexible messaging model and an intuitive client API.</description>
         <!-- connector-related modules -->
         <module>pulsar-io</module>
 
-        <!-- kafka connect avro converter shaded, because version mismatch    -->
-        <module>kafka-connect-avro-converter-shaded</module>
-
         <!-- Bouncy Castle Provider loaders-->
         <module>bouncy-castle</module>
 
@@ -2433,5 +2438,4 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
     </repository>
   </repositories>
-
 </project>

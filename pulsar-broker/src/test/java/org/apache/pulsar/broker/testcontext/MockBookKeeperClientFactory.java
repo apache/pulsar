@@ -28,6 +28,9 @@ import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
+/**
+ * A {@link BookKeeperClientFactory} that always returns the same instance of {@link BookKeeper}.
+ */
 class MockBookKeeperClientFactory implements BookKeeperClientFactory {
     private final BookKeeper mockBookKeeper;
 

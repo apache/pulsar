@@ -78,6 +78,7 @@ import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
@@ -150,7 +151,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -277,7 +279,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(property + "/" + newCluster + "/my-ns");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -361,7 +364,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -445,7 +449,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
 
         // restart broker1 with tls enabled
         conf.setBrokerServicePortTls(Optional.of(0));
@@ -555,7 +560,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
 
         @Cleanup
-        PulsarService pulsar2 = startBroker(conf2);
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
         pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();
 
@@ -671,7 +677,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             startBroker();
 
             @Cleanup
-            PulsarService pulsar2 = startBroker(conf2);
+            PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
+            PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
 
             pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
             pulsar2.getLoadManager().get().writeLoadReportOnZookeeper();

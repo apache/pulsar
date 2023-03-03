@@ -42,6 +42,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import lombok.AllArgsConstructor;
+import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.avro.generic.GenericData;
@@ -60,6 +61,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -319,7 +321,13 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         URI requestPath = URI.create(pulsar.getWebServiceAddress() + "/topics/my-tenant/my-namespace/my-topic");
         //create topic on one broker
         admin.topics().createNonPartitionedTopic(topicName);
-        PulsarService pulsar2 = startBroker(getDefaultConf());
+        conf.setBrokerServicePort(Optional.of(0));
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePort(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
+        @Cleanup
+        PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf);
+        PulsarService pulsar2 = pulsarTestContext2.getPulsarService();
         doReturn(false).when(topics).isRequestHttps();
         UriInfo uriInfo = mock(UriInfo.class);
         doReturn(requestPath).when(uriInfo).getRequestUri();

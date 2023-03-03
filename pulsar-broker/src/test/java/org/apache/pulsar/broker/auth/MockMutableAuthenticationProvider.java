@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.broker.auth;
 
-import org.testng.annotations.Test;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.common.api.AuthData;
+import javax.net.ssl.SSLSession;
+import java.net.SocketAddress;
 
-@Test(groups = "broker-api")
-public class SimpleSchemaWithSchemaValidationEnforcedTest extends SimpleSchemaTest {
-    public SimpleSchemaWithSchemaValidationEnforcedTest() {
-        super(true);
+public class MockMutableAuthenticationProvider extends MockAuthenticationProvider {
+    public AuthenticationState newAuthState(AuthData authData,
+                                            SocketAddress remoteAddress,
+                                            SSLSession sslSession) {
+        return new MockMutableAuthenticationState(this);
     }
 }

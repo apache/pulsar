@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Predicate;
 import lombok.Cleanup;
@@ -32,6 +33,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.OpAddEntry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
@@ -60,7 +62,7 @@ import static org.testng.Assert.assertNotNull;
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
 
-    public class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
+    public static class TestPayloadProcessor implements ManagedLedgerPayloadProcessor {
         @Override
         public Processor inputProcessor() {
             return new Processor() {
@@ -156,6 +158,47 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
         config.setManagedLedgerInterceptor(null);
+    }
+
+    @Test
+    public void testTotalSizeCorrectIfHasInterceptor() throws Exception {
+        final String mlName = "ml1";
+        final String cursorName = "cursor1";
+
+        // Registry interceptor.
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        Set<ManagedLedgerPayloadProcessor> processors = new HashSet();
+        processors.add(new TestPayloadProcessor());
+        ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(new HashSet(), processors);
+        config.setManagedLedgerInterceptor(interceptor);
+        config.setMaxEntriesPerLedger(2);
+
+        // Add many entries and consume.
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(mlName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        for (int i = 0; i < 5; i++){
+            cursor.delete(ledger.addEntry(new byte[1]));
+        }
+
+        // Trim ledgers.
+        CompletableFuture<Void> trimLedgerFuture = new CompletableFuture<>();
+        ledger.trimConsumedLedgersInBackground(trimLedgerFuture);
+        trimLedgerFuture.join();
+
+        // verify.
+        assertEquals(ledger.getTotalSize(), calculatePreciseSize(ledger));
+
+        // cleanup.
+        cursor.close();
+        ledger.close();
+        factory.getEntryCacheManager().clear();
+        factory.shutdown();
+        config.setManagedLedgerInterceptor(null);
+    }
+
+    public static long calculatePreciseSize(ManagedLedgerImpl ledger){
+        return ledger.getLedgersInfo().values().stream()
+                .map(info -> info.getSize()).reduce((l1,l2) -> l1 + l2).orElse(0L) + ledger.getCurrentLedgerSize();
     }
 
     @Test(timeOut = 20000)
