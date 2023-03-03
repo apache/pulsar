@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
@@ -137,6 +138,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      */
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
+        this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         // TODO: Make brokerSelectionStrategy configurable.
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();

@@ -396,7 +396,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             usage.setDirectMemory(directMemory);
             usage.setBandwidthIn(bandwidthIn);
             usage.setBandwidthOut(bandwidthOut);
-            loadData.update(usage, 1, 2, 3, 4, 5, conf);
+            loadData.update(usage, 1, 2, 3, 4, 5, 6, conf);
             brokerLoadMetrics.set(loadData.toMetrics(pulsar.getAdvertisedAddress()));
         }
         {

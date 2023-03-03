@@ -143,6 +143,7 @@ import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @SuppressWarnings("unchecked")
@@ -290,6 +291,34 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Connected);
         CommandConnected response = (CommandConnected) getResponse();
         assertEquals(response.getProtocolVersion(), currentProtocolVersion);
+        channel.finish();
+    }
+
+    @DataProvider(name = "clientVersions")
+    public Object[][] clientVersions() {
+        return new Object[][]{
+                {"Pulsar Client", true},
+                {"Pulsar Go 0.2.1", true},
+                {"Pulsar-Client-Java-v1.15.2", true},
+                {"pulsar-java-3.0.0", true},
+                {"", false},
+                {" ", false}
+        };
+    }
+
+    @Test(dataProvider = "clientVersions")
+    public void testStoreClientVersionWhenNotBlank(String clientVersion, boolean expectSetToClientVersion) throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        ByteBuf clientCommand = Commands.newConnect("", "", clientVersion);
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        assertEquals(serverCnx.getClientVersion(), expectSetToClientVersion ? clientVersion : null);
         channel.finish();
     }
 
