@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
-
 import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 
@@ -28,7 +27,7 @@ import org.apache.commons.lang3.StringUtils;
  */
 
 public record ServiceUnitStateData(
-        ServiceUnitState state, String broker, String sourceBroker, boolean force, long timestamp) {
+        ServiceUnitState state, String broker, String sourceBroker, boolean force, long timestamp, long versionId) {
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
@@ -37,16 +36,16 @@ public record ServiceUnitStateData(
         }
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker) {
-        this(state, broker, sourceBroker, false, System.currentTimeMillis());
+    public ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker, long versionId) {
+        this(state, broker, sourceBroker, false, System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker) {
-        this(state, broker, null, false, System.currentTimeMillis());
+    public ServiceUnitStateData(ServiceUnitState state, String broker, long versionId) {
+        this(state, broker, null, false, System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, boolean force) {
-        this(state, broker, null, force, System.currentTimeMillis());
+    public ServiceUnitStateData(ServiceUnitState state, String broker, boolean force, long versionId) {
+        this(state, broker, null, force, System.currentTimeMillis(), versionId);
     }
 
     public static ServiceUnitState state(ServiceUnitStateData data) {

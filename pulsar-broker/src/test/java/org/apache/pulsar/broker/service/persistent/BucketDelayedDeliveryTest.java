@@ -30,6 +30,11 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     @Override
     public void setup() throws Exception {
         conf.setDelayedDeliveryTrackerFactoryClassName(BucketDelayedDeliveryTrackerFactory.class.getName());
+        conf.setDelayedDeliveryMaxNumBuckets(10);
+        conf.setDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds(1);
+        conf.setDelayedDeliveryMinIndexCountPerBucket(50);
+        conf.setManagedLedgerMaxEntriesPerLedger(50);
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         super.setup();
     }
 

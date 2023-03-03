@@ -121,7 +121,7 @@ public class TransferShedderTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        loadData.update(usage1, 1,2,3,4,5,
+        loadData.update(usage1, 1,2,3,4,5,6,
                 ctx.brokerConfiguration());
         return loadData;
     }

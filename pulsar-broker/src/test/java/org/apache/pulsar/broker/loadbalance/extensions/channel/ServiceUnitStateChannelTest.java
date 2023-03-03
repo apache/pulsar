@@ -924,26 +924,26 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @Test(priority = 11)
     public void ownerLookupCountTests() throws IllegalAccessException {
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, "b1", 1));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, "b1", 1));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, "b1", 1));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, "b1", 1));
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, "b1", 1));
         channel1.getOwnerAsync(bundle);
 
-        overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, "b1"));
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, "b1", 1));
         channel1.getOwnerAsync(bundle);
         channel1.getOwnerAsync(bundle);
 

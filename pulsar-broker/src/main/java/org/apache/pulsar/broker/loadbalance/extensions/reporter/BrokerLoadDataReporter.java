@@ -83,8 +83,8 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData> 
                     brokerStats.msgRateIn,
                     brokerStats.msgRateOut,
                     brokerStats.bundleCount,
+                    brokerStats.topics,
                     pulsar.getConfiguration());
-
         }
         return this.localData;
     }

@@ -103,7 +103,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             NamespaceName.SYSTEM_NAMESPACE,
             "loadbalancer-service-unit-state").toString();
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
-
+    public static final long VERSION_ID_INIT = 1; // initial versionId
     private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
@@ -451,11 +451,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    private long getNextVersionId(String serviceUnit) {
+        var data = tableview.get(serviceUnit);
+        return getNextVersionId(data);
+    }
+
+    private long getNextVersionId(ServiceUnitStateData data) {
+        return data == null ? VERSION_ID_INIT : data.versionId() + 1;
+    }
+
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
+        if (!validateChannelState(Started, true)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        }
         EventType eventType = Assign;
         eventCounters.get(eventType).getTotal().incrementAndGet();
         CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
-        pubAsync(serviceUnit, new ServiceUnitStateData(Assigning, broker))
+
+        pubAsync(serviceUnit, new ServiceUnitStateData(Assigning, broker, getNextVersionId(serviceUnit)))
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
                         getOwnerRequests.remove(serviceUnit, getOwnerRequest);
@@ -469,16 +483,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
+        if (!validateChannelState(Started, true)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        }
         EventType eventType = Unload;
         eventCounters.get(eventType).getTotal().incrementAndGet();
         String serviceUnit = unload.serviceUnit();
         CompletableFuture<MessageId> future;
         if (isTransferCommand(unload)) {
             future = pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Assigning, unload.destBroker().get(), unload.sourceBroker()));
+                    Assigning, unload.destBroker().get(), unload.sourceBroker(), getNextVersionId(serviceUnit)));
         } else {
             future = pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Releasing, unload.sourceBroker()));
+                    Releasing, unload.sourceBroker(), getNextVersionId(serviceUnit)));
         }
 
         return future.whenComplete((__, ex) -> {
@@ -489,10 +507,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<Void> publishSplitEventAsync(Split split) {
+        if (!validateChannelState(Started, true)) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        }
         EventType eventType = Split;
         eventCounters.get(eventType).getTotal().incrementAndGet();
         String serviceUnit = split.serviceUnit();
-        ServiceUnitStateData next = new ServiceUnitStateData(Splitting, split.sourceBroker());
+        ServiceUnitStateData next =
+                new ServiceUnitStateData(Splitting, split.sourceBroker(), getNextVersionId(serviceUnit));
         return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
             if (ex != null) {
                 eventCounters.get(eventType).getFailure().incrementAndGet();
@@ -599,7 +622,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleAssignEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.broker())) {
             ServiceUnitStateData next = new ServiceUnitStateData(
-                    isTransferCommand(data) ? Releasing : Owned, data.broker(), data.sourceBroker());
+                    isTransferCommand(data) ? Releasing : Owned, data.broker(), data.sourceBroker(),
+                    getNextVersionId(data));
             pubAsync(serviceUnit, next)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -608,7 +632,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTransferCommand(data)) {
             if (isTargetBroker(data.sourceBroker())) {
-                ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker());
+                ServiceUnitStateData next =
+                        new ServiceUnitStateData(Owned, data.broker(), data.sourceBroker(), getNextVersionId(data));
                 // TODO: when close, pass message to clients to connect to the new broker
                 closeServiceUnit(serviceUnit)
                         .thenCompose(__ -> pubAsync(serviceUnit, next))
@@ -616,7 +641,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
         } else {
             if (isTargetBroker(data.broker())) {
-                ServiceUnitStateData next = new ServiceUnitStateData(Free, data.broker());
+                ServiceUnitStateData next = new ServiceUnitStateData(Free, data.broker(), getNextVersionId(data));
                 closeServiceUnit(serviceUnit)
                         .thenCompose(__ -> pubAsync(serviceUnit, next))
                         .whenComplete((__, e) -> log(e, serviceUnit, data, next));
@@ -660,10 +685,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
-        if (!validateChannelState(Started, true)) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Invalid channel state:" + channelState.name()));
-        }
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         producer.newMessage()
                 .key(serviceUnit)
@@ -774,7 +795,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 updateFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
                 return;
             }
-            ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker());
+            ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.broker(), VERSION_ID_INIT);
             NamespaceBundles targetNsBundle = splitBundlesPair.getLeft();
             List<NamespaceBundle> splitBundles = Collections.unmodifiableList(splitBundlesPair.getRight());
             List<NamespaceBundle> successPublishedBundles =
@@ -812,7 +833,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         updateFuture.thenAccept(r -> {
             // Delete the old bundle
-            pubAsync(serviceUnit, new ServiceUnitStateData(Deleted, data.broker())).thenRun(() -> {
+            pubAsync(serviceUnit, new ServiceUnitStateData(Deleted, data.broker(), getNextVersionId(data)))
+                    .thenRun(() -> {
                 // Update bundled_topic cache for load-report-generation
                 pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                 // TODO: Update the load data immediately if needed.
@@ -938,7 +960,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         Optional<String> selectedBroker = brokerSelector.select(availableBrokers, null, getContext());
         if (selectedBroker.isPresent()) {
-            var override = new ServiceUnitStateData(Owned, selectedBroker.get(), true);
+            var override = new ServiceUnitStateData(Owned, selectedBroker.get(), true, getNextVersionId(orphanData));
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
             pubAsync(serviceUnit, override).whenComplete((__, e) -> {
@@ -1007,19 +1029,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private Optional<ServiceUnitStateData> getOverrideStateData(String serviceUnit, ServiceUnitStateData orphanData,
                                                                 Set<String> availableBrokers,
                                                                 LoadManagerContext context) {
+        long nextVersionId = getNextVersionId(orphanData);
         if (isTransferCommand(orphanData)) {
             // rollback to the src
-            return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true));
+            return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true, nextVersionId));
         } else if (orphanData.state() == Assigning) { // assign
             // roll-forward to another broker
             Optional<String> selectedBroker = brokerSelector.select(availableBrokers, null, context);
             if (selectedBroker.isEmpty()) {
                 return Optional.empty();
             }
-            return Optional.of(new ServiceUnitStateData(Owned, selectedBroker.get(), true));
+            return Optional.of(new ServiceUnitStateData(Owned, selectedBroker.get(), true, nextVersionId));
         } else if (orphanData.state() == Splitting || orphanData.state() == Releasing) {
             // rollback to the target broker for split and unload
-            return Optional.of(new ServiceUnitStateData(Owned, orphanData.broker(), true));
+            return Optional.of(new ServiceUnitStateData(Owned, orphanData.broker(), true, nextVersionId));
         } else {
             var msg = String.format("Failed to get the overrideStateData from serviceUnit=%s, orphanData=%s",
                     serviceUnit, orphanData);
