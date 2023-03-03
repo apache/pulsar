@@ -97,6 +97,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             isZkManaged = true;
             zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
+                    .statsLogger(metadataStoreConfig.getStatsLogger())
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(this::processSessionWatcher))

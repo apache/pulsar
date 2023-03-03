@@ -21,6 +21,8 @@ package org.apache.pulsar.metadata.api;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
+import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.StatsLogger;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
@@ -92,4 +94,10 @@ public class MetadataStoreConfig {
      * separate clusters.
      */
     private MetadataEventSynchronizer synchronizer;
+
+    /**
+     * StatsLogger for expose zookeeper operation relate metrics.
+     */
+    @Builder.Default
+    private final StatsLogger statsLogger = NullStatsLogger.INSTANCE;
 }

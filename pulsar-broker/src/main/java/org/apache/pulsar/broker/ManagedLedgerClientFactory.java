@@ -73,15 +73,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
 
-        Configuration configuration = new ClientConfiguration();
-        if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
-            configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
-                    conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
-            configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, conf.getClusterName());
-            statsProvider = new PrometheusMetricsProvider();
-        }
+        this.statsProvider = conf.getStatsProvider();
 
-        statsProvider.start(configuration);
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
         this.defaultBkClient =

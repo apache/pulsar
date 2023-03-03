@@ -35,6 +35,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
@@ -2798,6 +2800,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + " this would be more efficient but may be inaccurate. Default is false."
     )
     private boolean exposePreciseBacklogInPrometheus = false;
+
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "Enable expose the metadata store zookeeper client stats."
+    )
+    private boolean exposeMetadataStoreZookeeperStatsInPrometheus = false;
+
+    /**
+     * the transient field here is for pass statsProvider to `ManagedLedgerClientFactory`
+     */
+    private transient StatsProvider statsProvider = new NullStatsProvider();
 
     @FieldContext(
         category = CATEGORY_METRICS,
