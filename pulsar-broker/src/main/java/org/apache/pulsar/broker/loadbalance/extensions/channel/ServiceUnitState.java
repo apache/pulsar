@@ -47,9 +47,9 @@ public enum ServiceUnitState {
             // when the topic is compacted in the middle of assign, transfer or split.
             Init, Set.of(Free, Owned, Assigning, Releasing, Splitting, Deleted),
             Free, Set.of(Assigning, Init),
-            Owned, Set.of(Assigning, Splitting, Releasing),
-            Assigning, Set.of(Owned, Releasing),
-            Releasing, Set.of(Owned, Free),
+            Owned, Set.of(Splitting, Releasing),
+            Assigning, Set.of(Owned),
+            Releasing, Set.of(Assigning, Free),
             Splitting, Set.of(Deleted),
             Deleted, Set.of(Init)
     );
@@ -67,4 +67,7 @@ public enum ServiceUnitState {
         return inFlightStates.contains(state);
     }
 
+    public static boolean isActiveState(ServiceUnitState state) {
+        return inFlightStates.contains(state) || state == Owned;
+    }
 }

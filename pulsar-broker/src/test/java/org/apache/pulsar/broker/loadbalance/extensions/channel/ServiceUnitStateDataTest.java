@@ -35,16 +35,15 @@ public class ServiceUnitStateDataTest {
     public void testConstructors() throws InterruptedException {
         ServiceUnitStateData data1 = new ServiceUnitStateData(Owned, "A", 1);
         assertEquals(data1.state(), Owned);
-        assertEquals(data1.broker(), "A");
+        assertEquals(data1.dstBroker(), "A");
         assertNull(data1.sourceBroker());
         assertThat(data1.timestamp()).isGreaterThan(0);
-        ;
 
         Thread.sleep(10);
 
         ServiceUnitStateData data2 = new ServiceUnitStateData(Assigning, "A", "B", 1);
         assertEquals(data2.state(), Assigning);
-        assertEquals(data2.broker(), "A");
+        assertEquals(data2.dstBroker(), "A");
         assertEquals(data2.sourceBroker(), "B");
         assertThat(data2.timestamp()).isGreaterThan(data1.timestamp());
     }
@@ -55,13 +54,13 @@ public class ServiceUnitStateDataTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testNullBroker() {
-        new ServiceUnitStateData(Owned, null, 1);
+    public void testNullBrokers() {
+        new ServiceUnitStateData(Owned, null, null, 1);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
-    public void testEmptyBroker() {
-        new ServiceUnitStateData(Owned, "", 1);
+    public void testEmptyBrokers() {
+        new ServiceUnitStateData(Owned, "", "", 1);
     }
 
     @Test

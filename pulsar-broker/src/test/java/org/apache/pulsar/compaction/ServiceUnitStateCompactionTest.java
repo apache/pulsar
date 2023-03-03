@@ -570,12 +570,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         long versionId = 1;
         producer.newMessage().key(bundle).value(new ServiceUnitStateData(Owned, src, versionId++)).send();
         for (int i = 0; i < 3; i++) {
-            var assignedStateData = new ServiceUnitStateData(Assigning, dst, src, versionId++);
-            producer.newMessage().key(bundle).value(assignedStateData).send();
-            producer.newMessage().key(bundle).value(assignedStateData).send();
             var releasedStateData = new ServiceUnitStateData(Releasing, dst, src, versionId++);
             producer.newMessage().key(bundle).value(releasedStateData).send();
             producer.newMessage().key(bundle).value(releasedStateData).send();
+            var assignedStateData = new ServiceUnitStateData(Assigning, dst, src, versionId++);
+            producer.newMessage().key(bundle).value(assignedStateData).send();
+            producer.newMessage().key(bundle).value(assignedStateData).send();
             var ownedStateData = new ServiceUnitStateData(Owned, dst, src, versionId++);
             producer.newMessage().key(bundle).value(ownedStateData).send();
             producer.newMessage().key(bundle).value(ownedStateData).send();
@@ -726,7 +726,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .subscriptionName("sub1").readCompacted(true).subscribe()) {
             Message<ServiceUnitStateData> message = consumer.receive();
             Assert.assertEquals(message.getKey(), "key1");
-            Assert.assertEquals(new String(message.getValue().broker()), "my-message-4");
+            Assert.assertEquals(new String(message.getValue().dstBroker()), "my-message-4");
         }
     }
 
@@ -860,7 +860,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Message<ServiceUnitStateData> m1 = consumer.receive();
             assertNotNull(m1);
             assertEquals(m1.getKey(), key);
-            assertEquals(m1.getValue().broker(), "19");
+            assertEquals(m1.getValue().dstBroker(), "19");
             Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
             assertNull(none);
         }
@@ -908,7 +908,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 Message<ServiceUnitStateData> received = consumer.receive();
                 assertNotNull(received);
                 assertEquals(received.getKey(), key);
-                assertEquals(received.getValue().broker(), i + 9 + "");
+                assertEquals(received.getValue().dstBroker(), i + 9 + "");
                 consumer.acknowledge(received);
             }
             Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
@@ -946,7 +946,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 Message<ServiceUnitStateData> received = consumer.receive();
                 assertNotNull(received);
                 assertEquals(received.getKey(), key);
-                assertEquals(received.getValue().broker(), i + 20 + "");
+                assertEquals(received.getValue().dstBroker(), i + 20 + "");
                 consumer.acknowledge(received);
             }
             Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
