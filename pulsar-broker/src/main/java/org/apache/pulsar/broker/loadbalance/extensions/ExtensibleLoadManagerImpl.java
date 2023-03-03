@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerIsolationPoliciesFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
@@ -52,6 +53,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.TopBundleLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerScheduler;
@@ -61,6 +63,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreExcept
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -89,6 +92,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private BrokerRegistry brokerRegistry;
 
     private ServiceUnitStateChannel serviceUnitStateChannel;
+
+    private AntiAffinityGroupPolicyFilter antiAffinityGroupPolicyFilter;
+
+    private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
@@ -134,6 +141,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
 
+    private final Map<String, String> brokerToFailureDomainMap = new HashMap<>();
+
+
     /**
      * Life cycle: Constructor -> initialize -> start -> close.
      */
@@ -168,6 +178,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.unloadManager = new UnloadManager();
         this.serviceUnitStateChannel.listen(unloadManager);
         this.serviceUnitStateChannel.start();
+        this.antiAffinityGroupPolicyHelper =
+                new AntiAffinityGroupPolicyHelper(pulsar, brokerToFailureDomainMap, serviceUnitStateChannel);
+        this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
+        this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
 
         try {
             this.brokerLoadDataStore = LoadDataStoreFactory
@@ -177,6 +191,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (LoadDataStoreException e) {
             throw new PulsarServerException(e);
         }
+        LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
+        // register listeners for domain changes
+        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+                .registerListener(__ -> {
+                    pulsar.getLoadManagerExecutor().execute(() ->
+                            LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
+                });
 
         this.context = LoadManagerContextImpl.builder()
                 .configuration(conf)

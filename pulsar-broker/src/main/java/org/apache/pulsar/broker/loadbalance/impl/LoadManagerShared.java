@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,9 +39,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -314,13 +319,12 @@ public class LoadManagerShared {
      * @param pulsar
      * @param assignedBundleName
      * @param candidates
-     * @param brokerToNamespaceToBundleRange
+     * @param bundleOwnershipData
      */
     public static void filterAntiAffinityGroupOwnedBrokers(
             final PulsarService pulsar, final String assignedBundleName,
             final Set<String> candidates,
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                    brokerToNamespaceToBundleRange,
+            final Object bundleOwnershipData,
             Map<String, String> brokerToDomainMap) {
         if (candidates.isEmpty()) {
             return;
@@ -328,7 +332,7 @@ public class LoadManagerShared {
         final String namespaceName = getNamespaceNameFromBundleName(assignedBundleName);
         try {
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = getAntiAffinityNamespaceOwnedBrokers(pulsar,
-                    namespaceName, brokerToNamespaceToBundleRange).get(30, TimeUnit.SECONDS);
+                    namespaceName, bundleOwnershipData).get(30, TimeUnit.SECONDS);
             if (brokerToAntiAffinityNamespaceCount == null) {
                 // none of the broker owns anti-affinity-namespace so, none of the broker will be filtered
                 return;
@@ -409,22 +413,23 @@ public class LoadManagerShared {
             return nsCount != null && nsCount != finalLeastNamespaceCount;
         });
     }
-
+    @FunctionalInterface
+    private interface CountAntiAffinityNamespaceOwnedBrokers{
+        void run(String broker, String namespace);
+    }
     /**
      * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given.
      *
      * @param pulsar
      * @param namespaceName
-     * @param brokerToNamespaceToBundleRange
+     * @param bundleOwnershipData
      * @return
      */
     public static CompletableFuture<Map<String, Integer>> getAntiAffinityNamespaceOwnedBrokers(
             final PulsarService pulsar, final String namespaceName,
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                    brokerToNamespaceToBundleRange) {
+            Object bundleOwnershipData) {
 
         CompletableFuture<Map<String, Integer>> antiAffinityNsBrokersResult = new CompletableFuture<>();
-
         pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(namespaceName))
                 .thenAccept(policies -> {
             if (!policies.isPresent() || StringUtils.isBlank(policies.get().namespaceAntiAffinityGroup)) {
@@ -434,11 +439,9 @@ public class LoadManagerShared {
             final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
-            brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
-                nsToBundleRange.forEach((ns, bundleRange) -> {
-                    if (bundleRange.isEmpty()) {
-                        return;
-                    }
+
+            final CountAntiAffinityNamespaceOwnedBrokers countAntiAffinityNamespaceOwnedBrokers =
+                    (broker, ns) -> {
 
                     CompletableFuture<Void> future = new CompletableFuture<>();
                     futures.add(future);
@@ -455,8 +458,36 @@ public class LoadManagerShared {
                         future.complete(null);
                         return null;
                     });
+            };
+
+            if (bundleOwnershipData instanceof ConcurrentOpenHashMap) {
+                var brokerToNamespaceToBundleRange =
+                        (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
+                                bundleOwnershipData;
+                brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
+                    nsToBundleRange.forEach((ns, bundleRange) -> {
+                        if (bundleRange.isEmpty()) {
+                            return;
+                        }
+                        countAntiAffinityNamespaceOwnedBrokers.run(broker, ns);
+                    });
                 });
-            });
+            } else if (bundleOwnershipData instanceof Set) {
+                ((Set<Map.Entry<String, ServiceUnitStateData>>) bundleOwnershipData)
+                        .forEach(etr -> {
+                            var stateData = etr.getValue();
+                            var bundle = etr.getKey();
+                            if (stateData.state() == ServiceUnitState.Owned
+                                    && StringUtils.isNotBlank(stateData.dstBroker())) {
+                                countAntiAffinityNamespaceOwnedBrokers
+                                        .run(stateData.dstBroker(),
+                                                LoadManagerShared.getNamespaceNameFromBundleName(bundle));
+                            }
+                        });
+            } else {
+                throw new IllegalStateException(
+                        "Invalid bundleOwnershipData type:" + bundleOwnershipData.getClass().getName());
+            }
             FutureUtil.waitForAll(futures)
                     .thenAccept(r -> antiAffinityNsBrokersResult.complete(brokerToAntiAffinityNamespaceCount));
         }).exceptionally(ex -> {
@@ -478,7 +509,7 @@ public class LoadManagerShared {
      * @param bundle
      * @param currentBroker
      * @param pulsar
-     * @param brokerToNamespaceToBundleRange
+     * @param bundleOwnershipData
      * @param candidateBrokers
      * @return
      * @throws Exception
@@ -486,12 +517,11 @@ public class LoadManagerShared {
     public static boolean shouldAntiAffinityNamespaceUnload(
             String namespace, String bundle, String currentBroker,
             final PulsarService pulsar,
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                    brokerToNamespaceToBundleRange,
+            final Object bundleOwnershipData,
             Set<String> candidateBrokers) throws Exception {
 
         Map<String, Integer> brokerNamespaceCount = getAntiAffinityNamespaceOwnedBrokers(pulsar, namespace,
-                brokerToNamespaceToBundleRange).get(10, TimeUnit.SECONDS);
+                bundleOwnershipData).get(10, TimeUnit.SECONDS);
         if (brokerNamespaceCount != null && !brokerNamespaceCount.isEmpty()) {
             int leastNsCount = Integer.MAX_VALUE;
             int currentBrokerNsCount = 0;
@@ -552,6 +582,38 @@ public class LoadManagerShared {
         if (!filteredBrokerCandidates.isEmpty()) {
             brokerCandidateCache.clear();
             brokerCandidateCache.addAll(filteredBrokerCandidates);
+        }
+    }
+
+    public static void refreshBrokerToFailureDomainMap(PulsarService pulsar,
+                                                       Map<String, String> brokerToFailureDomainMap) {
+        if (!pulsar.getConfiguration().isFailureDomainsEnabled()) {
+            return;
+        }
+        ClusterResources.FailureDomainResources fdr =
+                pulsar.getPulsarResources().getClusterResources().getFailureDomainResources();
+        String clusterName = pulsar.getConfiguration().getClusterName();
+        try {
+            synchronized (brokerToFailureDomainMap) {
+                Map<String, String> tempBrokerToFailureDomainMap = new HashMap<>();
+                for (String domainName : fdr.listFailureDomains(clusterName)) {
+                    try {
+                        Optional<FailureDomainImpl> domain = fdr.getFailureDomain(clusterName, domainName);
+                        if (domain.isPresent()) {
+                            for (String broker : domain.get().brokers) {
+                                tempBrokerToFailureDomainMap.put(broker, domainName);
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOG.warn("Failed to get domain {}", domainName, e);
+                    }
+                }
+                brokerToFailureDomainMap.clear();
+                brokerToFailureDomainMap.putAll(tempBrokerToFailureDomainMap);
+            }
+            LOG.info("Cluster domain refreshed {}", brokerToFailureDomainMap);
+        } catch (Exception e) {
+            LOG.warn("Failed to get domain-list for cluster {}", e.getMessage());
         }
     }
 }
