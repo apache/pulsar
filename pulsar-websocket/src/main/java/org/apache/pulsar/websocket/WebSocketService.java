@@ -103,7 +103,7 @@ public class WebSocketService implements Closeable {
         if (isNotBlank(config.getConfigurationStoreServers())) {
             try {
                 configMetadataStore = createMetadataStore(config.getConfigurationStoreServers(),
-                        (int) config.getZooKeeperSessionTimeoutMillis());
+                        (int) config.getZooKeeperSessionTimeoutMillis(), config.isZookeeperAllowReadOnlyOperations());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }
@@ -123,9 +123,10 @@ public class WebSocketService implements Closeable {
         log.info("Pulsar WebSocket Service started");
     }
 
-    public MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs,
+                                                     boolean isAllowReadOnlyOperations)
             throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(serverUrls, sessionTimeoutMs);
+        return PulsarResources.createMetadataStore(serverUrls, sessionTimeoutMs, isAllowReadOnlyOperations);
     }
 
     @Override
