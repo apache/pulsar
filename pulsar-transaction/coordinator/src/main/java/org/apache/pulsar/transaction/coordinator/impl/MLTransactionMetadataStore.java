@@ -120,8 +120,6 @@ public class MLTransactionMetadataStore
                                         + tcID.toString() + " change state to Ready error when init it"));
 
                     } else {
-                        recoverTracker.handleCommittingAndAbortingTransaction();
-                        timeoutTracker.start();
                         completableFuture.complete(MLTransactionMetadataStore.this);
                     }
                 }
