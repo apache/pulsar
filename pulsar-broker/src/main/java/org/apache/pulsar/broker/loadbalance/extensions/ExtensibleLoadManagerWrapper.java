@@ -129,8 +129,7 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
 
     @Override
     public List<Metrics> getLoadBalancingMetrics() {
-        // TODO: Add metrics.
-        return null;
+        return loadManager.getMetrics();
     }
 
     @Override
@@ -141,6 +140,10 @@ public class ExtensibleLoadManagerWrapper implements LoadManager {
     @Override
     public void doNamespaceBundleSplit() {
         throw new UnsupportedOperationException();
+    }
+
+    public ExtensibleLoadManagerImpl get() {
+        return loadManager;
     }
 
 }

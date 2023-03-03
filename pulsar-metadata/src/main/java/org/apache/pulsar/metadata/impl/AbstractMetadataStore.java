@@ -466,7 +466,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storePut(path, data, optExpectedVersion,
                 (options != null && !options.isEmpty()) ? EnumSet.copyOf(options) : EnumSet.noneOf(CreateOption.class))
                 .thenApply(stat -> {
-                    NotificationType type = stat.getVersion() == 0 ? NotificationType.Created
+                    NotificationType type = stat.isFirstVersion() ? NotificationType.Created
                             : NotificationType.Modified;
                     if (type == NotificationType.Created) {
                         existsCache.synchronous().invalidate(path);

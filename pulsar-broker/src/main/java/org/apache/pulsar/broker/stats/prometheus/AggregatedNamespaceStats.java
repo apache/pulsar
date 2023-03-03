@@ -63,7 +63,7 @@ public class AggregatedNamespaceStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-    int delayedTrackerMemoryUsage;
+    int delayedMessageIndexSizeInBytes;
 
     void updateStats(TopicStats stats) {
         topicsCount++;
@@ -81,7 +81,7 @@ public class AggregatedNamespaceStats {
         msgInCounter += stats.msgInCounter;
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
-        delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
+        delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
 
         this.ongoingTxnCount += stats.ongoingTxnCount;
         this.abortedTxnCount += stats.abortedTxnCount;
@@ -131,6 +131,7 @@ public class AggregatedNamespaceStats {
             subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
             subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
             subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
+            subsStats.delayedMessageIndexSizeInBytes += as.delayedMessageIndexSizeInBytes;
             as.consumerStat.forEach((c, v) -> {
                 AggregatedConsumerStats consumerStats =
                         subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());
@@ -170,6 +171,6 @@ public class AggregatedNamespaceStats {
 
         replicationStats.clear();
         subscriptionStats.clear();
-        delayedTrackerMemoryUsage = 0;
+        delayedMessageIndexSizeInBytes = 0;
     }
 }
