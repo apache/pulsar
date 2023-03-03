@@ -764,8 +764,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
 
-            if (config.isBookkeeperClientExposeStatsToPrometheus() ||
-                    config.isExposeMetadataStoreZookeeperStatsInPrometheus()) {
+            if (config.isBookkeeperClientExposeStatsToPrometheus()
+                    || config.isExposeMetadataStoreZookeeperStatsInPrometheus()) {
                 Configuration configuration = new ClientConfiguration();
                 configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
                         config.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
