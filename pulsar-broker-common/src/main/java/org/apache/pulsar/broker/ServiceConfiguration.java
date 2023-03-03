@@ -2808,7 +2808,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean exposeMetadataStoreZookeeperStatsInPrometheus = false;
 
     /**
-     * the transient field here is for pass statsProvider to `ManagedLedgerClientFactory`
+     * the transient field here is for pass statsProvider to `ManagedLedgerClientFactory`.
      */
     private transient StatsProvider statsProvider = new NullStatsProvider();
 
