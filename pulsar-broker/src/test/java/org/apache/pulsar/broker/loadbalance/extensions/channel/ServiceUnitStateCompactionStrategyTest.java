@@ -71,19 +71,19 @@ public class ServiceUnitStateCompactionStrategyTest {
 
         assertFalse(strategy.shouldKeepLeft(
                 new ServiceUnitStateData(Owned, dst, src, 10),
-                new ServiceUnitStateData(Assigning, "broker2", dst, 11)));
+                new ServiceUnitStateData(Releasing, "broker2", dst, 11)));
 
         assertFalse(strategy.shouldKeepLeft(
                 new ServiceUnitStateData(Owned, dst, src, Long.MAX_VALUE),
-                new ServiceUnitStateData(Assigning, "broker2", dst, Long.MAX_VALUE + 1)));
+                new ServiceUnitStateData(Releasing, "broker2", dst, Long.MAX_VALUE + 1)));
 
         assertFalse(strategy.shouldKeepLeft(
                 new ServiceUnitStateData(Owned, dst, src, Long.MAX_VALUE + 1),
-                new ServiceUnitStateData(Assigning, "broker2", dst, Long.MAX_VALUE + 2)));
+                new ServiceUnitStateData(Releasing, "broker2", dst, Long.MAX_VALUE + 2)));
 
         assertTrue(strategy.shouldKeepLeft(
                 new ServiceUnitStateData(Owned, dst, src, 10),
-                new ServiceUnitStateData(Assigning, "broker2", dst, 5)));
+                new ServiceUnitStateData(Releasing, "broker2", dst, 5)));
 
     }
 
@@ -133,41 +133,42 @@ public class ServiceUnitStateCompactionStrategyTest {
         assertTrue(strategy.shouldKeepLeft(data(Assigning, "dst1"), data2(Owned, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Assigning, dst), data2(Owned, src, dst)));
         assertFalse(strategy.shouldKeepLeft(data(Assigning, dst), data2(Owned, dst)));
+        assertFalse(strategy.shouldKeepLeft(data(Assigning, src, dst), data2(Owned, src, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Assigning, src, dst), data2(Releasing, dst)));
-        assertTrue(strategy.shouldKeepLeft(data(Assigning, src, "dst1"), data2(Releasing, src, "dst2")));
-        assertTrue(strategy.shouldKeepLeft(data(Assigning, "src1", dst), data2(Releasing, "src2", dst)));
-        assertFalse(strategy.shouldKeepLeft(data(Assigning, src, dst), data2(Releasing, src, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Assigning, src, dst), data2(Releasing, src, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Assigning), data2(Splitting, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Assigning), data2(Deleted, dst)));
 
         assertTrue(strategy.shouldKeepLeft(data(Owned), data2(Init)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data2(Free)));
-        assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data2(Assigning, src, "dst2")));
-        assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Assigning, dst)));
-        assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Assigning, src, dst)));
-        assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Assigning, dst, dst)));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Assigning, dst, "dst1")));
+        assertTrue(strategy.shouldKeepLeft(data(Owned), data2(Assigning)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data2(Owned)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data2(Releasing, dst)));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data2(Releasing, src, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Owned, "dst1"), data2(Releasing, "dst2")));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, dst), data2(Releasing, dst)));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Releasing, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, dst), data2(Releasing, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Releasing, null, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Releasing, src, null)));
+        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Releasing, dst, null)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data2(Releasing, src, "dst2")));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, "src1", dst), data2(Releasing, "src2", dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Releasing, src, dst)));
+        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Releasing, dst, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Owned, src, "dst1"), data2(Splitting, src, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Owned, "dst1"), data2(Splitting, "dst2")));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, dst), data2(Splitting, dst)));
-        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Splitting, dst)));
+        assertFalse(strategy.shouldKeepLeft(data(Owned, dst), data2(Splitting, dst, null)));
+        assertFalse(strategy.shouldKeepLeft(data(Owned, src, dst), data2(Splitting, dst, null)));
         assertTrue(strategy.shouldKeepLeft(data(Owned), data2(Deleted, dst)));
 
         assertTrue(strategy.shouldKeepLeft(data(Releasing), data2(Init)));
         assertFalse(strategy.shouldKeepLeft(data(Releasing), data2(Free)));
         assertTrue(strategy.shouldKeepLeft(data(Releasing, "dst1"), data2(Free, "dst2")));
         assertTrue(strategy.shouldKeepLeft(data(Releasing, "src1", dst), data2(Free, "src2", dst)));
-        assertTrue(strategy.shouldKeepLeft(data(Releasing), data2(Assigning)));
-        assertTrue(strategy.shouldKeepLeft(data(Releasing, "dst1"), data2(Owned, "dst2")));
-        assertTrue(strategy.shouldKeepLeft(data(Releasing, src, "dst1"), data2(Owned, src, "dst2")));
-        assertTrue(strategy.shouldKeepLeft(data(Releasing, "src1", dst), data2(Owned, "src2", dst)));
-        assertFalse(strategy.shouldKeepLeft(data(Releasing, src, dst), data2(Owned, src, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Releasing, src, "dst1"), data2(Assigning, src, "dst2")));
+        assertTrue(strategy.shouldKeepLeft(data(Releasing, src, "dst1"), data2(Assigning, src, "dst2")));
+        assertTrue(strategy.shouldKeepLeft(data(Releasing, "src1", dst), data2(Assigning, "src2", dst)));
+        assertFalse(strategy.shouldKeepLeft(data(Releasing, src, dst), data2(Assigning, src, dst)));
+        assertTrue(strategy.shouldKeepLeft(data(Releasing), data2(Owned)));
         assertTrue(strategy.shouldKeepLeft(data(Releasing), data2(Releasing)));
         assertTrue(strategy.shouldKeepLeft(data(Releasing), data2(Splitting)));
         assertTrue(strategy.shouldKeepLeft(data(Releasing), data2(Deleted, dst)));

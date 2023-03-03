@@ -27,25 +27,25 @@ import org.apache.commons.lang3.StringUtils;
  */
 
 public record ServiceUnitStateData(
-        ServiceUnitState state, String broker, String sourceBroker, boolean force, long timestamp, long versionId) {
+        ServiceUnitState state, String dstBroker, String sourceBroker, boolean force, long timestamp, long versionId) {
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
-        if (StringUtils.isBlank(broker)) {
+        if (StringUtils.isBlank(dstBroker) && StringUtils.isBlank(sourceBroker)) {
             throw new IllegalArgumentException("Empty broker");
         }
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker, long versionId) {
-        this(state, broker, sourceBroker, false, System.currentTimeMillis(), versionId);
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker, long versionId) {
+        this(state, dstBroker, sourceBroker, false, System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, long versionId) {
-        this(state, broker, null, false, System.currentTimeMillis(), versionId);
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, long versionId) {
+        this(state, dstBroker, null, false, System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, boolean force, long versionId) {
-        this(state, broker, null, force, System.currentTimeMillis(), versionId);
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, boolean force, long versionId) {
+        this(state, dstBroker, null, force, System.currentTimeMillis(), versionId);
     }
 
     public static ServiceUnitState state(ServiceUnitStateData data) {
