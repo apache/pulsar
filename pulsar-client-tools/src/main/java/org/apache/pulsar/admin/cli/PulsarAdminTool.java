@@ -44,7 +44,7 @@ import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 
 public class PulsarAdminTool {
 
-    private static boolean allowSystemExit = true;
+    protected static boolean allowSystemExit = true;
 
     private static int lastExitCode = Integer.MIN_VALUE;
 
@@ -53,7 +53,7 @@ public class PulsarAdminTool {
     protected JCommander jcommander;
     protected RootParams rootParams;
     private final Properties properties;
-    private PulsarAdminSupplier pulsarAdminSupplier;
+    protected PulsarAdminSupplier pulsarAdminSupplier;
 
     @Getter
     public static class RootParams {
@@ -276,11 +276,16 @@ public class PulsarAdminTool {
     }
 
     public static void main(String[] args) throws Exception {
+        execute(args);
+    }
+
+    @VisibleForTesting
+    public static PulsarAdminTool execute(String[] args) throws Exception {
         lastExitCode = 0;
         if (args.length == 0) {
             System.out.println("Usage: pulsar-admin CONF_FILE_PATH [options] [command] [command options]");
             exit(0);
-            return;
+            return null;
         }
         String configFile = args[0];
         Properties properties = new Properties();
@@ -298,6 +303,7 @@ public class PulsarAdminTool {
         } else {
             exit(1);
         }
+        return tool;
     }
 
     private static void exit(int code) {
