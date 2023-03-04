@@ -70,7 +70,9 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
         managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
 
-        this.statsProvider = conf.getStatsProvider();
+        if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
+            this.statsProvider = conf.getStatsProvider();
+        }
 
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 

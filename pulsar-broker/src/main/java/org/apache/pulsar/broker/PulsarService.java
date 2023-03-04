@@ -735,6 +735,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "[loadBalancerOverrideBrokerNicSpeedGbps] to override it when load balancer is enabled.");
             }
 
+            if (config.isBookkeeperClientExposeStatsToPrometheus()
+                    || config.isExposeMetadataStoreZookeeperStatsInPrometheus()) {
+                Configuration configuration = new ClientConfiguration();
+                configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
+                        config.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+                configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, config.getClusterName());
+                StatsProvider statsProvider = new PrometheusMetricsProvider();
+                statsProvider.start(configuration);
+
+                config.setStatsProvider(statsProvider);
+                this.statsProvider = statsProvider;
+            }
+
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
                     : null;
@@ -763,19 +776,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
-
-            if (config.isBookkeeperClientExposeStatsToPrometheus()
-                    || config.isExposeMetadataStoreZookeeperStatsInPrometheus()) {
-                Configuration configuration = new ClientConfiguration();
-                configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
-                        config.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
-                configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, config.getClusterName());
-                StatsProvider statsProvider = new PrometheusMetricsProvider();
-                statsProvider.start(configuration);
-
-                config.setStatsProvider(statsProvider);
-                this.statsProvider = statsProvider;
-            }
 
             managedLedgerClientFactory = newManagedLedgerClientFactory();
 
