@@ -54,7 +54,8 @@ public abstract class AbstractMetadataDriver implements Closeable {
     protected String ledgersRootPath;
     protected StatsLogger statsLogger = new NullStatsLogger();
 
-    protected void initialize(AbstractConfiguration conf, StatsLogger statsLogger) throws MetadataException {
+    protected void initialize(AbstractConfiguration conf,
+                              StatsLogger statsLogger) throws MetadataException {
         this.conf = conf;
         this.statsLogger = statsLogger;
         this.ledgersRootPath = resolveLedgersRootPath();

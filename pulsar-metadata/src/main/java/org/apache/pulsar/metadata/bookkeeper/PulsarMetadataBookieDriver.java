@@ -36,12 +36,14 @@ public class PulsarMetadataBookieDriver extends AbstractMetadataDriver implement
     }
 
     @Override
-    protected void initialize(AbstractConfiguration serverConfiguration, StatsLogger statsLogger) throws MetadataException {
+    protected void initialize(AbstractConfiguration serverConfiguration,
+                              StatsLogger statsLogger) throws MetadataException {
         super.initialize(serverConfiguration, statsLogger);
     }
 
     @Override
-    public MetadataBookieDriver initialize(ServerConfiguration conf, StatsLogger statsLogger) throws MetadataException {
+    public MetadataBookieDriver initialize(ServerConfiguration conf,
+                                           StatsLogger statsLogger) throws MetadataException {
         super.initialize(conf, statsLogger);
         return this;
     }
