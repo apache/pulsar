@@ -311,7 +311,7 @@ public class PrometheusMetricsGenerator {
 
     private static void generateManagedLedgerBookieClientMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
         StatsProvider statsProvider = pulsar.getStatsProvider();
-        if (statsProvider instanceof NullStatsProvider) {
+        if (statsProvider == null || statsProvider instanceof NullStatsProvider) {
             return;
         }
 

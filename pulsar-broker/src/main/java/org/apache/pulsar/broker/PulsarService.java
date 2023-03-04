@@ -75,6 +75,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
+import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang3.StringUtils;
@@ -207,7 +208,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private ResourceUsageTransportManager resourceUsageTransportManager;
     private ResourceGroupService resourceGroupServiceManager;
 
-    private StatsProvider statsProvider;
+    private StatsProvider statsProvider = new NullStatsProvider();
 
     private final ScheduledExecutorService executor;
     private final ScheduledExecutorService cacheExecutor;
