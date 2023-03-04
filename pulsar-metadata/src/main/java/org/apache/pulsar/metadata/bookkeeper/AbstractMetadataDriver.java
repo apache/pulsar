@@ -30,6 +30,8 @@ import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.LegacyHierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.meta.exceptions.Code;
 import org.apache.bookkeeper.meta.exceptions.MetadataException;
+import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -50,9 +52,11 @@ public abstract class AbstractMetadataDriver implements Closeable {
     protected LayoutManager layoutManager;
     protected AbstractConfiguration conf;
     protected String ledgersRootPath;
+    protected StatsLogger statsLogger = new NullStatsLogger();
 
-    protected void initialize(AbstractConfiguration conf) throws MetadataException {
+    protected void initialize(AbstractConfiguration conf, StatsLogger statsLogger) throws MetadataException {
         this.conf = conf;
+        this.statsLogger = statsLogger;
         this.ledgersRootPath = resolveLedgersRootPath();
         createMetadataStore();
         this.registrationClient = new PulsarRegistrationClient(store, ledgersRootPath);
@@ -115,6 +119,7 @@ public abstract class AbstractMetadataDriver implements Closeable {
                 this.store = MetadataStoreExtended.create(url,
                         MetadataStoreConfig.builder()
                                 .sessionTimeoutMillis(conf.getZkTimeout())
+                                .statsLogger(this.statsLogger.scope("pulsar_metadata_store"))
                                 .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                                 .build());
                 this.storeInstanceIsOwned = true;

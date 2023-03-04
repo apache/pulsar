@@ -46,7 +46,7 @@ public class PulsarMetadataClientDriver extends AbstractMetadataDriver implement
                                            ScheduledExecutorService scheduledExecutorService,
                                            StatsLogger statsLogger,
                                            Optional<Object> optionalCtx) throws MetadataException {
-        super.initialize(clientConfiguration);
+        super.initialize(clientConfiguration, statsLogger);
         return this;
     }
 
