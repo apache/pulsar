@@ -38,6 +38,7 @@ public class ClientConfigurationDataTest {
         clientConfigurationData.setSocks5ProxyPassword("yyyy");
         clientConfigurationData.setAuthentication(new AuthenticationToken("zzzz"));
         ObjectMapper objectMapper = new ObjectMapper();
+
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         String serializedConf = objectMapper.writeValueAsString(clientConfigurationData);
         assertThat(serializedConf).doesNotContain("xxxx", "yyyy", "zzzz");
