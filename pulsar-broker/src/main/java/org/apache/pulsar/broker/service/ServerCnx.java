@@ -2182,8 +2182,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
                         .thenAccept(topics -> {
                             boolean filterTopics = false;
-                            // filter transaction internal topic
-                            List<String> filteredTopics = TopicList.filterTransactionInternalName(topics);
+                            // filter system topic
+                            List<String> filteredTopics = TopicList.filterSystemTopic(topics);
 
                             if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
                                 if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
