@@ -124,8 +124,8 @@ public class ProtobufNativeSchemaBreakCheckUtils {
                         && readSchemaFieldInfo.getNumber() == writtenSchemaFieldInfo.getNumber()
                         && readSchemaFieldInfo.getName().equals(writtenSchemaFieldInfo.getName())
                         && !readSchemaFieldInfo.getType().equals(writtenSchemaFieldInfo.getType())) {
-                    // TODO: field type check, need to discuss first.
-                    checkFieldTypeChanged(writtenSchemaFieldInfo, readSchemaFieldInfo);
+                    log.warn("The field type for a field with number {} has been changed.",
+                            readSchemaFieldInfo.getNumber());
                 } else if (writtenSchemaFieldInfoByFieldNameMap.containsKey(readSchemaFieldInfo.getName())
                         && writtenSchemaFieldInfoByFieldNameMap.get(readSchemaFieldInfo.getName()).getNumber()
                         != readSchemaFieldInfo.getNumber()) {
@@ -150,13 +150,6 @@ public class ProtobufNativeSchemaBreakCheckUtils {
                 }
             }
         }
-    }
-
-    private static void checkFieldTypeChanged(ProtoBufParsingInfo writtenSchemaFieldInfo,
-                                              ProtoBufParsingInfo readSchemaFieldInfo)
-            throws ProtoBufCanReadCheckException {
-        // TODO: field type check, need to discuss first.
-        // throw new ProtoBufCanReadCheckException("The field type have been changed.");
     }
 
     private static List<ProtoBufParsingInfo> fillUpProtoBufParsingInfoList(

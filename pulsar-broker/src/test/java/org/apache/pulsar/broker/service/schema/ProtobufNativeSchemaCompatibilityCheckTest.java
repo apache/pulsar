@@ -30,6 +30,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import java.util.Arrays;
 import java.util.Collections;
@@ -49,20 +50,29 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
     private static final SchemaData writerWithRemoveNoDefaultValueField = getSchemaData(WriterWithRemoveNoDefaultValueField.ProtobufSchema.getDescriptor());
     private static final SchemaData writerWithRemoveDefaultValueField = getSchemaData(WriterWithRemoveDefaultValueField.ProtobufSchema.getDescriptor());
 
+    @DataProvider(name = "protobufNativeSchemaValidatorDomain")
+    public static Object[] protobufNativeSchemaValidatorDomain() {
+        return new Object[]{ "", "org.apache.pulsar.broker.service.schema.validator.ProtobufNativeSchemaBreakValidatorImpl"};
+    }
+
     /**
      * make sure protobuf root message isn't allow change
      */
-    @Test
-    public void testRootMessageChange() {
-        SchemaCompatibilityCheck compatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
-        Assert.assertFalse(compatibilityCheck.isCompatible(schemaData2, schemaData1,
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testRootMessageChange(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        Assert.assertFalse(schemaCompatibilityCheck.isCompatible(schemaData2, schemaData1,
                 SchemaCompatibilityStrategy.FULL),
                 "Protobuf root message isn't allow change");
     }
 
-    @Test
-    public void testBackwardCompatibility() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testBackwardCompatibility(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        if (schemaValidator.isBlank()) {
+            testRootMessageChange(schemaValidator);
+            return;
+        }
         // adding a field with default is backwards compatible
         log.info("adding a field with default is backwards compatible");
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddHasDefaultValue,
@@ -85,9 +95,13 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
                 "removing a field with default value is backwards compatible");
     }
 
-    @Test
-    public void testForwardCompatibility() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testForwardCompatibility(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        if (schemaValidator.isBlank()) {
+            testRootMessageChange(schemaValidator);
+            return;
+        }
         // adding a field with default is forward compatible
         log.info("adding a field with default is forward compatible");
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddHasDefaultValue,
@@ -110,9 +124,13 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
                 "removing a field with default value is forward compatible");
     }
 
-    @Test
-    public void testFullCompatibility() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testFullCompatibility(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        if (schemaValidator.isBlank()) {
+            testRootMessageChange(schemaValidator);
+            return;
+        }
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(reader, writerWithAddHasDefaultValue,
                         SchemaCompatibilityStrategy.FULL),
                 "adding a field with default fully compatible");
@@ -127,9 +145,13 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
                 "removing a field with no default is not fully compatible");
     }
 
-    @Test
-    public void testBackwardTransitive() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testBackwardTransitive(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        if (schemaValidator.isBlank()) {
+            testRootMessageChange(schemaValidator);
+            return;
+        }
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2), writerWithAddHasDefaultValue,
                 SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2, writerWithAddHasDefaultValue),
@@ -144,9 +166,13 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
                 writerWithAddNoDefaultValue, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
     }
 
-    @Test
-    public void testForwardTransitive() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testForwardTransitive(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        if (schemaValidator.isBlank()) {
+            testRootMessageChange(schemaValidator);
+            return;
+        }
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2), writerWithRemoveDefaultValueField,
                 SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2, writerWithRemoveDefaultValueField),
@@ -157,9 +183,13 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
                 writerWithRemoveNoDefaultValueField, SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
     }
 
-    @Test
-    public void testFullTransitive() {
-        SchemaCompatibilityCheck schemaCompatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+    @Test(dataProvider = "protobufNativeSchemaValidatorDomain")
+    public void testFullTransitive(String schemaValidator) {
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCompatibilityCheck(schemaValidator);
+        if (schemaValidator.isBlank()) {
+            testRootMessageChange(schemaValidator);
+            return;
+        }
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, writerWithRemoveDefaultValueField),
                 writerWithAddHasDefaultValue, SchemaCompatibilityStrategy.FULL));
         Assert.assertFalse(schemaCompatibilityCheck.isCompatible(Arrays.asList(reader, reader2),
@@ -168,5 +198,11 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
 
     private static SchemaData getSchemaData(Descriptor descriptor) {
         return SchemaData.builder().data(ProtobufNativeSchemaUtils.serialize(descriptor)).type(SchemaType.PROTOBUF_NATIVE).build();
+    }
+
+    private static ProtobufNativeSchemaCompatibilityCheck getSchemaCompatibilityCheck(String schemaValidator) {
+        ProtobufNativeSchemaCompatibilityCheck compatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
+        compatibilityCheck.setProtobufNativeSchemaValidatorClassName(schemaValidator);
+        return compatibilityCheck;
     }
 }

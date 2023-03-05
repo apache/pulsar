@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.service.schema.validator;
 
 import lombok.NonNull;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.Reflections;
 
 public class ProtobufNativeSchemaValidatorBuilder {
     private ProtobufNativeSchemaValidationStrategy strategy;
     private boolean onlyValidateLatest;
+    private String validatorClassName;
 
     public ProtobufNativeSchemaValidatorBuilder validatorStrategy(
             @NonNull ProtobufNativeSchemaValidationStrategy strategy) {
@@ -35,7 +38,19 @@ public class ProtobufNativeSchemaValidatorBuilder {
         return this;
     }
 
+    public ProtobufNativeSchemaValidatorBuilder validatorClassName(String validatorClassName) {
+        this.validatorClassName = validatorClassName;
+        return this;
+    }
+
     public ProtobufNativeSchemaValidator build() {
-        return new ProtobufNativeSchemaBreakValidatorImpl(strategy, onlyValidateLatest);
+        if (StringUtils.isBlank(validatorClassName)) {
+            return ProtobufNativeSchemaValidator.DEFAULT;
+        } else {
+            Object[] params = {strategy, onlyValidateLatest};
+            Class[] paramTypes = {ProtobufNativeSchemaValidationStrategy.class, boolean.class};
+            return (ProtobufNativeSchemaValidator) Reflections.createInstance(validatorClassName,
+                    Thread.currentThread().getContextClassLoader(), params, paramTypes);
+        }
     }
 }

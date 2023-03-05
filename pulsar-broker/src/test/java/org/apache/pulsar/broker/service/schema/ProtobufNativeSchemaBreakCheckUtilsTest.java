@@ -52,16 +52,14 @@ public class ProtobufNativeSchemaBreakCheckUtilsTest {
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithSameVersion()
-            throws ProtoBufCanReadCheckException {
+    public void testCheckSchemaCompatibilityWithSameVersion() throws ProtoBufCanReadCheckException {
         Descriptor writtenDescriptor = Writer.ProtobufSchema.getDescriptor();
         assertNotNull(writtenDescriptor);
         ProtobufNativeSchemaBreakCheckUtils.checkSchemaCompatibility(writtenDescriptor, readDescriptor);
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithAddNoDefaultValueField(
-            ) throws ProtoBufCanReadCheckException {
+    public void testCheckSchemaCompatibilityWithAddNoDefaultValueField() throws ProtoBufCanReadCheckException {
         Descriptor writerWithAddNoDefaultValue = WriterWithAddNoDefaultValue.ProtobufSchema.getDescriptor();
         assertNotNull(writerWithAddNoDefaultValue);
         ProtobufNativeSchemaBreakCheckUtils.checkSchemaCompatibility(writerWithAddNoDefaultValue,
@@ -69,8 +67,7 @@ public class ProtobufNativeSchemaBreakCheckUtilsTest {
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithAddDefaultValueField(
-            ) throws ProtoBufCanReadCheckException {
+    public void testCheckSchemaCompatibilityWithAddDefaultValueField() throws ProtoBufCanReadCheckException {
         Descriptor writerWithAddHasDefaultValue = WriterWithAddHasDefaultValue.ProtobufSchema.getDescriptor();
         assertNotNull(writerWithAddHasDefaultValue);
         ProtobufNativeSchemaBreakCheckUtils.checkSchemaCompatibility(writerWithAddHasDefaultValue,
@@ -78,8 +75,7 @@ public class ProtobufNativeSchemaBreakCheckUtilsTest {
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithRemoveNoDefaultValueField(
-            ) {
+    public void testCheckSchemaCompatibilityWithRemoveNoDefaultValueField() {
         Descriptor writerWithRemoveNoDefaultValueField = WriterWithRemoveNoDefaultValueField.ProtobufSchema.getDescriptor();
         assertNotNull(writerWithRemoveNoDefaultValueField);
         try {
@@ -93,8 +89,7 @@ public class ProtobufNativeSchemaBreakCheckUtilsTest {
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithRemoveDefaultValueField(
-            ) throws ProtoBufCanReadCheckException {
+    public void testCheckSchemaCompatibilityWithRemoveDefaultValueField() throws ProtoBufCanReadCheckException {
         Descriptor writerWithRemoveDefaultValueField = WriterWithRemoveDefaultValueField.ProtobufSchema.getDescriptor();
         assertNotNull(writerWithRemoveDefaultValueField);
         ProtobufNativeSchemaBreakCheckUtils.checkSchemaCompatibility(writerWithRemoveDefaultValueField,
@@ -129,17 +124,11 @@ public class ProtobufNativeSchemaBreakCheckUtilsTest {
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithFieldTypeChange() {
+    public void testCheckSchemaCompatibilityWithFieldTypeChange() throws ProtoBufCanReadCheckException {
         Descriptor writerWithFieldTypeChange = WriterWithFieldTypeChange.ProtobufSchema.getDescriptor();
         assertNotNull(writerWithFieldTypeChange);
-        try {
-            ProtobufNativeSchemaBreakCheckUtils.checkSchemaCompatibility(writerWithFieldTypeChange,
-                    readDescriptor);
-            fail("Schema should be incompatible");
-        } catch (ProtoBufCanReadCheckException e) {
-            log.warn(e.getMessage());
-            assertEquals(e.getMessage(), "The field type have been changed.");
-        }
+        ProtobufNativeSchemaBreakCheckUtils.checkSchemaCompatibility(writerWithFieldTypeChange,
+                readDescriptor);
     }
 
     @Test
@@ -185,8 +174,7 @@ public class ProtobufNativeSchemaBreakCheckUtilsTest {
     }
 
     @Test
-    public void testCheckSchemaCompatibilityWithEnumChange()
-            throws ProtoBufCanReadCheckException {
+    public void testCheckSchemaCompatibilityWithEnumChange() throws ProtoBufCanReadCheckException {
         // add enum field
         Descriptor writerWithEnumAdd = WriterWithEnumAdd.ProtobufSchema.getDescriptor();
         assertNotNull(writerWithEnumAdd);

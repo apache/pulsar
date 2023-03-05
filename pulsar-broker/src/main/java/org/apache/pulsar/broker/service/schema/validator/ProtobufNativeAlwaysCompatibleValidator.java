@@ -26,7 +26,7 @@ public class ProtobufNativeAlwaysCompatibleValidator implements ProtobufNativeSc
             new ProtobufNativeAlwaysCompatibleValidator();
 
     @Override
-    public void validate(Iterable<Descriptors.Descriptor> fromDescriptor, Descriptors.Descriptor toDescriptor)
+    public void validate(Iterable<Descriptors.Descriptor> fromDescriptors, Descriptors.Descriptor toDescriptor)
             throws ProtoBufCanReadCheckException {
         return;
     }

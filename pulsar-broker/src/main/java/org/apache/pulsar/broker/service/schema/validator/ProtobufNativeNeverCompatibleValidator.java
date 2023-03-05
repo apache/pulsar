@@ -28,9 +28,9 @@ public class ProtobufNativeNeverCompatibleValidator implements ProtobufNativeSch
     public static final ProtobufNativeNeverCompatibleValidator INSTANCE = new ProtobufNativeNeverCompatibleValidator();
 
     @Override
-    public void validate(Iterable<Descriptors.Descriptor> fromDescriptor, Descriptors.Descriptor toDescriptor)
+    public void validate(Iterable<Descriptors.Descriptor> fromDescriptors, Descriptors.Descriptor toDescriptor)
             throws ProtoBufCanReadCheckException {
-        for (Descriptors.Descriptor descriptor : fromDescriptor) {
+        for (Descriptors.Descriptor descriptor : fromDescriptors) {
             throw new ProtoBufCanReadCheckException("Unknown SchemaCompatibilityStrategy.");
         }
     }

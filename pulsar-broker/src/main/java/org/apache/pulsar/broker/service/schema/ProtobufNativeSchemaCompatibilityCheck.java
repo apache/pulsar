@@ -41,6 +41,8 @@ import org.apache.pulsar.common.schema.SchemaType;
 @Slf4j
 public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
 
+    private String schemaValidatorClassName;
+
     @Override
     public SchemaType getSchemaType() {
         return SchemaType.PROTOBUF_NATIVE;
@@ -69,9 +71,9 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
         }
     }
 
-    static ProtobufNativeSchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
-        final ProtobufNativeSchemaValidatorBuilder schemaValidatorBuilder = new
-                ProtobufNativeSchemaValidatorBuilder();
+    private ProtobufNativeSchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
+        final ProtobufNativeSchemaValidatorBuilder schemaValidatorBuilder = new ProtobufNativeSchemaValidatorBuilder()
+                .validatorClassName(schemaValidatorClassName);
         return switch (compatibilityStrategy) {
             case BACKWARD_TRANSITIVE -> schemaValidatorBuilder
                     .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanReadExistingStrategy)
@@ -95,4 +97,9 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
             default -> ProtobufNativeNeverCompatibleValidator.INSTANCE;
         };
     }
+
+    public void setProtobufNativeSchemaValidatorClassName(String schemaValidatorClassName) {
+        this.schemaValidatorClassName = schemaValidatorClassName;
+    }
+
 }
