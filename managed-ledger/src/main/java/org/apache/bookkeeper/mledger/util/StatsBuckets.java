@@ -73,6 +73,19 @@ public class StatsBuckets {
         this.count = count;
     }
 
+    public void collect() {
+        long count = 0;
+        sum = sumCounter.sum();
+
+        for (int i = 0; i < buckets.length; i++) {
+            long value = buckets[i].sum();
+            count += value;
+            values[i] = value;
+        }
+
+        this.count = count;
+    }
+
     public void reset() {
         sum = 0;
         sumCounter.reset();

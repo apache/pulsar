@@ -175,7 +175,9 @@ class ImmutableBucket extends Bucket {
         }, BucketSnapshotPersistenceException.class, MaxRetryTimes);
     }
 
-    CompletableFuture<Void> asyncDeleteBucketSnapshot() {
+    CompletableFuture<Void> asyncDeleteBucketSnapshot(BucketDelayedMessageIndexStats stats) {
+        long deleteStartTime = System.currentTimeMillis();
+        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.delete);
         String bucketKey = bucketKey();
         long bucketId = getAndUpdateBucketId();
         return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
@@ -184,16 +186,32 @@ class ImmutableBucket extends Bucket {
                     if (ex != null) {
                         log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
                                 dispatcherName, bucketId, bucketKey, ex);
+
+                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
                     } else {
                         log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
                                  dispatcherName, bucketId, bucketKey);
+
+                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                System.currentTimeMillis() - deleteStartTime);
                     }
         });
     }
 
-    CompletableFuture<Void> clear() {
+    CompletableFuture<Void> clear(BucketDelayedMessageIndexStats stats) {
         delayedIndexBitMap.clear();
         return getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).exceptionally(e -> null)
-                .thenCompose(__ -> asyncDeleteBucketSnapshot());
+                .thenCompose(__ -> asyncDeleteBucketSnapshot(stats));
+    }
+
+    protected void updateSnapshotLength() {
+        long bucketId = getAndUpdateBucketId();
+        bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
+            if (ex != null) {
+                log.error("Failed to get snapshot length, bucketId: {}, bucketKey: {}", bucketId, bucketKey(), ex);
+            } else {
+                setSnapshotLength(length);
+            }
+        });
     }
 }
