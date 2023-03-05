@@ -100,6 +100,7 @@ import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -942,9 +943,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         ByteBuf payload = ((MessageImpl) msg).getPayload();
         assertNotEquals(payload.refCnt(), 0);
         consumer.redeliverUnacknowledgedMessages();
-        assertEquals(payload.refCnt(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(consumer.incomingMessages.size() >= 100);
+        });
         consumer.close();
         producer.close();
+        admin.topics().delete(topic, false);
+        assertEquals(consumer.incomingMessages.size(), 0);
+        assertEquals(payload.refCnt(), 0);
     }
 
     /**
