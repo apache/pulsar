@@ -46,7 +46,7 @@ function ci_print_thread_dumps() {
 
 # runs maven
 function _ci_mvn() {
-  mvn -B -ntp -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -UBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
+  mvn -B -ntp -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
         "$@"
 }
 
