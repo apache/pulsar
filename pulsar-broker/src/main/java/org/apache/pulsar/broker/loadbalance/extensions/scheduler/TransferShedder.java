@@ -473,15 +473,15 @@ public class TransferShedder implements NamespaceUnloadStrategy {
      * @param context The load manager context.
      * @param availableBrokers The available brokers.
      * @param namespaceBundle The bundle try to unload or transfer.
-     * @param maxBroker The current broker.
-     * @param minBroker The broker will be transfer to.
+     * @param currentBroker The current broker.
+     * @param targetBroker The broker will be transfer to.
      * @return Can be transfer/unload or not.
      */
     private boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
                                                              Map<String, BrokerLookupData> availableBrokers,
                                                              NamespaceBundle namespaceBundle,
-                                                             String maxBroker,
-                                                             Optional<String> minBroker) {
+                                                             String currentBroker,
+                                                             Optional<String> targetBroker) {
         if (isolationPoliciesHelper == null
                 || !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
             return true;
@@ -490,13 +490,13 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         Set<String> candidates = isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, namespaceBundle);
 
         // Remove the current bundle owner broker.
-        candidates.remove(maxBroker);
+        candidates.remove(currentBroker);
 
         // Unload: Check if there are any more candidates available for selection.
-        if (minBroker.isEmpty() || !transfer) {
+        if (targetBroker.isEmpty() || !transfer) {
             return !candidates.isEmpty();
         }
         // Transfer: Check if this broker is among the candidates.
-        return candidates.contains(minBroker.get());
+        return candidates.contains(targetBroker.get());
     }
 }
