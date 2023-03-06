@@ -59,12 +59,13 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
      */
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
-        Map<String, String> map = admin.lookups()
+        PulsarAdmin localAdmin = this.admin;
+        Map<String, String> map = localAdmin.lookups()
                 .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
 
         for (int i = 0; map.containsValue(getPulsarServiceList().get(i).getBrokerServiceUrl()); i++) {
             if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl()))
-                admin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
+                localAdmin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
                         .serviceHttpUrl(pulsarServiceList.get(i + 1).getWebServiceAddress())));
         }
         if (pulsarClient != null) {
@@ -77,7 +78,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                 .enableTransaction(true)
                 .build();
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            admin.transactions().getCoordinatorInternalStats(i, false);
+            localAdmin.transactions().getCoordinatorInternalStats(i, false);
         }
     }
 }
