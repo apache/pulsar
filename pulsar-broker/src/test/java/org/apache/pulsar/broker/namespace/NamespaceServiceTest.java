@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -827,11 +827,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
         // Wait until "ModularLoadManager" completes processing the ZK notification.
         ModularLoadManagerWrapper modularLoadManagerWrapper = (ModularLoadManagerWrapper) loadManager;
         ModularLoadManagerImpl modularLoadManager = (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
-        ScheduledExecutorService scheduler = Whitebox.getInternalState(modularLoadManager, "scheduler");
+        ExecutorService executors = Whitebox.getInternalState(modularLoadManager, "executors");
         CompletableFuture<Void> waitForNoticeHandleFinishByLoadManager = new CompletableFuture<>();
-        scheduler.execute(() -> {
-            waitForNoticeHandleFinishByLoadManager.complete(null);
-        });
+        executors.execute(() -> waitForNoticeHandleFinishByLoadManager.complete(null));
         waitForNoticeHandleFinishByLoadManager.join();
         // Manually trigger "LoadResourceQuotaUpdaterTask"
         loadManager.writeResourceQuotasToZooKeeper();
