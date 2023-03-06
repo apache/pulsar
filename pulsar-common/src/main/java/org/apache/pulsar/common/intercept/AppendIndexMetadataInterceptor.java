@@ -51,4 +51,8 @@ public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterc
     public long getIndex() {
         return indexGenerator.get();
     }
+
+    public void decreaseWithNumberOfMessages(int numberOfMessages) {
+        indexGenerator.addAndGet(-numberOfMessages);
+    }
 }

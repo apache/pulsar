@@ -79,6 +79,15 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
+    public void afterFailedAddEntry(int numberOfMessages) {
+        for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+            if (interceptor instanceof AppendIndexMetadataInterceptor) {
+                ((AppendIndexMetadataInterceptor) interceptor).decreaseWithNumberOfMessages(numberOfMessages);
+            }
+        }
+    }
+
+    @Override
     public void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap) {
         if (propertiesMap == null || propertiesMap.size() == 0) {
             return;
