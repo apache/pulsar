@@ -89,6 +89,7 @@ import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -1496,6 +1497,20 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         doReturn(loadManagerContext).when(channel).getContext();
         doReturn(registry).when(channel).getBrokerRegistry();
         doReturn(brokerSelector).when(channel).getBrokerSelector();
+
+
+        var leaderElectionService = new LeaderElectionService(
+                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
+                state -> {
+                    if (state == LeaderElectionState.Leading) {
+                        channel.scheduleOwnershipMonitor();
+                    } else {
+                        channel.cancelOwnershipMonitor();
+                    }
+                });
+        leaderElectionService.start();
+
+        doReturn(leaderElectionService).when(channel).getLeaderElectionService();
 
         return channel;
     }
