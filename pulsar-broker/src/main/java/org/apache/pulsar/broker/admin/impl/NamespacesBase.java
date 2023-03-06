@@ -280,15 +280,15 @@ public abstract class NamespacesBase extends AdminResource {
                                     });
                                 }
                                 return markDeleteFuture.thenCompose(__ ->
-                                                internalDeleteTopicsAsync(allUserCreatedTopics))
+                                                internalDeleteTopicsAsync(allUserCreatedTopics, true))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
                                         .thenCompose(ignore ->
-                                                internalDeleteTopicsAsync(allSystemTopics))
+                                                internalDeleteTopicsAsync(allSystemTopics, true))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
                                         .thenCompose(ignore ->
-                                                internalDeleteTopicsAsync(topicPolicy))
+                                                internalDeleteTopicsAsync(topicPolicy, true))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
                             });
@@ -357,7 +357,7 @@ public abstract class NamespacesBase extends AdminResource {
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
+    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames, boolean ignoreTopicNotFoundEx) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -370,7 +370,14 @@ public abstract class NamespacesBase extends AdminResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (String topicName : topicNames) {
-            futures.add(admin.topics().deleteAsync(topicName, true));
+            futures.add(admin.topics().deleteAsync(topicName, true)
+                    .exceptionally(t -> {
+                        Throwable throwable = FutureUtil.unwrapCompletionException(t);
+                        if (ignoreTopicNotFoundEx && throwable instanceof PulsarAdminException.NotFoundException) {
+                            return null;
+                        }
+                        throw new RuntimeException(throwable);
+                    }));
         }
         return FutureUtil.waitForAll(futures);
     }
