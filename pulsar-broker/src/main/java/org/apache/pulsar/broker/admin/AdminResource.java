@@ -158,7 +158,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>(numPartitions);
         for (int i = 0; i < numPartitions; i++) {
-            futures.add(tryCreatePartitionAsync(i, null));
+            futures.add(tryCreatePartitionAsync(i));
         }
         return FutureUtil.waitForAll(futures);
     }
