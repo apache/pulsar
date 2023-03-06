@@ -914,33 +914,25 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
                     fenceFuture.complete(null);
                 }).exceptionally(exception -> {
-                    IS_FENCED_UPDATER.set(this, FALSE);
-                    if (dispatcher != null) {
-                        dispatcher.reset();
-                    }
                     log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
                             exception);
                     fenceFuture.completeExceptionally(exception);
+                    resumeAfterFence();
                     return null;
                 });
-
         return fenceFuture;
     }
 
     /**
      * Resume subscription after topic deletion or close failure.
      */
-    public synchronized CompletableFuture<Void> resumeAfterFence() {
-        CompletableFuture<Void> result = new CompletableFuture<>();
-        if (fenceFuture == null){
-            // If "fenceFuture" is null, it means that "disconnect" has never been called.
-            return CompletableFuture.completedFuture(null);
-        } else {
+    public synchronized void resumeAfterFence() {
+        // If "fenceFuture" is null, it means that "disconnect" has never been called.
+        if (fenceFuture != null) {
             fenceFuture.whenComplete((ignore, closeFail) -> {
                 synchronized (PersistentSubscription.this) {
                     // If "closeFail" is null, the status will be replied by "disconnect".
                     if (closeFail != null) {
-                        result.complete(null);
                         return;
                     }
                     try {
@@ -950,15 +942,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             }
                         }
                         fenceFuture = null;
-                        result.complete(null);
                     } catch (Exception ex) {
                         log.error("[{}] Resume subscription[{}] failure: {}", topicName, subName, ex.getMessage(), ex);
-                        result.completeExceptionally(ex);
                     }
                 }
             });
         }
-        return result;
     }
 
     /**
