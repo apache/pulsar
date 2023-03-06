@@ -931,7 +931,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (fenceFuture != null) {
             fenceFuture.whenComplete((ignore, closeFail) -> {
                 synchronized (PersistentSubscription.this) {
-                    // If "closeFail" is null, the status will be replied by "disconnect".
                     if (closeFail != null) {
                         return;
                     }
