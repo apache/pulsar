@@ -931,9 +931,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         if (fenceFuture != null) {
             fenceFuture.whenComplete((ignore, closeFail) -> {
                 synchronized (PersistentSubscription.this) {
-                    if (closeFail != null) {
-                        return;
-                    }
                     try {
                         if (IS_FENCED_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                             if (dispatcher != null) {
