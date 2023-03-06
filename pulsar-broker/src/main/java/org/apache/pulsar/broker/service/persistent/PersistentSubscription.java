@@ -929,7 +929,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     public synchronized void resumeAfterFence() {
         // If "fenceFuture" is null, it means that "disconnect" has never been called.
         if (fenceFuture != null) {
-            fenceFuture.whenComplete((ignore, closeFail) -> {
+            fenceFuture.whenComplete((ignore, ignoreEx) -> {
                 synchronized (PersistentSubscription.this) {
                     try {
                         if (IS_FENCED_UPDATER.compareAndSet(this, TRUE, FALSE)) {
