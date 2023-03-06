@@ -931,26 +931,31 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      * Resume subscription after topic deletion or close failure.
      */
     public synchronized CompletableFuture<Void> resumeAfterFence() {
-        java.util.function.Consumer<CompletableFuture> resetFenceTask = future -> {
-            try {
-                if (IS_FENCED_UPDATER.compareAndSet(this, TRUE, FALSE)) {
-                    if (dispatcher != null) {
-                        dispatcher.reset();
-                    }
-                }
-                future.complete(null);
-            } catch (Exception ex){
-                log.error("[{}] Resume subscription[{}] failure: {}", topicName, subName, ex.getMessage(), ex);
-                future.completeExceptionally(ex);
-            }
-        };
-
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (fenceFuture == null){
-            resetFenceTask.accept(result);
+            // If "fenceFuture" is null, it means that "disconnect" has never been called.
+            return CompletableFuture.completedFuture(null);
         } else {
-            fenceFuture.whenComplete((ignore, ignore2) -> {
-                resetFenceTask.accept(result);
+            fenceFuture.whenComplete((ignore, closeFail) -> {
+                synchronized (this) {
+                    // If "closeFail" is null, the status will be replied by "disconnect".
+                    if (closeFail != null) {
+                        result.complete(null);
+                        return;
+                    }
+                    try {
+                        if (IS_FENCED_UPDATER.compareAndSet(this, TRUE, FALSE)) {
+                            if (dispatcher != null) {
+                                dispatcher.reset();
+                            }
+                        }
+                        fenceFuture = null;
+                        result.complete(null);
+                    } catch (Exception ex) {
+                        log.error("[{}] Resume subscription[{}] failure: {}", topicName, subName, ex.getMessage(), ex);
+                        result.completeExceptionally(ex);
+                    }
+                }
             });
         }
         return result;
