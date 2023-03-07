@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
@@ -626,13 +627,17 @@ public abstract class PulsarWebResource {
         }
     }
 
-    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(NamespaceName fqnn,
-              BundlesData bundles, String bundleRange, boolean authoritative, boolean readOnly) {
+    protected CompletableFuture<NamespaceBundle> validateNamespaceBundleOwnershipAsync(
+            NamespaceName fqnn, BundlesData bundles, String bundleRange,
+            boolean authoritative, boolean readOnly) {
         NamespaceBundle nsBundle;
         try {
             nsBundle = validateNamespaceBundleRange(fqnn, bundles, bundleRange);
         } catch (WebApplicationException wae) {
             return CompletableFuture.failedFuture(wae);
+        }
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+            return CompletableFuture.completedFuture(nsBundle);
         }
         return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
                 .thenApply(__ -> nsBundle);
@@ -992,6 +997,10 @@ public abstract class PulsarWebResource {
     }
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
+        // For extensible load manager, it doesn't have leader election service on pulsar broker.
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+            return true;
+        }
         return  pulsar.getLeaderElectionService().isLeader();
     }
 

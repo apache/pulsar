@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -43,9 +44,11 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
@@ -110,6 +113,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private ScheduledFuture brokerLoadDataReportTask;
     private ScheduledFuture topBundlesLoadDataReportTask;
 
+    private UnloadManager unloadManager;
+
     private boolean started = false;
 
     private final AssignCounter assignCounter = new AssignCounter();
@@ -143,6 +148,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
     }
 
+    public static ExtensibleLoadManagerImpl get(LoadManager loadManager) {
+        if (!(loadManager instanceof ExtensibleLoadManagerWrapper loadManagerWrapper)) {
+            throw new IllegalArgumentException("The load manager should be 'ExtensibleLoadManagerWrapper'.");
+        }
+        return loadManagerWrapper.get();
+    }
+
     @Override
     public void start() throws PulsarServerException {
         if (this.started) {
@@ -151,6 +163,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerRegistry = new BrokerRegistryImpl(pulsar);
         this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
         this.brokerRegistry.start();
+        this.unloadManager = new UnloadManager();
+        this.serviceUnitStateChannel.listen(unloadManager);
         this.serviceUnitStateChannel.start();
 
         try {
@@ -201,7 +215,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         interval, TimeUnit.MILLISECONDS);
 
         // TODO: Start bundle split scheduler.
-        this.unloadScheduler = new UnloadScheduler(pulsar.getLoadManagerExecutor(), context, serviceUnitStateChannel);
+        this.unloadScheduler = new UnloadScheduler(
+                pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel);
         this.unloadScheduler.start();
         this.started = true;
     }
@@ -300,6 +315,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Override
     public CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId bundleUnit) {
+        return getOwnershipAsync(topic, bundleUnit)
+                .thenApply(broker -> brokerRegistry.getBrokerId().equals(broker.orElse(null)));
+    }
+
+    private CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
+                                                                 ServiceUnitId bundleUnit) {
         final String bundle = bundleUnit.toString();
         CompletableFuture<Optional<String>> owner;
         if (topic.isPresent() && isInternalTopic(topic.get().toString())) {
@@ -307,8 +328,35 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } else {
             owner = serviceUnitStateChannel.getOwnerAsync(bundle);
         }
+        return owner;
+    }
 
-        return owner.thenApply(broker -> brokerRegistry.getBrokerId().equals(broker.orElse(null)));
+    public CompletableFuture<Void> unloadNamespaceBundleAsync(ServiceUnitId bundle,
+                                                              Optional<String> destinationBroker) {
+        return getOwnershipAsync(Optional.empty(), bundle)
+                .thenCompose(brokerOpt -> {
+                    if (brokerOpt.isEmpty()) {
+                        String msg = String.format("Namespace bundle: %s is not owned by any broker.", bundle);
+                        log.warn(msg);
+                        throw new IllegalStateException(msg);
+                    }
+                    String sourceBroker = brokerOpt.get();
+                    if (destinationBroker.isPresent() && sourceBroker.endsWith(destinationBroker.get())) {
+                        String msg = String.format("Namespace bundle: %s own by %s, cannot be transfer to same broker.",
+                                bundle, sourceBroker);
+                        log.warn(msg);
+                        throw new IllegalArgumentException(msg);
+                    }
+                    return unloadAsync(new Unload(sourceBroker, bundle.toString(), destinationBroker),
+                            conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+                });
+    }
+
+    private CompletableFuture<Void> unloadAsync(Unload unload,
+                                               long timeout,
+                                               TimeUnit timeoutUnit) {
+        CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
+        return unloadManager.waitAsync(future, unload.serviceUnit(), timeout, timeoutUnit);
     }
 
     @Override
@@ -337,6 +385,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 try {
                     this.serviceUnitStateChannel.close();
                 } finally {
+                    this.unloadManager.close();
                     this.started = false;
                 }
             }
