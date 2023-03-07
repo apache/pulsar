@@ -43,10 +43,12 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import com.google.common.collect.Sets;
 import java.util.LinkedHashMap;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -77,18 +79,22 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -124,10 +130,15 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        conf.setLoadBalancerSheddingEnabled(false);
         super.internalSetup(conf);
         pulsar1 = pulsar;
         ServiceConfiguration defaultConf = getDefaultConf();
+        defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+        defaultConf.setLoadBalancerSheddingEnabled(false);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -148,6 +159,14 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         channel2 = (ServiceUnitStateChannelImpl)
                 FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
 
+        admin.clusters().createCluster(this.conf.getClusterName(),
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("public",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
+                        Sets.newHashSet(this.conf.getClusterName())));
+        admin.namespaces().createNamespace("public/default");
+        admin.namespaces().setNamespaceReplicationClusters("public/default",
+                Sets.newHashSet(this.conf.getClusterName()));
     }
 
     protected void beforePulsarStart(PulsarService pulsar) throws Exception {
@@ -306,6 +325,59 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         assertTrue(brokerLookupData.isPresent());
     }
+
+    @Test(timeOut = 30 * 1000)
+    public void testUnloadAdminAPI() throws Exception {
+        TopicName topicName = TopicName.get("test-unload");
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+
+        String broker = admin.lookups().lookupTopic(topicName.toString());
+        log.info("Assign the bundle {} to {}", bundle, broker);
+
+        checkOwnershipState(broker, bundle);
+        admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
+        assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+
+        broker = admin.lookups().lookupTopic(topicName.toString());
+        log.info("Assign the bundle {} to {}", bundle, broker);
+
+        String dstBrokerUrl = pulsar1.getLookupServiceAddress();
+        String dstBrokerServiceUrl;
+        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+            dstBrokerUrl = pulsar2.getLookupServiceAddress();
+            dstBrokerServiceUrl = pulsar2.getBrokerServiceUrl();
+        } else {
+            dstBrokerServiceUrl = pulsar1.getBrokerServiceUrl();
+        }
+        checkOwnershipState(broker, bundle);
+
+        admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
+
+        assertEquals(admin.lookups().lookupTopic(topicName.toString()), dstBrokerServiceUrl);
+
+        // Test transfer to current broker.
+        try {
+            admin.namespaces()
+                    .unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(), dstBrokerUrl);
+            fail();
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getMessage().contains("cannot be transfer to same broker"));
+        }
+    }
+
+    private void checkOwnershipState(String broker, NamespaceBundle bundle)
+            throws ExecutionException, InterruptedException {
+        var targetLoadManager = secondaryLoadManager;
+        var otherLoadManager = primaryLoadManager;
+        if (broker.equals(pulsar1.getBrokerServiceUrl())) {
+            targetLoadManager = primaryLoadManager;
+            otherLoadManager = secondaryLoadManager;
+        }
+        assertTrue(targetLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+        assertFalse(otherLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+    }
+
 
     @Test
     public void testGetMetrics() throws Exception {
