@@ -27,6 +27,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -34,8 +35,12 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarStats;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,26 +53,44 @@ public class TopBundleLoadDataReporterTest {
     PulsarStats pulsarStats;
     Map<String, NamespaceBundleStats> bundleStats;
     ServiceConfiguration config;
+    private NamespaceResources.IsolationPolicyResources isolationPolicyResources;
+    private PulsarResources pulsarResources;
+    private LocalPoliciesResources localPoliciesResources;
+    String bundle1 = "my-tenant/my-namespace1/0x00000000_0x0FFFFFFF";
+    String bundle2 = "my-tenant/my-namespace2/0x00000000_0x0FFFFFFF";
 
     @BeforeMethod
-    void setup() {
+    void setup() throws MetadataStoreException {
         config = new ServiceConfiguration();
         pulsar = mock(PulsarService.class);
         store = mock(LoadDataStore.class);
         brokerService = mock(BrokerService.class);
         pulsarStats = mock(PulsarStats.class);
+        pulsarResources = mock(PulsarResources.class);
+        isolationPolicyResources = mock(NamespaceResources.IsolationPolicyResources.class);
+        var namespaceResources = mock(NamespaceResources.class);
+        localPoliciesResources = mock(LocalPoliciesResources.class);
+
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
         doReturn(CompletableFuture.completedFuture(null)).when(store).pushAsync(any(), any());
 
+        doReturn(pulsarResources).when(pulsar).getPulsarResources();
+        doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
+        doReturn(isolationPolicyResources).when(namespaceResources).getIsolationPolicies();
+        doReturn(Optional.empty()).when(isolationPolicyResources).getIsolationDataPolicies(any());
+
+        doReturn(localPoliciesResources).when(pulsarResources).getLocalPolicies();
+        doReturn(Optional.empty()).when(localPoliciesResources).getLocalPolicies(any());
+
         bundleStats = new HashMap<>();
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
         stats1.msgRateIn = 500;
-        bundleStats.put("bundle-1", stats1);
+        bundleStats.put(bundle1, stats1);
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
         stats2.msgRateIn = 10000;
-        bundleStats.put("bundle-2", stats2);
+        bundleStats.put(bundle2, stats2);
         doReturn(bundleStats).when(brokerService).getBundleStats();
     }
 
@@ -81,25 +104,25 @@ public class TopBundleLoadDataReporterTest {
         doReturn(1l).when(pulsarStats).getUpdatedAt();
         config.setLoadBalancerBundleLoadReportPercentage(100);
         var target = new TopBundleLoadDataReporter(pulsar, "", store);
-        var expected = new TopKBundles();
+        var expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 2);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         config.setLoadBalancerBundleLoadReportPercentage(50);
         FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
-        expected = new TopKBundles();
+        expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 1);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         config.setLoadBalancerBundleLoadReportPercentage(1);
         FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
-        expected = new TopKBundles();
+        expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 1);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         doReturn(new HashMap()).when(brokerService).getBundleStats();
         FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
-        expected = new TopKBundles();
+        expected = new TopKBundles(pulsar);
         assertEquals(target.generateLoadData(), expected.getLoadData());
     }
 
@@ -116,7 +139,7 @@ public class TopBundleLoadDataReporterTest {
     public void testReport(){
         var target = new TopBundleLoadDataReporter(pulsar, "broker-1", store);
         doReturn(1l).when(pulsarStats).getUpdatedAt();
-        var expected = new TopKBundles();
+        var expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 1);
         target.reportAsync(false);
         verify(store, times(1)).pushAsync("broker-1", expected.getLoadData());
