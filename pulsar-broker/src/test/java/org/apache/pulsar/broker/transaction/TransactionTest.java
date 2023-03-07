@@ -1654,18 +1654,24 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic)
                 .create()) {
             producer.newMessage().value("test".getBytes()).send();
+
+            Transaction txn = this.pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build().get();
             try (Consumer<byte[]> consumer = this.pulsarClient.newConsumer()
                     .topic(topic)
                     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                     .subscriptionName("sub")
                     .subscribe()) {
-                Transaction txn = this.pulsarClient.newTransaction()
-                        .withTransactionTimeout(5, TimeUnit.SECONDS)
-                        .build().get();
                 Message<byte[]> message = consumer.receive();
                 consumer.acknowledgeAsync(message.getMessageId(), txn).get();
-                txn.commit();
             }
+            try (Producer<byte[]> outProducer = this.pulsarClient.newProducer()
+                    .topic(topic + "-out")
+                    .create()) {
+                outProducer.newMessage(txn).value("output".getBytes()).send();
+            }
+            txn.commit();
         }
         admin.namespaces().deleteNamespace(namespace, true);
     }

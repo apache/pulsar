@@ -248,7 +248,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     } else {
                                         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                             topicPolicy.add(topic);
-                                        } else {
+                                        } else if (!isDeletedAlongWithUserCreatedTopic(topic)) {
                                             allSystemTopics.add(topic);
                                         }
                                     }
@@ -280,15 +280,15 @@ public abstract class NamespacesBase extends AdminResource {
                                     });
                                 }
                                 return markDeleteFuture.thenCompose(__ ->
-                                                internalDeleteTopicsAsync(allUserCreatedTopics, true))
+                                                internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
                                         .thenCompose(ignore ->
-                                                internalDeleteTopicsAsync(allSystemTopics, true))
+                                                internalDeleteTopicsAsync(allSystemTopics))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(allPartitionedSystemTopics))
                                         .thenCompose(ignore ->
-                                                internalDeleteTopicsAsync(topicPolicy, true))
+                                                internalDeleteTopicsAsync(topicPolicy))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(partitionedTopicPolicy));
                             });
@@ -343,6 +343,11 @@ public abstract class NamespacesBase extends AdminResource {
                 });
     }
 
+    private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
+        // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
+        return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+    }
+
     private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
@@ -357,7 +362,7 @@ public abstract class NamespacesBase extends AdminResource {
         return FutureUtil.waitForAll(futures);
     }
 
-    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames, boolean ignoreTopicNotFoundEx) {
+    private CompletableFuture<Void> internalDeleteTopicsAsync(List<String> topicNames) {
         if (CollectionUtils.isEmpty(topicNames)) {
             return CompletableFuture.completedFuture(null);
         }
@@ -370,14 +375,7 @@ public abstract class NamespacesBase extends AdminResource {
         }
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (String topicName : topicNames) {
-            futures.add(admin.topics().deleteAsync(topicName, true)
-                    .exceptionally(t -> {
-                        Throwable throwable = FutureUtil.unwrapCompletionException(t);
-                        if (ignoreTopicNotFoundEx && throwable instanceof PulsarAdminException.NotFoundException) {
-                            return null;
-                        }
-                        throw new RuntimeException(throwable);
-                    }));
+            futures.add(admin.topics().deleteAsync(topicName, true));
         }
         return FutureUtil.waitForAll(futures);
     }
