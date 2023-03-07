@@ -407,7 +407,7 @@ The Apache Software License, Version 2.0
     - websocket-api-9.4.48.v20220622.jar
     - websocket-client-9.4.48.v20220622.jar
     - websocket-common-9.4.48.v20220622.jar
- * SnakeYaml -- snakeyaml-1.32.jar
+ * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro
