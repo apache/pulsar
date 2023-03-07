@@ -148,7 +148,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             cnx.channel().close();
                             return null;
                         }
-                        log.warn("[{}][{}] Failed to subscribe to topic on {}", topic,
+                        log.warn("[{}][{}] Failed to create topic list watcher on {}", topic,
                                 getHandlerName(), cnx.channel().remoteAddress());
 
                         if (e.getCause() instanceof PulsarClientException
