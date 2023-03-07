@@ -898,10 +898,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      */
     @Override
     public synchronized CompletableFuture<Void> disconnect() {
-        if (fenceFuture != null && !fenceFuture.isDone()){
-            return fenceFuture;
-        }
-        if (fenceFuture != null && fenceFuture.isDone() && !fenceFuture.isCompletedExceptionally()){
+        if (fenceFuture != null){
             return fenceFuture;
         }
         fenceFuture = new CompletableFuture<>();
@@ -939,7 +936,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                         fenceFuture = null;
                     } catch (Exception ex) {
-                        log.error("[{}] Resume subscription[{}] failure: {}", topicName, subName, ex.getMessage(), ex);
+                        log.error("[{}] Resume subscription [{}] failure", topicName, subName, ex);
                     }
                 }
             });
