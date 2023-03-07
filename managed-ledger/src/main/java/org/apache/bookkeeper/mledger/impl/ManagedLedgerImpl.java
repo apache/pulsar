@@ -867,6 +867,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     protected void afterFailedAddEntry(int numOfMessages) {
+        if (managedLedgerInterceptor == null) {
+            return;
+        }
         managedLedgerInterceptor.afterFailedAddEntry(numOfMessages);
     }
 
