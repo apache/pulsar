@@ -355,6 +355,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	// If the function had an output and the user has specified an output topic, the output needs to be sent to the
 	// assigned output topic.
 	if output != nil && gi.context.instanceConf.funcDetails.Sink.Topic != "" {
+		log.Errorf("create producer message key:%s", msgInput.Key())
 		asyncMsg := pulsar.ProducerMessage{
 			Key:     msgInput.Key(),
 			Payload: output,
