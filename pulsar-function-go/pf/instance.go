@@ -356,6 +356,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	// assigned output topic.
 	if output != nil && gi.context.instanceConf.funcDetails.Sink.Topic != "" {
 		asyncMsg := pulsar.ProducerMessage{
+			Key:     msgInput.Key(),
 			Payload: output,
 		}
 		// Dispatch an async send for the message with callback in case of error.
