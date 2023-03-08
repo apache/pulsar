@@ -22,6 +22,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import javax.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -33,7 +34,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import javax.annotation.Nonnull;
 
 @Slf4j
 public class ResourceLockImpl<T> implements ResourceLock<T> {
@@ -231,8 +231,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     }
 
     /**
-     * This method designed for background notification usage,it will auto mark the lock is released if revalidation
-     * operation got one of exceptions as follows:
+     * This method designed for background notification usage.
+     * It will auto mark the lock is released if revalidation operation got one of exceptions as follows:
      * - LockBusyException
      * - BadVersionException
      * - CancellationException
