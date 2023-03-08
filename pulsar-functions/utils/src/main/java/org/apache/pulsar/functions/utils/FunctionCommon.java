@@ -35,8 +35,10 @@ import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -246,7 +248,14 @@ public class FunctionCommon {
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
         URL website = new URL(destPkgUrl);
-        try (InputStream in = website.openStream()) {
+        URLConnection conn = website.openConnection();
+        String userInfo = website.getUserInfo();
+        if (userInfo != null && !userInfo.isBlank()) {
+          String encoding = "Basic " + Base64.getEncoder().encodeToString(userInfo.getBytes());
+          conn.setRequestProperty("Authorization", encoding);
+        }
+
+        try (InputStream in = conn.openStream()) {
             log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
             Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
