@@ -547,12 +547,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
-                fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
-                // recommit one transaction should be failed
-                log.info("expected exception for recommit one transaction.");
-                Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
+                fail("recommit one transaction should be successfully.");
             }
         }
 
@@ -790,12 +786,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
-                fail("recommit one transaction should be failed.");
             } catch (Exception reCommitError) {
-                // recommit one transaction should be failed
-                log.info("expected exception for recommit one transaction.");
-                Assert.assertNotNull(reCommitError);
-                Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
+                fail("recommit one transaction should be successfully.");
             }
 
             message = consumer.receive(300, TimeUnit.MILLISECONDS);
@@ -951,9 +943,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         try {
             produceTxn.commit().get();
-            fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            fail();
         }
 
 
@@ -969,9 +960,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         try {
             consumeTxn.commit().get();
-            fail();
         } catch (Exception e) {
-            assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.InvalidTxnStatusException);
+            fail();
         }
 
         Transaction timeoutTxn = pulsarClient

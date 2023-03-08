@@ -163,12 +163,12 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
 
     @Override
     public void handleCommittingAndAbortingTransaction() {
-            committingTransactions.forEach((k, v) ->
-                    transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
-                            false));
+        committingTransactions.forEach((k, v) ->
+                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
+                        false));
 
-            abortingTransactions.forEach((k, v) ->
-                    transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
-                            false));
+        abortingTransactions.forEach((k, v) ->
+                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
+                        false));
     }
 }

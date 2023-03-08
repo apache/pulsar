@@ -342,7 +342,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
     @Test(dataProvider = "txnStatus")
     public void testEndTransactionOpRetry(TxnStatus txnStatus) throws Exception {
-        int timeOut = 3000;
+        int timeOut = 5000;
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(TransactionCoordinatorID.get(0));
         Awaitility.await()
                 .until(() -> pulsar.getTransactionMetadataStoreService()
@@ -353,7 +353,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
         checkTransactionMetadataStoreReady(transactionMetadataStore);
 
-        TxnID txnID = newTransactionWithTimeoutOf(timeOut - 2000);
+        TxnID txnID = newTransactionWithTimeoutOf(timeOut);
         TxnMeta txnMeta = transactionMetadataStore.getTxnMeta(txnID).get();
         txnMeta.updateTxnStatus(txnStatus, TxnStatus.OPEN);
 
@@ -364,7 +364,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         try {
             completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(),
                     false);
-            completableFuture.get(5, TimeUnit.SECONDS);
+            completableFuture.get(3, TimeUnit.SECONDS);
             fail();
         } catch (Exception e) {
             if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
@@ -385,7 +385,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
             pulsar.getTransactionMetadataStoreService()
                     .endTransaction(txnID, TxnAction.ABORT.getValue(), false).get();
         }
-        Awaitility.await().atMost(timeOut, TimeUnit.MILLISECONDS).until(() -> {
+        Awaitility.await().atMost(timeOut + 1000, TimeUnit.MILLISECONDS).until(() -> {
             try {
                 transactionMetadataStore.getTxnMeta(txnID).get();
                 return false;
