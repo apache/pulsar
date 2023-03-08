@@ -79,14 +79,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                 pulsar.getNamespaceService().getNamespaceBundleFactory();
 
         // clean bundleHighTrafficFrequency
-        var bundleHighTrafficIterator =
-                bundleHighTrafficFrequency.entrySet().iterator();
-        while (bundleHighTrafficIterator.hasNext()) {
-            String bundle = bundleHighTrafficIterator.next().getKey();
-            if (!bundleStatsMap.containsKey(bundle)) {
-                bundleHighTrafficIterator.remove();
-            }
-        }
+        bundleHighTrafficFrequency.keySet().retainAll(bundleStatsMap.keySet());
 
         for (var entry : bundleStatsMap.entrySet()) {
             final String bundle = entry.getKey();

@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.DefaultNamespaceBundleSplitStrategyImpl;
@@ -61,6 +62,8 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     private final SplitCounter counter;
 
+    private final SplitManager splitManager;
+
     private final AtomicReference<List<Metrics>> splitMetrics;
 
     private volatile ScheduledFuture<?> task;
@@ -69,12 +72,14 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     public SplitScheduler(PulsarService pulsar,
                           ServiceUnitStateChannel serviceUnitStateChannel,
+                          SplitManager splitManager,
                           SplitCounter counter,
                           AtomicReference<List<Metrics>> splitMetrics,
                           LoadManagerContext context,
                           NamespaceBundleSplitStrategy bundleSplitStrategy) {
         this.pulsar = pulsar;
         this.loadManagerExecutor = pulsar.getLoadManagerExecutor();
+        this.splitManager = splitManager;
         this.counter = counter;
         this.splitMetrics = splitMetrics;
         this.context = context;
@@ -85,10 +90,11 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     public SplitScheduler(PulsarService pulsar,
                           ServiceUnitStateChannel serviceUnitStateChannel,
+                          SplitManager splitManager,
                           SplitCounter counter,
                           AtomicReference<List<Metrics>> splitMetrics,
                           LoadManagerContext context) {
-        this(pulsar, serviceUnitStateChannel, counter, splitMetrics, context,
+        this(pulsar, serviceUnitStateChannel, splitManager, counter, splitMetrics, context,
                 new DefaultNamespaceBundleSplitStrategyImpl(counter));
     }
 
@@ -110,27 +116,36 @@ public class SplitScheduler implements LoadManagerScheduler {
         synchronized (bundleSplitStrategy) {
             final Set<SplitDecision> decisions = bundleSplitStrategy.findBundlesToSplit(context, pulsar);
             if (!decisions.isEmpty()) {
+
+                // currently following the unloading timeout
+                var asyncOpTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 for (SplitDecision decision : decisions) {
                     if (decision.getLabel() == Success) {
                         var split = decision.getSplit();
-                        futures.add(serviceUnitStateChannel.publishSplitEventAsync(split)
-                                .whenComplete((__, e) -> {
-                                    if (e == null) {
-                                        counter.update(decision);
-                                        log.info("Published Split Event for {}", split);
-                                    } else {
-                                        counter.update(Failure, Unknown);
-                                        log.error("Failed to publish Split Event for {}", split);
-                                    }
-                                }));
+                        futures.add(
+                                splitManager.waitAsync(
+                                        serviceUnitStateChannel.publishSplitEventAsync(split)
+                                                .whenComplete((__, e) -> {
+                                                    if (e == null) {
+                                                        log.info("Published Split Event for {}", split);
+                                                    } else {
+                                                        counter.update(Failure, Unknown);
+                                                        log.error("Failed to publish Split Event for {}", split);
+                                                    }
+                                                }),
+                                        split.serviceUnit(),
+                                        decision,
+                                        asyncOpTimeoutMs, TimeUnit.MILLISECONDS)
+                        );
                     }
                 }
-                FutureUtil.waitForAll(futures).exceptionally(ex -> {
-                    log.error("Failed to wait for split events to persist.", ex);
-                    counter.update(Failure, Unknown);
-                    return null;
-                });
+                try {
+                    FutureUtil.waitForAll(futures)
+                            .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
+                } catch (Throwable e) {
+                    log.error("Failed to wait for split events to persist.", e);
+                }
             } else {
                 if (debugMode) {
                     log.info("BundleSplitStrategy returned no bundles to split.");

@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
@@ -115,6 +116,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private UnloadManager unloadManager;
 
+    private SplitManager splitManager;
+
     private boolean started = false;
 
     private final AssignCounter assignCounter = new AssignCounter();
@@ -164,7 +167,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
         this.brokerRegistry.start();
         this.unloadManager = new UnloadManager();
+        this.splitManager = new SplitManager(splitCounter);
         this.serviceUnitStateChannel.listen(unloadManager);
+        this.serviceUnitStateChannel.listen(splitManager);
         this.serviceUnitStateChannel.start();
 
         try {
@@ -217,7 +222,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
-                pulsar, serviceUnitStateChannel, splitCounter, splitMetrics, context);
+                pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
         this.splitScheduler.start();
         this.started = true;
     }

@@ -882,6 +882,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return null;
         });
     }
+
     public void handleMetadataSessionEvent(SessionEvent e) {
         if (e == SessionReestablished || e == SessionLost) {
             lastMetadataSessionEvent = e;
