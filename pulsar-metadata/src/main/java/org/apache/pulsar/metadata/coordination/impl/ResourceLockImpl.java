@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
@@ -32,6 +33,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import javax.annotation.Nonnull;
 
 @Slf4j
 public class ResourceLockImpl<T> implements ResourceLock<T> {
@@ -128,7 +130,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 .thenRun(() -> result.complete(null))
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof LockBusyException) {
-                        revalidate(newValue, false)
+                        revalidate(newValue)
                                 .thenAccept(__ -> result.complete(null))
                                 .exceptionally(ex1 -> {
                                    result.completeExceptionally(ex1);
@@ -185,21 +187,29 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         log.info("Lock on resource {} was invalidated", path);
-        revalidate(value, true)
-                .thenRun(() -> log.info("Successfully revalidated the lock on {}", path));
+        revalidateOnce(value);
     }
 
     synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
-            return revalidate(value, true);
+            return revalidateOnce(value);
         } else {
             return CompletableFuture.completedFuture(null);
         }
     }
 
-    synchronized CompletableFuture<Void> revalidate(T newValue, boolean revalidateAfterReconnection) {
+    /**
+     * Revalidate the distributed lock if it is not released.
+     * This method is thread-safe and it will perform multiple re-validation operations in turn.
+     * @param newValue the lock value
+     */
+    synchronized @Nonnull CompletableFuture<Void> revalidate(@Nonnull T newValue) {
+        if (state == State.Released) {
+            // We don't need to revalidate the released lock since the expired future has been executed.
+            return CompletableFuture.completedFuture(null);
+        }
         if (revalidateFuture == null || revalidateFuture.isDone()) {
             revalidateFuture = doRevalidate(newValue);
         } else {
@@ -217,30 +227,41 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             });
             revalidateFuture = newFuture;
         }
-        revalidateFuture.exceptionally(ex -> {
-            synchronized (ResourceLockImpl.this) {
-                Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                if (!revalidateAfterReconnection || realCause instanceof BadVersionException
-                        || realCause instanceof LockBusyException) {
-                    log.warn("Failed to revalidate the lock at {}. Marked as expired. {}",
-                            path, realCause.getMessage());
-                    state = State.Released;
-                    expiredFuture.complete(null);
-                } else {
-                    // We failed to revalidate the lock due to connectivity issue
-                    // Continue assuming we hold the lock, until we can revalidate it, either
-                    // on Reconnected or SessionReestablished events.
-                    ResourceLockImpl.this.revalidateAfterReconnection = true;
-                    log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
-                            realCause.getMessage());
-                }
-            }
-            return null;
-        });
         return revalidateFuture;
     }
 
-    private synchronized CompletableFuture<Void> doRevalidate(T newValue) {
+    /**
+     * This method will auto mark the lock is released if revalidation operation got one of #{@code }
+     * @param newValue the lock value
+     */
+    @Nonnull CompletableFuture<Void> revalidateOnce(@Nonnull T newValue) {
+        return revalidate(newValue)
+                .thenRun(() -> log.info("Successfully revalidated once the lock on {}", path))
+                .exceptionally(ex -> {
+                    synchronized (ResourceLockImpl.this) {
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        if (realCause instanceof BadVersionException || realCause instanceof LockBusyException
+                                // If the revalidation future is cancelled,
+                                // we can assume the invoker will give up this lock in memory.
+                                || realCause instanceof CancellationException) {
+                            log.warn("Failed to revalidate the lock at {}. Marked as expired. {}",
+                                    path, realCause.getMessage());
+                            state = State.Released;
+                            expiredFuture.complete(null);
+                        } else {
+                            // We failed to revalidate the lock due to connectivity issue
+                            // Continue assuming we hold the lock, until we can revalidate it, either
+                            // on Reconnected or SessionReestablished events.
+                            ResourceLockImpl.this.revalidateAfterReconnection = true;
+                            log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
+                                    realCause.getMessage());
+                        }
+                    }
+                    return null;
+                });
+    }
+
+    private synchronized @Nonnull CompletableFuture<Void> doRevalidate(@Nonnull T newValue) {
         if (log.isDebugEnabled()) {
             log.debug("doRevalidate with newValue={}, version={}", newValue, version);
         }

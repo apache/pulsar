@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +30,9 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.SafeRunnable;
@@ -48,7 +52,7 @@ import org.apache.pulsar.metadata.cache.impl.JSONMetadataSerdeSimpleType;
 
 @Slf4j
 class LockManagerImpl<T> implements LockManager<T> {
-
+    private static final Duration REVALIDATE_TIMEOUT = Duration.ofSeconds(30);
     private final Map<String, ResourceLockImpl<T>> locks = new ConcurrentHashMap<>();
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
@@ -118,28 +122,42 @@ class LockManagerImpl<T> implements LockManager<T> {
     private void handleSessionEvent(SessionEvent se) {
         // We want to make sure we're processing one event at a time and that we're done with one event before going
         // for the next one.
-        executor.execute(SafeRunnable.safeRun(() -> {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-
+        final SafeRunnable task = SafeRunnable.safeRun(() -> {
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             if (se == SessionEvent.SessionReestablished) {
                 log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
                 for (ResourceLockImpl<T> lock : locks.values()) {
-                    futures.add(lock.revalidate(lock.getValue(), true));
+                    futures.add(lock.revalidateOnce(lock.getValue()));
                 }
-
             } else if (se == SessionEvent.Reconnected) {
                 log.info("Metadata store connection has been re-established. Revalidating locks that were pending.");
                 for (ResourceLockImpl<T> lock : locks.values()) {
                     futures.add(lock.revalidateIfNeededAfterReconnection());
                 }
             }
-
             try {
-                FutureUtil.waitForAll(futures).get();
-            } catch (ExecutionException | InterruptedException e) {
-                log.warn("Failure when processing session event", e);
+                FutureUtil.waitForAll(futures).get(REVALIDATE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (ExecutionException ex) {
+                log.warn("Got exception when execute revalidate ", ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                log.warn("Got thread interrupted exception when execute revalidate.");
+            } catch (TimeoutException ex) {
+                log.warn("Got timeout exception when execute revalidate");
+                for (final CompletableFuture<Void> future : futures) {
+                    if (!future.isDone()) {
+                        if(!future.cancel(true)) {
+                            log.warn("Failed to cancel the revalidation future {}", future);
+                        }
+                    }
+                }
             }
-        }));
+        });
+        try {
+            executor.execute(task);
+        } catch (RejectedExecutionException ex) {
+            log.warn("Session events cannot be executed because the executor has been closed.");
+        }
     }
 
     private void handleDataNotification(Notification n) {
