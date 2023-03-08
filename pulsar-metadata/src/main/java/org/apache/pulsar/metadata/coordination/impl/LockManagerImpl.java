@@ -146,7 +146,7 @@ class LockManagerImpl<T> implements LockManager<T> {
                 log.warn("Got timeout exception when execute revalidate");
                 for (final CompletableFuture<Void> future : futures) {
                     if (!future.isDone()) {
-                        if (!future.cancel(true)) {
+                        if(!future.cancel(true)) {
                             log.warn("Failed to cancel the revalidation future {}", future);
                         }
                     }
