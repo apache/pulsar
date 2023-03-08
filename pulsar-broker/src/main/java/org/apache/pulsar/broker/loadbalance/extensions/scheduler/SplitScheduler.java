@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Unknown;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -125,15 +123,7 @@ public class SplitScheduler implements LoadManagerScheduler {
                         var split = decision.getSplit();
                         futures.add(
                                 splitManager.waitAsync(
-                                        serviceUnitStateChannel.publishSplitEventAsync(split)
-                                                .whenComplete((__, e) -> {
-                                                    if (e == null) {
-                                                        log.info("Published Split Event for {}", split);
-                                                    } else {
-                                                        counter.update(Failure, Unknown);
-                                                        log.error("Failed to publish Split Event for {}", split);
-                                                    }
-                                                }),
+                                        serviceUnitStateChannel.publishSplitEventAsync(split),
                                         split.serviceUnit(),
                                         decision,
                                         asyncOpTimeoutMs, TimeUnit.MILLISECONDS)

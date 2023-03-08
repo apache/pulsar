@@ -107,7 +107,7 @@ public class SplitSchedulerTest {
         verify(channel, times(1)).publishSplitEventAsync(eq(decision1.getSplit()));
         verify(channel, times(1)).publishSplitEventAsync(eq(decision2.getSplit()));
 
-        assertEquals(reference.get(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()));
+        assertEquals(reference.get().toString(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
 
         // Test empty splits.
         Set<SplitDecision> emptyUnload = Set.of();
@@ -115,7 +115,7 @@ public class SplitSchedulerTest {
 
         scheduler.execute();
         verify(channel, times(2)).publishSplitEventAsync(any());
-        assertEquals(reference.get(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()));
+        assertEquals(reference.get().toString(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
     }
 
     @Test(timeOut = 30 * 1000)
@@ -135,7 +135,7 @@ public class SplitSchedulerTest {
         verify(channel, times(1)).publishSplitEventAsync(eq(decision1.getSplit()));
         verify(channel, times(1)).publishSplitEventAsync(eq(decision2.getSplit()));
 
-        assertEquals(reference.get(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()));
+        assertEquals(reference.get().toString(), counterExpected.toMetrics(pulsar.getAdvertisedAddress()).toString());
     }
 
 

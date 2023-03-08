@@ -55,15 +55,11 @@ public class SplitManager implements StateChangeListener {
                 if (ex != null) {
                     counter.update(Failure, Unknown);
                     future.completeExceptionally(ex);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Complete exceptionally split bundle: {}", serviceUnit, ex);
-                    }
+                    log.error("Failed the bundle split event: {}", serviceUnit, ex);
                 } else {
                     counter.update(inFlightSplitRequest.splitDecision);
                     future.complete(null);
-                    if (log.isDebugEnabled()) {
-                        log.debug("Complete split bundle: {}", serviceUnit);
-                    }
+                    log.info("Completed the bundle split event: {}", serviceUnit);
                 }
             }
             return null;
@@ -75,20 +71,25 @@ public class SplitManager implements StateChangeListener {
                                              SplitDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
-
-        return eventPubFuture.thenCompose(__ -> inFlightSplitRequests.computeIfAbsent(bundle, ignore -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Handle split bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
-            }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
-                if (ex != null) {
-                    inFlightSplitRequests.remove(bundle);
-                    log.warn("Failed to wait for split for serviceUnit: {}", bundle, ex);
-                }
-            });
-            return new InFlightSplitRequest(decision, future);
-        }).future);
+        return eventPubFuture
+                .thenCompose(__ -> inFlightSplitRequests.computeIfAbsent(bundle, ignore -> {
+                    log.info("Published the bundle split event for bundle:{}. "
+                                    + "Waiting the split event to complete. Timeout: {} {}",
+                            bundle, timeout, timeoutUnit);
+                    CompletableFuture<Void> future = new CompletableFuture<>();
+                    future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
+                        if (ex != null) {
+                            inFlightSplitRequests.remove(bundle);
+                            log.warn("Timed out while waiting for the bundle split event: {}", bundle, ex);
+                        }
+                    });
+                    return new InFlightSplitRequest(decision, future);
+                }).future)
+                .exceptionally(e -> {
+                    log.error("Failed to publish the bundle split event for bundle:{}. Skipping wait.", bundle);
+                    counter.update(Failure, Unknown);
+                    return null;
+                });
     }
 
     @Override
