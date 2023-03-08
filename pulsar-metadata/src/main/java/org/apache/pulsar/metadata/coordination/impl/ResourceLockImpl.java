@@ -187,14 +187,14 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         }
 
         log.info("Lock on resource {} was invalidated", path);
-        revalidateOnce(value);
+        silentRevalidateOnce(value);
     }
 
     synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
-            return revalidateOnce(value);
+            return silentRevalidateOnce(value);
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -231,10 +231,17 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     }
 
     /**
-     * This method will auto mark the lock is released if revalidation operation got one of #{@code }
+     * This method designed for background notification usage,it will auto mark the lock is released if revalidation
+     * operation got one of exceptions as follows:
+     * - LockBusyException
+     * - BadVersionException
+     * - CancellationException
+     *
      * @param newValue the lock value
+     * @return The revalidation future  #Notice: It will not return any useful result,
+     * the caller needs to re-check the lock state after silent revalidation once.
      */
-    @Nonnull CompletableFuture<Void> revalidateOnce(@Nonnull T newValue) {
+    @Nonnull CompletableFuture<Void> silentRevalidateOnce(@Nonnull T newValue) {
         return revalidate(newValue)
                 .thenRun(() -> log.info("Successfully revalidated once the lock on {}", path))
                 .exceptionally(ex -> {
