@@ -1665,7 +1665,7 @@ public class TransactionTest extends TransactionTestBase {
         transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
                 .build().get();
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .endTransaction(transaction.getTxnID(), 0, false);
+                .endTransaction(transaction.getTxnID(), 1, false);
         transaction.commit();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
