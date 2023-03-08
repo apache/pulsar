@@ -72,7 +72,8 @@ public class MLTransactionMetadataStore
     @VisibleForTesting
     final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
 
-    final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> terminatedTxnMetaMap = new ConcurrentSkipListMap<>();
+    final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> terminatedTxnMetaMap =
+            new ConcurrentSkipListMap<>();
 
     private final TransactionTimeoutTracker timeoutTracker;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
@@ -203,8 +204,8 @@ public class MLTransactionMetadataStore
                                             // if openTimeStamp + timeout + unavailableDuration > currentTime,
                                             // we will remove txnMeta from terminatedTxnMetaMap.
                                             long unavailableDuration = System.currentTimeMillis() - shutdownTime;
-                                            recoverTracker.handleCommittedAbortedTransaction(
-                                                    transactionId, newStatus, unavailableDuration, terminatedTxnMetaMap);
+                                            recoverTracker.handleCommittedAbortedTransaction(transactionId,
+                                                    newStatus, unavailableDuration, terminatedTxnMetaMap);
                                         });
                                     }
                                 }
@@ -420,7 +421,7 @@ public class MLTransactionMetadataStore
                                     if (txnMetaListPair.getLeft().status() == newStatus) {
                                         transactionLog.deletePosition(Collections.singletonList(position));
                                         promise.complete(null);
-                                        return ;
+                                        return;
                                     }
                                     txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
                                     txnMetaListPair.getRight().add(position);
