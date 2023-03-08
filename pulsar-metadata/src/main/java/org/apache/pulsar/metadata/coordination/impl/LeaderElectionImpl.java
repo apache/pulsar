@@ -28,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.SafeRunnable;
@@ -111,13 +112,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        }).thenComposeAsync(leaderElectionState -> {
+        }).thenCompose(leaderElectionState -> {
             // make sure that the cache contains the current leader
             // so that getLeaderValueIfPresent works on all brokers
             cache.refresh(path);
             return cache.get(path)
                     .thenApply(__ -> leaderElectionState);
-        }, executor);
+        });
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
@@ -335,5 +336,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 }
             }
         }
+    }
+
+    @VisibleForTesting
+    protected ScheduledExecutorService getSchedulerExecutor() {
+        return executor;
     }
 }
