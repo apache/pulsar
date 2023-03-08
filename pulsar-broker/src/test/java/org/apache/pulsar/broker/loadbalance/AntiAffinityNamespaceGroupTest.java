@@ -38,6 +38,7 @@ import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
@@ -240,7 +241,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
 
         // for namespace-0 all brokers available
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(brokers.size(), totalBrokers);
 
@@ -249,7 +250,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         // for namespace-1 only domain-1 brokers are available as broker-0 already owns namespace-0
         assignedNamespace = namespace + "1" + bundle;
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(candidate.size(), 2);
         candidate.forEach(broker -> assertEquals(brokerToDomainMap.get(broker), "domain-1"));
@@ -259,7 +260,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         // for namespace-2 only brokers available are : broker-1 and broker-3
         assignedNamespace = namespace + "2" + bundle;
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(candidate.size(), 2);
         assertTrue(candidate.contains("brokerName-1"));
@@ -270,7 +271,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         // for namespace-3 only brokers available are : broker-3
         assignedNamespace = namespace + "3" + bundle;
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(candidate.size(), 1);
         assertTrue(candidate.contains("brokerName-3"));
@@ -279,7 +280,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         // for namespace-4 only brokers available are : all 4 brokers
         assignedNamespace = namespace + "4" + bundle;
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(candidate.size(), 4);
     }
@@ -324,7 +325,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
         // all brokers available so, candidate will be all 3 brokers
         candidate.addAll(brokers);
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
                 brokerToNamespaceToBundleRange, null);
         assertEquals(brokers.size(), 3);
 
@@ -333,7 +334,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         assignedNamespace = namespace + "1" + bundle;
         // available brokers for ns-1 => broker-1, broker-2
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
         assertEquals(candidate.size(), 2);
         assertTrue(candidate.contains("broker-1"));
@@ -344,7 +345,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         // available brokers for ns-2 => broker-2
         assignedNamespace = namespace + "2" + bundle;
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
         assertEquals(candidate.size(), 1);
         assertTrue(candidate.contains("broker-2"));
@@ -354,7 +355,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         candidate.addAll(brokers);
         // available brokers for ns-3 => broker-0, broker-1, broker-2
         assignedNamespace = namespace + "3" + bundle;
-        LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
         assertEquals(candidate.size(), 3);
     }
@@ -484,17 +485,17 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         // add ns-0 to broker-0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-0", namespace + "0", assignedNamespace);
         String currentBroker = "broker-0";
-        boolean shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle,
+        boolean shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle,
                 currentBroker, pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-1 to broker-1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1", assignedNamespace);
-        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-2 to broker-2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2", assignedNamespace);
-        shouldUnload = LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertFalse(shouldUnload);
 
@@ -548,6 +549,45 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
+    }
+
+    private static void filterAntiAffinityGroupOwnedBrokers(
+            PulsarService pulsar,
+            String assignedNamespace,
+            Set<String> brokers,
+            Object ownershipData,
+            Map<String, String> brokerToDomainMap) {
+        if (ownershipData instanceof Set) {
+            LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, assignedNamespace, brokers,
+                    (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData, brokerToDomainMap);
+        } else if (ownershipData instanceof ConcurrentOpenHashMap) {
+            LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, assignedNamespace, brokers,
+                    (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
+                            ownershipData, brokerToDomainMap);
+        } else {
+            throw new RuntimeException("Unknown ownershipData class type");
+        }
+    }
+
+    private static boolean shouldAntiAffinityNamespaceUnload(
+            String namespace,
+            String bundle,
+            String currentBroker,
+            PulsarService pulsar,
+            Object ownershipData,
+            Set<String> candidate) throws Exception {
+
+        if (ownershipData instanceof Set) {
+            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle,
+                    currentBroker, pulsar, (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData, candidate);
+        } else if (ownershipData instanceof ConcurrentOpenHashMap) {
+            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle,
+                    currentBroker, pulsar,
+                    (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
+                            ownershipData, candidate);
+        } else {
+            throw new RuntimeException("Unknown ownershipData class type");
+        }
     }
 
 }
