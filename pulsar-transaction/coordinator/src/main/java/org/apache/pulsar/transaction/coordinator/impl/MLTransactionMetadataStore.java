@@ -418,6 +418,7 @@ public class MLTransactionMetadataStore
                             try {
                                 synchronized (txnMetaListPair.getLeft()) {
                                     if (txnMetaListPair.getLeft().status() == newStatus) {
+                                        transactionLog.deletePosition(Collections.singletonList(position));
                                         promise.complete(null);
                                         return ;
                                     }

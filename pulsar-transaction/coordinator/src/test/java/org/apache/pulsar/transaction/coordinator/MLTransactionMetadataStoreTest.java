@@ -133,9 +133,10 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
                 try {
                     transactionMetadataStore.getTxnMeta(txnID).get();
-                    fail();
                 } catch (ExecutionException e) {
-                    Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
+                    // as we do not start the timeoutTracker, terminated txnMeta will not
+                    // be removed in terminatedTxnMetaMap.
+                    fail();
                 }
                 break;
             } else {
@@ -317,16 +318,18 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                                 .updateTxnStatus(txnID2, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
                         try {
                             transactionMetadataStoreTest.getTxnMeta(txnID1).get();
-                            fail();
                         } catch (ExecutionException e) {
-                            Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
+                            // as we do not start the timeoutTracker, terminated txnMeta will not
+                            // be removed in terminatedTxnMetaMap.
+                            fail();
                         }
 
                         try {
                             transactionMetadataStoreTest.getTxnMeta(txnID2).get();
-                            fail();
                         } catch (ExecutionException e) {
-                            Assert.assertTrue(e.getCause() instanceof TransactionNotFoundException);
+                            // as we do not start the timeoutTracker, terminated txnMeta will not
+                            // be removed in terminatedTxnMetaMap.
+                            fail();
                         }
                         TxnID txnID = transactionMetadataStoreTest.newTransaction(1000, null).get();
                         assertEquals(txnID.getLeastSigBits(), 2L);
