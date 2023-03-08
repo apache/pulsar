@@ -350,15 +350,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                  SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
         SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
         SchemaHash newHash = SchemaHash.of(newSchema);
-        SchemaData existingSchemaData = existingSchema.schema;
-        if (newSchema.getType() != existingSchemaData.getType()) {
-            throw new IncompatibleSchemaException(String.format("Incompatible schema: "
-                            + "exists schema type %s, new schema type %s",
-                    existingSchemaData.getType(), newSchema.getType()));
-        }
         if (!newHash.equals(existingHash)) {
             compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                    .checkCompatible(existingSchemaData, newSchema, strategy);
+                    .checkCompatible(existingSchema.schema, newSchema, strategy);
         }
     }
 
