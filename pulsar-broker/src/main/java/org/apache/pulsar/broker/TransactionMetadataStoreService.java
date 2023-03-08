@@ -340,6 +340,14 @@ public class TransactionMetadataStoreService {
                     if (txnMeta.status() == TxnStatus.OPEN) {
                         return updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout)
                                 .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
+                    } else if (txnMeta.status() == TxnStatus.COMMITTED
+                            && txnAction == TxnAction.COMMIT_VALUE) {
+                        future.complete(null);
+                        return future;
+                    } else if (txnMeta.status() == TxnStatus.ABORTED
+                            && txnAction == TxnAction.ABORT_VALUE) {
+                        future.complete(null);
+                        return future;
                     }
                     return fakeAsyncCheckTxnStatus(txnMeta.status(), txnAction, txnID, newStatus)
                             .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
@@ -394,21 +402,31 @@ public class TransactionMetadataStoreService {
         }
     }
 
+    public void removeTerminatedTxnMeta(TxnID txnID) {
+        TransactionCoordinatorID tcId = getTcIdFromTxnId(txnID);
+        TransactionMetadataStore store = stores.get(tcId);
+        store.removeTerminatedTxnMeta(txnID.getLeastSigBits());
+    }
+
     public void endTransactionForTimeout(TxnID txnID) {
         getTxnMeta(txnID).thenCompose(txnMeta -> {
-            if (txnMeta.status() == TxnStatus.OPEN) {
-                return endTransaction(txnID, TxnAction.ABORT_VALUE, true);
-            } else {
+            if (txnMeta.status() == TxnStatus.ABORTED
+                    || txnMeta.status() == TxnStatus.COMMITTED) {
+                removeTerminatedTxnMeta(txnID);
                 return null;
             }
+            return endTransaction(txnID, TxnAction.ABORT_VALUE, true)
+                    .thenRun(() -> removeTerminatedTxnMeta(txnID));
         }).exceptionally(e -> {
             if (isRetryableException(e)) {
-                endTransaction(txnID, TxnAction.ABORT_VALUE, true);
+                endTransaction(txnID, TxnAction.ABORT_VALUE, true)
+                        .thenRun(() -> removeTerminatedTxnMeta(txnID));
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Transaction have been handle complete, "
                             + "don't need to handle by transaction timeout! TxnId : {}", txnID);
                 }
+                removeTerminatedTxnMeta(txnID);
             }
             return null;
         });

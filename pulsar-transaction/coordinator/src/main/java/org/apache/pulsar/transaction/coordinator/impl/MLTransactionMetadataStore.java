@@ -71,6 +71,9 @@ public class MLTransactionMetadataStore
     private final MLTransactionLogImpl transactionLog;
     @VisibleForTesting
     final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> txnMetaMap = new ConcurrentSkipListMap<>();
+
+    final ConcurrentSkipListMap<Long, Pair<TxnMeta, List<Position>>> terminatedTxnMetaMap = new ConcurrentSkipListMap<>();
+
     private final TransactionTimeoutTracker timeoutTracker;
     private final TransactionMetadataStoreStats transactionMetadataStoreStats;
     private final LongAdder createdTransactionCount;
@@ -81,6 +84,7 @@ public class MLTransactionMetadataStore
     private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
     private final ExecutorService internalPinnedExecutor;
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
+    public long shutdownTime = -1;
     private final long maxActiveTransactionsPerCoordinator;
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
@@ -119,7 +123,6 @@ public class MLTransactionMetadataStore
             FutureUtil.safeRunAsync(() -> transactionLog.replayAsync(new TransactionLogReplayCallback() {
                 @Override
                 public void replayComplete() {
-                    recoverTracker.appendOpenTransactionToTimeoutTracker();
                     if (!changeToReadyState()) {
                         log.error("Managed ledger transaction metadata store change state error when replay complete");
                         completableFuture
@@ -128,8 +131,10 @@ public class MLTransactionMetadataStore
                                         + tcID.toString() + " change state to Ready error when init it"));
 
                     } else {
-                        completableFuture.complete(MLTransactionMetadataStore.this);
                         recoverTime.setRecoverEndTime(System.currentTimeMillis());
+                        recoverTracker.appendTransactionToTimeoutTracker(
+                                recoverTime.getRecoverEndTime() - shutdownTime);
+                        completableFuture.complete(MLTransactionMetadataStore.this);
                     }
                 }
 
@@ -149,6 +154,7 @@ public class MLTransactionMetadataStore
                                     List<Position> positions = new ArrayList<>();
                                     positions.add(position);
                                     long openTimestamp = transactionMetadataEntry.getStartTime();
+                                    shutdownTime = openTimestamp > shutdownTime ? (openTimestamp) : (shutdownTime);
                                     long timeoutAt = transactionMetadataEntry.getTimeoutMs();
                                     final String owner = transactionMetadataEntry.hasOwner()
                                             ? transactionMetadataEntry.getOwner() : null;
@@ -187,11 +193,18 @@ public class MLTransactionMetadataStore
                                             .updateTxnStatus(transactionMetadataEntry.getNewStatus(),
                                                     transactionMetadataEntry.getExpectedStatus());
                                     txnMetaMap.get(transactionId).getRight().add(position);
-                                    recoverTracker.updateTransactionStatus(txnID.getLeastSigBits(), newStatus);
+                                    recoverTracker.updateTransactionStatus(transactionId, newStatus);
                                     if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                         transactionLog.deletePosition(txnMetaMap
-                                                .get(transactionId).getRight()).thenAccept(v ->
-                                                txnMetaMap.remove(transactionId).getLeft());
+                                                .get(transactionId).getRight()).thenAccept(v -> {
+                                            // unavailableDuration decrements as TC scans the tc and shutdownTime
+                                            // increments.
+                                            // if openTimeStamp + timeout + unavailableDuration > currentTime,
+                                            // we will remove txnMeta from txnMetaMap.
+                                            long unavailableDuration = System.currentTimeMillis() - shutdownTime;
+                                            recoverTracker.handleCommittedAbortedTransaction(
+                                                    transactionId, newStatus, unavailableDuration, txnMetaMap);
+                                        });
                                     }
                                 }
                                 break;
@@ -219,6 +232,9 @@ public class MLTransactionMetadataStore
     public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID) {
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID.getLeastSigBits());
         CompletableFuture<TxnMeta> completableFuture = new CompletableFuture<>();
+        if (txnMetaListPair == null) {
+            txnMetaListPair = terminatedTxnMetaMap.get(txnID.getLeastSigBits());
+        }
         if (txnMetaListPair == null) {
             completableFuture.completeExceptionally(new TransactionNotFoundException(txnID));
         } else {
@@ -400,6 +416,10 @@ public class MLTransactionMetadataStore
                             appendLogCount.increment();
                             try {
                                 synchronized (txnMetaListPair.getLeft()) {
+                                    if (txnMetaListPair.getLeft().status() == newStatus) {
+                                        promise.complete(null);
+                                        return ;
+                                    }
                                     txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
                                     txnMetaListPair.getRight().add(position);
                                 }
@@ -415,7 +435,8 @@ public class MLTransactionMetadataStore
                                     } else {
                                         abortedTransactionCount.increment();
                                     }
-                                    txnMetaMap.remove(txnID.getLeastSigBits());
+                                    long sequenceID = txnID.getLeastSigBits();
+                                    terminatedTxnMetaMap.put(sequenceID, txnMetaMap.remove(sequenceID));
                                     transactionLog.deletePosition(txnMetaListPair.getRight()).exceptionally(ex -> {
                                         log.warn("Failed to delete transaction log position "
                                                 + "at end transaction [{}]", txnID);
@@ -469,6 +490,9 @@ public class MLTransactionMetadataStore
         CompletableFuture<Pair<TxnMeta, List<Position>>> completableFuture = new CompletableFuture<>();
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID.getLeastSigBits());
         if (txnMetaListPair == null) {
+            txnMetaListPair = terminatedTxnMetaMap.get(txnID.getLeastSigBits());
+        }
+        if (txnMetaListPair == null) {
             completableFuture.completeExceptionally(new TransactionNotFoundException(txnID));
         } else {
             completableFuture.complete(txnMetaListPair);
@@ -519,6 +543,13 @@ public class MLTransactionMetadataStore
             }
         });
         return txnMetas;
+    }
+
+    @Override
+    public void removeTerminatedTxnMeta(long transactionId) {
+        if (terminatedTxnMetaMap.containsKey(transactionId)) {
+            terminatedTxnMetaMap.remove(transactionId);
+        }
     }
 
     public static List<Subscription> txnSubscriptionToSubscription(List<TransactionSubscription> tnxSubscriptions) {

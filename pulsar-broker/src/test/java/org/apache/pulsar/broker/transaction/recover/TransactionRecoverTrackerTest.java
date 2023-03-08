@@ -63,7 +63,7 @@ public class TransactionRecoverTrackerTest {
         TripleLongPriorityQueue priorityQueue = (TripleLongPriorityQueue) field.get(timeoutTracker);
         assertEquals(priorityQueue.size(), 0);
 
-        recoverTracker.appendOpenTransactionToTimeoutTracker();
+        recoverTracker.appendTransactionToTimeoutTracker(0l);
         assertEquals(priorityQueue.size(), 2);
     }
 

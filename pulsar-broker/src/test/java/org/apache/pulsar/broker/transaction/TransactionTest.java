@@ -854,7 +854,7 @@ public class TransactionTest extends TransactionTestBase {
         field.set(mlTransactionLog, persistentTopic.getManagedLedger());
 
         TransactionRecoverTracker transactionRecoverTracker = mock(TransactionRecoverTracker.class);
-        doNothing().when(transactionRecoverTracker).appendOpenTransactionToTimeoutTracker();
+        doNothing().when(transactionRecoverTracker).appendTransactionToTimeoutTracker(0l);
         doNothing().when(transactionRecoverTracker).handleCommittingAndAbortingTransaction();
         TransactionTimeoutTracker timeoutTracker = mock(TransactionTimeoutTracker.class);
         doNothing().when(timeoutTracker).start();
@@ -926,6 +926,75 @@ public class TransactionTest extends TransactionTestBase {
         commitTxn.commit().get();
         Awaitility.await().untilAsserted(() -> assertEquals(listener.getCommittedTxnCount(),1));
     }
+
+    @Test
+    public void testConcurrentCommit() throws Exception {
+        String topic = NAMESPACE1 + "/testConcurrentCommit";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                // ensure that batch message is sent
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+
+        // send batch message, the size is 5
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage(txn).value(("test" + i).getBytes());
+        }
+        producer.flush();
+
+        CompletableFuture future = new CompletableFuture();
+        // try to commit many times.
+        while (!txn.getState().equals(Transaction.State.COMMITTED)) {
+            txn.commit().exceptionally(e -> {
+                future.completeExceptionally(e);
+                return null;
+            });
+        }
+        assertTrue(!future.isCompletedExceptionally());
+
+        txn.commit().get();
+    }
+
+    @Test
+    public void testConcurrentAbort() throws Exception {
+        String topic = NAMESPACE1 + "/testConcurrentCommit";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                // ensure that batch message is sent
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+
+        // send batch message, the size is 5
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage(txn).value(("test" + i).getBytes());
+        }
+        producer.flush();
+
+        CompletableFuture future = new CompletableFuture();
+        // try to abort many times.
+        while (!txn.getState().equals(Transaction.State.ABORTED)) {
+            txn.abort().exceptionally(e -> {
+                future.completeExceptionally(e);
+                return null;
+            });
+        }
+        assertTrue(!future.isCompletedExceptionally());
+
+        txn.abort().get();
+    }
+
 
     @Test
     public void testNoEntryCanBeReadWhenRecovery() throws Exception {

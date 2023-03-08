@@ -20,6 +20,8 @@ package org.apache.pulsar.transaction.coordinator;
 
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -538,7 +540,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
 
         @Override
-        public void appendOpenTransactionToTimeoutTracker() {
+        public void appendTransactionToTimeoutTracker(long unavailableDuration) {
+
+        }
+
+        @Override
+        public void handleCommittedAbortedTransaction(long sequenceId, TxnStatus txnStatus, long unavailableDuration, Map txnMetaMap) {
 
         }
 

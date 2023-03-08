@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -63,7 +64,7 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
      * <p>
      *     When transactionMetadataStore recover complete, all transaction in this will endTransaction by commit action.
      */
-    private final Set<Long> committingTransactions;
+    private final Map<Long, Long> committingTransactions;
 
     /**
      * Update transaction to aborting status.
@@ -74,15 +75,22 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
      * <p>
      *     When transactionMetadataStore recover complete, all transaction in this will endTransaction by abort action.
      */
-    private final Set<Long> abortingTransactions;
+    private final Map<Long, Long> abortingTransactions;
+
+    /**
+     * hold all committed or aborted transactions,those which is judged as
+     * timeout will be removed both from terminatedTransactions and txnMetaMap.
+     */
+    private final LinkedMap<Long, Long> terminatedTransactions;
 
     public TransactionRecoverTrackerImpl(TransactionMetadataStoreService transactionMetadataStoreService,
-                                  TransactionTimeoutTracker timeoutTracker, long tcId) {
+                                         TransactionTimeoutTracker timeoutTracker, long tcId) {
         this.tcId = tcId;
         this.transactionMetadataStoreService = transactionMetadataStoreService;
         this.openTransactions = new HashMap<>();
-        this.committingTransactions = new HashSet<>();
-        this.abortingTransactions = new HashSet<>();
+        this.committingTransactions = new HashMap<>();
+        this.abortingTransactions = new HashMap<>();
+        this.terminatedTransactions = new LinkedMap<>();
         this.timeoutTracker = timeoutTracker;
     }
 
@@ -90,18 +98,16 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
     public void updateTransactionStatus(long sequenceId, TxnStatus txnStatus) throws InvalidTxnStatusException {
         switch (txnStatus) {
             case COMMITTING:
-                openTransactions.remove(sequenceId);
-                committingTransactions.add(sequenceId);
+                committingTransactions.put(sequenceId, openTransactions.remove(sequenceId));
                 break;
             case ABORTING:
-                openTransactions.remove(sequenceId);
-                abortingTransactions.add(sequenceId);
+                abortingTransactions.put(sequenceId, openTransactions.remove(sequenceId));
                 break;
             case ABORTED:
-                abortingTransactions.remove(sequenceId);
+                terminatedTransactions.put(sequenceId, abortingTransactions.remove(sequenceId));
                 break;
             case COMMITTED:
-                committingTransactions.remove(sequenceId);
+                terminatedTransactions.put(sequenceId, committingTransactions.remove(sequenceId));
                 break;
             default:
                 throw new InvalidTxnStatusException("Transaction recover tracker`"
@@ -110,24 +116,61 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
         }
     }
 
+    /**
+     * @param sequenceId {@link Long} the sequenceId of this transaction.
+     * @param timeout    {@link long} the timeout point(not duration) of this transaction.
+     */
     @Override
     public void handleOpenStatusTransaction(long sequenceId, long timeout) {
         openTransactions.put(sequenceId, timeout);
     }
 
     @Override
-    public void appendOpenTransactionToTimeoutTracker() {
+    public void appendTransactionToTimeoutTracker(long unavailableDuration) {
+        // add unavailable duration to timeout.
+        for (long sequenceId : openTransactions.keySet()) {
+            openTransactions.computeIfPresent(sequenceId, (k, v) -> v + unavailableDuration);
+        }
+        for (long sequenceId : committingTransactions.keySet()) {
+            committingTransactions.computeIfPresent(sequenceId, (k, v) -> v + unavailableDuration);
+        }
+        for (long sequenceId : abortingTransactions.keySet()) {
+            abortingTransactions.computeIfPresent(sequenceId, (k, v) -> v + unavailableDuration);
+        }
+        for (long sequenceId : terminatedTransactions.keySet()) {
+            terminatedTransactions.computeIfPresent(sequenceId, (k, v) -> v + unavailableDuration);
+        }
         openTransactions.forEach(timeoutTracker::replayAddTransaction);
+        committingTransactions.forEach(timeoutTracker::replayAddTransaction);
+        abortingTransactions.forEach(timeoutTracker::replayAddTransaction);
+        terminatedTransactions.forEach(timeoutTracker::replayAddTransaction);
+        committingTransactions.clear();
+        abortingTransactions.clear();
+        terminatedTransactions.clear();
+    }
+
+    @Override
+    public void handleCommittedAbortedTransaction(
+            long sequenceId, TxnStatus txnStatus, long unavailableDuration, Map txnMetaMap) {
+        // transaction in terminatedTransactions is ordered by added time.
+        synchronized (this) {
+            while (!terminatedTransactions.isEmpty() && terminatedTransactions.get(terminatedTransactions.firstKey())
+                    + unavailableDuration > System.currentTimeMillis()) {
+                long firstKey = terminatedTransactions.firstKey();
+                txnMetaMap.remove(firstKey);
+                terminatedTransactions.remove(firstKey);
+            }
+        }
     }
 
     @Override
     public void handleCommittingAndAbortingTransaction() {
-        committingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
-                        false));
+            committingTransactions.forEach((k, v) ->
+                    transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.COMMIT_VALUE,
+                            false));
 
-        abortingTransactions.forEach(k ->
-                transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
-                        false));
+            abortingTransactions.forEach((k, v) ->
+                    transactionMetadataStoreService.endTransaction(new TxnID(tcId, k), TxnAction.ABORT_VALUE,
+                            false));
     }
 }

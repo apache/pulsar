@@ -139,4 +139,11 @@ public interface TransactionMetadataStore {
      * @return {@link TxnMeta} the txnMetas of slow transactions
      */
     List<TxnMeta> getSlowTransactions(long timeout);
+
+
+    /**
+     * remove the txnMeta when the transaction is terminated.
+     * @param transactionId
+     */
+    void removeTerminatedTxnMeta(long transactionId);
 }

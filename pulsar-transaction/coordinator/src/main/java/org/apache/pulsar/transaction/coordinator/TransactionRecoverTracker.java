@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import java.util.Map;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
@@ -42,9 +43,15 @@ public interface TransactionRecoverTracker {
     void handleOpenStatusTransaction(long sequenceId, long timeout);
 
     /**
-     * Handle the transaction in open status append to transaction timeout tracker.
+     * Handle the transaction append to transaction timeout tracker.
      */
-    void appendOpenTransactionToTimeoutTracker();
+    void appendTransactionToTimeoutTracker(long unavailableDuration);
+
+    /**
+     * Handle the transaction in committed or aborted status.
+     */
+    void handleCommittedAbortedTransaction(long sequenceId, TxnStatus txnStatus,
+                                           long unavailableDuration, Map txnMetaMap);
 
     /**
      * Handle the transaction in committing and aborting status.
