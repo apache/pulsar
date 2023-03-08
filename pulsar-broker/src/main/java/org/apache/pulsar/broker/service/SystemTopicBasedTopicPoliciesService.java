@@ -343,6 +343,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             if (hasMore) {
                 reader.readNextAsync().thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Loop next event reading for system topic.",
+                                reader.getSystemTopic().getTopicName().getNamespaceObject());
+                    }
                     initPolicesCache(reader, future);
                 }).exceptionally(e -> {
                     log.error("[{}] Failed to read event from the system topic.",
