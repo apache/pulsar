@@ -151,13 +151,13 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
 
     @Override
     public void handleCommittedAbortedTransaction(
-            long sequenceId, TxnStatus txnStatus, long unavailableDuration, Map txnMetaMap) {
+            long sequenceId, TxnStatus txnStatus, long unavailableDuration, Map terminatedTxnMetaMap) {
         // transaction in terminatedTransactions is ordered by added time.
         synchronized (this) {
             while (!terminatedTransactions.isEmpty() && terminatedTransactions.get(terminatedTransactions.firstKey())
                     + unavailableDuration > System.currentTimeMillis()) {
                 long firstKey = terminatedTransactions.firstKey();
-                txnMetaMap.remove(firstKey);
+                terminatedTxnMetaMap.remove(firstKey);
                 terminatedTransactions.remove(firstKey);
             }
         }

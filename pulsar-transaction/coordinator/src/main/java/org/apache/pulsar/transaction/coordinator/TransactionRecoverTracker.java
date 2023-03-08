@@ -51,7 +51,7 @@ public interface TransactionRecoverTracker {
      * Handle the transaction in committed or aborted status.
      */
     void handleCommittedAbortedTransaction(long sequenceId, TxnStatus txnStatus,
-                                           long unavailableDuration, Map txnMetaMap);
+                                           long unavailableDuration, Map terminatedTxnMetaMap);
 
     /**
      * Handle the transaction in committing and aborting status.

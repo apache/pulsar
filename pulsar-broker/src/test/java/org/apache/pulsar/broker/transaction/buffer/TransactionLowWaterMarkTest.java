@@ -139,9 +139,8 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         producer.newMessage(txn).value(TEST2.getBytes()).send();
         try {
             txn.commit().get();
-            Assert.fail("The commit operation should be failed.");
         } catch (Exception e){
-            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException.TransactionNotFoundException);
+            Assert.fail("The commit operation should be successful.");
         }
 
         PartitionedTopicMetadata partitionedTopicMetadata =

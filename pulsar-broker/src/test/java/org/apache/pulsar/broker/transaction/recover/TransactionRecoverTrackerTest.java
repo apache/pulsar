@@ -100,18 +100,18 @@ public class TransactionRecoverTrackerTest {
 
         field = TransactionRecoverTrackerImpl.class.getDeclaredField("committingTransactions");
         field.setAccessible(true);
-        Set<Long> commitSet = (Set<Long>) field.get(recoverTracker);
+        Map<Long,Long> commitSet = (Map<Long, Long>) field.get(recoverTracker);
 
         assertEquals(commitSet.size(), 1);
-        assertTrue(commitSet.contains(committingSequenceId));
-        assertFalse(commitSet.contains(committedSequenceId));
+        assertTrue(commitSet.containsKey(committingSequenceId));
+        assertFalse(commitSet.containsKey(committedSequenceId));
 
         field = TransactionRecoverTrackerImpl.class.getDeclaredField("abortingTransactions");
         field.setAccessible(true);
-        Set<Long> abortSet = (Set<Long>) field.get(recoverTracker);
+        Map<Long,Long> abortSet = (Map<Long, Long>) field.get(recoverTracker);
 
         assertEquals(1, abortSet.size());
-        assertTrue(abortSet.contains(abortingSequenceId));
-        assertFalse(abortSet.contains(abortedSequenceId));
+        assertTrue(abortSet.containsKey(abortingSequenceId));
+        assertFalse(abortSet.containsKey(abortedSequenceId));
     }
 }

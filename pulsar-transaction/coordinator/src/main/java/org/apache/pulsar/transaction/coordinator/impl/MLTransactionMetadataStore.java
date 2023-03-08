@@ -197,13 +197,14 @@ public class MLTransactionMetadataStore
                                     if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                         transactionLog.deletePosition(txnMetaMap
                                                 .get(transactionId).getRight()).thenAccept(v -> {
+                                            terminatedTxnMetaMap.put(transactionId, txnMetaMap.remove(transactionId));
                                             // unavailableDuration decrements as TC scans the tc and shutdownTime
                                             // increments.
                                             // if openTimeStamp + timeout + unavailableDuration > currentTime,
-                                            // we will remove txnMeta from txnMetaMap.
+                                            // we will remove txnMeta from terminatedTxnMetaMap.
                                             long unavailableDuration = System.currentTimeMillis() - shutdownTime;
                                             recoverTracker.handleCommittedAbortedTransaction(
-                                                    transactionId, newStatus, unavailableDuration, txnMetaMap);
+                                                    transactionId, newStatus, unavailableDuration, terminatedTxnMetaMap);
                                         });
                                     }
                                 }
