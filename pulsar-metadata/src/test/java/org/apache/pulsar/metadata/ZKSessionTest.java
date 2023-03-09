@@ -141,7 +141,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         //  ---  init
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
                 MetadataStoreConfig.builder()
-                        .sessionTimeoutMillis(30000)
+                        .sessionTimeoutMillis(2_000)
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
@@ -176,7 +176,5 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         Awaitility.await().atMost(Duration.ofSeconds(15))
                 .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
         assertTrue(store.get(path).join().isPresent());
-
-        Thread.sleep(1000000);
     }
 }
