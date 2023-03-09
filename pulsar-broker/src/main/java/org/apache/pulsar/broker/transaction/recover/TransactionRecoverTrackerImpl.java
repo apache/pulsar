@@ -142,9 +142,6 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
         committingTransactions.forEach(timeoutTracker::replayAddTransaction);
         abortingTransactions.forEach(timeoutTracker::replayAddTransaction);
         terminatedTransactions.forEach(timeoutTracker::replayAddTransaction);
-        committingTransactions.clear();
-        abortingTransactions.clear();
-        terminatedTransactions.clear();
     }
 
     @Override

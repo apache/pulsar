@@ -204,8 +204,8 @@ public class MLTransactionMetadataStore
                                             // if openTimeStamp + timeout + unavailableDuration > currentTime,
                                             // we will remove txnMeta from terminatedTxnMetaMap.
                                             long unavailableDuration = System.currentTimeMillis() - shutdownTime;
-                                            recoverTracker.handleCommittedAbortedTransaction(transactionId,
-                                                    newStatus, unavailableDuration, terminatedTxnMetaMap);
+                                            internalPinnedExecutor.execute(() -> recoverTracker.handleCommittedAbortedTransaction(
+                                                            transactionId, newStatus, unavailableDuration, terminatedTxnMetaMap));
                                         });
                                     }
                                 }
