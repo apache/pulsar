@@ -127,7 +127,7 @@ class LockManagerImpl<T> implements LockManager<T> {
             if (se == SessionEvent.SessionReestablished) {
                 log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
                 for (ResourceLockImpl<T> lock : locks.values()) {
-                    futures.add(lock.silentRevalidateOnce(lock.getValue()));
+                    futures.add(lock.revalidateOnce(lock.getValue()));
                 }
             } else if (se == SessionEvent.Reconnected) {
                 log.info("Metadata store connection has been re-established. Revalidating locks that were pending.");
