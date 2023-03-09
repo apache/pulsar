@@ -282,6 +282,10 @@ public class PerformanceProducer {
         @Parameter(names = {"--resend-on-failure"}, description = "resend message on failure in non-txn test")
         public boolean resendOnFailure = false;
 
+        @Parameter(names = "--retry-times", description = "the retry times when commit operation receive "
+                + "PulsarClientException$TimeoutException")
+        public int retryTimes = 3;
+
         @Parameter(names = "--base-dir-save-resend", description = "save the data resend in transaction, empty string"
                 + "to indicate that do not save resend data")
         public String baseDirToSaveResendTxnData = "";
@@ -720,6 +724,10 @@ public class PerformanceProducer {
         }
     }
 
+    static boolean isTimeOutException(Throwable throwable) {
+        return throwable.getMessage().contains("Could not get"
+                + " response from transaction meta store within given timeout.");
+    }
 
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
@@ -990,8 +998,24 @@ public class PerformanceProducer {
                                         totalEndTxnOpFailNum.increment();
 
                                         if (arguments.isEnableTxnTest) {
-                                            totalSent.add(-handleTxnOnAborted(transaction, messageFormatter,
-                                                    arguments.baseDirToSaveResendTxnData));
+                                            int retryTimes = arguments.retryTimes;
+                                            if (isTimeOutException(exception)) {
+                                                for (int i = 0; i < retryTimes; i++) {
+                                                    try {
+                                                        transaction.commit().get();
+                                                        handleTxnOnCommitted(transaction);
+                                                        break;
+                                                    } catch (Exception e) {
+                                                        if (!isTimeOutException(e)) {
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            if (transaction.getState() != Transaction.State.COMMITTED) {
+                                                totalSent.add(-handleTxnOnAborted(transaction, messageFormatter,
+                                                        arguments.baseDirToSaveResendTxnData));
+                                            }
                                         }
                                         return null;
                                     });
