@@ -85,10 +85,11 @@ public class SplitManager implements StateChangeListener {
                     });
                     return new InFlightSplitRequest(decision, future);
                 }).future)
-                .exceptionally(e -> {
-                    log.error("Failed to publish the bundle split event for bundle:{}. Skipping wait.", bundle);
-                    counter.update(Failure, Unknown);
-                    return null;
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error("Failed to publish the bundle split event for bundle:{}. Skipping wait.", bundle);
+                        counter.update(Failure, Unknown);
+                    }
                 });
     }
 
