@@ -225,7 +225,19 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 
 	batchBuilderType := pulsar.DefaultBatchBuilder
 
+	compressionType := pulsar.LZ4
 	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
+		switch gi.context.instanceConf.funcDetails.Sink.ProducerSpec.CompressionType {
+		case pb.CompressionType_NONE:
+			compressionType = pulsar.NoCompression
+		case pb.CompressionType_ZLIB:
+			compressionType = pulsar.ZLib
+		case pb.CompressionType_ZSTD:
+			compressionType = pulsar.ZSTD
+		default:
+			compressionType = pulsar.LZ4 // go doesn't support SNAPPY yet
+		}
+
 		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
 		if batchBuilder != "" {
 			if batchBuilder == "KEY_BASED" {
@@ -237,7 +249,7 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
 		Topic:                   topicName,
 		Properties:              properties,
-		CompressionType:         pulsar.LZ4,
+		CompressionType:         compressionType,
 		BatchingMaxPublishDelay: time.Millisecond * 10,
 		BatcherBuilderType:      batchBuilderType,
 		SendTimeout:             0,
