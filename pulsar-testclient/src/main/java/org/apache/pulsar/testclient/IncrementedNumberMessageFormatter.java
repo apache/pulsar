@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -28,8 +25,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * message formatter used to generate long number from 0.
@@ -55,12 +58,12 @@ public class IncrementedNumberMessageFormatter implements IMessageFormatter{
 
     private static final String snapshotFilePath = "snapshot.data";
 
-    public synchronized static byte[] longToBytes(long x) {
+    public static synchronized byte[] longToBytes(long x) {
         buffer.putLong(0, x);
         return Arrays.copyOf(buffer.array(), Long.BYTES);
     }
 
-    public synchronized static long bytesToLong(byte[] bytes) {
+    public static synchronized long bytesToLong(byte[] bytes) {
         buffer.clear(); // need clear to put
         buffer.put(bytes, 0, bytes.length);
         buffer.flip(); //need flip to get
@@ -69,16 +72,16 @@ public class IncrementedNumberMessageFormatter implements IMessageFormatter{
 
     @Override
     public byte[] formatMessage(String producerName, long msg, byte[] message) {
-        return longToBytes(atomicLong.getAndAdd(1l));
+        return longToBytes(atomicLong.getAndAdd(1L));
     }
 
     public byte[] formatMessage() throws InterruptedException {
         if (msgToResend.isEmpty()) {
-            return longToBytes(atomicLong.getAndAdd(1l));
+            return longToBytes(atomicLong.getAndAdd(1L));
         } else {
             byte[] arr = msgToResend.poll(2, TimeUnit.SECONDS);
             if (arr == null) {
-                return longToBytes(atomicLong.getAndAdd(1l));
+                return longToBytes(atomicLong.getAndAdd(1L));
             } else {
                 return arr;
             }
@@ -93,7 +96,7 @@ public class IncrementedNumberMessageFormatter implements IMessageFormatter{
             }
             return arr;
         }
-        return formatMessage(null, 0l, null);
+        return formatMessage(null, 0L, null);
     }
 
     public int registerTmpFileWithAbortedTxn(File file) throws IOException {

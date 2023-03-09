@@ -32,8 +32,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,7 +48,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -263,16 +277,17 @@ public class PerformanceProducer {
         public boolean isAbortTransaction = false;
 
         @Parameter(names = {"--txn-test-enabled"}, description = "Enable or disable the transaction consistency test")
-        public boolean isEnableTxnTest=false;
+        public boolean isEnableTxnTest = false;
 
-        @Parameter(names = {"--resend-on-failure"}, description = "resend message on failure")
+        @Parameter(names = {"--resend-on-failure"}, description = "resend message on failure in non-txn test")
         public boolean resendOnFailure = false;
 
-        @Parameter(names = "--base-dir-save-resend", description = "save the data resend in transaction, empty string" +
-                "to indicate that do not save resend data")
+        @Parameter(names = "--base-dir-save-resend", description = "save the data resend in transaction, empty string"
+                + "to indicate that do not save resend data")
         public String baseDirToSaveResendTxnData = "";
 
-        @Parameter(names = {"--max-txn"}, description = "max transactions per second, determining the number of tmp files")
+        @Parameter(names = {"--max-txn"}, description = "max transactions per second, "
+                + "determining the number of tmp files")
         public int maxTransactionsPerSecond = 20;
 
 
@@ -590,10 +605,10 @@ public class PerformanceProducer {
             long start = System.currentTimeMillis();
             for (Transaction txn : txnTmpFileMap.keySet()) {
                 Transaction.State state = txn.getState();
-                if (state.equals(Transaction.State.COMMITTED) ||
-                        state.equals(Transaction.State.ABORTED) ||
-                        state.equals(Transaction.State.ERROR) ||
-                        state.equals(Transaction.State.TIME_OUT)) {
+                if (state.equals(Transaction.State.COMMITTED)
+                        || state.equals(Transaction.State.ABORTED)
+                        || state.equals(Transaction.State.ERROR)
+                        || state.equals(Transaction.State.TIME_OUT)) {
                     File tmpFile = txnTmpFileMap.get(txn).getLeft();
                     if (tmpFile.exists()) {
                         // txn has been terminated, but the corresponding
@@ -609,8 +624,8 @@ public class PerformanceProducer {
             if (needToWaitSomeTime) {
                 try {
                     // sleep for some time for executing asynchronous tasks completed.
-                    Thread.sleep(arguments.transactionTimeout * 1000 -
-                            (System.currentTimeMillis() - start));
+                    Thread.sleep(arguments.transactionTimeout * 1000
+                            - (System.currentTimeMillis() - start));
                 } catch (InterruptedException e) {
                     log.warn("sleep failed");
                     throw new RuntimeException(e);
@@ -651,8 +666,8 @@ public class PerformanceProducer {
         try {
             pair.getRight().close();
             if (!baseDirToSaveResendData.isEmpty()) {
-                Files.copy(pair.getLeft().toPath(), new File(baseDirToSaveResendData + "/" +
-                        txn.getTxnID().getMostSigBits() + ":" + txn.getTxnID().getLeastSigBits()).toPath());
+                Files.copy(pair.getLeft().toPath(), new File(baseDirToSaveResendData + "/"
+                        + txn.getTxnID().getMostSigBits() + ":" + txn.getTxnID().getLeastSigBits()).toPath());
             }
             if (messageFormatter instanceof IncrementedNumberMessageFormatter) {
                 messageCount = ((IncrementedNumberMessageFormatter) messageFormatter).
@@ -786,7 +801,7 @@ public class PerformanceProducer {
                         .get());
                 if (arguments.isEnableTxnTest) {
                     File tmpFile = tmpFiles.take();
-                    openTmpFileStreamForNewTxn(tmpFile,transactionAtomicReference.get());
+                    openTmpFileStreamForNewTxn(tmpFile, transactionAtomicReference.get());
                 }
             } else {
                 transactionAtomicReference = new AtomicReference<>(null);
@@ -879,7 +894,7 @@ public class PerformanceProducer {
                                 // some messages in aborted txn are persisted in this file, we need to resend them.
                                 payloadData = incrementedNumberMessageFormatter.formatMessage(pair.getLeft());
                             } else {
-                                payloadData = messageFormatter.formatMessage(null, 0l, null);
+                                payloadData = messageFormatter.formatMessage(null, 0L, null);
                                 // persist msg to local tmp file.
                                 pair.getRight().write(payloadData);
                             }
@@ -975,7 +990,8 @@ public class PerformanceProducer {
                                         totalEndTxnOpFailNum.increment();
 
                                         if (arguments.isEnableTxnTest) {
-                                            totalSent.add(-handleTxnOnAborted(transaction, messageFormatter, arguments.baseDirToSaveResendTxnData));
+                                            totalSent.add(-handleTxnOnAborted(transaction, messageFormatter,
+                                                    arguments.baseDirToSaveResendTxnData));
                                         }
                                         return null;
                                     });
