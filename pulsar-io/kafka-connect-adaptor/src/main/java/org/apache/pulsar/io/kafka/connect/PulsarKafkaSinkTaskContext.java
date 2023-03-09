@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
@@ -50,6 +51,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     private final SinkContext ctx;
 
     private final OffsetBackingStore offsetStore;
+    private Function<String, String> desanitizeTopicName;
     private final String topicNamespace;
     private final Consumer<Collection<TopicPartition>> onPartitionChange;
     private final AtomicBoolean runRepartition = new AtomicBoolean(false);
@@ -58,11 +60,13 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     public PulsarKafkaSinkTaskContext(Map<String, String> config,
                                       SinkContext ctx,
-                                      Consumer<Collection<TopicPartition>> onPartitionChange) {
+                                      Consumer<Collection<TopicPartition>> onPartitionChange,
+                                      Function<String, String> desanitizeTopicName) {
         this.config = config;
         this.ctx = ctx;
 
         offsetStore = new PulsarOffsetBackingStore(ctx.getPulsarClient());
+        this.desanitizeTopicName = desanitizeTopicName;
         PulsarKafkaWorkerConfig pulsarKafkaWorkerConfig = new PulsarKafkaWorkerConfig(config);
         offsetStore.configure(pulsarKafkaWorkerConfig);
         offsetStore.start();
@@ -145,7 +149,9 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
 
     private void seekAndUpdateOffset(TopicPartition topicPartition, long offset) {
         try {
-            ctx.seek(topicPartition.topic(), topicPartition.partition(), MessageIdUtils.getMessageId(offset));
+            ctx.seek(desanitizeTopicName.apply(topicPartition.topic()),
+                    topicPartition.partition(),
+                    MessageIdUtils.getMessageId(offset));
         } catch (PulsarClientException e) {
             log.error("Failed to seek topic {} partition {} offset {}",
                     topicPartition.topic(), topicPartition.partition(), offset, e);
@@ -203,7 +209,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     public void pause(TopicPartition... topicPartitions) {
         for (TopicPartition tp: topicPartitions) {
             try {
-                ctx.pause(tp.topic(), tp.partition());
+                ctx.pause(desanitizeTopicName.apply(tp.topic()), tp.partition());
             } catch (PulsarClientException e) {
                 log.error("Failed to pause topic {} partition {}", tp.topic(), tp.partition(), e);
                 throw new RuntimeException("Failed to pause topic " + tp.topic() + " partition " + tp.partition(), e);
@@ -215,7 +221,7 @@ public class PulsarKafkaSinkTaskContext implements SinkTaskContext {
     public void resume(TopicPartition... topicPartitions) {
         for (TopicPartition tp: topicPartitions) {
             try {
-                ctx.resume(tp.topic(), tp.partition());
+                ctx.resume(desanitizeTopicName.apply(tp.topic()), tp.partition());
             } catch (PulsarClientException e) {
                 log.error("Failed to resume topic {} partition {}", tp.topic(), tp.partition(), e);
                 throw new RuntimeException("Failed to resume topic " + tp.topic() + " partition " + tp.partition(), e);
