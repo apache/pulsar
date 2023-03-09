@@ -211,10 +211,10 @@ public class SplitManagerTest {
         }
     }
 
-    private Map<String, SplitManager.InFlightSplitRequest> getinFlightUnloadRequests(SplitManager manager)
+    private Map<String, CompletableFuture<Void>> getinFlightUnloadRequests(SplitManager manager)
             throws IllegalAccessException {
-        Map<String, SplitManager.InFlightSplitRequest> inFlightUnloadRequest =
-                (Map<String, SplitManager.InFlightSplitRequest>) FieldUtils.readField(manager, "inFlightSplitRequests", true);
+        var inFlightUnloadRequest =
+                (Map<String, CompletableFuture<Void>>) FieldUtils.readField(manager, "inFlightSplitRequests", true);
 
         return inFlightUnloadRequest;
     }

@@ -36,10 +36,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 @Slf4j
 public class SplitManager implements StateChangeListener {
 
-    record InFlightSplitRequest(SplitDecision splitDecision, CompletableFuture<Void> future) {
-    }
 
-    private final Map<String, InFlightSplitRequest> inFlightSplitRequests;
+    private final Map<String, CompletableFuture<Void>> inFlightSplitRequests;
 
     private final SplitCounter counter;
 
@@ -49,8 +47,7 @@ public class SplitManager implements StateChangeListener {
     }
 
     private void complete(String serviceUnit, Throwable ex) {
-        inFlightSplitRequests.computeIfPresent(serviceUnit, (__, inFlightSplitRequest) -> {
-            var future = inFlightSplitRequest.future;
+        inFlightSplitRequests.computeIfPresent(serviceUnit, (__, future) -> {
             if (!future.isDone()) {
                 if (ex != null) {
                     future.completeExceptionally(ex);
@@ -79,8 +76,8 @@ public class SplitManager implements StateChangeListener {
                             log.warn("Timed out while waiting for the bundle split event: {}", bundle, ex);
                         }
                     });
-                    return new InFlightSplitRequest(decision, future);
-                }).future)
+                    return future;
+                }))
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
                         log.error("Failed the bundle split event for bundle:{}", bundle, ex);
@@ -110,11 +107,11 @@ public class SplitManager implements StateChangeListener {
     }
 
     public void close() {
-        inFlightSplitRequests.forEach((bundle, inFlightSplitRequest) -> {
-            if (!inFlightSplitRequest.future.isDone()) {
+        inFlightSplitRequests.forEach((bundle, future) -> {
+            if (!future.isDone()) {
                 String msg = String.format("Splitting bundle: %s, but the manager already closed.", bundle);
                 log.warn(msg);
-                inFlightSplitRequest.future.completeExceptionally(new IllegalStateException(msg));
+                future.completeExceptionally(new IllegalStateException(msg));
             }
         });
         inFlightSplitRequests.clear();
