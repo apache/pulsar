@@ -148,13 +148,11 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
     public void handleCommittedAbortedTransaction(
             long sequenceId, TxnStatus txnStatus, long unavailableDuration, Map terminatedTxnMetaMap) {
         // transaction in terminatedTransactions is ordered by added time.
-        synchronized (this) {
-            while (!terminatedTransactions.isEmpty() && terminatedTransactions.get(terminatedTransactions.firstKey())
-                    + unavailableDuration > System.currentTimeMillis()) {
-                long firstKey = terminatedTransactions.firstKey();
-                terminatedTxnMetaMap.remove(firstKey);
-                terminatedTransactions.remove(firstKey);
-            }
+        while (!terminatedTransactions.isEmpty() && terminatedTransactions.get(terminatedTransactions.firstKey())
+                + unavailableDuration > System.currentTimeMillis()) {
+            long firstKey = terminatedTransactions.firstKey();
+            terminatedTxnMetaMap.remove(firstKey);
+            terminatedTransactions.remove(firstKey);
         }
     }
 
