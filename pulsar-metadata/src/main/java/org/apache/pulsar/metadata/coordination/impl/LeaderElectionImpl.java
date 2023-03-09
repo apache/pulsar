@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -111,13 +112,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        }).thenComposeAsync(leaderElectionState -> {
+        }).thenCompose(leaderElectionState -> {
             // make sure that the cache contains the current leader
             // so that getLeaderValueIfPresent works on all brokers
             cache.refresh(path);
             return cache.get(path)
                     .thenApply(__ -> leaderElectionState);
-        }, executor);
+        });
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
@@ -335,5 +336,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 }
             }
         }
+    }
+
+    @VisibleForTesting
+    protected ScheduledExecutorService getSchedulerExecutor() {
+        return executor;
     }
 }
