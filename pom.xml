@@ -879,6 +879,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
