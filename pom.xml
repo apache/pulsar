@@ -887,7 +887,7 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.glassfish</groupId>
-        <artifactId>javax.el</artifactId>
+        <artifactId>jakarta.el</artifactId>
         <version>${javax.el.version}</version>
       </dependency>
 
