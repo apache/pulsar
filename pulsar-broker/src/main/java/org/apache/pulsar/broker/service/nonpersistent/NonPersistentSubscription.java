@@ -66,9 +66,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
-    // Timestamp of when this subscription was last seen active
-    private volatile long lastActive;
-
     private volatile Map<String, String> subscriptionProperties;
 
     private KeySharedMode keySharedMode = null;
@@ -80,7 +77,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
-        this.lastActive = System.currentTimeMillis();
         this.subscriptionProperties = properties != null
                 ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
     }
@@ -107,7 +103,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
-        updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
@@ -174,7 +169,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
-        updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
@@ -521,14 +515,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
-
-    public long getLastActive() {
-        return lastActive;
-    }
-
-    public void updateLastActive() {
-        this.lastActive = System.currentTimeMillis();
-    }
 
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
