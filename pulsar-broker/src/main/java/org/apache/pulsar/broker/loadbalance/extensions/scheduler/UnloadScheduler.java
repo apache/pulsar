@@ -156,16 +156,19 @@ public class UnloadScheduler implements LoadManagerScheduler {
 
     @Override
     public void start() {
-        long loadSheddingInterval = TimeUnit.MINUTES
-                .toMillis(conf.getLoadBalancerSheddingIntervalMinutes());
-        this.task = loadManagerExecutor.scheduleAtFixedRate(
-                this::execute, loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
+        if (this.task == null) {
+            long loadSheddingInterval = TimeUnit.MINUTES
+                    .toMillis(conf.getLoadBalancerSheddingIntervalMinutes());
+            this.task = loadManagerExecutor.scheduleAtFixedRate(
+                    this::execute, loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
+        }
     }
 
     @Override
     public void close() {
         if (this.task != null) {
             this.task.cancel(false);
+            this.task = null;
         }
         this.recentlyUnloadedBundles.clear();
         this.recentlyUnloadedBrokers.clear();

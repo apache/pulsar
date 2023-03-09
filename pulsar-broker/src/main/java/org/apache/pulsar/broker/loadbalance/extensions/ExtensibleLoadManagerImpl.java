@@ -446,48 +446,60 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
     }
 
-    private void playLeader() {
-        log.info("This broker:{} is the leader now.", pulsar.getLookupServiceAddress());
-        serviceUnitStateChannel.scheduleOwnershipMonitor();
-        this.pulsar.getLoadManagerExecutor().execute(() -> {
+    private void waitForLoadStoreInit() {
+        int retry = 1;
+        while (true) {
             try {
                 loadStoreInitWaiter.await();
+                break;
             } catch (InterruptedException e) {
-                log.error("The new leader:{} got interrupted while waiting for load store to init",
-                        pulsar.getLookupServiceAddress(), e);
+                log.warn(
+                        "The broker:{} got interrupted while waiting for load stores to init. Retrying {} th...",
+                        pulsar.getLookupServiceAddress(), retry++, e);
             }
-            try {
-                topBundlesLoadDataStore.startTableView();
-            } catch (LoadDataStoreException e) {
-                log.error("The new leader:{} failed to start topBundlesLoadDataStore tableview",
-                        pulsar.getLookupServiceAddress(), e);
-            }
-        });
-
-        if (brokerLoadDataReporter != null) {
-            brokerLoadDataReporter.reportAsync(true);
-        }
-        if (topBundleLoadDataReporter != null) {
-            topBundleLoadDataReporter.reportAsync(true);
         }
     }
 
-    private void playFollower() {
-        log.info("This broker:{} is the follower now.", pulsar.getLookupServiceAddress());
-        serviceUnitStateChannel.cancelOwnershipMonitor();
-        try {
-            topBundlesLoadDataStore.closeTableView();
-        } catch (IOException e) {
-            log.error("The follower:{} failed to close topBundlesLoadDataStore tableview",
-                    pulsar.getLookupServiceAddress(), e);
-        }
+    private void playLeader() {
+        this.pulsar.getLoadManagerExecutor().execute(() -> {
+            serviceUnitStateChannel.scheduleOwnershipMonitor();
+            waitForLoadStoreInit();
+            try {
+                topBundlesLoadDataStore.startTableView();
+            } catch (Throwable e) {
+                log.error("The new leader:{} failed to start topBundlesLoadDataStore tableview",
+                        pulsar.getLookupServiceAddress(), e);
+            }
+            if (brokerLoadDataReporter != null) {
+                brokerLoadDataReporter.reportAsync(true);
+            }
+            if (topBundleLoadDataReporter != null) {
+                topBundleLoadDataReporter.reportAsync(true);
+            }
+            unloadScheduler.start();
+            log.info("This broker:{} is the leader now.", pulsar.getLookupServiceAddress());
+        });
+    }
 
-        if (brokerLoadDataReporter != null) {
-            brokerLoadDataReporter.reportAsync(true);
-        }
-        if (topBundleLoadDataReporter != null) {
-            topBundleLoadDataReporter.reportAsync(true);
-        }
+    private void playFollower() {
+        this.pulsar.getLoadManagerExecutor().execute(() -> {
+            serviceUnitStateChannel.cancelOwnershipMonitor();
+            unloadScheduler.close();
+            try {
+                topBundlesLoadDataStore.closeTableView();
+            } catch (IOException e) {
+                log.error("The follower:{} failed to close topBundlesLoadDataStore tableview",
+                        pulsar.getLookupServiceAddress(), e);
+            }
+
+            if (brokerLoadDataReporter != null) {
+                brokerLoadDataReporter.reportAsync(true);
+            }
+            if (topBundleLoadDataReporter != null) {
+                topBundleLoadDataReporter.reportAsync(true);
+            }
+            log.info("This broker:{} is the follower now.", pulsar.getLookupServiceAddress());
+        });
     }
 
     void updateBrokerLoadMetrics(BrokerLoadData loadData) {
