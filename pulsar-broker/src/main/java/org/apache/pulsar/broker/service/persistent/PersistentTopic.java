@@ -1183,7 +1183,8 @@ public class PersistentTopic extends AbstractTopic
                         deleteTopicAuthenticationFuture.thenCompose(ignore -> deleteSchema ? deleteSchema() :
                                         CompletableFuture.completedFuture(null))
                                 .thenCompose(ignore -> {
-                                    if (!isTopicPoliciesSystemTopic(topic)) {
+                                    if (!isTopicPoliciesSystemTopic(topic)
+                                            && brokerService.getPulsar().getConfiguration().isSystemTopicEnabled()) {
                                         return deleteTopicPolicies();
                                     } else {
                                         return CompletableFuture.completedFuture(null);
