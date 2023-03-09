@@ -133,8 +133,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 }
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName());
             throw exception;
         }
     }

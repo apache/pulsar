@@ -1223,7 +1223,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         boolean haveFailed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
-                    && Objects.equals(metric.tags.get("reason"), authExceptionMessage)
+                    && StringUtils.isNotEmpty(metric.tags.get("reason"))
                     && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
                 haveFailed = true;
             }

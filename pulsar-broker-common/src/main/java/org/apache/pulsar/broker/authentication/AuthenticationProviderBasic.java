@@ -124,8 +124,7 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 throw new AuthenticationException(msg);
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName());
             throw exception;
         }
         AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());

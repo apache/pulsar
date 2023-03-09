@@ -45,9 +45,8 @@ public class AuthenticationMetrics {
      * Log authenticate failure event to the authentication metrics.
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
-     * @param reason Failure reason.
      */
-    public static void authenticateFailure(String providerName, String authMethod, String reason) {
-        authFailuresMetrics.labels(providerName, authMethod, reason).inc();
+    public static void authenticateFailure(String providerName, String authMethod) {
+        authFailuresMetrics.labels(providerName, authMethod, "Unset").inc();
     }
 }
