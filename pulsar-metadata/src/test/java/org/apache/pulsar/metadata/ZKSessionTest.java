@@ -139,20 +139,20 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
     @Test
     public void testReacquireLeadershipAfterSessionLost() throws Exception {
         //  ---  init
+        @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis(2_000)
                         .build());
 
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(event -> {
-            System.out.println("event:" + event);
-            sessionEvents.add(event);
-        });
+        store.registerSessionListener(sessionEvents::add);
         BlockingQueue<LeaderElectionState> leaderElectionEvents = new LinkedBlockingQueue<>();
         String path = newKey();
 
+        @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
+        @Cleanup
         LeaderElection<String> le1 = coordinationService.getLeaderElection(String.class, path,
                 leaderElectionEvents::add);
         // --- test manual elect
