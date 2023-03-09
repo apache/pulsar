@@ -53,13 +53,9 @@ public class SplitManager implements StateChangeListener {
             var future = inFlightSplitRequest.future;
             if (!future.isDone()) {
                 if (ex != null) {
-                    counter.update(Failure, Unknown);
                     future.completeExceptionally(ex);
-                    log.error("Failed the bundle split event: {}", serviceUnit, ex);
                 } else {
-                    counter.update(inFlightSplitRequest.splitDecision);
                     future.complete(null);
-                    log.info("Completed the bundle split event: {}", serviceUnit);
                 }
             }
             return null;
@@ -87,8 +83,11 @@ public class SplitManager implements StateChangeListener {
                 }).future)
                 .whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.error("Failed to publish the bundle split event for bundle:{}. Skipping wait.", bundle);
+                        log.error("Failed the bundle split event for bundle:{}", bundle, ex);
                         counter.update(Failure, Unknown);
+                    } else {
+                        log.info("Completed the bundle split event for bundle:{}", bundle);
+                        counter.update(decision);
                     }
                 });
     }

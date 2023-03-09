@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.VERSION_ID_INIT;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Sessions;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Unknown;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -47,7 +48,8 @@ public class SplitManagerTest {
 
     @Test
     public void testEventPubFutureHasException() {
-        SplitManager manager = new SplitManager(new SplitCounter());
+        var counter = new SplitCounter();
+        SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
                 manager.waitAsync(FutureUtil.failedFuture(new Exception("test")),
@@ -60,11 +62,16 @@ public class SplitManagerTest {
         } catch (Exception ex) {
             assertEquals(ex.getCause().getMessage(), "test");
         }
+        var counterExpected = new SplitCounter();
+        counterExpected.update(SplitDecision.Label.Failure, Unknown);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
     }
 
     @Test
     public void testTimeout() throws IllegalAccessException {
-        SplitManager manager = new SplitManager(new SplitCounter());
+        var counter = new SplitCounter();
+        SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
                 manager.waitAsync(CompletableFuture.completedFuture(null),
@@ -81,11 +88,17 @@ public class SplitManagerTest {
         }
 
         assertEquals(inFlightUnloadRequests.size(), 0);
+        var counterExpected = new SplitCounter();
+        counterExpected.update(SplitDecision.Label.Failure, Unknown);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
     }
 
     @Test
     public void testSuccess() throws IllegalAccessException, ExecutionException, InterruptedException {
-        SplitManager manager = new SplitManager(new SplitCounter());
+        var counter = new SplitCounter();
+        SplitManager manager = new SplitManager(counter);
+        var counterExpected = new SplitCounter();
         var decision = new SplitDecision();
         decision.succeed(Sessions);
         CompletableFuture<Void> future =
@@ -110,10 +123,15 @@ public class SplitManagerTest {
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
 
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT), null);
+        counterExpected.update(SplitDecision.Label.Success, Sessions);
         assertEquals(inFlightUnloadRequests.size(), 0);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
 
         // Success with Init state.
         future = manager.waitAsync(CompletableFuture.completedFuture(null),
@@ -123,6 +141,9 @@ public class SplitManagerTest {
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 0);
+        counterExpected.update(SplitDecision.Label.Success, Sessions);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
         future.get();
 
         // Success with Owned state.
@@ -133,12 +154,16 @@ public class SplitManagerTest {
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 0);
+        counterExpected.update(SplitDecision.Label.Success, Sessions);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
         future.get();
     }
 
     @Test
     public void testFailedStage() throws IllegalAccessException {
-        SplitManager manager = new SplitManager(new SplitCounter());
+        var counter = new SplitCounter();
+        SplitManager manager = new SplitManager(counter);
         var decision = new SplitDecision();
         CompletableFuture<Void> future =
                 manager.waitAsync(CompletableFuture.completedFuture(null),
@@ -160,6 +185,10 @@ public class SplitManagerTest {
         }
 
         assertEquals(inFlightUnloadRequests.size(), 0);
+        var counterExpected = new SplitCounter();
+        counterExpected.update(SplitDecision.Label.Failure, Unknown);
+        assertEquals(counter.toMetrics(null).toString(),
+                counterExpected.toMetrics(null).toString());
     }
 
     @Test
