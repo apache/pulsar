@@ -338,20 +338,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 return;
             }
             if (hasMore) {
-                reader.readNextAsync().whenComplete((msg, e) -> {
-                    if (e != null) {
-                        log.error("[{}] Failed to read event from the system topic.",
-                                reader.getSystemTopic().getTopicName(), e);
-                        future.completeExceptionally(e);
-                        cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
-                        return;
-                    }
+                reader.readNextAsync().thenAccept(msg -> {
                     refreshTopicPoliciesCache(msg);
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Loop next event reading for system topic.",
                                 reader.getSystemTopic().getTopicName().getNamespaceObject());
                     }
                     initPolicesCache(reader, future);
+                }).exceptionally(e -> {
+                    log.error("[{}] Failed to read event from the system topic.",
+                            reader.getSystemTopic().getTopicName(), e);
+                    future.completeExceptionally(e);
+                    cleanCacheAndCloseReader(reader.getSystemTopic().getTopicName().getNamespaceObject(), false);
+                    return null;
                 });
             } else {
                 if (log.isDebugEnabled()) {
