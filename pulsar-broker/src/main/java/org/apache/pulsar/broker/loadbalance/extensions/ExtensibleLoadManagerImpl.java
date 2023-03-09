@@ -63,7 +63,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreExcept
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
-import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -180,6 +179,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.serviceUnitStateChannel.start();
         this.antiAffinityGroupPolicyHelper =
                 new AntiAffinityGroupPolicyHelper(pulsar, brokerToFailureDomainMap, serviceUnitStateChannel);
+        antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
         this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
         this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
 
@@ -191,13 +191,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (LoadDataStoreException e) {
             throw new PulsarServerException(e);
         }
-        LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
-        // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
-                    pulsar.getLoadManagerExecutor().execute(() ->
-                            LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
-                });
 
         this.context = LoadManagerContextImpl.builder()
                 .configuration(conf)

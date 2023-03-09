@@ -22,13 +22,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 @Slf4j
@@ -59,36 +56,43 @@ public class AntiAffinityGroupPolicyHelper {
             String srcBroker,
             Optional<String> dstBroker) {
 
-        NamespaceName namespace = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle));
-        Optional<LocalPolicies> localPoliciesOptional = null;
+
 
         try {
-            localPoliciesOptional = pulsar
-                    .getPulsarResources().getLocalPolicies().getLocalPolicies(namespace);
+            var antiAffinityGroupOptional = LoadManagerShared.getNamespaceAntiAffinityGroup(
+                    pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle));
+            if (antiAffinityGroupOptional.isPresent()) {
+
+                // copy to retain the input brokers
+                Map<String, BrokerLookupData> candidates = new HashMap<>(brokers);
+
+                filter(candidates, bundle);
+
+                candidates.remove(srcBroker);
+
+                // unload case
+                if (dstBroker.isEmpty()) {
+                    return !candidates.isEmpty();
+                }
+
+                // transfer case
+                return candidates.containsKey(dstBroker.get());
+            }
         } catch (MetadataStoreException e) {
             log.error("Failed to check unload candidates. Assumes that bundle:{} cannot unload ", bundle, e);
             return false;
         }
 
-        if (localPoliciesOptional.isPresent()
-                && StringUtils.isNotBlank(localPoliciesOptional.get().namespaceAntiAffinityGroup)) {
-
-            // copy to retain the input brokers
-            Map<String, BrokerLookupData> candidates = new HashMap<>(brokers);
-
-            filter(candidates, bundle);
-
-            candidates.remove(srcBroker);
-
-            // unload case
-            if (dstBroker.isEmpty()) {
-                return !candidates.isEmpty();
-            }
-
-            // transfer case
-            return candidates.containsKey(dstBroker.get());
-        }
-
         return true;
+    }
+
+    public void listenFailureDomainUpdate() {
+        LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
+        // register listeners for domain changes
+        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
+                .registerListener(__ -> {
+                    pulsar.getLoadManagerExecutor().execute(() ->
+                            LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
+                });
     }
 }

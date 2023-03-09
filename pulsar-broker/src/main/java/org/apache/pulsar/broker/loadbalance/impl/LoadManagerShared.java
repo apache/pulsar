@@ -50,6 +50,7 @@ import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -458,13 +459,13 @@ public class LoadManagerShared {
                     brokerToNamespaceToBundleRange) {
 
         CompletableFuture<Map<String, Integer>> antiAffinityNsBrokersResult = new CompletableFuture<>();
-        pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(namespaceName))
-                .thenAccept(policies -> {
-            if (!policies.isPresent() || StringUtils.isBlank(policies.get().namespaceAntiAffinityGroup)) {
+        getNamespaceAntiAffinityGroupAsync(pulsar, namespaceName)
+                .thenAccept(antiAffinityGroupOptional -> {
+            if (antiAffinityGroupOptional.isEmpty()) {
                 antiAffinityNsBrokersResult.complete(null);
                 return;
             }
-            final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
+            final String antiAffinityGroup = antiAffinityGroupOptional.get();
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
             brokerToNamespaceToBundleRange.forEach((broker, nsToBundleRange) -> {
@@ -491,11 +492,11 @@ public class LoadManagerShared {
 
     private static void countAntiAffinityNamespaceOwnedBrokers(
             String broker, String ns, CompletableFuture<Void> future, PulsarService pulsar,
-            String antiAffinityGroup, Map<String, Integer> brokerToAntiAffinityNamespaceCount) {
-                    pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(ns))
-                            .thenAccept(nsPolicies -> {
-                        if (nsPolicies.isPresent()
-                                && antiAffinityGroup.equalsIgnoreCase(nsPolicies.get().namespaceAntiAffinityGroup)) {
+            String targetAntiAffinityGroup, Map<String, Integer> brokerToAntiAffinityNamespaceCount) {
+                    getNamespaceAntiAffinityGroupAsync(pulsar, ns)
+                            .thenAccept(antiAffinityGroupOptional -> {
+                        if (antiAffinityGroupOptional.isPresent()
+                                && targetAntiAffinityGroup.equalsIgnoreCase(antiAffinityGroupOptional.get())) {
                             brokerToAntiAffinityNamespaceCount.compute(broker,
                                     (brokerName, count) -> count == null ? 1 : count + 1);
                         }
@@ -511,13 +512,13 @@ public class LoadManagerShared {
             Set<Map.Entry<String, ServiceUnitStateData>> bundleOwnershipData) {
 
         CompletableFuture<Map<String, Integer>> antiAffinityNsBrokersResult = new CompletableFuture<>();
-        pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(namespaceName))
-                .thenAccept(policies -> {
-            if (!policies.isPresent() || StringUtils.isBlank(policies.get().namespaceAntiAffinityGroup)) {
+        getNamespaceAntiAffinityGroupAsync(pulsar, namespaceName)
+                .thenAccept(antiAffinityGroupOptional -> {
+            if (antiAffinityGroupOptional.isEmpty()) {
                 antiAffinityNsBrokersResult.complete(null);
                 return;
             }
-            final String antiAffinityGroup = policies.get().namespaceAntiAffinityGroup;
+            final String antiAffinityGroup = antiAffinityGroupOptional.get();
             final Map<String, Integer> brokerToAntiAffinityNamespaceCount = new ConcurrentHashMap<>();
             final List<CompletableFuture<Void>> futures = new ArrayList<>();
 
@@ -546,6 +547,31 @@ public class LoadManagerShared {
         });
         return antiAffinityNsBrokersResult;
     }
+
+    public static CompletableFuture<Optional<String>> getNamespaceAntiAffinityGroupAsync(
+            PulsarService pulsar, String namespaceName) {
+        return pulsar.getPulsarResources().getLocalPolicies().getLocalPoliciesAsync(NamespaceName.get(namespaceName))
+                .thenApply(localPoliciesOptional -> {
+                    if (localPoliciesOptional.isPresent()
+                            && StringUtils.isNotBlank(localPoliciesOptional.get().namespaceAntiAffinityGroup)) {
+                        return Optional.of(localPoliciesOptional.get().namespaceAntiAffinityGroup);
+                    }
+                    return Optional.empty();
+                });
+    }
+
+
+    public static Optional<String> getNamespaceAntiAffinityGroup(
+            PulsarService pulsar, String namespaceName) throws MetadataStoreException {
+        var localPoliciesOptional =
+                pulsar.getPulsarResources().getLocalPolicies().getLocalPolicies(NamespaceName.get(namespaceName));
+        if (localPoliciesOptional.isPresent()
+                && StringUtils.isNotBlank(localPoliciesOptional.get().namespaceAntiAffinityGroup)) {
+            return Optional.of(localPoliciesOptional.get().namespaceAntiAffinityGroup);
+        }
+        return Optional.empty();
+    }
+
 
     /**
      *
