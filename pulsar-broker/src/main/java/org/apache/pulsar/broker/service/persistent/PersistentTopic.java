@@ -3059,6 +3059,7 @@ public class PersistentTopic extends AbstractTopic
     }
 
     private void unfenceTopicToResume() {
+        subscriptions.values().forEach(sub -> sub.resumeAfterFence());
         isFenced = false;
         isClosingOrDeleting = false;
     }
