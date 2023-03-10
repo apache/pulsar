@@ -604,7 +604,11 @@ public class PerformanceProducer {
             long totalSent = 0;
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
+            boolean produceEnough = false;
             while (true) {
+                if (produceEnough) {
+                    break;
+                }
                 for (Producer<byte[]> producer : producers) {
                     if (arguments.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
@@ -612,6 +616,8 @@ public class PerformanceProducer {
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
                             Thread.sleep(5000);
+                            produceEnough = true;
+                            break;
                         }
                     }
 
@@ -621,6 +627,8 @@ public class PerformanceProducer {
                                     , numMessages);
                             doneLatch.countDown();
                             Thread.sleep(5000);
+                            produceEnough = true;
+                            break;
                         }
                     }
                     rateLimiter.acquire();
