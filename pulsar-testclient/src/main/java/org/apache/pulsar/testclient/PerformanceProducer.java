@@ -764,6 +764,7 @@ public class PerformanceProducer {
                     log.error("Failed to close test client", e);
                 }
             }
+            doneLatch.countDown();
         }
     }
 
