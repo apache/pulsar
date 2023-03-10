@@ -36,7 +36,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
-import org.jetbrains.annotations.NotNull;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -102,7 +101,6 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         testOpenAndReadTask(config);
     }
 
-    @NotNull
     private Map<String, Object> getConfig() {
         Map<String, Object> config = new HashMap<>();
 
