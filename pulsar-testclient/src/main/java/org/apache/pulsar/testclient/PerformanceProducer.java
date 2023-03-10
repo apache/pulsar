@@ -760,7 +760,6 @@ public class PerformanceProducer {
             if (null != client) {
                 try {
                     client.close();
-                    PerfClientUtils.exit(1);
                 } catch (PulsarClientException e) {
                     log.error("Failed to close test client", e);
                 }
