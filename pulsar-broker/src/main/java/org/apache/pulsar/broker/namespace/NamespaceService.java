@@ -822,7 +822,10 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
                                                      NamespaceBundleSplitAlgorithm splitAlgorithm,
                                                      List<Long> boundaries) {
-
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return ExtensibleLoadManagerImpl.get(loadManager.get())
+                    .splitNamespaceBundleAsync(bundle, splitAlgorithm, boundaries);
+        }
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
         final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
         splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture, splitAlgorithm, boundaries);
@@ -963,10 +966,8 @@ public class NamespaceService implements AutoCloseable {
      * @return A pair, left is target namespace bundle, right is split bundles.
      */
     public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> getSplitBoundary(
-            NamespaceBundle bundle, List<Long> boundaries) {
+            NamespaceBundle bundle, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm, List<Long> boundaries) {
         BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
-        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
-                getNamespaceBundleSplitAlgorithmByName(config.getDefaultNamespaceBundleSplitAlgorithm());
         CompletableFuture<List<Long>> splitBoundary =
                 nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
         return splitBoundary.thenCompose(splitBoundaries -> {

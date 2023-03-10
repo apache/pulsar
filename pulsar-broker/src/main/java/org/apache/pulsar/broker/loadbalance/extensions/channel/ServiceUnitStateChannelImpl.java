@@ -87,6 +87,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -533,7 +534,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         eventCounters.get(eventType).getTotal().incrementAndGet();
         String serviceUnit = split.serviceUnit();
         ServiceUnitStateData next =
-                new ServiceUnitStateData(Splitting, null, split.sourceBroker(), getNextVersionId(serviceUnit));
+                new ServiceUnitStateData(Splitting, null, split.sourceBroker(),
+                        split.splitServiceUnitToDestBroker(), getNextVersionId(serviceUnit));
         return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
             if (ex != null) {
                 eventCounters.get(eventType).getFailure().incrementAndGet();
@@ -784,22 +786,40 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<Void> splitServiceUnit(String serviceUnit, ServiceUnitStateData data) {
-        // Write the child ownerships to BSC.
+        // Write the child ownerships to channel.
         long startTime = System.nanoTime();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
         NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+        Map<String, Optional<String>> bundleToDestBroker = data.splitServiceUnitToDestBroker();
+        List<Long> boundaries = null;
+        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
+                namespaceService.getNamespaceBundleSplitAlgorithmByName(
+                        config.getDefaultNamespaceBundleSplitAlgorithm());
+        if (bundleToDestBroker != null && bundleToDestBroker.size() == 2) {
+            Set<Long> boundariesSet = new HashSet<>();
+            String namespace = bundle.getNamespaceObject().toString();
+            bundleToDestBroker.forEach((bundleRange, destBroker) -> {
+                NamespaceBundle subBundle = bundleFactory.getBundle(namespace, bundleRange);
+                boundariesSet.add(subBundle.getKeyRange().lowerEndpoint());
+                boundariesSet.add(subBundle.getKeyRange().upperEndpoint());
+            });
+            boundaries = new ArrayList<>(boundariesSet);
+            nsBundleSplitAlgorithm = NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE_ALGO;
+        }
         final AtomicInteger counter = new AtomicInteger(0);
-        this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle, serviceUnit, data,
-                counter, startTime, completionFuture);
+        this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, nsBundleSplitAlgorithm,
+                bundle, boundaries, serviceUnit, data, counter, startTime, completionFuture);
         return completionFuture;
     }
 
     @VisibleForTesting
     protected void splitServiceUnitOnceAndRetry(NamespaceService namespaceService,
                                                 NamespaceBundleFactory bundleFactory,
+                                                NamespaceBundleSplitAlgorithm algorithm,
                                                 NamespaceBundle bundle,
+                                                List<Long> boundaries,
                                                 String serviceUnit,
                                                 ServiceUnitStateData data,
                                                 AtomicInteger counter,
@@ -807,7 +827,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                                 CompletableFuture<Void> completionFuture) {
         CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
 
-        pulsar.getNamespaceService().getSplitBoundary(bundle, null).thenAccept(splitBundlesPair -> {
+        namespaceService.getSplitBoundary(bundle, algorithm, boundaries)
+                .thenAccept(splitBundlesPair -> {
             // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
             if (splitBundlesPair == null) {
                 String msg = format("Bundle %s not found under namespace", serviceUnit);
@@ -877,7 +898,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.warn("Failed to update bundle range in metadata store. Retrying {} th / {} limit",
                         counter.get(), NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, ex);
                 pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory,
-                                bundle, serviceUnit, data, counter, startTime, completionFuture), 100, MILLISECONDS);
+                        algorithm, bundle, boundaries, serviceUnit, data, counter, startTime, completionFuture),
+                        100, MILLISECONDS);
             } else if (throwable instanceof IllegalArgumentException) {
                 completionFuture.completeExceptionally(throwable);
             } else {

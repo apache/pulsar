@@ -28,7 +28,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -172,14 +171,14 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle1, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle1, broker));
                 decision1.succeed(SplitDecision.Reason.MsgRate);
 
                 assertEquals(actual, Set.of(decision1));
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle2, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle2, broker));
                 decision1.succeed(SplitDecision.Reason.MsgRate);
 
                 assertEquals(actual, Set.of(decision1));
@@ -200,14 +199,14 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle1, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle1, broker));
                 decision1.succeed(SplitDecision.Reason.Topics);
 
                 assertEquals(actual, Set.of(decision1));
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle2, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle2, broker));
                 decision1.succeed(SplitDecision.Reason.Topics);
 
                 assertEquals(actual, Set.of(decision1));
@@ -231,14 +230,14 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle1, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle1, broker));
                 decision1.succeed(SplitDecision.Reason.Sessions);
 
                 assertEquals(actual, Set.of(decision1));
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle2, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle2, broker));
                 decision1.succeed(SplitDecision.Reason.Sessions);
 
                 assertEquals(actual, Set.of(decision1));
@@ -262,14 +261,14 @@ public class DefaultNamespaceBundleSplitStrategyTest {
             var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
             if (i == threshold) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle1, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle1, broker));
                 decision1.succeed(SplitDecision.Reason.Bandwidth);
 
                 assertEquals(actual, Set.of(decision1));
                 verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
             } else if (i == threshold + 1) {
                 SplitDecision decision1 = new SplitDecision();
-                decision1.setSplit(new Split(bundle2, broker, new HashMap<>()));
+                decision1.setSplit(new Split(bundle2, broker));
                 decision1.succeed(SplitDecision.Reason.Bandwidth);
 
                 assertEquals(actual, Set.of(decision1));
