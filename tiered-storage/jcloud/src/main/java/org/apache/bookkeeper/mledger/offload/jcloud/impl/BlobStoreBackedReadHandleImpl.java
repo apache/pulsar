@@ -40,6 +40,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
@@ -51,7 +52,7 @@ import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class BlobStoreBackedReadHandleImpl implements ReadHandle {
+public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
     private static final int CACHE_TTL_SECONDS =
             Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 30 * 60);
@@ -73,6 +74,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     private State state = null;
+
+    private long lastAccessTimestamp = System.currentTimeMillis();
 
     private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor) {
@@ -119,6 +122,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
+            touch();
             if (state == State.Closed) {
                 log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
                         ledgerId, firstEntry, lastEntry);
@@ -203,6 +207,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     private void seekToEntry(long nextExpectedId) throws IOException {
+        touch();
         Long knownOffset = entryOffsets.getIfPresent(nextExpectedId);
         if (knownOffset != null) {
             inputStream.seek(knownOffset);
@@ -300,5 +305,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     // for testing
     State getState() {
         return this.state;
+    }
+
+    @Override
+    public long lastAccessTimestamp() {
+        return lastAccessTimestamp;
+    }
+
+    private void touch() {
+        lastAccessTimestamp = System.currentTimeMillis();
     }
 }

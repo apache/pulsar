@@ -3019,6 +3019,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Time to evict inactive offloaded ledger for inactive topic. "
+                    + "Disable eviction with value 0 (Default value 600)"
+    )
+    private int managedLedgerInactiveOffloadedLedgerEvictionTimeSeconds = 600;
+
+    @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
                     + "The default is to evict through readPosition."
