@@ -611,7 +611,6 @@ public class PerformanceProducer {
                                     + "--------------", arguments.testTime);
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
                         }
                     }
 
@@ -621,7 +620,6 @@ public class PerformanceProducer {
                                     , numMessages);
                             doneLatch.countDown();
                             Thread.sleep(5000);
-                            PerfClientUtils.exit(0);
                         }
                     }
                     rateLimiter.acquire();
