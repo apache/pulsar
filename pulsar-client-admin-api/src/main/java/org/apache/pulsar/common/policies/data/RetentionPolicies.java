@@ -29,7 +29,7 @@ package org.apache.pulsar.common.policies.data;
  */
 public class RetentionPolicies {
     private int retentionTimeInMinutes;
-    private int retentionSizeInMB;
+    private long retentionSizeInMB;
 
     public RetentionPolicies() {
         this(0, 0);
@@ -44,7 +44,7 @@ public class RetentionPolicies {
         return retentionTimeInMinutes;
     }
 
-    public int getRetentionSizeInMB() {
+    public long getRetentionSizeInMB() {
         return retentionSizeInMB;
     }
 
