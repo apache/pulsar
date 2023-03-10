@@ -35,7 +35,7 @@ public class RetentionPolicies {
         this(0, 0);
     }
 
-    public RetentionPolicies(int retentionTimeInMinutes, int retentionSizeInMB) {
+    public RetentionPolicies(int retentionTimeInMinutes, long retentionSizeInMB) {
         this.retentionSizeInMB = retentionSizeInMB;
         this.retentionTimeInMinutes = retentionTimeInMinutes;
     }
