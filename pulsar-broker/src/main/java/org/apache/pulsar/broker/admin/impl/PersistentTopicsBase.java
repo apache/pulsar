@@ -420,7 +420,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(partitionedTopicMetadata -> {
                 int currentMetadataPartitions = partitionedTopicMetadata.partitions;
                 if (currentMetadataPartitions <= 0) {
-                    throw new RestException(422 /* Unprocessable entity*/,
+                    throw new RestException(Status.CONFLICT /* Unprocessable entity*/,
                             String.format("Topic %s is not the partitioned topic.", topicName));
                 }
                 if (expectPartitions < currentMetadataPartitions) {
