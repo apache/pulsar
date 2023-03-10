@@ -541,6 +541,7 @@ public class PerformanceProducer {
                                     byte[] payloadBytes,
                                     CountDownLatch doneLatch) {
         PulsarClient client = null;
+        boolean produceEnough = false;
         try {
             // Now processing command line arguments
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
@@ -604,7 +605,6 @@ public class PerformanceProducer {
             long totalSent = 0;
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
-            boolean produceEnough = false;
             while (true) {
                 if (produceEnough) {
                     break;
@@ -764,7 +764,9 @@ public class PerformanceProducer {
                     log.error("Failed to close test client", e);
                 }
             }
-            doneLatch.countDown();
+            if (!produceEnough) {
+                doneLatch.countDown();
+            }
         }
     }
 
