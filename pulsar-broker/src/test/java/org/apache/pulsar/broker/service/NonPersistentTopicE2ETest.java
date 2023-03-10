@@ -44,6 +44,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 public class NonPersistentTopicE2ETest extends BrokerTestBase {
@@ -245,7 +246,8 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         // 3. Topic can be GCed after unsubscribe
         consumer.close();
-        admin.topics().deleteSubscription(topicName, subName);
+        // subscription will be deleted after consumer#close. so it will be failed to delete sub.
+        assertThrows(() -> admin.topics().deleteSubscription(topicName, subName));
 
         runGC();
         assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
