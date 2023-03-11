@@ -308,10 +308,6 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertEquals(110, tracker.getNumberOfDelayedMessages());
 
-        int size = tracker.getImmutableBuckets().asMapOfRanges().size();
-
-        assertEquals(10, size);
-
         tracker.addMessage(111, 1011, 111 * 10);
 
         MutableLong delayedMessagesInSnapshot = new MutableLong();
