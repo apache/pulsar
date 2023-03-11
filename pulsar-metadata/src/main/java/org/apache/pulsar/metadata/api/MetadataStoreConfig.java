@@ -105,11 +105,11 @@ public class MetadataStoreConfig {
                 log.warn("metadata store name not set. please set user define name", e);
                 StackTraceElement callerStack = e.getStackTrace()[1];
 
-                String generateName = callerStack.getClassName() +
-                        "_" +
-                        callerStack.getMethodName() +
-                        "_" +
-                        callerStack.getLineNumber();
+                String generateName = callerStack.getClassName()
+                        + "_"
+                        + callerStack.getMethodName()
+                        + "_"
+                        + callerStack.getLineNumber();
                 super.metadataStoreName(generateName);
             }
 
