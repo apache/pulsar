@@ -682,7 +682,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
                  "httpClientRequestBufferSize" to the value of "httpMaxRequestHeaderSize"
               """
     )
-    private int httpClientRequestBufferSize = 4096;
+    private int httpClientRequestBufferSize = httpMaxRequestHeaderSize;
 
     @FieldContext(
             minValue = 1,
