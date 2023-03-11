@@ -73,7 +73,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
                 log.error("error when close storeExtended", e);
             }
         });
-        
+
         needCloseStore.clear();
     }
 
