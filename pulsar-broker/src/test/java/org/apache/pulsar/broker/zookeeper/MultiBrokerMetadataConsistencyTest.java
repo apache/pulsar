@@ -64,15 +64,17 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
         return super.createPulsarTestContextBuilder(conf)
-                .localMetadataStore(createMetadataStore())
-                .configurationMetadataStore(createMetadataStore());
+                .localMetadataStore(createMetadataStore(MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "metadata_store"))
+                .configurationMetadataStore(createMetadataStore(MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "configuration_store"));
     }
 
     @NotNull
-    protected MetadataStoreExtended createMetadataStore()  {
+    protected MetadataStoreExtended createMetadataStore(String name)  {
         try {
             return MetadataStoreExtended.create(testZKServer.getConnectionString(),
-                    MetadataStoreConfig.builder().build());
+                    MetadataStoreConfig.builder().metadataStoreName(name).build());
         } catch (MetadataStoreException e) {
             throw new RuntimeException(e);
         }

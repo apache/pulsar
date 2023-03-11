@@ -21,6 +21,8 @@ package org.apache.pulsar.metadata.api;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.util.Strings;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
@@ -28,6 +30,7 @@ import lombok.ToString;
 @Builder
 @Getter
 @ToString
+@Slf4j
 public class MetadataStoreConfig {
     public static final String METADATA_STORE = "metadata-store";
     public static final String STATE_METADATA_STORE = "state-metadata-store";
@@ -80,6 +83,39 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final String metadataStoreName = "";
+
+    public static MetadataStoreConfigBuilder builder() {
+        return new CustomMetadataStoreConfigBuilder();
+    }
+
+    public static class CustomMetadataStoreConfigBuilder extends MetadataStoreConfigBuilder {
+
+        private String callerSetMetadataStoreName;
+
+        @Override
+        public MetadataStoreConfigBuilder metadataStoreName(String metadataStoreName) {
+            this.callerSetMetadataStoreName = metadataStoreName;
+            return super.metadataStoreName(metadataStoreName);
+        }
+
+        @Override
+        public MetadataStoreConfig build() {
+            if (Strings.isEmpty(this.callerSetMetadataStoreName)) {
+                Exception e = new Exception("stack trace");
+                log.warn("metadata store name not set. please set user define name", e);
+                StackTraceElement callerStack = e.getStackTrace()[1];
+
+                String generateName = callerStack.getClassName() +
+                        "_" +
+                        callerStack.getMethodName() +
+                        "_" +
+                        callerStack.getLineNumber();
+                super.metadataStoreName(generateName);
+            }
+
+            return super.build();
+        }
+    }
 
     /**
      * Whether we should enable fsync for local metadata store, It's supported by RocksdbMetadataStore for now.
