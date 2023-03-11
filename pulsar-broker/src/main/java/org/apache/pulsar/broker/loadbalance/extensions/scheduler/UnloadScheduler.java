@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
@@ -41,6 +42,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
     private final NamespaceUnloadStrategy namespaceUnloadStrategy;
 
     private final ScheduledExecutorService loadManagerExecutor;
+
+    private final UnloadManager unloadManager;
 
     private final LoadManagerContext context;
 
@@ -57,13 +60,16 @@ public class UnloadScheduler implements LoadManagerScheduler {
     private volatile CompletableFuture<Void> currentRunningFuture = null;
 
     public UnloadScheduler(ScheduledExecutorService loadManagerExecutor,
+                           UnloadManager unloadManager,
                            LoadManagerContext context,
                            ServiceUnitStateChannel channel) {
-        this(loadManagerExecutor, context, channel, createNamespaceUnloadStrategy(context.brokerConfiguration()));
+        this(loadManagerExecutor, unloadManager, context,
+                channel, createNamespaceUnloadStrategy(context.brokerConfiguration()));
     }
 
     @VisibleForTesting
     protected UnloadScheduler(ScheduledExecutorService loadManagerExecutor,
+                              UnloadManager unloadManager,
                               LoadManagerContext context,
                               ServiceUnitStateChannel channel,
                               NamespaceUnloadStrategy strategy) {
@@ -71,6 +77,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
         this.recentlyUnloadedBundles = new HashMap<>();
         this.recentlyUnloadedBrokers = new HashMap<>();
         this.loadManagerExecutor = loadManagerExecutor;
+        this.unloadManager = unloadManager;
         this.context = context;
         this.conf = context.brokerConfiguration();
         this.channel = channel;
@@ -131,9 +138,11 @@ public class UnloadScheduler implements LoadManagerScheduler {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 unloadDecision.getUnloads().forEach((broker, unload) -> {
                     log.info("[{}] Unloading bundle: {}", namespaceUnloadStrategy.getClass().getSimpleName(), unload);
-                    futures.add(channel.publishUnloadEventAsync(unload).thenAccept(__ -> {
-                        recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
-                        recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
+                    futures.add(unloadManager.waitAsync(channel.publishUnloadEventAsync(unload), unload.serviceUnit(),
+                                    conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
+                            .thenAccept(__ -> {
+                                recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
+                                recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
                     }));
                 });
                 return FutureUtil.waitForAll(futures).exceptionally(ex -> {

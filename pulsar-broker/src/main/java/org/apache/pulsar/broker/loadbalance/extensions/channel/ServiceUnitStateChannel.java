@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.common.stats.Metrics;
@@ -155,5 +156,12 @@ public interface ServiceUnitStateChannel extends Closeable {
      * @return a list of the metrics
      */
     List<Metrics> getMetrics();
+
+    /**
+     * Add a state change listener.
+     *
+     * @param listener State change listener.
+     */
+    void listen(StateChangeListener listener);
 
 }

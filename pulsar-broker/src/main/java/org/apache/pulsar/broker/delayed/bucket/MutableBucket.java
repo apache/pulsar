@@ -42,9 +42,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
 
-    MutableBucket(ManagedCursor cursor,
+    MutableBucket(String dispatcherName, ManagedCursor cursor,
                   BucketSnapshotStorage bucketSnapshotStorage) {
-        super(cursor, bucketSnapshotStorage, -1L, -1L);
+        super(dispatcherName, cursor, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();
     }
 
@@ -59,6 +59,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long timeStepPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
+        log.info("[{}] Creating bucket snapshot, startLedgerId: {}, endLedgerId: {}", dispatcherName,
+                startLedgerId, endLedgerId);
+
         if (delayedIndexQueue.isEmpty()) {
             return null;
         }
@@ -122,10 +125,15 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        ImmutableBucket bucket = new ImmutableBucket(cursor, bucketSnapshotStorage, startLedgerId, endLedgerId);
+        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, bucketSnapshotStorage,
+                startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);
         bucket.setLastSegmentEntryId(lastSegmentEntryId);
+
+        // Skip first segment, because it has already been loaded
+        List<SnapshotSegment> snapshotSegments = bucketSnapshotSegments.subList(1, bucketSnapshotSegments.size());
+        bucket.setSnapshotSegments(snapshotSegments);
 
         // Add the first snapshot segment last message to snapshotSegmentLastMessageTable
         checkArgument(!bucketSnapshotSegments.isEmpty());
@@ -136,12 +144,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
         CompletableFuture<Long> future = asyncSaveBucketSnapshot(bucket,
                 bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
-        future.whenComplete((__, ex) -> {
-            if (ex != null) {
-                //TODO Record create snapshot failed
-                log.error("Failed to create snapshot: ", ex);
-            }
-        });
 
         return result;
     }

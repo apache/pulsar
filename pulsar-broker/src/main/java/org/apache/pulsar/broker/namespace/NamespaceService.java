@@ -717,6 +717,14 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle) {
+        return unloadNamespaceBundle(bundle, Optional.empty());
+    }
+
+    public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, Optional<String> destinationBroker) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return ExtensibleLoadManagerImpl.get(loadManager.get())
+                    .unloadNamespaceBundleAsync(bundle, destinationBroker);
+        }
         // unload namespace bundle
         return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
     }
@@ -1420,7 +1428,8 @@ public class NamespaceService implements AutoCloseable {
                             ? cluster.getBrokerServiceUrlTls() : cluster.getServiceUrlTls())
                         .enableTls(true)
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
-                        .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                        .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
+                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());

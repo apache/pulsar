@@ -84,6 +84,7 @@ import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.RetryMessageUtil;
@@ -811,6 +812,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (si != null && (SchemaType.BYTES == si.getType() || SchemaType.NONE == si.getType())) {
             // don't set schema for Schema.BYTES
             si = null;
+        } else {
+            if (schema instanceof AutoConsumeSchema
+                    && Commands.peerSupportsCarryAutoConsumeSchemaToBroker(cnx.getRemoteEndpointProtocolVersion())) {
+                si = AutoConsumeSchema.SCHEMA_INFO;
+            }
         }
         // startMessageRollbackDurationInSec should be consider only once when consumer connects to first time
         long startMessageRollbackDuration = (startMessageRollbackDurationInSec > 0
@@ -1075,6 +1081,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
+        if (poolMessages) {
+            releasePooledMessagesAndStopAcceptNew();
+        }
+    }
+
+    /**
+     * If enabled pooled messages, we should release the messages after closing consumer and stop accept the new
+     * messages.
+     */
+    private void releasePooledMessagesAndStopAcceptNew() {
+        incomingMessages.terminate(message -> message.release());
+        clearIncomingMessages();
     }
 
     void activeConsumerChanged(boolean isActive) {
@@ -2028,10 +2046,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             }).exceptionally(ex -> {
                                 if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
                                     log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
-                                            topicName, subscription, consumerName, finalMessageId, ex.getMessage());
+                                            topicName, subscription, consumerName,
+                                            deadLetterPolicy.getDeadLetterTopic(), finalMessageId, ex.getMessage());
                                 } else {
                                     log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
-                                            topicName, subscription, consumerName, finalMessageId, ex);
+                                            topicName, subscription, consumerName,
+                                            deadLetterPolicy.getDeadLetterTopic(), finalMessageId, ex);
                                 }
                                 result.complete(false);
                                 return null;

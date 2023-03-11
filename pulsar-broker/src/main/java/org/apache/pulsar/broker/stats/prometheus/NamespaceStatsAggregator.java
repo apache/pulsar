@@ -143,6 +143,7 @@ public class NamespaceStatsAggregator {
         subsStats.filterAcceptedMsgCount = subscriptionStats.filterAcceptedMsgCount;
         subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
+        subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
     }
 
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
@@ -184,7 +185,7 @@ public class NamespaceStatsAggregator {
         stats.bytesOutCounter = tStatus.bytesOutCounter;
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
-        stats.delayedTrackerMemoryUsage = tStatus.delayedMessageIndexSizeInBytes;
+        stats.delayedMessageIndexSizeInBytes = tStatus.delayedMessageIndexSizeInBytes;
         stats.abortedTxnCount = tStatus.abortedTxnCount;
         stats.ongoingTxnCount = tStatus.ongoingTxnCount;
         stats.committedTxnCount = tStatus.committedTxnCount;
@@ -363,7 +364,7 @@ public class NamespaceStatsAggregator {
 
         writeMetric(stream, "pulsar_subscription_delayed", stats.msgDelayed, cluster, namespace);
 
-        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedTrackerMemoryUsage, cluster,
+        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);
 
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);

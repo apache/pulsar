@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.12.0-SNAPSHOT</version>
+  <version>3.0.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -133,8 +133,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.87.Final</netty.version>
-    <netty-iouring.version>0.0.17.Final</netty-iouring.version>
+    <netty.version>4.1.89.Final</netty.version>
+    <netty-iouring.version>0.0.18.Final</netty-iouring.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -887,6 +887,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zpe-java-client</artifactId>
+        <version>${athenz.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-cert-refresher</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 

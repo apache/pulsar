@@ -331,7 +331,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
 
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers()
-                .get(0).getClientVersion(), PulsarVersion.getVersion());
+                .get(0).getClientVersion(), String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
     }
 
     private static PulsarClient getClientActiveConsumerChangeNotSupported(ClientConfigurationData conf)

@@ -165,6 +165,7 @@ message SourceSpec {
     bool cleanupSubscription = 11;
     SubscriptionPosition subscriptionPosition = 12;
     uint64 negativeAckRedeliveryDelayMs = 13;
+    bool skipToLatest = 14;
 }
 
 message SinkSpec {

@@ -114,7 +114,7 @@ public interface AuthenticationProvider extends Closeable {
      * an {@link AuthenticationDataSource} that was added as the {@link AuthenticatedDataAttributeName} attribute to
      * the http request. Removing this method removes an unnecessary step in the authentication flow.</p>
      */
-    @Deprecated(since = "2.12.0")
+    @Deprecated(since = "3.0.0")
     default AuthenticationState newHttpAuthState(HttpServletRequest request)
             throws AuthenticationException {
         return new OneStageAuthenticationState(request, this);

@@ -170,7 +170,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     @ApiModelProperty(
             name = "tlsHostnameVerificationEnable",
-            value = "Whether the hostname is validated when the proxy creates a TLS connection with brokers."
+            value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
     private boolean tlsHostnameVerificationEnable = false;
     @ApiModelProperty(

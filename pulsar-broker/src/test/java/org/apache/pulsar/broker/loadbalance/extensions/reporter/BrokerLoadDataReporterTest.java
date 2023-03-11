@@ -65,6 +65,7 @@ public class BrokerLoadDataReporterTest {
         doReturn(Executors.newSingleThreadScheduledExecutor()).when(pulsar).getLoadManagerExecutor();
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
         brokerStats = new BrokerStats(0);
+        brokerStats.topics = 6;
         brokerStats.bundleCount = 5;
         brokerStats.msgRateIn = 3;
         brokerStats.msgRateOut = 4;
@@ -88,7 +89,7 @@ public class BrokerLoadDataReporterTest {
             doReturn(0l).when(pulsarStats).getUpdatedAt();
             var target = new BrokerLoadDataReporter(pulsar, "", store);
             var expected = new BrokerLoadData();
-            expected.update(usage, 1, 2, 3, 4, 5, config);
+            expected.update(usage, 1, 2, 3, 4, 5, 6, config);
             FieldUtils.writeDeclaredField(expected, "updatedAt", 0l, true);
             var actual = target.generateLoadData();
             FieldUtils.writeDeclaredField(actual, "updatedAt", 0l, true);
@@ -103,7 +104,7 @@ public class BrokerLoadDataReporterTest {
             var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
             localData.setReportedAt(System.currentTimeMillis());
             var lastData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "lastData", true);
-            lastData.update(usage, 1, 2, 3, 4, 5, config);
+            lastData.update(usage, 1, 2, 3, 4, 5, 6, config);
             target.reportAsync(false);
             verify(store, times(0)).pushAsync(any(), any());
 
@@ -117,7 +118,7 @@ public class BrokerLoadDataReporterTest {
             target.reportAsync(false);
             verify(store, times(2)).pushAsync(eq("broker-1"), any());
 
-            lastData.update(usage, 10000, 2, 3, 4, 5, config);
+            lastData.update(usage, 10000, 2, 3, 4, 5, 6, config);
             target.reportAsync(false);
             verify(store, times(3)).pushAsync(eq("broker-1"), any());
         }
