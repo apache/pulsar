@@ -19,7 +19,10 @@
 package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
+
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,6 +46,9 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
 
     TestZKServer testZKServer;
 
+    private final ConcurrentHashMap<MetadataStoreExtended, Object> needCloseStore =
+            new ConcurrentHashMap<>();
+
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
@@ -59,19 +65,38 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
                 log.error("Error in stopping ZK server", e);
             }
         }
+
+        needCloseStore.keySet().forEach((storeExtended) -> {
+            try {
+                storeExtended.close();
+            } catch (Exception e) {
+                log.error("error when close storeExtended", e);
+            }
+        });
+        
+        needCloseStore.clear();
     }
 
     @Override
     protected PulsarTestContext.Builder createPulsarTestContextBuilder(ServiceConfiguration conf) {
+        MetadataStoreExtended metadataStore = createMetadataStore(
+                MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "metadata_store");
+
+        MetadataStoreExtended configurationStore = createMetadataStore(
+                MultiBrokerMetadataConsistencyTest.class.getName()
+                        + "configuration_store");
+
+        needCloseStore.put(metadataStore, new Object());
+        needCloseStore.put(configurationStore, new Object());
+
         return super.createPulsarTestContextBuilder(conf)
-                .localMetadataStore(createMetadataStore(MultiBrokerMetadataConsistencyTest.class.getName()
-                        + "metadata_store"))
-                .configurationMetadataStore(createMetadataStore(MultiBrokerMetadataConsistencyTest.class.getName()
-                        + "configuration_store"));
+                .localMetadataStore(metadataStore)
+                .configurationMetadataStore(configurationStore);
     }
 
     @NotNull
-    protected MetadataStoreExtended createMetadataStore(String name)  {
+    protected MetadataStoreExtended createMetadataStore(String name) {
         try {
             return MetadataStoreExtended.create(testZKServer.getConnectionString(),
                     MetadataStoreConfig.builder().metadataStoreName(name).build());
