@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProducerStats;
 
 public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     private static final long serialVersionUID = 1L;
@@ -125,6 +126,16 @@ public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     }
 
     @Override
+    public ProducerStats getDeadLetterProducerStats() {
+        return null;
+    }
+
+    @Override
+    public ProducerStats getRetryLetterProducerStats() {
+        return null;
+    }
+
+    @Override
     public double getRateMsgsReceived() {
         return 0;
     }
@@ -146,6 +157,16 @@ public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
 
     @Override
     public void updateCumulativeStats(ConsumerStats stats) {
+        // do nothing
+    }
+
+    @Override
+    public void setDeadLetterProducerStats(ProducerStats producerStats) {
+        // do nothing
+    }
+
+    @Override
+    public void setRetryLetterProducerStats(ProducerStats producerStats) {
         // do nothing
     }
 }
