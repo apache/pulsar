@@ -69,6 +69,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
 
     private volatile ScheduledFuture<?> task;
 
+    private final Set<String> unloadBrokers;
+
     private final Map<String, Long> recentlyUnloadedBundles;
 
     private final Map<String, Long> recentlyUnloadedBrokers;
@@ -97,6 +99,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
         this.namespaceUnloadStrategy = strategy;
         this.recentlyUnloadedBundles = new HashMap<>();
         this.recentlyUnloadedBrokers = new HashMap<>();
+        this.unloadBrokers = new HashSet<>();
         this.loadManagerExecutor = loadManagerExecutor;
         this.counter = counter;
         this.unloadMetrics = unloadMetrics;
@@ -157,8 +160,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
                     return;
                 }
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-
-                Set<String> brokers = new HashSet<>();
+                unloadBrokers.clear();
                 decisions.forEach(decision -> {
                     if (decision.getLabel() == Success) {
                         Unload unload = decision.getUnload();
@@ -167,15 +169,15 @@ public class UnloadScheduler implements LoadManagerScheduler {
                         futures.add(unloadManager.waitAsync(channel.publishUnloadEventAsync(unload),
                                         unload.serviceUnit(), decision, asyncOpTimeoutMs, TimeUnit.MILLISECONDS)
                                 .thenAccept(__ -> {
-                                    brokers.add(unload.sourceBroker());
+                                    unloadBrokers.add(unload.sourceBroker());
                                     recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
                                     recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
                                 }));
                     }
                 });
                 FutureUtil.waitForAll(futures)
-                        .whenComplete((__, ex) -> counter.updateUnloadBrokerCount(brokers.size()))
-                        .get(asyncOpTimeoutMs, TimeUnit.MICROSECONDS);
+                        .whenComplete((__, ex) -> counter.updateUnloadBrokerCount(unloadBrokers.size()))
+                        .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
             } catch (Exception ex) {
                 log.error("[{}] Namespace unload has exception.",
                         namespaceUnloadStrategy.getClass().getSimpleName(), ex);
