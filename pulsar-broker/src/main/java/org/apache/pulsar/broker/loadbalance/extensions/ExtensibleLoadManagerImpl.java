@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerIsolationPoliciesFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
@@ -139,6 +140,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
+        this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         // TODO: Make brokerSelectionStrategy configurable.
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
@@ -225,6 +227,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public void initialize(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
+        this.brokerFilterPipeline.forEach(brokerFilter -> brokerFilter.initialize(pulsar));
     }
 
     @Override
@@ -287,7 +290,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
-                    // TODO: Support isolation policies
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
@@ -296,11 +298,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     List<BrokerFilter> filterPipeline = getBrokerFilterPipeline();
                     for (final BrokerFilter filter : filterPipeline) {
                         try {
-                            filter.filter(availableBrokerCandidates, context);
+                            filter.filter(availableBrokerCandidates, bundle, context);
+                            // Preserve the filter successes result.
+                            availableBrokers.keySet().retainAll(availableBrokerCandidates.keySet());
                         } catch (BrokerFilterException e) {
                             // TODO: We may need to revisit this error case.
                             log.error("Failed to filter out brokers.", e);
-                            availableBrokerCandidates = availableBrokers;
+                            availableBrokerCandidates = new HashMap<>(availableBrokers);
                         }
                     }
                     if (availableBrokerCandidates.isEmpty()) {

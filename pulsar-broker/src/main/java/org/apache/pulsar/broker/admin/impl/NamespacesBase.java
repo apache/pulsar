@@ -249,7 +249,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     } else {
                                         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                             topicPolicy.add(topic);
-                                        } else {
+                                        } else if (!isDeletedAlongWithUserCreatedTopic(topic)) {
                                             allSystemTopics.add(topic);
                                         }
                                     }
@@ -342,6 +342,11 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     callback.complete(result);
                 });
+    }
+
+    private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
+        // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
+        return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
     }
 
     private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
