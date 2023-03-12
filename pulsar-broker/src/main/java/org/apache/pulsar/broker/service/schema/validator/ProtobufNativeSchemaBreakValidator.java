@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.schema;
+package org.apache.pulsar.broker.service.schema.validator;
 
 import static org.apache.pulsar.client.impl.schema.ProtobufNativeSchema.ProtoBufParsingInfo;
 import com.google.protobuf.DescriptorProtos;
@@ -28,13 +28,18 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.pulsar.broker.service.schema.exceptions.ProtoBufCanReadCheckException;
-import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 
 @Slf4j
-public class ProtobufNativeSchemaBreakCheckUtils {
+public class ProtobufNativeSchemaBreakValidator implements ProtobufNativeSchemaValidator {
 
-    public static void checkSchemaCompatibility(Descriptors.Descriptor writtenSchema,
+    @Override
+    public void canRead(Descriptors.Descriptor writtenSchema, Descriptors.Descriptor readSchema)
+            throws ProtoBufCanReadCheckException {
+        checkSchemaCompatibility(writtenSchema, readSchema);
+    }
+
+    private static void checkSchemaCompatibility(Descriptors.Descriptor writtenSchema,
                                                 Descriptors.Descriptor readSchema)
             throws ProtoBufCanReadCheckException {
         String writtenSchemaRootName = writtenSchema.getName();
@@ -43,22 +48,24 @@ public class ProtobufNativeSchemaBreakCheckUtils {
             throw new ProtoBufCanReadCheckException("Protobuf root message isn't allow change!");
         }
 
-        Map<String, List<ProtobufNativeSchema.ProtoBufParsingInfo>> writtenSchemaAllProto = new HashMap<>();
+        Map<String, List<ProtoBufParsingInfo>> writtenSchemaAllProto = new HashMap<>();
         ProtobufNativeSchemaUtils.getSchemaDependenciesFileDescriptorCache(writtenSchema)
                 .forEach((s, fileDescriptorProto) -> {
                     ProtobufNativeSchemaUtils.coverAllNestedAndEnumFileDescriptor(fileDescriptorProto,
                             writtenSchemaAllProto);
                 });
 
-        Map<String, List<ProtobufNativeSchema.ProtoBufParsingInfo>> readSchemaAllProto = new HashMap<>();
+        Map<String, List<ProtoBufParsingInfo>> readSchemaAllProto = new HashMap<>();
         ProtobufNativeSchemaUtils.getSchemaDependenciesFileDescriptorCache(readSchema)
                 .forEach((s, fileDescriptorProto) -> {
                     ProtobufNativeSchemaUtils.coverAllNestedAndEnumFileDescriptor(fileDescriptorProto,
                             readSchemaAllProto);
                 });
 
-        List<ProtoBufParsingInfo> writtenRootProtoBufParsingInfos = writtenSchemaAllProto.get(writtenSchemaRootName);
-        List<ProtoBufParsingInfo> readRootProtoBufParsingInfos = readSchemaAllProto.get(readSchemaRootName);
+        List<ProtoBufParsingInfo> writtenRootProtoBufParsingInfos =
+                writtenSchemaAllProto.get(writtenSchemaRootName);
+        List<ProtoBufParsingInfo> readRootProtoBufParsingInfos =
+                readSchemaAllProto.get(readSchemaRootName);
         // root check first
         check(writtenRootProtoBufParsingInfos, readRootProtoBufParsingInfos);
 

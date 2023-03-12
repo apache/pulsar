@@ -23,15 +23,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.ProtoBufCanReadCheckEx
 
 public interface ProtobufNativeSchemaValidator {
 
-    void validate(Iterable<Descriptors.Descriptor> fromDescriptors, Descriptors.Descriptor toDescriptor)
+    void canRead(Descriptors.Descriptor writtenSchema, Descriptors.Descriptor readSchema)
             throws ProtoBufCanReadCheckException;
-
-    ProtobufNativeSchemaValidator DEFAULT = (fromDescriptors, toDescriptor) -> {
-        for (Descriptors.Descriptor fromDescriptor : fromDescriptors) {
-            if (!fromDescriptor.getFullName().equals(toDescriptor.getFullName())) {
-                throw new ProtoBufCanReadCheckException("Protobuf root message isn't allow change!");
-            }
-        }
-    };
 
 }

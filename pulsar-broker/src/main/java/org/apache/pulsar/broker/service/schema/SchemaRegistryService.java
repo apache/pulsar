@@ -33,28 +33,21 @@ public interface SchemaRegistryService extends SchemaRegistry {
     Logger LOG = LoggerFactory.getLogger(SchemaRegistryService.class);
     long NO_SCHEMA_VERSION = -1L;
 
-    static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(
-            Set<String> checkerClasses, String protobufNativeSchemaValidatorClassName) throws Exception {
+    static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
         for (String className : checkerClasses) {
             SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(className,
                     SchemaCompatibilityCheck.class, Thread.currentThread().getContextClassLoader());
-            if (schemaCompatibilityCheck instanceof ProtobufNativeSchemaCompatibilityCheck) {
-                ((ProtobufNativeSchemaCompatibilityCheck) schemaCompatibilityCheck)
-                        .setProtobufNativeSchemaValidatorClassName(protobufNativeSchemaValidatorClassName);
-            }
             checkers.put(schemaCompatibilityCheck.getSchemaType(), schemaCompatibilityCheck);
         }
         return checkers;
     }
 
     static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
-                                        String protobufNativeSchemaValidatorClassName,
                                         ScheduledExecutorService scheduler) {
         if (schemaStorage != null) {
             try {
-                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers,
-                        protobufNativeSchemaValidatorClassName);
+                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
                         new SchemaRegistryServiceImpl(schemaStorage, checkers, scheduler));

@@ -18,18 +18,8 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.protobuf.Descriptors.Descriptor;
-import java.util.Collections;
-import java.util.LinkedList;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
-import org.apache.pulsar.broker.service.schema.exceptions.ProtoBufCanReadCheckException;
-import org.apache.pulsar.broker.service.schema.validator.ProtobufNativeAlwaysCompatibleValidator;
-import org.apache.pulsar.broker.service.schema.validator.ProtobufNativeNeverCompatibleValidator;
-import org.apache.pulsar.broker.service.schema.validator.ProtobufNativeSchemaValidationStrategy;
-import org.apache.pulsar.broker.service.schema.validator.ProtobufNativeSchemaValidator;
-import org.apache.pulsar.broker.service.schema.validator.ProtobufNativeSchemaValidatorBuilder;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -38,10 +28,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * The {@link SchemaCompatibilityCheck} implementation for {@link SchemaType#PROTOBUF_NATIVE}.
  */
-@Slf4j
 public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibilityCheck {
-
-    private String schemaValidatorClassName;
 
     @Override
     public SchemaType getSchemaType() {
@@ -51,55 +38,37 @@ public class ProtobufNativeSchemaCompatibilityCheck implements SchemaCompatibili
     @Override
     public void checkCompatible(SchemaData from, SchemaData to, SchemaCompatibilityStrategy strategy)
             throws IncompatibleSchemaException {
-        checkCompatible(Collections.singletonList(from), to, strategy);
+        Descriptor fromDescriptor = ProtobufNativeSchemaUtils.deserialize(from.getData());
+        Descriptor toDescriptor = ProtobufNativeSchemaUtils.deserialize(to.getData());
+        switch (strategy) {
+            case BACKWARD_TRANSITIVE:
+            case BACKWARD:
+            case FORWARD_TRANSITIVE:
+            case FORWARD:
+            case FULL_TRANSITIVE:
+            case FULL:
+                checkRootMessageChange(fromDescriptor, toDescriptor, strategy);
+                return;
+            case ALWAYS_COMPATIBLE:
+                return;
+            default:
+                throw new IncompatibleSchemaException("Unknown SchemaCompatibilityStrategy.");
+        }
     }
 
     @Override
     public void checkCompatible(Iterable<SchemaData> from, SchemaData to, SchemaCompatibilityStrategy strategy)
             throws IncompatibleSchemaException {
-        checkArgument(from != null, "check compatibility list is null");
-        LinkedList<Descriptor> fromList = new LinkedList<>();
-        try {
-            for (SchemaData schemaData : from) {
-                fromList.addFirst(ProtobufNativeSchemaUtils.deserialize(schemaData.getData()));
-            }
-            Descriptor toDescriptor = ProtobufNativeSchemaUtils.deserialize(to.getData());
-            ProtobufNativeSchemaValidator schemaValidator = createSchemaValidator(strategy);
-            schemaValidator.validate(fromList, toDescriptor);
-        } catch (ProtoBufCanReadCheckException e) {
-            throw new IncompatibleSchemaException(e);
+        for (SchemaData schemaData : from) {
+            checkCompatible(schemaData, to, strategy);
         }
     }
 
-    private ProtobufNativeSchemaValidator createSchemaValidator(SchemaCompatibilityStrategy compatibilityStrategy) {
-        final ProtobufNativeSchemaValidatorBuilder schemaValidatorBuilder = new ProtobufNativeSchemaValidatorBuilder()
-                .validatorClassName(schemaValidatorClassName);
-        return switch (compatibilityStrategy) {
-            case BACKWARD_TRANSITIVE -> schemaValidatorBuilder
-                    .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanReadExistingStrategy)
-                    .isOnlyValidateLatest(false).build();
-            case BACKWARD -> schemaValidatorBuilder
-                    .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanReadExistingStrategy)
-                    .isOnlyValidateLatest(true).build();
-            case FORWARD_TRANSITIVE -> schemaValidatorBuilder
-                    .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanBeReadByExistingStrategy)
-                    .isOnlyValidateLatest(false).build();
-            case FORWARD -> schemaValidatorBuilder
-                    .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanBeReadByExistingStrategy)
-                    .isOnlyValidateLatest(true).build();
-            case FULL_TRANSITIVE -> schemaValidatorBuilder
-                    .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanBeReadMutualStrategy)
-                    .isOnlyValidateLatest(false).build();
-            case FULL -> schemaValidatorBuilder
-                    .validatorStrategy(ProtobufNativeSchemaValidationStrategy.CanBeReadMutualStrategy)
-                    .isOnlyValidateLatest(true).build();
-            case ALWAYS_COMPATIBLE -> ProtobufNativeAlwaysCompatibleValidator.INSTANCE;
-            default -> ProtobufNativeNeverCompatibleValidator.INSTANCE;
-        };
-    }
-
-    public void setProtobufNativeSchemaValidatorClassName(String schemaValidatorClassName) {
-        this.schemaValidatorClassName = schemaValidatorClassName;
+    private void checkRootMessageChange(Descriptor fromDescriptor, Descriptor toDescriptor,
+                                        SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
+        if (!fromDescriptor.getFullName().equals(toDescriptor.getFullName())) {
+            throw new IncompatibleSchemaException("Protobuf root message isn't allow change!");
+        }
     }
 
 }
