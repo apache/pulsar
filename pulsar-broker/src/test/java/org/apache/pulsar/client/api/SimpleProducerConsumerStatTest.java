@@ -453,4 +453,45 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
                 .until(() -> producer.getStats().getPendingQueueSize() == numMessages);
         assertEquals(producer.getStats().getPendingQueueSize(), numMessages);
     }
+
+    @Test
+    public void testMsgRateExpired() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        String topicName = "persistent://my-property/tp1/my-ns/" + methodName;
+        String subName = "my-sub";
+        admin.topics().createSubscription(topicName, subName, MessageId.latest);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Thread.sleep(2000);
+        admin.topics().expireMessages(topicName, subName, 1);
+        pulsar.getBrokerService().updateRates();
+
+        Awaitility.await().ignoreExceptions().timeout(5, TimeUnit.SECONDS)
+                .until(() -> admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgRateExpired() > 0.001);
+
+        Thread.sleep(2000);
+        pulsar.getBrokerService().updateRates();
+
+        Awaitility.await().ignoreExceptions().timeout(5, TimeUnit.SECONDS)
+                .until(() -> admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgRateExpired() < 0.001);
+
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgRateExpired(), 0.0,
+                0.001);
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getTotalMsgExpired(),
+                numMessages);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
 }
