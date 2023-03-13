@@ -479,7 +479,7 @@ public class PerformanceProducer {
 
             oldTime = now;
         }
-        executor.shutdown();
+        PerfClientUtils.exit(0);
     }
 
     static IMessageFormatter getMessageFormatter(String formatterClass) {
