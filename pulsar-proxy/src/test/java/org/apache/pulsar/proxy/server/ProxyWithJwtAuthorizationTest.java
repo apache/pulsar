@@ -103,7 +103,6 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
-        proxyConfig.setAuthorizationEnabled(false);
         proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerWebServiceURL(pulsar.getWebServiceAddress());

@@ -33,7 +33,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PropertiesContext;
@@ -330,14 +329,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String statusFilePath;
 
     @FieldContext(
-        category = CATEGORY_AUTHORIZATION,
-        doc = "A list of role names (a comma-separated list of strings) that are treated as"
-            + " `super-user`, meaning they will be able to do all admin operations and publish"
-            + " & consume from all topics"
-    )
-    private Set<String> superUserRoles = new TreeSet<>();
-
-    @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether authentication is enabled for the Pulsar proxy"
     )
@@ -347,16 +338,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "Authentication provider name list (a comma-separated list of class names"
     )
     private Set<String> authenticationProviders = new TreeSet<>();
-    @FieldContext(
-        category = CATEGORY_AUTHORIZATION,
-        doc = "Whether authorization is enforced by the Pulsar proxy"
-    )
-    private boolean authorizationEnabled = false;
-    @FieldContext(
-        category = CATEGORY_AUTHORIZATION,
-        doc = "Authorization provider as a fully qualified class name"
-    )
-    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
+
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "Whether client authorization credentials are forwarded to the broker for re-authorization."

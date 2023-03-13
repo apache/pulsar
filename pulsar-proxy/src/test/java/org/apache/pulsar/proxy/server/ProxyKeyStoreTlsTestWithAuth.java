@@ -78,11 +78,9 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
-        // config for authentication and authorization.
+        // config for authentication
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);
-        proxyConfig.setSuperUserRoles(Sets.newHashSet(CLIENT_KEYSTORE_CN));
         proxyConfig.setAuthenticationEnabled(true);
-        proxyConfig.setAuthorizationEnabled(true);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         proxyConfig.setAuthenticationProviders(providers);

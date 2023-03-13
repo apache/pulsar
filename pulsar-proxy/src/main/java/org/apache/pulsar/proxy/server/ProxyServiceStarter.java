@@ -169,8 +169,7 @@ public class ProxyServiceStarter {
                         "brokerServiceURLTLS must start with pulsar+ssl://");
             }
 
-            if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
-                    || config.isAuthorizationEnabled()) {
+            if (isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS())) {
                 checkArgument(!isEmpty(config.getMetadataStoreUrl()), "metadataStoreUrl must be provided");
                 checkArgument(!isEmpty(config.getConfigurationMetadataStoreUrl()),
                         "configurationMetadataStoreUrl must be provided");
