@@ -35,11 +35,10 @@ public class AntiAffinityGroupPolicyHelper {
     ServiceUnitStateChannel channel;
 
     public AntiAffinityGroupPolicyHelper(PulsarService pulsar,
-                                  Map<String, String> brokerToFailureDomainMap,
                                   ServiceUnitStateChannel channel){
 
         this.pulsar = pulsar;
-        this.brokerToFailureDomainMap = brokerToFailureDomainMap;
+        this.brokerToFailureDomainMap = new HashMap<>();
         this.channel = channel;
     }
 

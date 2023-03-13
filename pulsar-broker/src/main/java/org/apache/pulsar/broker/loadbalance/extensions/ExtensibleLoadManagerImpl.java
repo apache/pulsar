@@ -140,8 +140,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
 
-    private final Map<String, String> brokerToFailureDomainMap = new HashMap<>();
-
 
     /**
      * Life cycle: Constructor -> initialize -> start -> close.
@@ -178,7 +176,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.serviceUnitStateChannel.listen(unloadManager);
         this.serviceUnitStateChannel.start();
         this.antiAffinityGroupPolicyHelper =
-                new AntiAffinityGroupPolicyHelper(pulsar, brokerToFailureDomainMap, serviceUnitStateChannel);
+                new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
         antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
         this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
         this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
