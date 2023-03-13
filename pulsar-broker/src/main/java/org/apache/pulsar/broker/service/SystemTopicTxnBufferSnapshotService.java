@@ -75,7 +75,7 @@ public class SystemTopicTxnBufferSnapshotService<T> {
         }
 
         public synchronized void release() {
-            if (this.referenceCount.decrementAndGet() <= 0) {
+            if (this.referenceCount.decrementAndGet() == 0) {
                 snapshotService.refCountedWriterMap.remove(namespaceName, this);
                 future.thenAccept(writer -> {
                     final String topicName = writer.getSystemTopicClient().getTopicName().toString();
