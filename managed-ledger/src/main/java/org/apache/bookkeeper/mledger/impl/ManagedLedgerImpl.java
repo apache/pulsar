@@ -845,7 +845,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         lastAddEntryTimeMs = System.currentTimeMillis();
     }
 
-    private boolean beforeAddEntry(OpAddEntry addOperation) {
+    protected void afterFailedAddEntry(int numOfMessages) {
+        if (managedLedgerInterceptor == null) {
+            return;
+        }
+        managedLedgerInterceptor.afterFailedAddEntry(numOfMessages);
+    }
+
+    protected boolean beforeAddEntry(OpAddEntry addOperation) {
         // if no interceptor, just return true to make sure addOperation will be initiate()
         if (managedLedgerInterceptor == null) {
             return true;

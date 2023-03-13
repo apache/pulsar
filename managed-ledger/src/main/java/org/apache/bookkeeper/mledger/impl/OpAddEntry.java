@@ -150,6 +150,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+        ml.afterFailedAddEntry(this.getNumberOfMessages());
         if (cb != null) {
             ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);

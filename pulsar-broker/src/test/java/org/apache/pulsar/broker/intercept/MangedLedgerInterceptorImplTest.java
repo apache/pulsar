@@ -305,6 +305,49 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testAddEntryFailed() throws Exception {
+        final int MOCK_BATCH_SIZE = 2;
+        final String ledgerAndCursorName = "testAddEntryFailed";
+
+        ManagedLedgerInterceptor interceptor =
+                new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setManagedLedgerInterceptor(interceptor);
+
+        ByteBuf buffer = Unpooled.wrappedBuffer("message".getBytes());
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+
+        ledger.terminate();
+
+        ManagedLedgerInterceptorImpl interceptor1 =
+                (ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor();
+
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        try {
+            ledger.asyncAddEntry(buffer, MOCK_BATCH_SIZE, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    countDownLatch.countDown();
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    countDownLatch.countDown();
+                }
+            }, null);
+
+            countDownLatch.await();
+            assertEquals(interceptor1.getIndex(), -1);
+        } finally {
+            ledger.close();
+            factory.shutdown();
+        }
+
+    }
+
+    @Test
     public void testBeforeAddEntryWithException() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
         final String ledgerAndCursorName = "testBeforeAddEntryWithException";
