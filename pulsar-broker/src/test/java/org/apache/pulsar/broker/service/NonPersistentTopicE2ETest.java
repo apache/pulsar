@@ -126,8 +126,8 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         // 2. Topic is not GCed with live connection
         final String topicName3 = "non-persistent://prop/ns-abc/topic-2";
-        subName = "sub1";
-        consumer = pulsarClient.newConsumer().topic(topicName3).subscriptionName(subName).subscribe();
+        String subName2 = "sub1";
+        consumer = pulsarClient.newConsumer().topic(topicName3).subscriptionName(subName2).subscribe();
         topic = getTopic(topicName3);
         assertTrue(topic.isPresent());
         topic.get().addSchema(schemaData).join();
@@ -139,7 +139,7 @@ public class NonPersistentTopicE2ETest extends BrokerTestBase {
 
         // 3. Topic can be GCed after unsubscribe
         consumer.close();
-        admin.topics().deleteSubscription(topicName3, subName);
+        assertThrows(() -> admin.topics().deleteSubscription(topicName3, subName2));
 
         runGC();
         Awaitility.await().untilAsserted(() -> {
