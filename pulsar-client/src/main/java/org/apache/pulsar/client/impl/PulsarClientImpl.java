@@ -356,7 +356,7 @@ public class PulsarClientImpl implements PulsarClient {
                             if (schemaInfo.getType() == SchemaType.PROTOBUF) {
                                 autoProduceBytesSchema.setSchema(new GenericAvroSchema(schemaInfo));
                             } else {
-                                autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfoOptional.get()));
+                                autoProduceBytesSchema.setSchema(Schema.getSchema(schemaInfo));
                             }
                         } else {
                             autoProduceBytesSchema.setSchema(Schema.BYTES);
