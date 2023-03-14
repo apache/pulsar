@@ -76,7 +76,7 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testExecuteSuccess() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         BrokerRegistry registry = context.brokerRegistry();
@@ -114,7 +114,7 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testExecuteMoreThenOnceWhenFirstNotDone() throws InterruptedException {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         BrokerRegistry registry = context.brokerRegistry();
@@ -149,7 +149,7 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testDisableLoadBalancer() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         context.brokerConfiguration().setLoadBalancerEnabled(false);
@@ -172,7 +172,7 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testNotChannelOwner() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         context.brokerConfiguration().setLoadBalancerEnabled(false);
