@@ -102,7 +102,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
                                  BucketSnapshotStorage bucketSnapshotStorage,
                                  long minIndexCountPerBucket, long timeStepPerBucketSnapshotSegmentInMillis,
-                                 int maxIndexesPerBucketSnapshotSegment,int maxNumBuckets) {
+                                 int maxIndexesPerBucketSnapshotSegment, int maxNumBuckets) {
         super(dispatcher, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
         this.minIndexCountPerBucket = minIndexCountPerBucket;
         this.timeStepPerBucketSnapshotSegmentInMillis = timeStepPerBucketSnapshotSegmentInMillis;
