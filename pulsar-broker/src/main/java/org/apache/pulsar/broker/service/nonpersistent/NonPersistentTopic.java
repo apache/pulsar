@@ -199,7 +199,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             // entry internally retains data so, duplicateBuffer should be release here
             duplicateBuffer.release();
             if (subscription.getDispatcher() != null) {
-                subscription.getDispatcher().sendMessages(Collections.singletonList(entry));
+                List<Entry> entries = new ArrayList<>(1);
+                entries.add(entry);
+                subscription.getDispatcher().sendMessages(entries);
             } else {
                 // it happens when subscription is created but dispatcher is not created as consumer is not added
                 // yet
