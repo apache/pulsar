@@ -21,8 +21,6 @@ package org.apache.pulsar.metadata.api;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.util.Strings;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
