@@ -464,24 +464,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                     FieldUtils.readDeclaredField(primaryLoadManager, "splitMetrics", true);
             SplitCounter splitCounter = new SplitCounter();
             FieldUtils.writeDeclaredField(splitCounter, "splitCount", 35l, true);
-            FieldUtils.writeDeclaredField(splitCounter, "breakdownCounters", new LinkedHashMap<>() {
-                {
-                    put(SplitDecision.Label.Success, new LinkedHashMap<>() {
-                        {
-                            put(Topics, new MutableLong(1));
-                            put(Sessions, new MutableLong(2));
-                            put(MsgRate, new MutableLong(3));
-                            put(Bandwidth, new MutableLong(4));
-                            put(Admin, new MutableLong(5));
-                        }
-                    });
-                    put(SplitDecision.Label.Skip, Map.of(
-                            SplitDecision.Reason.Balanced, new MutableLong(6)
-                    ));
-                    put(SplitDecision.Label.Failure, Map.of(
-                            SplitDecision.Reason.Unknown, new MutableLong(7)));
-                }
-            }, true);
+            FieldUtils.writeDeclaredField(splitCounter, "breakdownCounters", Map.of(
+                    SplitDecision.Label.Success, Map.of(
+                            Topics, new AtomicLong(1),
+                            Sessions, new AtomicLong(2),
+                            MsgRate, new AtomicLong(3),
+                            Bandwidth, new AtomicLong(4),
+                            Admin, new AtomicLong(5)),
+                    SplitDecision.Label.Failure, Map.of(
+                            SplitDecision.Reason.Unknown, new AtomicLong(6))
+            ), true);
             splitMetrics.set(splitCounter.toMetrics(pulsar.getAdvertisedAddress()));
         }
 
@@ -556,8 +548,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=MsgRate, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Bandwidth, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=4}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Admin, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=5}]
-                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Balanced, result=Skip}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
-                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=7}]
+                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
                         dimensions=[{broker=localhost, metric=assign, result=Empty}], metrics=[{brk_lb_assign_broker_breakdown_total=2}]
                         dimensions=[{broker=localhost, metric=assign, result=Skip}], metrics=[{brk_lb_assign_broker_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=assign, result=Success}], metrics=[{brk_lb_assign_broker_breakdown_total=1}]
