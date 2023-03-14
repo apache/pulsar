@@ -538,7 +538,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         assertTrue(loadManager.shouldAntiAffinityNamespaceUnload(namespace, bundle, primaryHost));
     }
 
-    private boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
+    protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
         @SuppressWarnings("unchecked")
         var brokerToFailureDomainMap = (Map<String, String>)
                 FieldUtils.readDeclaredField(loadManager, "brokerToFailureDomainMap", true);

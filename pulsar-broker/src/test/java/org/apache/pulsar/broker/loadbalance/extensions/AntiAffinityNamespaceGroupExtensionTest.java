@@ -133,6 +133,18 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         }
     }
 
+    protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
+        @SuppressWarnings("unchecked")
+        var antiAffinityGroupPolicyHelper =
+                (AntiAffinityGroupPolicyHelper)
+                        FieldUtils.readDeclaredField(
+                                loadManager, "antiAffinityGroupPolicyHelper", true);
+        var brokerToFailureDomainMap = (Map<String, String>)
+                org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
+                        "brokerToFailureDomainMap", true);
+        return !brokerToFailureDomainMap.isEmpty();
+    }
+
     @Test
     public void testAntiAffinityGroupPolicyFilter()
             throws IllegalAccessException, ExecutionException, InterruptedException,
