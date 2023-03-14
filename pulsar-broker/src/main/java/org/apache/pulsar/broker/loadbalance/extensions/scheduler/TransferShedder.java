@@ -469,7 +469,6 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         if (!antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
             return false;
         }
-
         return true;
     }
 
@@ -483,7 +482,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
      * @param targetBroker The broker will be transfer to.
      * @return Can be transfer/unload or not.
      */
-    private boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
+    @VisibleForTesting
+    protected boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
                                                              Map<String, BrokerLookupData> availableBrokers,
                                                              NamespaceBundle namespaceBundle,
                                                              String currentBroker,

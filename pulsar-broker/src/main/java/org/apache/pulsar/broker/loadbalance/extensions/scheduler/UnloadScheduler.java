@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
@@ -80,10 +81,11 @@ public class UnloadScheduler implements LoadManagerScheduler {
                            UnloadManager unloadManager,
                            LoadManagerContext context,
                            ServiceUnitStateChannel channel,
+                           AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper,
                            UnloadCounter counter,
                            AtomicReference<List<Metrics>> unloadMetrics) {
         this(pulsar, loadManagerExecutor, unloadManager, context, channel,
-                createNamespaceUnloadStrategy(pulsar, counter), counter, unloadMetrics);
+                createNamespaceUnloadStrategy(pulsar, antiAffinityGroupPolicyHelper, counter), counter, unloadMetrics);
     }
 
     @VisibleForTesting
@@ -211,6 +213,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
     }
 
     private static NamespaceUnloadStrategy createNamespaceUnloadStrategy(PulsarService pulsar,
+                                                                         AntiAffinityGroupPolicyHelper helper,
                                                                          UnloadCounter counter) {
         ServiceConfiguration conf = pulsar.getConfiguration();
         try {
@@ -221,7 +224,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
                     conf.getLoadBalancerLoadPlacementStrategy(), e);
         }
         log.error("create namespace unload strategy failed. using TransferShedder instead.");
-        return new TransferShedder(pulsar, counter);
+        return new TransferShedder(pulsar, counter, helper);
     }
 
     private boolean isLoadBalancerSheddingEnabled() {

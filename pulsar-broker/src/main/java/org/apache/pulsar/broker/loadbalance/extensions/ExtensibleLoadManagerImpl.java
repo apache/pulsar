@@ -268,7 +268,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         this.unloadScheduler = new UnloadScheduler(
                 pulsar, pulsar.getLoadManagerExecutor(), unloadManager,
-                context, serviceUnitStateChannel, unloadCounter, unloadMetrics);
+                context, serviceUnitStateChannel, antiAffinityGroupPolicyHelper, unloadCounter, unloadMetrics);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
                 pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
