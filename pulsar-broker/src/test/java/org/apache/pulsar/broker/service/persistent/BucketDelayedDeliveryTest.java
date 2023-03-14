@@ -32,6 +32,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         conf.setDelayedDeliveryTrackerFactoryClassName(BucketDelayedDeliveryTrackerFactory.class.getName());
         conf.setDelayedDeliveryMaxNumBuckets(10);
         conf.setDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds(1);
+        conf.setDelayedDeliveryMaxIndexesPerBucketSnapshotSegment(10);
         conf.setDelayedDeliveryMinIndexCountPerBucket(50);
         conf.setManagedLedgerMaxEntriesPerLedger(50);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
