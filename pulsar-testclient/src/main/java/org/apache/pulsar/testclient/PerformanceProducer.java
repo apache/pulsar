@@ -757,15 +757,15 @@ public class PerformanceProducer {
         } catch (Throwable t) {
             log.error("Got error", t);
         } finally {
+            if (!produceEnough) {
+                doneLatch.countDown();
+            }
             if (null != client) {
                 try {
                     client.close();
                 } catch (PulsarClientException e) {
                     log.error("Failed to close test client", e);
                 }
-            }
-            if (!produceEnough) {
-                doneLatch.countDown();
             }
         }
     }
