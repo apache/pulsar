@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerIsolationPoliciesFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
@@ -52,6 +53,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.TopBundleLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerScheduler;
@@ -90,6 +92,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private BrokerRegistry brokerRegistry;
 
     private ServiceUnitStateChannel serviceUnitStateChannel;
+
+    private AntiAffinityGroupPolicyFilter antiAffinityGroupPolicyFilter;
+
+    private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
@@ -137,6 +143,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
 
+
     /**
      * Life cycle: Constructor -> initialize -> start -> close.
      */
@@ -173,6 +180,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.serviceUnitStateChannel.listen(unloadManager);
         this.serviceUnitStateChannel.listen(splitManager);
         this.serviceUnitStateChannel.start();
+        this.antiAffinityGroupPolicyHelper =
+                new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
+        antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
+        this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
+        this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
 
         try {
             this.brokerLoadDataStore = LoadDataStoreFactory
