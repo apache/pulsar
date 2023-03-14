@@ -1150,8 +1150,6 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             subStats.bucketDelayedIndexStats =
                     ((PersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
-
-            System.out.println();
         }
 
         if (Subscription.isIndividualAckMode(subType)) {

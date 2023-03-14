@@ -97,6 +97,11 @@ public class BucketDelayedMessageIndexStats {
 
                 metrics.put(key, new TopicMetricBean(OP_LATENCY_NAME, count, labelsAndValues));
             }
+            String[] labelsAndValues = new String[] {"type", typeName};
+            metrics.put(OP_LATENCY_NAME + "_count" + joinKey(labelsAndValues),
+                    new TopicMetricBean(OP_LATENCY_NAME + "_count", statsBuckets.getCount(), labelsAndValues));
+            metrics.put(OP_LATENCY_NAME + "_sum" + joinKey(labelsAndValues),
+                    new TopicMetricBean(OP_LATENCY_NAME + "_sum", statsBuckets.getSum(), labelsAndValues));
         });
 
         return metrics;

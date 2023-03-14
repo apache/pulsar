@@ -208,7 +208,8 @@ class ImmutableBucket extends Bucket {
         long bucketId = getAndUpdateBucketId();
         bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
             if (ex != null) {
-                log.error("Failed to get snapshot length, bucketId: {}, bucketKey: {}", bucketId, bucketKey(), ex);
+                log.error("[{}] Failed to get snapshot length, bucketId: {}, bucketKey: {}",
+                        dispatcherName, bucketId, bucketKey(), ex);
             } else {
                 setSnapshotLength(length);
             }
