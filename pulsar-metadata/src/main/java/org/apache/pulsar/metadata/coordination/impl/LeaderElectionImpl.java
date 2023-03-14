@@ -253,8 +253,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         internalState = InternalState.Closed;
 
-        executor.shutdownNow();
-
         if (leaderElectionState != LeaderElectionState.Leading) {
             return CompletableFuture.completedFuture(null);
         }
