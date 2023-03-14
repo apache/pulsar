@@ -19,10 +19,8 @@
 package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
-
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
