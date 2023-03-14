@@ -31,6 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
+import org.apache.pulsar.common.util.Codec;
 import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
@@ -129,8 +130,11 @@ abstract class Bucket {
             ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
             List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
+        final String cursorName = Codec.decode(cursor.getName());
+        final String topicName = dispatcherName.substring(0, dispatcherName.lastIndexOf(" / " + cursorName));
         return executeWithRetry(
-                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
+                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey,
+                                topicName, cursorName)
                         .whenComplete((__, ex) -> {
                             if (ex != null) {
                                 log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",

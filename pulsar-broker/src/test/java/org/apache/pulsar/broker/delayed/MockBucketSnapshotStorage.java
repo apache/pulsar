@@ -80,7 +80,8 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Long> createBucketSnapshot(
-            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey) {
+            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey,
+            String topicName, String cursorName) {
         Throwable throwable = createExceptionQueue.poll();
         if (throwable != null) {
             return FutureUtil.failedFuture(throwable);
