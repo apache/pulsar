@@ -31,8 +31,8 @@ public interface BucketSnapshotStorage {
      * @param snapshotMetadata       the metadata of snapshot
      * @param bucketSnapshotSegments the list of snapshot segments
      * @param bucketKey              the key of bucket is used to generate custom storage metadata
-     * @param topicName              the key of bucket is used to generate custom storage metadata
-     * @param cursorName              the key of bucket is used to generate custom storage metadata
+     * @param topicName              the name of topic is used to generate custom storage metadata
+     * @param cursorName             the name of cursor is used to generate custom storage metadata
      * @return the future with bucketId(ledgerId).
      */
     CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,

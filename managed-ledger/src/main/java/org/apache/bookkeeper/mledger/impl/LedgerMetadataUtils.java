@@ -110,17 +110,19 @@ public final class LedgerMetadataUtils {
     /**
      * Build additional metadata for a delayed message index bucket.
      *
-     * @param bucketKey key of the delayed message bucket
+     * @param bucketKey  key of the delayed message bucket
+     * @param topicName  name of the topic
+     * @param cursorName name of the cursor
      * @return an immutable map which describes the schema
      */
     public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey,
-                                                                         String topic, String cursor) {
+                                                                         String topicName, String cursorName) {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
                 METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY, bucketKey.getBytes(StandardCharsets.UTF_8),
-                METADATA_PROPERTY_DELAYED_INDEX_TOPIC, topic.getBytes(StandardCharsets.UTF_8),
-                METADATA_PROPERTY_DELAYED_INDEX_CURSOR, cursor.getBytes(StandardCharsets.UTF_8)
+                METADATA_PROPERTY_DELAYED_INDEX_TOPIC, topicName.getBytes(StandardCharsets.UTF_8),
+                METADATA_PROPERTY_DELAYED_INDEX_CURSOR, cursorName.getBytes(StandardCharsets.UTF_8)
         );
     }
 
