@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.kafka.connect;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -30,7 +32,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.runtime.TaskConfig;
+import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
 import org.apache.kafka.connect.source.SourceTaskContext;
@@ -56,6 +60,7 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
     // kafka connect related variables
     private SourceTaskContext sourceTaskContext;
+    private SourceConnector connector;
     @Getter
     private SourceTask sourceTask;
     public Converter keyConverter;
@@ -72,6 +77,8 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
     // number of outstandingRecords that have been polled but not been acked
     private final AtomicInteger outstandingRecords = new AtomicInteger(0);
 
+    public static final String CONNECTOR_CLASS = "kafkaConnectorSourceClass";
+
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         Map<String, String> stringConfig = new HashMap<>();
@@ -80,12 +87,6 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
                 stringConfig.put(key, (String) value);
             }
         });
-
-        // get the source class name from config and create source task from reflection
-        sourceTask = Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG))
-                .asSubclass(SourceTask.class)
-                .getDeclaredConstructor()
-                .newInstance();
 
         topicNamespace = stringConfig.get(PulsarKafkaWorkerConfig.TOPIC_NAMESPACE_CONFIG);
 
@@ -130,8 +131,36 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
 
         sourceTaskContext = new PulsarIOSourceTaskContext(offsetReader, pulsarKafkaWorkerConfig);
 
+        final Map<String, String> taskConfig;
+        if (config.get(CONNECTOR_CLASS) != null) {
+            String kafkaConnectorFQClassName = config.get(CONNECTOR_CLASS).toString();
+            Class<?> clazz = Class.forName(kafkaConnectorFQClassName);
+            connector = (SourceConnector) clazz.getConstructor().newInstance();
+
+            Class<? extends Task> taskClass = connector.taskClass();
+            sourceTask = (SourceTask) taskClass.getConstructor().newInstance();
+
+            connector.initialize(new PulsarKafkaSinkContext());
+            connector.start(stringConfig);
+
+            List<Map<String, String>> configs = connector.taskConfigs(1);
+            checkNotNull(configs);
+            checkArgument(configs.size() == 1);
+            taskConfig = configs.get(0);
+        } else {
+            // for backward compatibility with old configuration
+            // that use the task directly
+
+            // get the source class name from config and create source task from reflection
+            sourceTask = Class.forName(stringConfig.get(TaskConfig.TASK_CLASS_CONFIG))
+                    .asSubclass(SourceTask.class)
+                    .getDeclaredConstructor()
+                    .newInstance();
+            taskConfig = stringConfig;
+        }
+
         sourceTask.initialize(sourceTaskContext);
-        sourceTask.start(stringConfig);
+        sourceTask.start(taskConfig);
     }
 
     @Override
@@ -177,6 +206,11 @@ public abstract class AbstractKafkaConnectSource<T> implements Source<T> {
         if (sourceTask != null) {
             sourceTask.stop();
             sourceTask = null;
+        }
+
+        if (connector != null) {
+            connector.stop();
+            connector = null;
         }
 
         if (offsetStore != null) {

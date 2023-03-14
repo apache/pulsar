@@ -91,6 +91,12 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             CacheBuilder.newBuilder().maximumSize(1000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
+    // Can't really safely expire these entries.  If we do, we could end up with
+    // a sanitized topic name that used in e.g. resume() after a long pause but can't be
+    // // re-resolved into a form usable for Pulsar.
+    private final Cache<String, String> desanitizedTopicCache =
+            CacheBuilder.newBuilder().build();
+
     @Override
     public void write(Record<GenericObject> sourceRecord) {
         if (log.isDebugEnabled()) {
@@ -172,7 +178,18 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         });
         task = (SinkTask) taskClass.getConstructor().newInstance();
         taskContext =
-                new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open);
+                new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open, kafkaName -> {
+                    if (sanitizeTopicName) {
+                        String pulsarTopicName = desanitizedTopicCache.getIfPresent(kafkaName);
+                        if (log.isDebugEnabled()) {
+                            log.debug("desanitizedTopicCache got: kafkaName: {}, pulsarTopicName: {}",
+                                    kafkaName, pulsarTopicName);
+                        }
+                        return pulsarTopicName != null ? pulsarTopicName : kafkaName;
+                    } else {
+                        return kafkaName;
+                    }
+                });
         task.initialize(taskContext);
         task.start(configs.get(0));
 
@@ -329,6 +346,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 if (sanitizedName.matches("^[^a-zA-Z_].*")) {
                     sanitizedName = "_" + sanitizedName;
                 }
+                // do this once, sanitize() can be called on already sanitized name
+                // so avoid replacing with (sanitizedName -> sanitizedName).
+                desanitizedTopicCache.get(sanitizedName, () -> name);
                 return sanitizedName;
             });
         } catch (ExecutionException e) {
