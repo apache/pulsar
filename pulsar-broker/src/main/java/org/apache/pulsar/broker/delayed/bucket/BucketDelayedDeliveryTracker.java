@@ -74,8 +74,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private long numberDelayedMessages;
 
+    @Getter
+    @VisibleForTesting
     private final MutableBucket lastMutableBucket;
 
+    @Getter
+    @VisibleForTesting
     private final TripleLongPriorityQueue sharedBucketPriorityQueue;
 
     @Getter

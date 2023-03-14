@@ -374,4 +374,22 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             assertEquals(position, PositionImpl.get(i, i));
         }
     }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testClear(BucketDelayedDeliveryTracker tracker) {
+        for (int i = 1; i <= 1001; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1001);
+        assertTrue(tracker.getImmutableBuckets().asMapOfRanges().size() > 0);
+        assertEquals(tracker.getLastMutableBucket().size(), 1);
+
+        tracker.clear();
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
+        assertEquals(tracker.getLastMutableBucket().size(), 0);
+        assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
+    }
 }

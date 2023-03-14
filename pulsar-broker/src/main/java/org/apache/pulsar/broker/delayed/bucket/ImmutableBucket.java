@@ -167,15 +167,10 @@ class ImmutableBucket extends Bucket {
         String bucketKey = bucketKey();
         long bucketId = getAndUpdateBucketId();
         return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
-                executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId).whenComplete((___, ex) -> {
-                            if (ex != null) {
-                                log.warn("[{}] Failed to delete bucket snapshot. bucketKey: {}, bucketId: {}",
-                                        dispatcherName, bucketKey, bucketId, ex);
-                            }
-                        }),
+                executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
                         BucketSnapshotPersistenceException.class, MaxRetryTimes)).whenComplete((__, ex) -> {
                     if (ex != null) {
-                        log.warn("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                        log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
                                 dispatcherName, bucketId, bucketKey, ex);
                     } else {
                         log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
@@ -195,10 +190,16 @@ class ImmutableBucket extends Bucket {
                     // Because bucketSnapshotStorage.deleteBucketSnapshot may be use the same thread with clear,
                     // so we can't block deleteBucketSnapshot when clearing the bucket snapshot.
                     removeBucketCursorProperty(bucketKey())
-                            .thenApply(__ -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId).exceptionally(ex -> {
-                                log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                                        bucketId, bucketKey, ex);
-                                return null;
+                            .thenApply(__ ->
+                                    executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
+                                    BucketSnapshotPersistenceException.class, MaxRetryTimes).whenComplete((___, ex) -> {
+                                if (ex != null) {
+                                    log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                            dispatcherName, bucketId, bucketKey, ex);
+                                } else {
+                                    log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
+                                            dispatcherName, bucketId, bucketKey);
+                                }
                             })).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}", bucketId, bucketKey, e);
