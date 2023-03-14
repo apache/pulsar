@@ -32,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -41,13 +40,12 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +78,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private final PulsarService pulsar;
     private final SimpleResourceAllocationPolicies allocationPolicies;
     private final IsolationPoliciesHelper isolationPoliciesHelper;
+    private final AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
 
     private final UnloadDecision decision = new UnloadDecision();
 
@@ -88,12 +87,14 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         this.pulsar = null;
         this.allocationPolicies = null;
         this.isolationPoliciesHelper = null;
+        this.antiAffinityGroupPolicyHelper = null;
     }
 
-    public TransferShedder(PulsarService pulsar){
+    public TransferShedder(PulsarService pulsar, AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper) {
         this.pulsar = pulsar;
         this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
         this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
+        this.antiAffinityGroupPolicyHelper = antiAffinityGroupPolicyHelper;
     }
 
 
@@ -438,32 +439,25 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private boolean isTransferable(LoadManagerContext context,
                                    Map<String, BrokerLookupData> availableBrokers,
                                    String bundle,
-                                   String maxBroker,
-                                   Optional<String> broker) {
+                                   String srcBroker,
+                                   Optional<String> dstBroker) {
         if (pulsar == null || allocationPolicies == null) {
             return true;
         }
         String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-        NamespaceName namespaceName = NamespaceName.get(namespace);
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespace, bundleRange);
 
-        if (!canTransferWithIsolationPoliciesToBroker(context, availableBrokers, namespaceBundle, maxBroker, broker)) {
+        if (!canTransferWithIsolationPoliciesToBroker(
+                context, availableBrokers, namespaceBundle, srcBroker, dstBroker)) {
             return false;
         }
 
-        try {
-            var localPoliciesOptional = pulsar
-                    .getPulsarResources().getLocalPolicies().getLocalPolicies(namespaceName);
-            if (localPoliciesOptional.isPresent() && StringUtils.isNotBlank(
-                    localPoliciesOptional.get().namespaceAntiAffinityGroup)) {
-                return false;
-            }
-        } catch (MetadataStoreException e) {
-            log.error("Failed to get localPolicies. Assumes that bundle:{} is not transferable.", bundle, e);
+        if (!antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
             return false;
         }
+
         return true;
     }
 

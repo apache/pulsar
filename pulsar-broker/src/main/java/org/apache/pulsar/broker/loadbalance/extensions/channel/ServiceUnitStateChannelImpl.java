@@ -1317,5 +1317,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     @Override
     public void listen(StateChangeListener listener) {
         this.stateChangeListeners.addListener(listener);
+
+    }
+
+    @Override
+    public Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet() {
+        return tableview.entrySet();
     }
 }
