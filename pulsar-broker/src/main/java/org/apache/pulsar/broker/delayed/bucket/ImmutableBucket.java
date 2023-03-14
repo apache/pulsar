@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.AsyncOperationTimeoutSeconds;
+import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
 import com.google.protobuf.ByteString;
 import java.util.Collections;
 import java.util.List;
@@ -181,18 +182,20 @@ class ImmutableBucket extends Bucket {
 
     void clear(boolean delete) {
         delayedIndexBitMap.clear();
-        getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
-            if (delete) {
-                snapshotGenerateFuture.cancel(true);
-                String bucketKey = bucketKey();
-                long bucketId = getAndUpdateBucketId();
-                try {
-                    // Because bucketSnapshotStorage.deleteBucketSnapshot may be use the same thread with clear,
-                    // so we can't block deleteBucketSnapshot when clearing the bucket snapshot.
-                    removeBucketCursorProperty(bucketKey())
-                            .thenApply(__ ->
-                                    executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
-                                    BucketSnapshotPersistenceException.class, MaxRetryTimes).whenComplete((___, ex) -> {
+        if (delete) {
+            final String bucketKey = bucketKey();
+            try {
+                getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).exceptionally(e -> null).thenCompose(__ -> {
+                        if (getSnapshotCreateFuture().isPresent() && getBucketId().isEmpty()) {
+                            log.error("[{}] Can't found bucketId, don't execute delete operate, bucketKey: {}",
+                                    dispatcherName, bucketKey);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        long bucketId = getAndUpdateBucketId();
+                        return removeBucketCursorProperty(bucketKey()).thenAccept(___ -> {
+                            executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
+                            BucketSnapshotPersistenceException.class, MaxRetryTimes)
+                            .whenComplete((____, ex) -> {
                                 if (ex != null) {
                                     log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
                                             dispatcherName, bucketId, bucketKey, ex);
@@ -200,22 +203,25 @@ class ImmutableBucket extends Bucket {
                                     log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
                                             dispatcherName, bucketId, bucketKey);
                                 }
-                            })).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    log.error("Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}", bucketId, bucketKey, e);
-                    if (e instanceof InterruptedException) {
-                        Thread.currentThread().interrupt();
-                    }
-                    throw new RuntimeException(e);
+                            });
+                    });
+                }).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                log.error("Failed to clear bucket snapshot, bucketKey: {}", bucketKey, e);
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
                 }
-            } else {
+                throw new RuntimeException(e);
+            }
+        } else {
+            getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
                 try {
                     snapshotGenerateFuture.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
                 } catch (Exception e) {
                     log.warn("[{}] Failed wait to snapshot generate, bucketId: {}, bucketKey: {}", dispatcherName,
                             getBucketId(), bucketKey());
                 }
-            }
-        });
+            });
+        }
     }
 }
