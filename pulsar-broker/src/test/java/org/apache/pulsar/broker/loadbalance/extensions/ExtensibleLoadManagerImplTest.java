@@ -722,13 +722,23 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    private static void cleanTableView(ServiceUnitStateChannel channel)
+    private void cleanTableView(ServiceUnitStateChannel channel)
             throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
                 FieldUtils.readField(channel, "tableview", true);
         var cache = (ConcurrentMap<String, ServiceUnitStateData>)
                 FieldUtils.readField(tv, "data", true);
-        cache.clear();
+        cache.forEach((k, v) -> {
+            try {
+                int i = k.lastIndexOf("/");
+                String namespace = k.substring(0, i);
+                String bundle = k.substring(i + 1);
+                admin.namespaces().unloadNamespaceBundle(namespace, bundle);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+//        cache.clear();
     }
 
     private void setPrimaryLoadManager() throws IllegalAccessException {
