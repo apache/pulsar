@@ -482,8 +482,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
      * @param targetBroker The broker will be transfer to.
      * @return Can be transfer/unload or not.
      */
-    @VisibleForTesting
-    protected boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
+    private boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
                                                              Map<String, BrokerLookupData> availableBrokers,
                                                              NamespaceBundle namespaceBundle,
                                                              String currentBroker,
