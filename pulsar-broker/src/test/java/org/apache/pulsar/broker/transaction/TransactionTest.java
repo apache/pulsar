@@ -1696,24 +1696,24 @@ public class TransactionTest extends TransactionTestBase {
         for (PulsarService pulsarService : pulsarServiceList) {
             SystemTopicTxnBufferSnapshotService bufferSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotService();
-            HashMap<NamespaceName, ReferenceCountedWriter> writerMap1 =
-                    ((HashMap<NamespaceName, ReferenceCountedWriter>) field.get(bufferSnapshotService));
+            ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap1 =
+                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(bufferSnapshotService));
             ReferenceCountedWriter failedCountedWriter =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, bufferSnapshotService);
             writerMap1.put(NamespaceName.get(namespace), failedCountedWriter);
 
             SystemTopicTxnBufferSnapshotService segmentSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotSegmentService();
-            HashMap<NamespaceName, ReferenceCountedWriter> writerMap2 =
-                    ((HashMap<NamespaceName, ReferenceCountedWriter>) field.get(segmentSnapshotService));
+            ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap2 =
+                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(segmentSnapshotService));
             ReferenceCountedWriter failedCountedWriter2 =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, segmentSnapshotService);
             writerMap2.put(NamespaceName.get(namespace), failedCountedWriter2);
 
             SystemTopicTxnBufferSnapshotService indexSnapshotService =
                     pulsarService.getTransactionBufferSnapshotServiceFactory().getTxnBufferSnapshotIndexService();
-            HashMap<NamespaceName, ReferenceCountedWriter> writerMap3 =
-                    ((HashMap<NamespaceName, ReferenceCountedWriter>) field.get(indexSnapshotService));
+            ConcurrentHashMap<NamespaceName, ReferenceCountedWriter> writerMap3 =
+                    ((ConcurrentHashMap<NamespaceName, ReferenceCountedWriter>) field.get(indexSnapshotService));
             ReferenceCountedWriter failedCountedWriter3 =
                     new ReferenceCountedWriter(NamespaceName.get(namespace), writerFuture, indexSnapshotService);
             writerMap3.put(NamespaceName.get(namespace), failedCountedWriter3);
