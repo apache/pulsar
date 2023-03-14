@@ -549,9 +549,13 @@ public class PerformanceProducer {
         if (arguments.isEnableTxnTest && arguments.isEnableTransaction
                 && arguments.maxTransactionsPerSecond > 0) {
             // initialize tmpFiles
+            File tmpDataDir = new File("tmpData");
+            if (!tmpDataDir.exists()) {
+                tmpDataDir.mkdir();
+            }
             tmpFiles = new ArrayBlockingQueue<File>(arguments.maxTransactionsPerSecond);
             for (int i = 0; i < arguments.maxTransactionsPerSecond; i++) {
-                File file = new File("tmp" + i + ".data");
+                File file = new File(tmpDataDir + "/tmp" + i + ".data");
                 if (!file.exists()) {
                     try {
                         file.createNewFile();
@@ -621,18 +625,19 @@ public class PerformanceProducer {
                     }
                 } else if (state.equals(Transaction.State.COMMITTING)
                         || state.equals(Transaction.State.ABORTING)) {
-                    log.warn("txn:{} is in state:{}, there may be inconsistent situation.", txn, state);
                     needToWaitSomeTime = true;
                 }
             }
             if (needToWaitSomeTime) {
-                try {
+                while (!txnTmpFileMap.isEmpty()) {
                     // sleep for some time for executing asynchronous tasks completed.
-                    Thread.sleep(arguments.transactionTimeout * 1000
-                            - (System.currentTimeMillis() - start));
-                } catch (InterruptedException e) {
-                    log.warn("sleep failed");
-                    throw new RuntimeException(e);
+                    try {
+                        log.info("txnTmpFileMap size:{}", txnTmpFileMap.size());
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        log.error("sleep failed! inconsistent situation occurs!");
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
