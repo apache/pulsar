@@ -178,8 +178,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
                 for (int j = 0; j < 6; j++) {
                     completableFutureList.add(
-                            transactionMetadataStore.
-                                    updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
+                            transactionMetadataStore
+                                    .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
                                     .exceptionally(e -> {
                                         fail();
                                         return null;
