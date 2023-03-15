@@ -64,7 +64,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -73,9 +72,7 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -93,7 +90,6 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -205,10 +201,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @BeforeMethod
-    protected void initializeState() throws IllegalAccessException {
+    protected void initializeState() throws PulsarAdminException {
+        admin.namespaces().unload("public/default");
         reset(primaryLoadManager, secondaryLoadManager);
-        cleanTableView(channel1);
-        cleanTableView(channel2);
     }
 
     @Test
@@ -719,25 +714,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             // No-op
         }
 
-    }
-
-    private void cleanTableView(ServiceUnitStateChannel channel)
-            throws IllegalAccessException {
-        var tv = (TableViewImpl<ServiceUnitStateData>)
-                FieldUtils.readField(channel, "tableview", true);
-        var cache = (ConcurrentMap<String, ServiceUnitStateData>)
-                FieldUtils.readField(tv, "data", true);
-        cache.forEach((k, v) -> {
-            try {
-                int i = k.lastIndexOf("/");
-                String namespace = k.substring(0, i);
-                String bundle = k.substring(i + 1);
-                admin.namespaces().unloadNamespaceBundle(namespace, bundle);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-//        cache.clear();
     }
 
     private void setPrimaryLoadManager() throws IllegalAccessException {
