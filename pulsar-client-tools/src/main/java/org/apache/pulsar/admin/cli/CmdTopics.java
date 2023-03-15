@@ -129,6 +129,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("peek-messages", new PeekMessages());
         jcommander.addCommand("examine-messages", new ExamineMessages());
         jcommander.addCommand("get-message-by-id", new GetMessageById());
+        jcommander.addCommand("get-batch-messages-by-id", new GetBatchMessagesById());
         jcommander.addCommand("get-message-id", new GetMessageId());
         jcommander.addCommand("reset-cursor", new ResetCursor());
         jcommander.addCommand("terminate", new Terminate());
@@ -1292,7 +1293,8 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get message by its ledgerId and entryId")
+    @Parameters(commandDescription = "Get message by its ledgerId and entryId, " +
+            "or get the exactly batch message by its batchIndex")
     private class GetMessageById extends CliCommand {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
@@ -1307,11 +1309,16 @@ public class CmdTopics extends CmdBase {
             required = true)
         private long entryId;
 
+        @Parameter(names = { "-b", "--batchIndex" },
+                description = "batch index pointing to the desired message",
+                required = false)
+        private int batchIndex = -1;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
-            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId);
+            MessageImpl message = (MessageImpl) getTopics().getMessageById(persistentTopic, ledgerId, entryId, batchIndex);
             if (message == null) {
                 System.out.println("Cannot find any messages based on ledgerId:"
                         + ledgerId + " entryId:" + entryId);
@@ -1350,6 +1357,69 @@ public class CmdTopics extends CmdBase {
                 }
                 ByteBuf date = Unpooled.wrappedBuffer(message.getData());
                 System.out.println(ByteBufUtil.prettyHexDump(date));
+            }
+        }
+    }
+
+    @Parameters(commandDescription = "Get the whole batch messages by its ledgerId and entryId")
+    private class GetBatchMessagesById extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-l", "--ledgerId" },
+                description = "ledger id pointing to the desired ledger",
+                required = true)
+        private long ledgerId;
+
+        @Parameter(names = { "-e", "--entryId" },
+                description = "entry id pointing to the desired entry",
+                required = true)
+        private long entryId;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+
+            List<Message<byte[]>> messages = getTopics().getBatchMessagesById(persistentTopic, ledgerId, entryId);
+            if (messages == null || messages.isEmpty()) {
+                System.out.println("Cannot find any messages based on ledgerId:"
+                        + ledgerId + " entryId:" + entryId);
+            } else {
+                for (Message msg : messages) {
+                    MessageImpl message = (MessageImpl) msg;
+                    if (message == null) {
+                        continue;
+                    } else if (message.getMessageId() instanceof BatchMessageIdImpl) {
+                        BatchMessageIdImpl msgId = (BatchMessageIdImpl) message.getMessageId();
+                        System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                    } else {
+                        MessageIdImpl msgId = (MessageIdImpl) message.getMessageId();
+                        System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                    }
+
+                    System.out.println("Publish time: " + message.getPublishTime());
+                    System.out.println("Event time: " + message.getEventTime());
+
+                    if (message.getDeliverAtTime() != 0) {
+                        System.out.println("Deliver at time: " + message.getDeliverAtTime());
+                    }
+
+                    if (message.getBrokerEntryMetadata() != null) {
+                        if (message.getBrokerEntryMetadata().hasBrokerTimestamp()) {
+                            System.out.println("Broker entry metadata timestamp: " + message.getBrokerEntryMetadata().getBrokerTimestamp());
+                        }
+                        if (message.getBrokerEntryMetadata().hasIndex()) {
+                            System.out.println("Broker entry metadata index: " + message.getBrokerEntryMetadata().getIndex());
+                        }
+                    }
+
+                    if (message.getProperties().size() > 0) {
+                        System.out.println("Properties:");
+                        print(message.getProperties());
+                    }
+                    ByteBuf date = Unpooled.wrappedBuffer(message.getData());
+                    System.out.println(ByteBufUtil.prettyHexDump(date));
+                }
             }
         }
     }

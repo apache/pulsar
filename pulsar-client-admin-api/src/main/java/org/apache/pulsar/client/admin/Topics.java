@@ -1667,7 +1667,9 @@ public interface Topics {
      * @throws PulsarAdminException
      *            Unexpected error
      */
-    Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
+    default Message<byte[]> getMessageById(String topic, long ledgerId, long entryId) throws PulsarAdminException {
+        return getMessageById(topic, ledgerId, entryId, -1);
+    };
 
     /**
      * Get a message by its messageId via a topic subscription asynchronously.
@@ -1679,7 +1681,65 @@ public interface Topics {
      *            Entry id
      * @return a future that can be used to track when the message is returned
      */
-    CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId);
+    default CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId) throws PulsarAdminException {
+        return getMessageByIdAsync(topic, ledgerId, entryId, -1);
+    };
+
+    /**
+     * Get a message by its messageId via a topic subscription.
+     * @param topic
+     *            Topic name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     * @param batchIndex
+     *            Batch Index
+     * @return the message indexed by the messageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    Message<byte[]> getMessageById(String topic, long ledgerId, long entryId, int batchIndex) throws PulsarAdminException;
+
+    /**
+     * Get a message by its messageId via a topic subscription asynchronously.
+     * @param topic
+     *            Topic name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     * @param batchIndex
+     *            Batch Index
+     * @return a future that can be used to track when the message is returned
+     */
+    CompletableFuture<Message<byte[]>> getMessageByIdAsync(String topic, long ledgerId, long entryId, int batchIndex);
+
+    /**
+     * Get whole batch messages by its messageId via a topic subscription.
+     * @param topic
+     *            Topic name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     * @return the whole batch messages indexed by the messageId
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    List<Message<byte[]>> getBatchMessagesById(String topic, long ledgerId, long entryId) throws PulsarAdminException;
+
+    /**
+     * Get whole batch messages by its messageId via a topic subscription asynchronously.
+     * @param topic
+     *            Topic name
+     * @param ledgerId
+     *            Ledger id
+     * @param entryId
+     *            Entry id
+     * @return a future that can be used to track when the batch messages is returned
+     */
+    CompletableFuture<List<Message<byte[]>>> getBatchMessagesByIdAsync(String topic, long ledgerId, long entryId);
 
     /**
      * Get message ID published at or just after this absolute timestamp (in ms).

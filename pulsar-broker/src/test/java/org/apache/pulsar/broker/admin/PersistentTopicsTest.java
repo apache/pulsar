@@ -1378,6 +1378,103 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetMessageByIdWithBatchIndex() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        final String topicName2 = "persistent://tenant-xyz/ns-abc/testGetMessageById2";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        admin.topics().createNonPartitionedTopic(topicName2);
+
+        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer()
+                .topic(topicName1)
+                .enableBatching(true)
+                .batchingMaxMessages(2)
+                .batchingMaxBytes(1024 * 1024 * 1024)
+                .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
+                .create();
+
+        List<CompletableFuture<MessageId>> idFutureList = new ArrayList<>();
+        String data1 = "test1";
+        idFutureList.add(producer.sendAsync(data1.getBytes()));
+        Thread.sleep(10);
+
+        String data2 = "test2";
+        idFutureList.add(producer.sendAsync(data2.getBytes()));
+
+        Thread.sleep(100);
+        BatchMessageIdImpl id1 = (BatchMessageIdImpl) idFutureList.get(0).get();
+        BatchMessageIdImpl id2 = (BatchMessageIdImpl) idFutureList.get(1).get();
+
+        Assert.assertEquals(id1.getLedgerId(), id2.getLedgerId());
+        Assert.assertEquals(id1.getEntryId(), id2.getEntryId());
+
+        Message<byte[]> message1 = admin.topics().getMessageById(topicName1, id1.getLedgerId(), id1.getEntryId(), id1.getBatchIndex());
+        Assert.assertEquals(message1.getData(), data1.getBytes());
+
+        Message<byte[]> message2 = admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId(), id2.getBatchIndex());
+        Assert.assertEquals(message2.getData(), data2.getBytes());
+
+        Message<byte[]> message3 = null;
+        try {
+            message3 = admin.topics().getMessageById(topicName2, id1.getLedgerId(), id1.getEntryId(), id1.getBatchIndex());
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertNull(message3);
+        }
+
+        Message<byte[]> message4 = admin.topics().getMessageById(topicName1, id2.getLedgerId(), id2.getEntryId(), id2.getBatchIndex()+1);
+        Assert.assertNull(message4);
+    }
+
+    @Test
+    public void testGetBatchMessagesById() throws Exception {
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+        final String topicName1 = "persistent://tenant-xyz/ns-abc/testGetMessageById1";
+        final String topicName2 = "persistent://tenant-xyz/ns-abc/testGetMessageById2";
+        admin.topics().createNonPartitionedTopic(topicName1);
+        admin.topics().createNonPartitionedTopic(topicName2);
+
+        ProducerBase<byte[]> producer = (ProducerBase<byte[]>) pulsarClient.newProducer()
+                .topic(topicName1)
+                .enableBatching(true)
+                .batchingMaxMessages(2)
+                .batchingMaxBytes(1024 * 1024 * 1024)
+                .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
+                .create();
+
+        List<CompletableFuture<MessageId>> idFutureList = new ArrayList<>();
+        String data1 = "test1";
+        idFutureList.add(producer.sendAsync(data1.getBytes()));
+        Thread.sleep(10);
+
+        String data2 = "test2";
+        idFutureList.add(producer.sendAsync(data2.getBytes()));
+
+        Thread.sleep(100);
+        MessageIdImpl id1 = (MessageIdImpl) idFutureList.get(0).get();
+        MessageIdImpl id2 = (MessageIdImpl) idFutureList.get(1).get();
+
+        Assert.assertEquals(id1.getLedgerId(), id2.getLedgerId());
+        Assert.assertEquals(id1.getEntryId(), id2.getEntryId());
+
+        List<Message<byte[]>> messages = admin.topics().getBatchMessagesById(topicName1, id1.getLedgerId(), id1.getEntryId());
+        Assert.assertEquals(messages.get(0).getData(), data1.getBytes());
+        Assert.assertEquals(messages.get(1).getData(), data2.getBytes());
+
+        List<Message<byte[]>> messages2 = new ArrayList<>();
+        try {
+            messages2 = admin.topics().getBatchMessagesById(topicName2, id1.getLedgerId(), id1.getEntryId());
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(messages2.isEmpty());
+        }
+    }
+
+    @Test
     public void testGetMessageIdByTimestamp() throws Exception {
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("tenant-xyz", tenantInfo);
