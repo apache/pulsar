@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
@@ -60,8 +61,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
             var pulsarStatsUpdatedAt = pulsarStats.getUpdatedAt();
             if (pulsarStatsUpdatedAt > lastBundleStatsUpdatedAt) {
                 var bundleStats = pulsar.getBrokerService().getBundleStats();
-                double percentage = pulsar.getConfiguration().getLoadBalancerBundleLoadReportPercentage();
-                int topk = Math.max(1, (int) (bundleStats.size() * percentage / 100.0));
+                int topk = pulsar.getConfiguration().getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
                 topKBundles.update(bundleStats, topk);
                 lastBundleStatsUpdatedAt = pulsarStatsUpdatedAt;
                 result = topKBundles.getLoadData();
@@ -74,6 +74,9 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
     public CompletableFuture<Void> reportAsync(boolean force) {
         var topBundlesLoadData = generateLoadData();
         if (topBundlesLoadData != null || force) {
+            if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
+                log.info("Reporting TopBundlesLoadData:{}", topKBundles.getLoadData());
+            }
             return this.bundleLoadDataStore.pushAsync(lookupServiceAddress, topKBundles.getLoadData())
                     .exceptionally(e -> {
                         log.error("Failed to report top-bundles load data.", e);

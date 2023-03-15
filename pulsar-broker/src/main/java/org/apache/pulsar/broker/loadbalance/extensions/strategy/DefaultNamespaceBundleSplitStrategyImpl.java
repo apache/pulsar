@@ -49,13 +49,13 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleSplitStrategy {
     private final Set<SplitDecision> decisionCache;
     private final Map<String, Integer> namespaceBundleCount;
-    private final Map<String, Integer> bundleHighTrafficFrequency;
+    private final Map<String, Integer> bundleHighTrafficHitCounts;
     private final SplitCounter counter;
 
     public DefaultNamespaceBundleSplitStrategyImpl(SplitCounter counter) {
         decisionCache = new HashSet<>();
         namespaceBundleCount = new HashMap<>();
-        bundleHighTrafficFrequency = new HashMap<>();
+        bundleHighTrafficHitCounts = new HashMap<>();
         this.counter = counter;
 
     }
@@ -71,7 +71,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
         long maxBundleMsgRate = conf.getLoadBalancerNamespaceBundleMaxMsgRate();
         long maxBundleBandwidth = conf.getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * LoadManagerShared.MIBI;
         long maxSplitCount = conf.getLoadBalancerMaxNumberOfBundlesToSplitPerCycle();
-        long splitConditionThreshold = conf.getLoadBalancerNamespaceBundleSplitConditionThreshold();
+        long splitConditionHitCountThreshold = conf.getLoadBalancerNamespaceBundleSplitConditionHitCountThreshold();
         boolean debug = log.isDebugEnabled() || conf.isLoadBalancerDebugModeEnabled();
 
         Map<String, NamespaceBundleStats> bundleStatsMap = pulsar.getBrokerService().getBundleStats();
@@ -79,7 +79,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                 pulsar.getNamespaceService().getNamespaceBundleFactory();
 
         // clean bundleHighTrafficFrequency
-        bundleHighTrafficFrequency.keySet().retainAll(bundleStatsMap.keySet());
+        bundleHighTrafficHitCounts.keySet().retainAll(bundleStatsMap.keySet());
 
         for (var entry : bundleStatsMap.entrySet()) {
             final String bundle = entry.getKey();
@@ -117,12 +117,12 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             }
 
             if (reason != Unknown) {
-                bundleHighTrafficFrequency.put(bundle, bundleHighTrafficFrequency.getOrDefault(bundle, 0) + 1);
+                bundleHighTrafficHitCounts.put(bundle, bundleHighTrafficHitCounts.getOrDefault(bundle, 0) + 1);
             } else {
-                bundleHighTrafficFrequency.remove(bundle);
+                bundleHighTrafficHitCounts.remove(bundle);
             }
 
-            if (bundleHighTrafficFrequency.getOrDefault(bundle, 0) > splitConditionThreshold) {
+            if (bundleHighTrafficHitCounts.getOrDefault(bundle, 0) > splitConditionHitCountThreshold) {
                 final String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 try {
                     final int bundleCount = pulsar.getNamespaceService()
@@ -143,7 +143,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                         decisionCache.add(decision);
                         int bundleNum = namespaceBundleCount.getOrDefault(namespace, 0);
                         namespaceBundleCount.put(namespace, bundleNum + 1);
-                        bundleHighTrafficFrequency.remove(bundle);
+                        bundleHighTrafficHitCounts.remove(bundle);
                         // Clear namespace bundle-cache
                         namespaceBundleFactory.invalidateBundleCache(NamespaceName.get(namespaceName));
                         if (decisionCache.size() == maxSplitCount) {

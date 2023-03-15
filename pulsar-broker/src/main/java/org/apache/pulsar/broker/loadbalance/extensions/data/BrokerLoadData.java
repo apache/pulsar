@@ -75,6 +75,7 @@ public class BrokerLoadData {
      * The historical resource percentage is configured by loadBalancerHistoryResourcePercentage.
      */
     private double weightedMaxEMA;
+    private double msgThroughputEMA;
     private long updatedAt;
 
     @Setter
@@ -142,6 +143,7 @@ public class BrokerLoadData {
         bundleCount = other.bundleCount;
         topics = other.topics;
         weightedMaxEMA = other.weightedMaxEMA;
+        msgThroughputEMA = other.msgThroughputEMA;
         maxResourceUsage = other.maxResourceUsage;
         updatedAt = other.updatedAt;
         reportedAt = other.reportedAt;
@@ -161,6 +163,7 @@ public class BrokerLoadData {
     private void updateFeatures(ServiceConfiguration conf) {
         updateMaxResourceUsage();
         updateWeightedMaxEMA(conf);
+        updateMsgThroughputEMA(conf);
     }
 
     private void updateMaxResourceUsage() {
@@ -188,6 +191,13 @@ public class BrokerLoadData {
                 weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
     }
 
+    private void updateMsgThroughputEMA(ServiceConfiguration conf) {
+        var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
+        double msgThroughput = msgThroughputIn + msgThroughputOut;
+        msgThroughputEMA = updatedAt == 0 ? msgThroughput :
+                msgThroughputEMA * historyPercentage + (1 - historyPercentage) * msgThroughput;
+    }
+
     public String toString(ServiceConfiguration conf) {
         return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
                         + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
@@ -195,7 +205,7 @@ public class BrokerLoadData {
                         + "bandwithInResourceWeight= %f, bandwithOutResourceWeight= %f, "
                         + "msgThroughputIn= %.2f, msgThroughputOut= %.2f, msgRateIn= %.2f, msgRateOut= %.2f, "
                         + "bundleCount= %d, "
-                        + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, "
+                        + "maxResourceUsage= %.2f%%, weightedMaxEMA= %.2f%%, msgThroughputEMA= %.2f, "
                         + "updatedAt= %d, reportedAt= %d",
 
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(),
@@ -207,7 +217,7 @@ public class BrokerLoadData {
                 conf.getLoadBalancerBandwithOutResourceWeight(),
                 msgThroughputIn, msgThroughputOut, msgRateIn, msgRateOut,
                 bundleCount,
-                maxResourceUsage * 100, weightedMaxEMA * 100,
+                maxResourceUsage * 100, weightedMaxEMA * 100, msgThroughputEMA,
                 updatedAt, reportedAt
         );
     }

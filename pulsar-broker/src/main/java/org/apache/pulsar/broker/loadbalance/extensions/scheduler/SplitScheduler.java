@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -156,6 +157,13 @@ public class SplitScheduler implements LoadManagerScheduler {
         task = loadManagerExecutor.scheduleAtFixedRate(() -> {
             try {
                 execute();
+                if (conf.isLoadBalancerDebugModeEnabled()) {
+                    StringJoiner joiner = new StringJoiner("\n");
+                    serviceUnitStateChannel.getOwnershipEntrySet().forEach(e -> joiner.add(e.toString()));
+                    log.info("### OwnershipEntrySet start ###");
+                    log.info(joiner.toString());
+                    log.info("### OwnershipEntrySet end ###");
+                }
             } catch (Throwable e) {
                 log.error("Failed to run the split job.", e);
             }

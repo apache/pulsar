@@ -70,6 +70,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
@@ -390,7 +391,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private boolean debug() {
-        return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
+        return ExtensibleLoadManagerImpl.debug(config, log);
     }
 
     public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
@@ -951,9 +952,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             + " Active cleanup job count:{}",
                     broker, cleanupJobs.size());
         } else {
-            log.info("Failed to cancel the ownership cleanup for broker:{}."
-                            + " There was no scheduled cleanup job. Active cleanup job count:{}",
-                    broker, cleanupJobs.size());
+            if (debug()) {
+                log.info("No needs to cancel the ownership cleanup for broker:{}."
+                                + " There was no scheduled cleanup job. Active cleanup job count:{}",
+                        broker, cleanupJobs.size());
+            }
         }
     }
 
@@ -1057,7 +1060,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         double cleanupTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));
-        // TODO: clean load data stores
+
+        // clean load data stores
+        getContext().topBundleLoadDataStore().removeAsync(broker);
+        getContext().brokerLoadDataStore().removeAsync(broker);
+
+
         log.info("Completed a cleanup for the inactive broker:{} in {} ms. "
                         + "Cleaned up orphan service units: orphanServiceUnitCleanupCnt:{}, "
                         + "approximate cleanupErrorCnt:{}, metrics:{} ",
@@ -1123,7 +1131,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return;
         }
 
-        log.info("Started the ownership monitor run for activeBrokerCount:{}", brokers.size());
+        var debug = debug();
+        if (debug) {
+            log.info("Started the ownership monitor run for activeBrokerCount:{}", brokers.size());
+        }
+
         long startTime = System.nanoTime();
         Set<String> inactiveBrokers = new HashSet<>();
         Set<String> activeBrokers = new HashSet<>(brokers);
@@ -1199,27 +1211,32 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to flush the in-flight messages.", e);
         }
 
+        boolean cleaned = false;
         if (serviceUnitTombstoneCleanupCnt > 0) {
             this.totalServiceUnitTombstoneCleanupCnt += serviceUnitTombstoneCleanupCnt;
+            cleaned = true;
         }
 
         if (orphanServiceUnitCleanupCnt > 0) {
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
+            cleaned = true;
         }
 
-        double monitorTime = TimeUnit.NANOSECONDS
-                .toMillis((System.nanoTime() - startTime));
-        log.info("Completed the ownership monitor run in {} ms. "
-                        + "Scheduled cleanups for inactive brokers:{}. inactiveBrokerCount:{}. "
-                        + "Published cleanups for orphan service units, orphanServiceUnitCleanupCnt:{}. "
-                        + "Tombstoned semi-terminal state service units, serviceUnitTombstoneCleanupCnt:{}. "
-                        + "Approximate cleanupErrorCnt:{}, metrics:{}. ",
-                monitorTime,
-                inactiveBrokers, inactiveBrokers.size(),
-                orphanServiceUnitCleanupCnt,
-                serviceUnitTombstoneCleanupCnt,
-                totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
-                printCleanupMetrics());
+        if (debug || cleaned) {
+            double monitorTime = TimeUnit.NANOSECONDS
+                    .toMillis((System.nanoTime() - startTime));
+            log.info("Completed the ownership monitor run in {} ms. "
+                            + "Scheduled cleanups for inactive brokers:{}. inactiveBrokerCount:{}. "
+                            + "Published cleanups for orphan service units, orphanServiceUnitCleanupCnt:{}. "
+                            + "Tombstoned semi-terminal state service units, serviceUnitTombstoneCleanupCnt:{}. "
+                            + "Approximate cleanupErrorCnt:{}, metrics:{}. ",
+                    monitorTime,
+                    inactiveBrokers, inactiveBrokers.size(),
+                    orphanServiceUnitCleanupCnt,
+                    serviceUnitTombstoneCleanupCnt,
+                    totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
+                    printCleanupMetrics());
+        }
 
     }
 

@@ -102,22 +102,23 @@ public class TopBundleLoadDataReporterTest {
 
     public void testGenerateLoadData() throws IllegalAccessException {
         doReturn(1l).when(pulsarStats).getUpdatedAt();
-        config.setLoadBalancerBundleLoadReportPercentage(100);
+        config.setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(2);
         var target = new TopBundleLoadDataReporter(pulsar, "", store);
         var expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 2);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
-        config.setLoadBalancerBundleLoadReportPercentage(50);
+        config.setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(1);
         FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
         expected = new TopKBundles(pulsar);
         expected.update(bundleStats, 1);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
-        config.setLoadBalancerBundleLoadReportPercentage(1);
+        config.setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(0);
         FieldUtils.writeDeclaredField(target, "lastBundleStatsUpdatedAt", 0l, true);
+
         expected = new TopKBundles(pulsar);
-        expected.update(bundleStats, 1);
+        expected.update(bundleStats, 0);
         assertEquals(target.generateLoadData(), expected.getLoadData());
 
         doReturn(new HashMap()).when(brokerService).getBundleStats();

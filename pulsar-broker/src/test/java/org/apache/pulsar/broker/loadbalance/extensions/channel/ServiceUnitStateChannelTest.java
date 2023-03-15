@@ -78,6 +78,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistryImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -132,6 +133,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         pulsar1 = pulsar;
         registry = new BrokerRegistryImpl(pulsar);
         loadManagerContext = mock(LoadManagerContext.class);
+        doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
+        doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
         brokerSelector = mock(BrokerSelectionStrategy.class);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
         pulsar2 = additionalPulsarTestContext.getPulsarService();

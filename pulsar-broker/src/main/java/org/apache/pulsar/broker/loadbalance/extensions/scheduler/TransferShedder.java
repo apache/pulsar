@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Skip;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Balanced;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.CoolDown;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.HitCount;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBrokers;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBundles;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoLoadData;
@@ -42,6 +42,7 @@ import lombok.Getter;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -88,9 +89,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private final SimpleResourceAllocationPolicies allocationPolicies;
     private final IsolationPoliciesHelper isolationPoliciesHelper;
     private final AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
-
     private final Set<UnloadDecision> decisionCache;
     private final UnloadCounter counter;
+    private int unloadConditionHitCount = 0;
 
     @VisibleForTesting
     public TransferShedder(UnloadCounter counter){
@@ -173,12 +174,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                                Map<String, Long> recentlyUnloadedBrokers,
                                                final ServiceConfiguration conf) {
 
-
+            var debug = ExtensibleLoadManagerImpl.debug(conf, log);
             UnloadDecision.Reason decisionReason = null;
             double sum = 0.0;
             double sqSum = 0.0;
             int totalBrokers = 0;
-            int maxTransfers = conf.getLoadBalancerMaxNumberOfBrokerTransfersPerCycle();
+            int maxTransfers = conf.getLoadBalancerMaxNumberOfBrokerSheddingPerCycle();
             long now = System.currentTimeMillis();
             for (Map.Entry<String, BrokerLoadData> entry : loadStore.entrySet()) {
                 BrokerLoadData localBrokerData = entry.getValue();
@@ -196,12 +197,16 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
                 // Also, we should give enough time for each broker to recompute its load after transfers.
                 if (recentlyUnloadedBrokers.containsKey(broker)) {
-                    if (localBrokerData.getUpdatedAt() - recentlyUnloadedBrokers.get(broker)
-                            < conf.getLoadBalanceUnloadDelayInSeconds() * 1000) {
-                        log.warn(
-                                "Broker:{} load data timestamp:{} is too early since "
-                                        + "the last transfer timestamp:{}. Stop unloading.",
-                                broker, localBrokerData.getUpdatedAt(), recentlyUnloadedBrokers.get(broker));
+                    var elapsed = localBrokerData.getUpdatedAt() - recentlyUnloadedBrokers.get(broker);
+                    if (elapsed < conf.getLoadBalanceSheddingDelayInSeconds() * 1000) {
+                        if (debug) {
+                            log.warn(
+                                    "Broker:{} load data is too early since "
+                                            + "the last transfer. elapsed {} secs < threshold {} secs",
+                                    broker,
+                                    TimeUnit.MILLISECONDS.toSeconds(elapsed),
+                                    conf.getLoadBalanceSheddingDelayInSeconds());
+                        }
                         update(0.0, 0.0, 0);
                         return Optional.of(CoolDown);
                     } else {
@@ -267,11 +272,13 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         try {
             final var loadStore = context.brokerLoadDataStore();
             stats.setLoadDataStore(loadStore);
-            boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
+            boolean debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
 
             var skipReason = stats.update(context.brokerLoadDataStore(), recentlyUnloadedBrokers, conf);
             if (skipReason.isPresent()) {
-                log.warn("Failed to update load stat. Reason:{}. Stop unloading.", skipReason.get());
+                if (debugMode) {
+                    log.warn("Skipped the load stat update. Reason:{}. Stop unloading.", skipReason.get());
+                }
                 counter.update(Skip, skipReason.get());
                 return decisionCache;
             }
@@ -293,8 +300,23 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 availableBrokers = context.brokerRegistry().getAvailableBrokerLookupDataAsync()
                         .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (ExecutionException | InterruptedException | TimeoutException e) {
-                counter.update(Skip, Unknown);
-                log.warn("Failed to fetch available brokers. Reason: Unknown. Stop unloading.", e);
+                counter.update(Failure, Unknown);
+                log.warn("Failed to fetch available brokers. Stop unloading.", e);
+                return decisionCache;
+            }
+
+            if (stats.std() > targetStd || !hasMsgThroughput(context, stats.minBrokers.peekLast())) {
+                unloadConditionHitCount++;
+            } else {
+                unloadConditionHitCount = 0;
+            }
+
+            if (unloadConditionHitCount < conf.getLoadBalancerSheddingConditionHitCountThreshold()) {
+                if (debugMode) {
+                    log.info("Shedding condition hit count:{} is less than the threshold:{}. Stop unloading.",
+                            unloadConditionHitCount, conf.getLoadBalancerSheddingConditionHitCountThreshold());
+                }
+                counter.update(Skip, HitCount);
                 return decisionCache;
             }
 
@@ -335,22 +357,27 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }
-
-                double max = maxBrokerLoadData.get().getWeightedMaxEMA();
-                double min = minBrokerLoadData.get().getWeightedMaxEMA();
+                double cap = 1.0;
+                double max = Math.min(cap, maxBrokerLoadData.get().getWeightedMaxEMA());
+                double min = Math.min(cap, minBrokerLoadData.get().getWeightedMaxEMA());
                 double offload = (max - min) / 2;
                 BrokerLoadData brokerLoadData = maxBrokerLoadData.get();
                 double brokerThroughput = brokerLoadData.getMsgThroughputIn() + brokerLoadData.getMsgThroughputOut();
                 double offloadThroughput = brokerThroughput * offload;
 
                 if (debugMode) {
-                    log.info(
-                            "Attempting to shed load from broker:{}{}, which has the max resource "
-                                    + "usage {}%, targetStd:{},"
-                                    + " -- Offloading {}%, at least {} KByte/s of traffic, left throughput {} KByte/s",
+                    log.info(String.format(
+                            "Attempting to shed load from broker:%s%s, which has the max resource "
+                                    + "usage:%.2f%%, targetStd:%.2f,"
+                                    + " -- Offloading %.2f%%, at least %.2f KByte/s of traffic, "
+                                    + "left throughput %.2f KByte/s",
                             maxBroker, transfer ? " to broker:" + minBroker : "",
-                            100 * max, targetStd,
-                            offload * 100, offloadThroughput / KB, (brokerThroughput - offloadThroughput) / KB);
+                            max * 100,
+                            targetStd,
+                            offload * 100,
+                            offloadThroughput / KB,
+                            (brokerThroughput - offloadThroughput) / KB
+                    ));
                 }
 
                 double trafficMarkedToOffload = 0;
@@ -419,6 +446,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             if (debugMode) {
                 log.info("decisionCache:{}", decisionCache);
             }
+
             if (decisionCache.isEmpty()) {
                 UnloadDecision.Reason reason;
                 if (numOfBrokersWithEmptyLoadData > 0) {
@@ -426,10 +454,13 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 } else if (numOfBrokersWithFewBundles > 0) {
                     reason = NoBundles;
                 } else {
-                    reason = Balanced;
+                    reason = HitCount;
                 }
                 counter.update(Skip, reason);
+            } else {
+                unloadConditionHitCount = 0;
             }
+
         } catch (Throwable e) {
             log.error("Failed to process unloading. ", e);
             this.counter.update(Failure, Unknown);
@@ -444,7 +475,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return false;
         }
         var brokerLoadData = brokerLoadDataOptional.get();
-        return brokerLoadData.getMsgThroughputIn() + brokerLoadData.getMsgThroughputOut() > 0.0;
+        return brokerLoadData.getMsgThroughputEMA() > 0.0;
     }
 
 

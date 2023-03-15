@@ -85,6 +85,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.slf4j.Logger;
 
 @Slf4j
 public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
@@ -192,6 +193,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             throw new IllegalArgumentException("The load manager should be 'ExtensibleLoadManagerWrapper'.");
         }
         return loadManagerWrapper.get();
+    }
+
+    public static boolean debug(ServiceConfiguration config, Logger log) {
+        return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
 
     @Override
@@ -327,7 +332,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             return owner.thenCompose(broker -> {
                 if (broker.isEmpty()) {
                     String errorMsg = String.format(
-                            "Failed to look up a broker registry:%s for bundle:%s", broker, bundle);
+                            "Failed to get or assign the owner for bundle:%s", bundle);
                     log.error(errorMsg);
                     throw new IllegalStateException(errorMsg);
                 }
