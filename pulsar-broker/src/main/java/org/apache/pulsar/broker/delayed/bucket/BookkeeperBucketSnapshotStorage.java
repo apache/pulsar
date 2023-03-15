@@ -56,8 +56,8 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     @Override
     public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
                                                         List<SnapshotSegment> bucketSnapshotSegments,
-                                                        String bucketKey) {
-        return createLedger(bucketKey)
+                                                        String bucketKey, String topicName, String cursorName) {
+        return createLedger(bucketKey, topicName, cursorName)
                 .thenCompose(ledgerHandle -> addEntry(ledgerHandle, snapshotMetadata.toByteArray())
                         .thenCompose(__ -> addSnapshotSegments(ledgerHandle, bucketSnapshotSegments))
                         .thenCompose(__ -> closeLedger(ledgerHandle))
@@ -143,9 +143,10 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     @NotNull
-    private CompletableFuture<LedgerHandle> createLedger(String bucketKey) {
+    private CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey);
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
+                topicName, cursorName);
         bookKeeper.asyncCreateLedger(
                 config.getManagedLedgerDefaultEnsembleSize(),
                 config.getManagedLedgerDefaultWriteQuorum(),

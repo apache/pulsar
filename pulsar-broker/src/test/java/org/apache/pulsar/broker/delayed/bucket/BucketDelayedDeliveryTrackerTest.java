@@ -79,7 +79,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         bucketSnapshotStorage.start();
         ManagedCursor cursor = new MockManagedCursor("my_test_cursor");
         doReturn(cursor).when(dispatcher).getCursor();
-        doReturn(cursor.getName()).when(dispatcher).getName();
+        doReturn("persistent://public/default/testDelay" + " / " + cursor.getName()).when(dispatcher).getName();
 
         final String methodName = method.getName();
         return switch (methodName) {

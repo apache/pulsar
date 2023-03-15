@@ -261,6 +261,8 @@ public class BrokerService implements Closeable {
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    @Getter
+    @VisibleForTesting
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
     private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
