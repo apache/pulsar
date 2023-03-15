@@ -69,9 +69,6 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
 
     @Test
     public void testMetadataStoreStats() throws Exception {
-        // if this test fail see link below to find something.
-        // https://github.com/apache/pulsar/pull/19793/commits/4e66eaec5c1e70cbcde7c974364f6c5d24afb54e
-
         String ns = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns);
 
