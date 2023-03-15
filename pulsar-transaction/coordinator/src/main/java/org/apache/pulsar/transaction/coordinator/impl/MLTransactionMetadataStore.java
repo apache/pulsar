@@ -400,6 +400,11 @@ public class MLTransactionMetadataStore
                             appendLogCount.increment();
                             try {
                                 synchronized (txnMetaListPair.getLeft()) {
+                                    if (txnMetaListPair.getLeft().status() == newStatus) {
+                                        transactionLog.deletePosition(Collections.singletonList(position));
+                                        promise.complete(null);
+                                        return;
+                                    }
                                     txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
                                     txnMetaListPair.getRight().add(position);
                                 }
