@@ -175,6 +175,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
     void clear() {
         this.resetLastMutableBucketRange();
         this.delayedIndexBitMap.clear();
+        this.priorityQueue.clear();
     }
 
     public void close() {
