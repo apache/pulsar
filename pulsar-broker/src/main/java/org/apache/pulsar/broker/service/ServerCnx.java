@@ -847,12 +847,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     + " using auth method [%s] is not available", originalAuthMethod));
                 }
 
-                AuthData originalAuthDataCopy =  AuthData.of(connect.getOriginalAuthData().getBytes());
                 originalAuthState = originalAuthenticationProvider.newAuthState(
-                        originalAuthDataCopy,
+                        AuthData.of(connect.getOriginalAuthData().getBytes()),
                         remoteAddress,
                         sslSession);
-                originalAuthState.authenticate(originalAuthDataCopy);
                 originalAuthData = originalAuthState.getAuthDataSource();
                 originalPrincipal = originalAuthState.getAuthRole();
 
