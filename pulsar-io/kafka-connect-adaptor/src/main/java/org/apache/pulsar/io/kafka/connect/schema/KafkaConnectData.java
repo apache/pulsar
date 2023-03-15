@@ -54,6 +54,13 @@ public class KafkaConnectData {
         return out;
     }
 
+
+    public static Object getKafkaConnectDataFromRoot(Object nativeObject, Schema kafkaSchema) {
+        if (kafkaSchema == null || nativeObject == null) {
+            return null;
+        }
+        return getKafkaConnectData(nativeObject, kafkaSchema);
+    }
     @SuppressWarnings("unchecked")
     public static Object getKafkaConnectData(Object nativeObject, Schema kafkaSchema) {
         if (kafkaSchema == null) {

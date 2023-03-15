@@ -51,6 +51,9 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
+import org.apache.pulsar.client.api.schema.SchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -60,6 +63,7 @@ import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.util.MessageIdUtils;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -180,6 +184,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         Map<String, String> kafkaConnectorProps = Maps.newHashMap();
         kafkaConnectorProps.put("file", file.toString());
+        // kafkaConnectorProps.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
         props.put("kafkaConnectorConfigProperties", kafkaConnectorProps);
 
         this.context = mock(SinkContext.class);
@@ -686,6 +691,20 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
         String val = (String) sinkRecord.value();
         Assert.assertEquals(val, "value");
+        int key = (int) sinkRecord.key();
+        Assert.assertEquals(key, 11);
+    }
+
+    @Test
+    public void schemaKeyValueSchemaNullValueTest() throws Exception {
+        RecordSchemaBuilder builder = SchemaBuilder
+                .record("test");
+        builder.field("test").type(SchemaType.STRING);
+        GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
+        KeyValue<Integer, String> kv = new KeyValue<>(11, null);
+        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, schema), 11,
+                "INT32", null, "STRUCT");
+        Assert.assertNull(sinkRecord.value());
         int key = (int) sinkRecord.key();
         Assert.assertEquals(key, 11);
     }
