@@ -357,10 +357,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }
-                double cap = 1.0;
-                double max = Math.min(cap, maxBrokerLoadData.get().getWeightedMaxEMA());
-                double min = Math.min(cap, minBrokerLoadData.get().getWeightedMaxEMA());
-                double offload = (max - min) / 2;
+                double max = maxBrokerLoadData.get().getWeightedMaxEMA();
+                double min = minBrokerLoadData.get().getWeightedMaxEMA();
+                double offload = (max - min) / 2 / max;
                 BrokerLoadData brokerLoadData = maxBrokerLoadData.get();
                 double brokerThroughput = brokerLoadData.getMsgThroughputIn() + brokerLoadData.getMsgThroughputOut();
                 double offloadThroughput = brokerThroughput * offload;
@@ -369,7 +368,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     log.info(String.format(
                             "Attempting to shed load from broker:%s%s, which has the max resource "
                                     + "usage:%.2f%%, targetStd:%.2f,"
-                                    + " -- Offloading %.2f%%, at least %.2f KByte/s of traffic, "
+                                    + " -- Trying to offload %.2f%%, %.2f KByte/s of traffic, "
                                     + "left throughput %.2f KByte/s",
                             maxBroker, transfer ? " to broker:" + minBroker : "",
                             max * 100,

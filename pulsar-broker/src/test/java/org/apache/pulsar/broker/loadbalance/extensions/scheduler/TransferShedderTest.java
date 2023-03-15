@@ -167,7 +167,7 @@ public class TransferShedderTest {
 
         Random rand = new Random();
         for (int i = 0; i < clusterSize; i++) {
-            int brokerLoad = rand.nextInt(100);
+            int brokerLoad = rand.nextInt(1000);
             brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad));
             int bundleLoad = rand.nextInt(brokerLoad + 1);
             topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
@@ -777,6 +777,35 @@ public class TransferShedderTest {
         assertEquals(res, expected);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
+    }
+
+    @Test
+    public void testLoadMoreThan100() throws IllegalAccessException {
+        TransferShedder transferShedder = new TransferShedder();
+        var ctx = setupContext();
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        brokerLoadDataStore.pushAsync("broker4", getCpuLoad(ctx,  200));
+        brokerLoadDataStore.pushAsync("broker5", getCpuLoad(ctx,  1000));
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+
+        var expected = new UnloadDecision();
+        var unloads = expected.getUnloads();
+        unloads.put("broker5",
+                new Unload("broker5", bundleE1, Optional.of("broker1")));
+        unloads.put("broker4",
+                new Unload("broker4", bundleD1, Optional.of("broker2")));
+        expected.setLabel(Success);
+        expected.setReason(Overloaded);
+        expected.setLoadAvg(2.4240000000000004);
+        expected.setLoadStd(3.8633332758124816);
+        assertEquals(res, expected);
+        var stats = (TransferShedder.LoadStats)
+                FieldUtils.readDeclaredField(transferShedder, "stats", true);
+        assertEquals(stats.avg(), 2.4240000000000004);
+        assertEquals(stats.std(), 3.5699882912973253);
+
+
     }
 
     @Test
