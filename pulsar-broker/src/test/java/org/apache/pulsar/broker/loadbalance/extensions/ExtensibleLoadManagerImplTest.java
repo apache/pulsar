@@ -90,6 +90,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -291,11 +292,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
+            public void initialize(PulsarService pulsar) {
+                // No-op
+            }
+
+            @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        LoadManagerContext context) {
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
                 brokers.remove(pulsar1.getLookupServiceAddress());
                 return brokers;
             }
+
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
@@ -308,14 +316,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("test-filter-has-exception");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
-        doReturn(List.of(new BrokerFilter() {
-            @Override
-            public String name() {
-                return "Mock broker filter";
-            }
-
+        doReturn(List.of(new MockBrokerFilter() {
             @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
                                                         LoadManagerContext context) throws BrokerFilterException {
                 brokers.clear();
                 throw new BrokerFilterException("Test");
@@ -380,6 +384,35 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
 
     @Test
+    public void testMoreThenOneFilter() throws Exception {
+        TopicName topicName = TopicName.get("test-filter-has-exception");
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+
+        String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
+        doReturn(List.of(new MockBrokerFilter() {
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                brokers.remove(lookupServiceAddress1);
+                return brokers;
+            }
+        },new MockBrokerFilter() {
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                brokers.clear();
+                throw new BrokerFilterException("Test");
+            }
+        })).when(primaryLoadManager).getBrokerFilterPipeline();
+
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        assertTrue(brokerLookupData.isPresent());
+        assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+    }
+
+    @Test
     public void testGetMetrics() throws Exception {
         {
             var brokerLoadMetrics = (AtomicReference<List<Metrics>>)
@@ -431,24 +464,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                     FieldUtils.readDeclaredField(primaryLoadManager, "splitMetrics", true);
             SplitCounter splitCounter = new SplitCounter();
             FieldUtils.writeDeclaredField(splitCounter, "splitCount", 35l, true);
-            FieldUtils.writeDeclaredField(splitCounter, "breakdownCounters", new LinkedHashMap<>() {
-                {
-                    put(SplitDecision.Label.Success, new LinkedHashMap<>() {
-                        {
-                            put(Topics, new MutableLong(1));
-                            put(Sessions, new MutableLong(2));
-                            put(MsgRate, new MutableLong(3));
-                            put(Bandwidth, new MutableLong(4));
-                            put(Admin, new MutableLong(5));
-                        }
-                    });
-                    put(SplitDecision.Label.Skip, Map.of(
-                            SplitDecision.Reason.Balanced, new MutableLong(6)
-                    ));
-                    put(SplitDecision.Label.Failure, Map.of(
-                            SplitDecision.Reason.Unknown, new MutableLong(7)));
-                }
-            }, true);
+            FieldUtils.writeDeclaredField(splitCounter, "breakdownCounters", Map.of(
+                    SplitDecision.Label.Success, Map.of(
+                            Topics, new AtomicLong(1),
+                            Sessions, new AtomicLong(2),
+                            MsgRate, new AtomicLong(3),
+                            Bandwidth, new AtomicLong(4),
+                            Admin, new AtomicLong(5)),
+                    SplitDecision.Label.Failure, Map.of(
+                            SplitDecision.Reason.Unknown, new AtomicLong(6))
+            ), true);
             splitMetrics.set(splitCounter.toMetrics(pulsar.getAdvertisedAddress()));
         }
 
@@ -523,8 +548,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=MsgRate, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Bandwidth, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=4}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Admin, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=5}]
-                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Balanced, result=Skip}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
-                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=7}]
+                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
                         dimensions=[{broker=localhost, metric=assign, result=Empty}], metrics=[{brk_lb_assign_broker_breakdown_total=2}]
                         dimensions=[{broker=localhost, metric=assign, result=Skip}], metrics=[{brk_lb_assign_broker_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=assign, result=Success}], metrics=[{brk_lb_assign_broker_breakdown_total=1}]
@@ -563,6 +587,20 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         """.split("\n"));
         var actual = primaryLoadManager.getMetrics().stream().map(m -> m.toString()).collect(Collectors.toSet());
         assertEquals(actual, expected);
+    }
+
+    private static abstract class MockBrokerFilter implements BrokerFilter {
+
+        @Override
+        public String name() {
+            return "Mock-broker-filter";
+        }
+
+        @Override
+        public void initialize(PulsarService pulsar) {
+            // No-op
+        }
+
     }
 
     private static void cleanTableView(ServiceUnitStateChannel channel)

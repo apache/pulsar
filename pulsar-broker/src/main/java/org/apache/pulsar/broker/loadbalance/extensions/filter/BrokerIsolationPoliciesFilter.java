@@ -19,17 +19,23 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import java.util.Optional;
+import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
-import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
-public class BrokerMaxTopicCountFilter implements BrokerFilter {
 
-    public static final String FILTER_NAME = "broker_max_topic_count_filter";
+@Slf4j
+public class BrokerIsolationPoliciesFilter implements BrokerFilter {
+
+    public static final String FILTER_NAME = "broker_isolation_policies_filter";
+
+    private IsolationPoliciesHelper isolationPoliciesHelper;
 
     @Override
     public String name() {
@@ -38,20 +44,17 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
 
     @Override
     public void initialize(PulsarService pulsar) {
-        // No-op
+        this.isolationPoliciesHelper = new IsolationPoliciesHelper(new SimpleResourceAllocationPolicies(pulsar));
     }
 
     @Override
-    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> availableBrokers,
                                                 ServiceUnitId serviceUnit,
-                                                LoadManagerContext context) throws BrokerFilterException {
-        int loadBalancerBrokerMaxTopics = context.brokerConfiguration().getLoadBalancerBrokerMaxTopics();
-        brokers.keySet().removeIf(broker -> {
-            Optional<BrokerLoadData> brokerLoadDataOpt = context.brokerLoadDataStore().get(broker);
-            long topics = brokerLoadDataOpt.map(BrokerLoadData::getTopics).orElse(0);
-            // TODO: The broker load data might be delayed, so the max topic check might not accurate.
-            return topics >= loadBalancerBrokerMaxTopics;
-        });
-        return brokers;
+                                                LoadManagerContext context)
+            throws BrokerFilterException {
+        Set<String> brokerCandidateCache =
+                isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, serviceUnit);
+        availableBrokers.keySet().retainAll(brokerCandidateCache);
+        return availableBrokers;
     }
 }

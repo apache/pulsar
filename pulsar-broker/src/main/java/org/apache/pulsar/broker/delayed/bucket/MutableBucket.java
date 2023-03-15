@@ -50,13 +50,15 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     Pair<ImmutableBucket, DelayedIndex> sealBucketAndAsyncPersistent(
             long timeStepPerBucketSnapshotSegment,
+            int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue) {
-        return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment, sharedQueue,
+        return createImmutableBucketAndAsyncPersistent(timeStepPerBucketSnapshotSegment,
+                maxIndexesPerBucketSnapshotSegment, sharedQueue,
                 TripleLongPriorityDelayedIndexQueue.wrap(priorityQueue), startLedgerId, endLedgerId);
     }
 
     Pair<ImmutableBucket, DelayedIndex> createImmutableBucketAndAsyncPersistent(
-            final long timeStepPerBucketSnapshotSegment,
+            final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
         log.info("[{}] Creating bucket snapshot, startLedgerId: {}, endLedgerId: {}", dispatcherName,
@@ -98,7 +100,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             snapshotSegmentBuilder.addIndexes(delayedIndex);
 
-            if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peek().getTimestamp() > currentTimestampUpperLimit) {
+            if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peek().getTimestamp() > currentTimestampUpperLimit
+                    || (maxIndexesPerBucketSnapshotSegment != -1
+                    && snapshotSegmentBuilder.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
                 segmentMetadataBuilder.setMaxScheduleTimestamp(timestamp);
                 currentTimestampUpperLimit = 0;
 
@@ -171,6 +175,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
     void clear() {
         this.resetLastMutableBucketRange();
         this.delayedIndexBitMap.clear();
+        this.priorityQueue.clear();
     }
 
     public void close() {

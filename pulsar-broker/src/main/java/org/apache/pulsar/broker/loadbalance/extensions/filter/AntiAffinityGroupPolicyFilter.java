@@ -20,37 +20,39 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
 /**
- * Filter out unqualified Brokers, which are not entered into LoadBalancer for decision-making.
+ * Filter by anti-affinity-group-policy.
  */
-public interface BrokerFilter {
+public class AntiAffinityGroupPolicyFilter implements BrokerFilter {
 
-    /**
-     * The broker filter name.
-     */
-    String name();
+    public static final String FILTER_NAME = "broker_anti_affinity_group_filter";
 
-    /**
-     * Initialize this broker filter using the given pulsar service.
-     */
-    void initialize(PulsarService pulsar);
+    private final AntiAffinityGroupPolicyHelper helper;
 
-    /**
-     * Filter out unqualified brokers based on implementation.
-     *
-     * @param brokers The full broker and lookup data.
-     * @param serviceUnit The current serviceUnit.
-     * @param context The load manager context.
-     * @return Filtered broker list.
-     */
-    Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                         ServiceUnitId serviceUnit,
-                                         LoadManagerContext context)
-            throws BrokerFilterException;
+    public AntiAffinityGroupPolicyFilter(AntiAffinityGroupPolicyHelper helper) {
+        this.helper = helper;
+    }
 
+    @Override
+    public Map<String, BrokerLookupData> filter(
+            Map<String, BrokerLookupData> brokers, ServiceUnitId serviceUnitId, LoadManagerContext context) {
+        helper.filter(brokers, serviceUnitId.toString());
+        return brokers;
+    }
+
+
+    @Override
+    public String name() {
+        return FILTER_NAME;
+    }
+
+    @Override
+    public void initialize(PulsarService pulsar) {
+        return;
+    }
 }

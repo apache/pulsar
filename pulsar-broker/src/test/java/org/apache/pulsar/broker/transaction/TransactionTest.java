@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.reflect.MethodUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -114,6 +115,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -1642,4 +1644,36 @@ public class TransactionTest extends TransactionTestBase {
                     .send();
         txn.commit();
     }
+
+    @Test
+    public void testDeleteNamespace() throws Exception {
+        String namespace = TENANT + "/ns-" + RandomStringUtils.randomAlphabetic(5);
+        String topic = namespace + "/test-delete-ns";
+        admin.namespaces().createNamespace(namespace);
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .create()) {
+            producer.newMessage().value("test".getBytes()).send();
+
+            Transaction txn = this.pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build().get();
+            try (Consumer<byte[]> consumer = this.pulsarClient.newConsumer()
+                    .topic(topic)
+                    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                    .subscriptionName("sub")
+                    .subscribe()) {
+                Message<byte[]> message = consumer.receive();
+                consumer.acknowledgeAsync(message.getMessageId(), txn).get();
+            }
+            try (Producer<byte[]> outProducer = this.pulsarClient.newProducer()
+                    .topic(topic + "-out")
+                    .create()) {
+                outProducer.newMessage(txn).value("output".getBytes()).send();
+            }
+            txn.commit();
+        }
+        admin.namespaces().deleteNamespace(namespace, true);
+    }
+
 }

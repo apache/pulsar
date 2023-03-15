@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
+import org.apache.pulsar.common.util.Codec;
 import org.roaringbitmap.RoaringBitmap;
 
 @Slf4j
@@ -38,7 +40,7 @@ import org.roaringbitmap.RoaringBitmap;
 @AllArgsConstructor
 abstract class Bucket {
 
-    static final String DELAYED_BUCKET_KEY_PREFIX = "#pulsar.internal.delayed.bucket";
+    static final String DELAYED_BUCKET_KEY_PREFIX = CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket";
     static final String DELIMITER = "_";
     static final int MaxRetryTimes = 3;
 
@@ -129,8 +131,11 @@ abstract class Bucket {
             ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
             List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
+        final String cursorName = Codec.decode(cursor.getName());
+        final String topicName = dispatcherName.substring(0, dispatcherName.lastIndexOf(" / " + cursorName));
         return executeWithRetry(
-                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey)
+                () -> bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata, bucketSnapshotSegments, bucketKey,
+                                topicName, cursorName)
                         .whenComplete((__, ex) -> {
                             if (ex != null) {
                                 log.warn("[{}] Failed to create bucket snapshot, bucketKey: {}",
