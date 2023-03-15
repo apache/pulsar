@@ -231,7 +231,7 @@ public class TransferShedderTest {
         var conf = new ServiceConfiguration();
         conf.setLoadBalancerDebugModeEnabled(true);
         conf.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
-        conf.setLoadBalancerSheddingConditionHitCountThreshold(1);
+        conf.setLoadBalancerSheddingConditionHitCountThreshold(0);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
             Map<String, BrokerLoadData> map = new HashMap<>();
             @Override
@@ -742,7 +742,7 @@ public class TransferShedderTest {
         int max = 3;
         ctx.brokerConfiguration()
                 .setLoadBalancerSheddingConditionHitCountThreshold(max);
-        for (int i = 0; i < max - 1; i++) {
+        for (int i = 0; i < max; i++) {
             var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
             assertTrue(res.isEmpty());
             assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
@@ -781,7 +781,8 @@ public class TransferShedderTest {
 
     @Test
     public void testLoadMoreThan100() throws IllegalAccessException {
-        TransferShedder transferShedder = new TransferShedder();
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
         var ctx = setupContext();
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
@@ -789,17 +790,16 @@ public class TransferShedderTest {
         brokerLoadDataStore.pushAsync("broker5", getCpuLoad(ctx,  1000));
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
 
-        var expected = new UnloadDecision();
-        var unloads = expected.getUnloads();
-        unloads.put("broker5",
-                new Unload("broker5", bundleE1, Optional.of("broker1")));
-        unloads.put("broker4",
-                new Unload("broker4", bundleD1, Optional.of("broker2")));
-        expected.setLabel(Success);
-        expected.setReason(Overloaded);
-        expected.setLoadAvg(2.4240000000000004);
-        expected.setLoadStd(3.8633332758124816);
+        var expected = new HashSet<UnloadDecision>();
+        expected.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker2")),
+                Success, Overloaded));
         assertEquals(res, expected);
+        assertEquals(counter.getLoadAvg(), 2.4240000000000004);
+        assertEquals(counter.getLoadStd(), 3.8633332758124816);
+
+
         var stats = (TransferShedder.LoadStats)
                 FieldUtils.readDeclaredField(transferShedder, "stats", true);
         assertEquals(stats.avg(), 2.4240000000000004);
