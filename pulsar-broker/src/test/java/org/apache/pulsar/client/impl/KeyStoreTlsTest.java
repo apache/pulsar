@@ -31,23 +31,23 @@ public class KeyStoreTlsTest {
     protected final String BROKER_KEYSTORE_FILE_PATH =
             "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
     protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
+            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
     protected final String BROKER_KEYSTORE_PW = "111111";
     protected final String BROKER_TRUSTSTORE_PW = "111111";
 
     protected final String CLIENT_KEYSTORE_FILE_PATH =
             "./src/test/resources/authentication/keystoretls/client.keystore.jks";
     protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
+            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
     protected final String CLIENT_KEYSTORE_PW = "111111";
     protected final String CLIENT_TRUSTSTORE_PW = "111111";
     protected final String KEYSTORE_TYPE = "JKS";
 
     protected final String BROKER_TRUSTSTORE_FILE_NPD_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.nopassword.jks";
+            "./src/test/resources/authentication/keystoretls/pulsar_server_trust_npd.jks";
 
     protected final String CLIENT_TRUSTSTORE_FILE_NPD_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.nopassword.jks";
+            "./src/test/resources/authentication/keystoretls/pulsar_client_trust_npd.jks";
 
     public static final Provider BC_PROVIDER = getProvider();
 
