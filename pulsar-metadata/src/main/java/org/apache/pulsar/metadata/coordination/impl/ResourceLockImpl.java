@@ -44,7 +44,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private long version;
     private final CompletableFuture<Void> expiredFuture;
     private boolean revalidateAfterReconnection = false;
-    private CompletableFuture<Void> revalidateFuture;
+    private CompletableFuture<Void> pendingOperationFuture;
 
     private enum State {
         Init,
@@ -61,6 +61,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         this.path = path;
         this.version = -1;
         this.expiredFuture = new CompletableFuture<>();
+        this.pendingOperationFuture = CompletableFuture.completedFuture(null);
         this.state = State.Init;
     }
 
@@ -71,7 +72,20 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     @Override
     public synchronized CompletableFuture<Void> updateValue(T newValue) {
-       return acquire(newValue);
+        // If there is an operation in progress, we're going to let it complete before attempting to
+        // update the value
+        pendingOperationFuture = pendingOperationFuture.thenCompose(v -> {
+            synchronized (ResourceLockImpl.this) {
+                if (state != State.Valid) {
+                    return CompletableFuture.failedFuture(
+                            new IllegalStateException("Lock was not in valid state: " + state));
+                }
+
+                return acquire(newValue);
+            }
+        });
+
+        return pendingOperationFuture;
     }
 
     @Override
@@ -200,24 +214,24 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     }
 
     synchronized CompletableFuture<Void> revalidate(T newValue, boolean revalidateAfterReconnection) {
-        if (revalidateFuture == null || revalidateFuture.isDone()) {
-            revalidateFuture = doRevalidate(newValue);
+        if (pendingOperationFuture.isDone()) {
+            pendingOperationFuture = doRevalidate(newValue);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Previous revalidating is not finished while revalidate newValue={}, value={}, version={}",
                         newValue, value, version);
             }
             CompletableFuture<Void> newFuture = new CompletableFuture<>();
-            revalidateFuture.whenComplete((unused, throwable) -> {
+            pendingOperationFuture.whenComplete((unused, throwable) -> {
                 doRevalidate(newValue).thenRun(() -> newFuture.complete(null))
                         .exceptionally(throwable1 -> {
                             newFuture.completeExceptionally(throwable1);
                             return null;
                         });
             });
-            revalidateFuture = newFuture;
+            pendingOperationFuture = newFuture;
         }
-        revalidateFuture.exceptionally(ex -> {
+        pendingOperationFuture.exceptionally(ex -> {
             synchronized (ResourceLockImpl.this) {
                 Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                 if (!revalidateAfterReconnection || realCause instanceof BadVersionException
@@ -237,7 +251,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             }
             return null;
         });
-        return revalidateFuture;
+        return pendingOperationFuture;
     }
 
     private synchronized CompletableFuture<Void> doRevalidate(T newValue) {
