@@ -309,8 +309,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         callback.operationComplete(null, null);
                         return null;
                     }
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                    SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex));
                     return null;
                 }, executor.chooseThread(ledgerName));
     }
