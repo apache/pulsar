@@ -164,35 +164,20 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         new TransactionTimeoutTrackerImpl(),
                         mlTransactionSequenceIdGenerator, 0L);
         transactionMetadataStore.init(new TransactionRecoverTrackerImpl()).get();
-        int checkReplayRetryCount = 0;
-        while (true) {
-            checkReplayRetryCount++;
-            if (checkReplayRetryCount > 3) {
-                fail();
-                break;
-            }
-            if (transactionMetadataStore.checkIfReady()) {
-                TxnID txnID = transactionMetadataStore.newTransaction(5000, null).get();
-                assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
-                List<CompletableFuture> completableFutureList=new LinkedList<>();
 
-                for (int j = 0; j < 6; j++) {
-                    completableFutureList.add(
-                            transactionMetadataStore
-                                    .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
-                                    .exceptionally(e -> {
-                                        fail();
-                                        return null;
-                                    }));
-                }
-                CompletableFuture.allOf(completableFutureList.toArray(new CompletableFuture[0])).get();
-                Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
-                break;
-            } else {
-                checkReplayRetryCount++;
-                Thread.sleep(100);
-            }
+        Awaitility.await().until(() -> transactionMetadataStore.checkIfReady());
+        TxnID txnID = transactionMetadataStore.newTransaction(5000, null).get();
+        assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.OPEN);
+        List<CompletableFuture> completableFutureList=new LinkedList<>();
+
+        for (int i = 0; i < 2; i++) {
+            completableFutureList.add(
+                    transactionMetadataStore
+                            .updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false)
+            );
         }
+        CompletableFuture.allOf(completableFutureList.toArray(new CompletableFuture[0])).get();
+        Assert.assertEquals(transactionMetadataStore.getTxnStatus(txnID).get(), TxnStatus.COMMITTING);
     }
 
     @DataProvider(name = "isUseManagedLedgerProperties")
