@@ -197,7 +197,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
-            ResourceLockImpl.this.revalidateAfterReconnection = false;
+            revalidateAfterReconnection = false;
             log.warn("Revalidate lock at {} after reconnection", path);
             return silentRevalidateOnce();
         } else {
@@ -251,7 +251,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             // We failed to revalidate the lock due to connectivity issue
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.
-                            ResourceLockImpl.this.revalidateAfterReconnection = true;
+                            revalidateAfterReconnection = true;
                             log.warn("Failed to revalidate the lock at {}. Retrying later on reconnection {}", path,
                                     realCause.getMessage());
                         }
