@@ -68,6 +68,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
@@ -267,6 +268,16 @@ public class TransferShedderTest {
             public int size() {
                 return map.size();
             }
+
+            @Override
+            public void closeTableView() throws IOException {
+
+            }
+
+            @Override
+            public void startTableView() throws LoadDataStoreException {
+
+            }
         };
 
         var topBundleLoadDataStore = new LoadDataStore<TopBundlesLoadData>() {
@@ -309,6 +320,16 @@ public class TransferShedderTest {
             @Override
             public int size() {
                 return map.size();
+            }
+
+            @Override
+            public void closeTableView() throws IOException {
+
+            }
+
+            @Override
+            public void startTableView() throws LoadDataStoreException {
+
             }
         };
 
