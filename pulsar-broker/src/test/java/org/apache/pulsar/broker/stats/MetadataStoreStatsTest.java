@@ -111,13 +111,17 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         Assert.assertTrue(opsLatency.size() > 1, metricsDebugMessage);
         Assert.assertTrue(putBytes.size() > 1, metricsDebugMessage);
 
+        Set<String> expectedMetadataStoreName = new HashSet<>();
+        expectedMetadataStoreName.add(MetadataStoreConfig.METADATA_STORE);
+        expectedMetadataStoreName.add(MetadataStoreConfig.CONFIGURATION_METADATA_STORE);
+
+        AtomicInteger matchCount = new AtomicInteger(0);
         for (PrometheusMetricsTest.Metric m : opsLatency) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            if (!isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
             Assert.assertNotNull(m.tags.get("status"), metricsDebugMessage);
 
             if (m.tags.get("status").equals("success")) {
@@ -142,15 +146,19 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
                 }
             }
         }
+        // Because the combination quantity between status(success, fail) and type(get, del, put) is 6.
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size() * 6);
+
+        matchCount = new AtomicInteger(0);
         for (PrometheusMetricsTest.Metric m : putBytes) {
             Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
             String metadataStoreName = m.tags.get("name");
-            Assert.assertNotNull(metadataStoreName, metricsDebugMessage);
-            Assert.assertTrue(metadataStoreName.equals(MetadataStoreConfig.METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.CONFIGURATION_METADATA_STORE)
-                    || metadataStoreName.equals(MetadataStoreConfig.STATE_METADATA_STORE), metricsDebugMessage);
+            if (!isExpectedLabel(metadataStoreName, expectedMetadataStoreName, matchCount)) {
+                continue;
+            }
             Assert.assertTrue(m.value >= 0, metricsDebugMessage);
         }
+        Assert.assertEquals(matchCount.get(), expectedMetadataStoreName.size());
     }
 
     @Test
