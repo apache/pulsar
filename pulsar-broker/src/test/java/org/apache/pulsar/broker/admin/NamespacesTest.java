@@ -1987,7 +1987,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get()
                 .getMaxConsumerPerTopic();
 
-        assertEquals(maxConsumerPerTopic, 5);
+        assertEquals(maxConsumerPerTopic, Integer.valueOf(5));
         admin.topics().delete(systemTopic, true);
         TopicPolicies topicPolicies = pulsar.getTopicPoliciesService()
                 .getTopicPoliciesBypassCacheAsync(TopicName.get(systemTopic)).get(5, TimeUnit.SECONDS);
