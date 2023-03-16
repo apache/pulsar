@@ -96,7 +96,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
 @Slf4j
@@ -119,9 +118,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final String lookupServiceAddress;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
-    private final LeaderElectionService leaderElectionService;
     private BrokerSelectionStrategy brokerSelector;
     private BrokerRegistry brokerRegistry;
+    private LeaderElectionService leaderElectionService;
     private TableView<ServiceUnitStateData> tableview;
     private Producer<ServiceUnitStateData> producer;
     private ScheduledFuture<?> monitorTask;
@@ -205,31 +204,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
-        this.leaderElectionService = new LeaderElectionService(
-                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
-                state -> {
-                    if (state == LeaderElectionState.Leading) {
-                        log.info("This broker:{} is the leader now.", lookupServiceAddress);
-                        this.monitorTask = this.pulsar.getLoadManagerExecutor()
-                                .scheduleWithFixedDelay(() -> {
-                                            try {
-                                                monitorOwnerships(brokerRegistry.getAvailableBrokersAsync()
-                                                        .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
-                                            } catch (Exception e) {
-                                                log.info("Failed to monitor the ownerships. will retry..", e);
-                                            }
-                                        },
-                                        ownershipMonitorDelayTimeInSecs, ownershipMonitorDelayTimeInSecs, SECONDS);
-                    } else {
-                        log.info("This broker:{} is a follower now.", lookupServiceAddress);
-                        if (monitorTask != null) {
-                            monitorTask.cancel(false);
-                            monitorTask = null;
-                            log.info("This previous leader broker:{} stopped the channel clean-up monitor",
-                                    lookupServiceAddress);
-                        }
-                    }
-                });
+
         Map<ServiceUnitState, AtomicLong> tmpOwnerLookUpCounters = new HashMap<>();
         Map<ServiceUnitState, Counters> tmpHandlerCounters = new HashMap<>();
         Map<EventType, Counters> tmpEventCounters = new HashMap<>();
@@ -246,6 +221,32 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.channelState = Constructed;
     }
 
+    public void scheduleOwnershipMonitor() {
+        if (monitorTask == null) {
+            this.monitorTask = this.pulsar.getLoadManagerExecutor()
+                    .scheduleWithFixedDelay(() -> {
+                                try {
+                                    monitorOwnerships(brokerRegistry.getAvailableBrokersAsync()
+                                            .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
+                                } catch (Exception e) {
+                                    log.info("Failed to monitor the ownerships. will retry..", e);
+                                }
+                            },
+                            ownershipMonitorDelayTimeInSecs, ownershipMonitorDelayTimeInSecs, SECONDS);
+            log.info("This leader broker:{} started the ownership monitor.",
+                    lookupServiceAddress);
+        }
+    }
+
+    public void cancelOwnershipMonitor() {
+        if (monitorTask != null) {
+            monitorTask.cancel(false);
+            monitorTask = null;
+            log.info("This previous leader broker:{} stopped the ownership monitor.",
+                    lookupServiceAddress);
+        }
+    }
+
     public synchronized void start() throws PulsarServerException {
         if (!validateChannelState(LeaderElectionServiceStarted, false)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
@@ -255,11 +256,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         try {
             this.brokerRegistry = getBrokerRegistry();
             this.brokerRegistry.addListener(this::handleBrokerRegistrationEvent);
-            leaderElectionService.start();
-            this.channelState = LeaderElectionServiceStarted;
-            if (debug) {
-                log.info("Successfully started the channel leader election service.");
+            this.leaderElectionService = getLeaderElectionService();
+            var leader = leaderElectionService.readCurrentLeader().get(
+                    MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
+            if (leader.isPresent()) {
+                log.info("Successfully found the channel leader:{}.", leader.get());
+            } else {
+                log.warn("Failed to find the channel leader.");
             }
+            this.channelState = LeaderElectionServiceStarted;
             brokerSelector = getBrokerSelector();
 
             if (producer != null) {
@@ -327,15 +332,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return new LeastResourceUsageWithWeight();
     }
 
+    @VisibleForTesting
+    protected LeaderElectionService getLeaderElectionService() {
+        return ((ExtensibleLoadManagerWrapper) pulsar.getLoadManager().get())
+                .get().getLeaderElectionService();
+    }
+
     public synchronized void close() throws PulsarServerException {
         channelState = Closed;
         boolean debug = debug();
         try {
-            leaderElectionService.close();
-            if (debug) {
-                log.info("Successfully closed the channel leader election service.");
-            }
-
+            leaderElectionService = null;
             if (tableview != null) {
                 tableview.close();
                 tableview = null;

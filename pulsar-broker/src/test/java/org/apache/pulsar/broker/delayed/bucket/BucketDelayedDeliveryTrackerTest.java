@@ -79,7 +79,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         bucketSnapshotStorage.start();
         ManagedCursor cursor = new MockManagedCursor("my_test_cursor");
         doReturn(cursor).when(dispatcher).getCursor();
-        doReturn(cursor.getName()).when(dispatcher).getName();
+        doReturn("persistent://public/default/testDelay" + " / " + cursor.getName()).when(dispatcher).getName();
 
         final String methodName = method.getName();
         return switch (methodName) {
@@ -390,5 +390,23 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         tracker.getImmutableBuckets().asMapOfRanges().forEach((k, bucket) -> {
             assertEquals(bucket.getLastSegmentEntryId(), 4);
         });
+    }
+    
+    @Test(dataProvider = "delayedTracker")
+    public void testClear(BucketDelayedDeliveryTracker tracker) {
+      for (int i = 1; i <= 1001; i++) {
+          tracker.addMessage(i, i, i * 10);
+      }
+
+      assertEquals(tracker.getNumberOfDelayedMessages(), 1001);
+      assertTrue(tracker.getImmutableBuckets().asMapOfRanges().size() > 0);
+      assertEquals(tracker.getLastMutableBucket().size(), 1);
+
+      tracker.clear();
+
+      assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+      assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);
+      assertEquals(tracker.getLastMutableBucket().size(), 0);
+      assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
     }
 }

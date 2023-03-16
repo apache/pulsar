@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 
 public class BrokerFilterTestBase {
@@ -81,6 +82,16 @@ public class BrokerFilterTestBase {
             @Override
             public int size() {
                 return map.size();
+            }
+
+            @Override
+            public void closeTableView() throws IOException {
+
+            }
+
+            @Override
+            public void startTableView() throws LoadDataStoreException {
+
             }
         };
         configuration.setPreferLaterVersions(true);

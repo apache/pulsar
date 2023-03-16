@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Follower;
+import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,6 +39,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -70,6 +75,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 
 @Slf4j
 public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
@@ -83,6 +89,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             TopicDomain.non_persistent.value(),
             NamespaceName.SYSTEM_NAMESPACE,
             "loadbalancer-top-bundles-load-data").toString();
+
+    private static final long MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS = 200;
 
     private PulsarService pulsar;
 
@@ -101,6 +109,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
 
     private LoadManagerScheduler unloadScheduler;
+
+    @Getter
+    private LeaderElectionService leaderElectionService;
 
     @Getter
     private LoadManagerContext context;
@@ -142,7 +153,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             lookupRequests = ConcurrentOpenHashMap.<String,
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
+    private final CountDownLatch loadStoreInitWaiter = new CountDownLatch(1);
 
+    public enum Role {
+        Leader,
+        Follower
+    }
+
+    private Role role;
 
     /**
      * Life cycle: Constructor -> initialize -> start -> close.
@@ -173,12 +191,24 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             return;
         }
         this.brokerRegistry = new BrokerRegistryImpl(pulsar);
+        this.leaderElectionService = new LeaderElectionService(
+                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
+                state -> {
+                    pulsar.getLoadManagerExecutor().execute(() -> {
+                        if (state == LeaderElectionState.Leading) {
+                            playLeader();
+                        } else {
+                            playFollower();
+                        }
+                    });
+                });
         this.serviceUnitStateChannel = new ServiceUnitStateChannelImpl(pulsar);
         this.brokerRegistry.start();
         this.unloadManager = new UnloadManager();
         this.splitManager = new SplitManager(splitCounter);
         this.serviceUnitStateChannel.listen(unloadManager);
         this.serviceUnitStateChannel.listen(splitManager);
+        this.leaderElectionService.start();
         this.serviceUnitStateChannel.start();
         this.antiAffinityGroupPolicyHelper =
                 new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
@@ -189,8 +219,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         try {
             this.brokerLoadDataStore = LoadDataStoreFactory
                     .create(pulsar.getClient(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
+            this.brokerLoadDataStore.startTableView();
             this.topBundlesLoadDataStore = LoadDataStoreFactory
                     .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
+            this.loadStoreInitWaiter.countDown();
         } catch (LoadDataStoreException e) {
             throw new PulsarServerException(e);
         }
@@ -409,8 +441,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     this.serviceUnitStateChannel.close();
                 } finally {
                     this.unloadManager.close();
-                    this.started = false;
+                    try {
+                        this.leaderElectionService.close();
+                    } catch (Exception e) {
+                        throw new PulsarServerException(e);
+                    } finally {
+                        this.started = false;
+                    }
                 }
+
             }
         }
     }
@@ -419,6 +458,78 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return topic.startsWith(ServiceUnitStateChannelImpl.TOPIC)
                 || topic.startsWith(BROKER_LOAD_DATA_STORE_TOPIC)
                 || topic.startsWith(TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
+    }
+
+    @VisibleForTesting
+    void playLeader() {
+        if (role != Leader) {
+            log.info("This broker:{} is changing the role from {} to {}",
+                    pulsar.getLookupServiceAddress(), role, Leader);
+            int retry = 0;
+            while (true) {
+                try {
+                    serviceUnitStateChannel.scheduleOwnershipMonitor();
+                    loadStoreInitWaiter.await();
+                    topBundlesLoadDataStore.startTableView();
+                    unloadScheduler.start();
+                    break;
+                } catch (Throwable e) {
+                    log.error("The broker:{} failed to change the role. Retrying {} th ...",
+                            pulsar.getLookupServiceAddress(), ++retry, e);
+                    try {
+                        Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
+                    } catch (InterruptedException ex) {
+                        log.warn("Interrupted while sleeping.");
+                    }
+                }
+            }
+            role = Leader;
+            log.info("This broker:{} plays the leader now.", pulsar.getLookupServiceAddress());
+        }
+
+        // flush the load data when the leader is elected.
+        if (brokerLoadDataReporter != null) {
+            brokerLoadDataReporter.reportAsync(true);
+        }
+        if (topBundleLoadDataReporter != null) {
+            topBundleLoadDataReporter.reportAsync(true);
+        }
+    }
+
+    @VisibleForTesting
+    void playFollower() {
+        if (role != Follower) {
+            log.info("This broker:{} is changing the role from {} to {}",
+                    pulsar.getLookupServiceAddress(), role, Follower);
+            int retry = 0;
+            while (true) {
+                try {
+                    serviceUnitStateChannel.cancelOwnershipMonitor();
+                    loadStoreInitWaiter.await();
+                    topBundlesLoadDataStore.closeTableView();
+                    unloadScheduler.close();
+                    break;
+                } catch (Throwable e) {
+                    log.error("The broker:{} failed to change the role. Retrying {} th ...",
+                            pulsar.getLookupServiceAddress(), ++retry, e);
+                    try {
+                        Thread.sleep(Math.min(retry * 10, MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS));
+                    } catch (InterruptedException ex) {
+                        log.warn("Interrupted while sleeping.");
+                    }
+                }
+            }
+            role = Follower;
+            log.info("This broker:{} plays a follower now.", pulsar.getLookupServiceAddress());
+        }
+
+        // flush the load data when the leader is elected.
+        if (brokerLoadDataReporter != null) {
+            brokerLoadDataReporter.reportAsync(true);
+        }
+        if (topBundleLoadDataReporter != null) {
+            topBundleLoadDataReporter.reportAsync(true);
+        }
     }
 
     void updateBrokerLoadMetrics(BrokerLoadData loadData) {

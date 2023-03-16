@@ -172,4 +172,13 @@ public interface ServiceUnitStateChannel extends Closeable {
      */
     Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet();
 
+    /**
+     * Schedules ownership monitor to periodically check and correct invalid ownership states.
+     */
+    void scheduleOwnershipMonitor();
+
+    /**
+     * Cancels the ownership monitor.
+     */
+    void cancelOwnershipMonitor();
 }
