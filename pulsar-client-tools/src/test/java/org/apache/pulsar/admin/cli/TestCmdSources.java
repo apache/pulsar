@@ -412,6 +412,15 @@ public class TestCmdSources {
         expectedSourceConfig.setBatchSourceConfig(batchSourceConfig);
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
+
+    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Invalid source type 'foo' " +
+            "-- Available sources are: \\[\\]")
+    public void testCmdSourceConfigFileInvalidSourceType() throws Exception {
+        SourceConfig sourceConfig = getSourceConfig();
+        sourceConfig.setSourceType("foo");
+
+        testCmdSourceConfigFile(sourceConfig, null);
+    }
     
     public void testCmdSourceConfigFile(SourceConfig testSourceConfig, SourceConfig expectedSourceConfig) throws Exception {
 

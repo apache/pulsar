@@ -449,6 +449,8 @@ public class CmdSources extends CmdBase {
 
             if (sourceType != null) {
                 sourceConfig.setArchive(validateSourceType(sourceType));
+            } else if (sourceConfig.getSourceType() != null) {
+                sourceConfig.setArchive(validateSourceType(sourceType));
             }
 
             Resources resources = sourceConfig.getResources();

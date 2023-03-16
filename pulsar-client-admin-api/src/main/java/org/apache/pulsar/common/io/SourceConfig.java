@@ -59,6 +59,7 @@ public class SourceConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Resources resources;
 
+    private String sourceType;
     private String archive;
     // Any flags that you want to pass to the runtime.
     private String runtimeFlags;
