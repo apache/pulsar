@@ -71,6 +71,15 @@ body:
       required: true
   - type: textarea
     attributes:
+      label: Multi-Tenant Considerations
+      description: |
+        Pulsar is a multi-tenant platform. New features should be multi-tenant unless the community explicitly makes an exception. Please provide a detailed description for how this new feature is multi-tenant. This often relates to the security considerations, but it is valuable to call this case out explicitly.
+
+        If there is uncertainty for this section, please submit the PIP and request for feedback on the mailing list.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
       label: Alternatives
       description: |
         If there are alternatives that were already considered by the authors or, after the discussion, by the community, and were rejected, please list them here along with the reason why they were rejected.
