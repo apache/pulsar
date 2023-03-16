@@ -74,8 +74,11 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     public synchronized CompletableFuture<Void> updateValue(T newValue) {
         // If there is an operation in progress, we're going to let it complete before attempting to
         // update the value
-        return pendingOperationFuture = pendingOperationFuture.exceptionally(ex -> null) // ignore all the exception
-                .thenCompose(__ -> {
+        if (pendingOperationFuture.isDone()) {
+            // If the previous behaviour get exception by `silentRevalidateOnce`, the state will mark as RELEASED
+            pendingOperationFuture = CompletableFuture.completedFuture(null);
+        }
+        return pendingOperationFuture = pendingOperationFuture.thenCompose(__ -> {
                     synchronized (ResourceLockImpl.this) {
                         if (state != State.Valid) {
                             return CompletableFuture.failedFuture(
