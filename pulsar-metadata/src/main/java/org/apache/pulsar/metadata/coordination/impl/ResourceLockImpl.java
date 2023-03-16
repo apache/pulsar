@@ -75,7 +75,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         // If there is an operation in progress, we're going to let it complete before attempting to
         // update the value
         return pendingOperationFuture = pendingOperationFuture.exceptionally(ex -> null) // ignore all the exception
-                .thenCompose(v -> {
+                .thenCompose(__ -> {
                     synchronized (ResourceLockImpl.this) {
                         if (state != State.Valid) {
                             return CompletableFuture.failedFuture(
