@@ -70,17 +70,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
-    }
-
-    public enum State {
-        OPEN,
-        COMMITTING,
-        ABORTING,
-        COMMITTED,
-        ABORTED,
-        ERROR,
-        TIMEOUT
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIME_OUT);
     }
 
     TransactionImpl(PulsarClientImpl client,
@@ -213,6 +203,11 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public TxnID getTxnID() {
         return new TxnID(txnIdMostBits, txnIdLeastBits);
+    }
+
+    @Override
+    public State getState() {
+        return state;
     }
 
     public <T> boolean checkIfOpen(CompletableFuture<T> completableFuture) {
