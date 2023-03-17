@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.authentication;
+package org.apache.pulsar.broker.authentication.oidc;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;

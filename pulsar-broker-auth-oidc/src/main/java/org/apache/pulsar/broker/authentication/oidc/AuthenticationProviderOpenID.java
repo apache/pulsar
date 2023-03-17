@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.authentication;
+package org.apache.pulsar.broker.authentication.oidc;
 
-import static org.apache.pulsar.broker.authentication.ConfigUtils.getConfigValueAsBoolean;
-import static org.apache.pulsar.broker.authentication.ConfigUtils.getConfigValueAsInt;
-import static org.apache.pulsar.broker.authentication.ConfigUtils.getConfigValueAsSet;
-import static org.apache.pulsar.broker.authentication.ConfigUtils.getConfigValueAsString;
+import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsBoolean;
+import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
+import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsSet;
+import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsString;
 import com.auth0.jwk.GuavaCachedJwkProvider;
 import com.auth0.jwk.InvalidPublicKeyException;
 import com.auth0.jwk.Jwk;
@@ -54,6 +54,10 @@ import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import org.slf4j.Logger;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.authentication;
+package org.apache.pulsar.broker.authentication.oidc;
 
 import static org.testng.Assert.assertNull;
 import com.auth0.jwt.JWT;
@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

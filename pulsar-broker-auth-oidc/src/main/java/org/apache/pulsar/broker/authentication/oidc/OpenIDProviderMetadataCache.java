@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.authentication;
+package org.apache.pulsar.broker.authentication.oidc;
 
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderOpenID.METADATA_CACHE_SIZE;
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderOpenID.METADATA_CONNECTION_TIMEOUT_MILLIS;
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderOpenID.METADATA_EXPIRES_SECONDS;
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderOpenID.METADATA_READ_TIMEOUT_MILLIS;
-import static org.apache.pulsar.broker.authentication.ConfigUtils.getConfigValueAsInt;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_CACHE_SIZE;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_CONNECTION_TIMEOUT_MILLIS;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_EXPIRES_SECONDS;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_READ_TIMEOUT_MILLIS;
+import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.model.OpenIDProviderMetadata;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClient;

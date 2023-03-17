@@ -16,13 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.authentication;
+package org.apache.pulsar.broker.authentication.oidc;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.net.SocketAddress;
 import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.api.AuthData;
 
 /**

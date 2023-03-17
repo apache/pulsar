@@ -16,4 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.authentication.model;
+package org.apache.pulsar.broker.authentication.oidc;
+
+/**
+ * Enum used to classify the types of exceptions encountered
+ * when attempting JWT verification.
+ */
+public enum AuthenticationExceptionCode {
+    UNSUPPORTED_ISSUER,
+    UNSUPPORTED_ALGORITHM,
+    ISSUER_MISMATCH,
+    ALGORITHM_MISMATCH,
+    INVALID_PUBLIC_KEY,
+    ERROR_RETRIEVING_PROVIDER_METADATA,
+    ERROR_RETRIEVING_PUBLIC_KEY,
+    ERROR_DECODING_JWT,
+    ERROR_VERIFYING_JWT,
+    ERROR_VERIFYING_JWT_SIGNATURE,
+    INVALID_JWT_CLAIM,
+    EXPIRED_JWT,
+}
