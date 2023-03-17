@@ -130,8 +130,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, asyncSequentialExecutor, bucketSnapshotStorage,
-                startLedgerId, endLedgerId);
+        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, asyncSequentialExecutor,
+                bucketSnapshotStorage, startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);
         bucket.setLastSegmentEntryId(lastSegmentEntryId);
