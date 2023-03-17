@@ -77,7 +77,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         if (pendingOperationFuture.isDone()) {
             pendingOperationFuture = CompletableFuture.completedFuture(null);
         }
-        return pendingOperationFuture = pendingOperationFuture.thenCompose(__ -> {
+        pendingOperationFuture.thenCompose(__ -> {
                     synchronized (ResourceLockImpl.this) {
                         if (state != State.Valid) {
                             return CompletableFuture.failedFuture(
@@ -86,6 +86,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                         return acquire(newValue);
                     }
                 });
+        return pendingOperationFuture;
     }
 
     @Override
