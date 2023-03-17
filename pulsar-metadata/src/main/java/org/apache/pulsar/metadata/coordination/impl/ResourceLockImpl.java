@@ -75,7 +75,6 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         // If there is an operation in progress, we're going to let it complete before attempting to
         // update the value
         if (pendingOperationFuture.isDone()) {
-            // If the previous behaviour get exception by `silentRevalidateOnce`, the state will mark as RELEASED
             pendingOperationFuture = CompletableFuture.completedFuture(null);
         }
         return pendingOperationFuture = pendingOperationFuture.thenCompose(__ -> {
@@ -211,36 +210,22 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     /**
      * Revalidate the distributed lock if it is not released.
      * This method is thread-safe and it will perform multiple re-validation operations in turn.
-     * @param newValue the lock value
      */
-    synchronized CompletableFuture<Void> revalidate(T newValue) {
+    synchronized CompletableFuture<Void> silentRevalidateOnce() {
         final CompletableFuture<Void> trackFuture;
         // If the lock is first revalidated. the pending operation future should always be completed.
         if (pendingOperationFuture.isDone()) {
-            trackFuture = doRevalidate(newValue);
+            trackFuture = revalidate(value);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("Previous revalidating is not finished while revalidate newValue={}, value={}, version={}",
-                        newValue, value, version);
+                        value, value, version);
             }
             trackFuture = pendingOperationFuture.exceptionally(ex -> null)
-                    .thenCompose(__ -> doRevalidate(newValue));
+                    .thenCompose(__ -> revalidate(value));
         }
-        return trackFuture;
-    }
-
-    /**
-     * This method designed for background notification usage.
-     * It will auto mark the lock is released if revalidation operation got one of exceptions as follows:
-     * - LockBusyException
-     * - BadVersionException
-     *
-     * @return The revalidation future  #Notice: It will not return any useful result,
-     * the caller needs to re-check the lock state after silent revalidation once.
-     */
-    synchronized CompletableFuture<Void> silentRevalidateOnce() {
         // Assign the pending operation future here to ensure
-        return pendingOperationFuture = revalidate(value)
+        return pendingOperationFuture = trackFuture
                 .thenRun(() -> log.info("Successfully revalidated the lock on {}", path))
                 .exceptionally(ex -> {
                     synchronized (ResourceLockImpl.this) {
@@ -263,7 +248,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 });
     }
 
-    private synchronized CompletableFuture<Void> doRevalidate(T newValue) {
+    private synchronized CompletableFuture<Void> revalidate(T newValue) {
         // Since the distributed lock has been expired, we don't need to revalidate it.
         if (state != State.Valid && state != State.Init) {
             return CompletableFuture.failedFuture(
