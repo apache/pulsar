@@ -54,16 +54,18 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         this.numEntriesExpectAfterStart = 0;
 
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
-
+        sourceConfig.put("connector.class", "io.debezium.connector.db2.Db2Connector");
         sourceConfig.put("database.hostname", DebeziumDB2DbContainer.NAME);
         sourceConfig.put("database.port", "50000");
         sourceConfig.put("database.user", "db2inst1");
         sourceConfig.put("database.password", "admin");
-        //sourceConfig.put("database.server.name", "XE");
         sourceConfig.put("database.dbname", "mydb2");
-        sourceConfig.put("snapshot.mode", "schema_only");  //??
+        sourceConfig.put("topic.prefix", "stores");
+        sourceConfig.put("table.include.list", "DB2INST1.STORES");
 
-        sourceConfig.put("schema.include.list", "inv"); //??
+        //sourceConfig.put("snapshot.mode", "schema_only");  //??
+
+        //sourceConfig.put("schema.include.list", "inv"); //??
         sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/db2");
     }
