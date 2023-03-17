@@ -129,5 +129,16 @@ RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remo
 
 RUN jar uf connectors/pulsar-io-debezium-oracle-*.nar META-INF/bundled-dependencies/ojdbc8-19.3.0.0.jar META-INF/bundled-dependencies/ucp-19.3.0.0.jar META-INF/bundled-dependencies/oraclepki-19.3.0.0.jar META-INF/bundled-dependencies/osdt_cert-19.3.0.0.jar META-INF/bundled-dependencies/osdt_core-19.3.0.0.jar META-INF/bundled-dependencies/simplefan-19.3.0.0.jar META-INF/bundled-dependencies/orai18n-19.3.0.0.jar META-INF/bundled-dependencies/xdb-19.3.0.0.jar META-INF/bundled-dependencies/xmlparserv2-19.3.0.0.jar
 
+# Download IBM DB2 JDBC driver for DB2 Debezium Connector tests:
+RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/ibm/db2/jcc/11.5.8.0/jcc-11.5.8.0.jar
+RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/ibm/db2/jcc/db2jcc/db2jcc4/db2jcc-db2jcc4.jar
+RUN mkdir -p /asncdctools/src
+RUN cd /asncdctools/src && curl -sSLO https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/asncdc.c
+RUN cd /asncdctools/src && curl -sSLO https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/dbsetup.sh
+RUN cd /asncdctools/src && curl -sSLO https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/asncdc_UDF.sql
+RUN cd /asncdctools/src && curl -sSLO https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/asncdcaddremove.sql
+RUN cd /asncdctools/src && curl -sSLO https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/asncdctables.sql
+RUN cd /asncdctools/src && curl -sSLO https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/cdcsetup.sh
 
+RUN jar uf connectors/pulsar-io-debezium-db2-*.nar META-INF/bundled-dependencies/jcc-11.5.8.0.jar META-INF/bundled-dependencies/db2jcc-db2jcc4.jar
 CMD bash
