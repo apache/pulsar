@@ -44,13 +44,13 @@ public interface SchemaRegistryService extends SchemaRegistry {
     }
 
     static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
-                                        ScheduledExecutorService scheduler) {
+                                        ScheduledExecutorService scheduler, boolean autoSkipNonRecoverableData) {
         if (schemaStorage != null) {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
                 return SchemaRegistryServiceWithSchemaDataValidator.of(
-                        new SchemaRegistryServiceImpl(schemaStorage, checkers, scheduler));
+                        new SchemaRegistryServiceImpl(schemaStorage, checkers, scheduler, autoSkipNonRecoverableData));
             } catch (Exception e) {
                 LOG.warn("Unable to create schema registry storage, defaulting to empty storage", e);
             }

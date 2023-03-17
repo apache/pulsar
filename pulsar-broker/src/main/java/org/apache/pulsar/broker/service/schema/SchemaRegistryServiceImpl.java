@@ -67,33 +67,49 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final SchemaStorage schemaStorage;
     private final Clock clock;
     private final SchemaRegistryStats stats;
+    private final boolean autoSkipNonRecoverableData;
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
                               Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock,
-                              ScheduledExecutorService scheduler) {
+                              ScheduledExecutorService scheduler, boolean autoSkipNonRecoverableData) {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
         this.stats = SchemaRegistryStats.getInstance(scheduler);
+        this.autoSkipNonRecoverableData = autoSkipNonRecoverableData;
     }
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
                               Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks,
-                              ScheduledExecutorService scheduler) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), scheduler);
+                              ScheduledExecutorService scheduler, boolean autoSkipNonRecoverableData) {
+        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), scheduler, autoSkipNonRecoverableData);
     }
 
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
-        return getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
-            if (schema != null && schema.schema.isDeleted()) {
-                return null;
-            } else {
-                return schema;
+        CompletableFuture<SchemaAndMetadata> getSchemaFuture =
+                getSchema(schemaId, SchemaVersion.Latest).thenApply((schema) -> {
+                    if (schema != null && schema.schema.isDeleted()) {
+                        return null;
+                    } else {
+                        return schema;
+                    }
+                });
+        if (!autoSkipNonRecoverableData){
+            return getSchemaFuture;
+        }
+        // If the schema data is broken and enabled "autoSkipNonRecoverableData", treated as there is no schema.
+        // TODO Should we delete the original messages witch uses the broken schema?
+        return getSchemaFuture.exceptionallyCompose(ex -> {
+            if (ex.getCause() != null && ex.getCause() instanceof SchemaException schemaException) {
+                if (schemaException.isRecoverable()) {
+                    return CompletableFuture.failedFuture(ex);
+                }
             }
+            return CompletableFuture.completedFuture(null);
         });
     }
 
