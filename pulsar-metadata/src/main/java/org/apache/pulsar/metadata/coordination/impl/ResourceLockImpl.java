@@ -84,6 +84,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                             return CompletableFuture.failedFuture(
                                     new IllegalStateException("Lock was not in valid state: " + state));
                         }
+
                         return acquire(newValue);
                     }
                 });
