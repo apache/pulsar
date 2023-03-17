@@ -44,6 +44,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -566,6 +567,44 @@ public class FunctionCommon {
             return SubscriptionInitialPosition.Earliest;
         } else {
             return SubscriptionInitialPosition.Latest;
+        }
+    }
+
+    public static CompressionType convertFromFunctionDetailsCompressionType(
+            org.apache.pulsar.functions.proto.Function.CompressionType compressionType) {
+        if (compressionType == null) {
+            return CompressionType.LZ4;
+        }
+        switch (compressionType) {
+            case NONE:
+                return CompressionType.NONE;
+            case ZLIB:
+                return CompressionType.ZLIB;
+            case ZSTD:
+                return CompressionType.ZSTD;
+            case SNAPPY:
+                return CompressionType.SNAPPY;
+            default:
+                return CompressionType.LZ4;
+        }
+    }
+
+    public static org.apache.pulsar.functions.proto.Function.CompressionType convertFromCompressionType(
+       CompressionType compressionType) {
+        if (compressionType == null) {
+            return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
+        }
+        switch (compressionType) {
+            case NONE:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.NONE;
+            case ZLIB:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.ZLIB;
+            case ZSTD:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.ZSTD;
+            case SNAPPY:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.SNAPPY;
+            default:
+                return org.apache.pulsar.functions.proto.Function.CompressionType.LZ4;
         }
     }
 }
