@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,9 @@ abstract class Bucket {
     protected final String dispatcherName;
 
     protected final ManagedCursor cursor;
+
+    protected final AsyncLinearExecutor asyncLinearExecutor;
+
     protected final BucketSnapshotStorage bucketSnapshotStorage;
 
     long startLedgerId;
@@ -67,9 +71,10 @@ abstract class Bucket {
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
 
-    Bucket(String dispatcherName, ManagedCursor cursor,
+    Bucket(String dispatcherName, ManagedCursor cursor, AsyncLinearExecutor asyncLinearExecutor,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        this(dispatcherName, cursor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1, 0, 0, null, null);
+        this(dispatcherName, cursor, asyncLinearExecutor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1,
+                0, 0, null, null);
     }
 
     boolean containsMessage(long ledgerId, long entryId) {
@@ -154,12 +159,16 @@ abstract class Bucket {
 
     private CompletableFuture<Void> putBucketKeyId(String bucketKey, Long bucketId) {
         Objects.requireNonNull(bucketId);
-        return executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
-                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        Supplier<CompletableFuture<Void>> supplier =
+                () -> executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
+                        ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        return asyncLinearExecutor.submitTask(supplier);
     }
 
     protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
-        return executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
-                ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        Supplier<CompletableFuture<Void>> supplier =
+                () -> executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
+                        ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
+        return asyncLinearExecutor.submitTask(supplier);
     }
 }

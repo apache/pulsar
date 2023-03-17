@@ -46,9 +46,9 @@ class ImmutableBucket extends Bucket {
     @Setter
     private volatile List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
 
-    ImmutableBucket(String dispatcherName, ManagedCursor cursor,
+    ImmutableBucket(String dispatcherName, ManagedCursor cursor, AsyncLinearExecutor asyncLinearExecutor,
                     BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        super(dispatcherName, cursor, storage, startLedgerId, endLedgerId);
+        super(dispatcherName, cursor, asyncLinearExecutor, storage, startLedgerId, endLedgerId);
     }
 
     public Optional<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getSnapshotSegments() {

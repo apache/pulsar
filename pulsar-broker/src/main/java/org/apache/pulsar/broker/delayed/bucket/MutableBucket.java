@@ -42,9 +42,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
 
-    MutableBucket(String dispatcherName, ManagedCursor cursor,
+    MutableBucket(String dispatcherName, ManagedCursor cursor, AsyncLinearExecutor asyncLinearExecutor,
                   BucketSnapshotStorage bucketSnapshotStorage) {
-        super(dispatcherName, cursor, bucketSnapshotStorage, -1L, -1L);
+        super(dispatcherName, cursor, asyncLinearExecutor, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();
     }
 
@@ -129,7 +129,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, bucketSnapshotStorage,
+        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, asyncLinearExecutor, bucketSnapshotStorage,
                 startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);

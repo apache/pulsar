@@ -90,6 +90,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final Table<Long, Long, ImmutableBucket> snapshotSegmentLastIndexTable;
 
+    private final AsyncLinearExecutor asyncLinearExecutor;
+
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -115,7 +117,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-        this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), bucketSnapshotStorage);
+        this.asyncLinearExecutor = new AsyncLinearExecutor();
+        this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), asyncLinearExecutor,
+                bucketSnapshotStorage);
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
@@ -127,7 +131,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
                 ImmutableBucket immutableBucket =
-                        new ImmutableBucket(dispatcher.getName(), cursor, this.lastMutableBucket.bucketSnapshotStorage,
+                        new ImmutableBucket(dispatcher.getName(), cursor, asyncLinearExecutor,
+                                this.lastMutableBucket.bucketSnapshotStorage,
                                 Long.parseLong(keys[1]), Long.parseLong(keys[2]));
                 putAndCleanOverlapRange(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
                         immutableBucket, toBeDeletedBucketMap);
