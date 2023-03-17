@@ -216,12 +216,16 @@ public class UnloadScheduler implements LoadManagerScheduler {
                                                                          AntiAffinityGroupPolicyHelper helper,
                                                                          UnloadCounter counter) {
         ServiceConfiguration conf = pulsar.getConfiguration();
+        NamespaceUnloadStrategy unloadStrategy;
         try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), NamespaceUnloadStrategy.class,
+            unloadStrategy = Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(),
+                    NamespaceUnloadStrategy.class,
                     Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
             log.error("Error when trying to create namespace unload strategy: {}",
                     conf.getLoadBalancerLoadPlacementStrategy(), e);
+            log.error("create namespace unload strategy failed. using TransferShedder instead.");
+            unloadStrategy = new TransferShedder();
         }
         log.error("create namespace unload strategy failed. using TransferShedder instead.");
         return new TransferShedder(pulsar, counter, helper);

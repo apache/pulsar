@@ -2593,7 +2593,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(if the number of bundles is less than loadBalancerNamespaceMaximumBundles). "
                     + "(only used in load balancer extension logics)"
     )
-    private int loadBalancerNamespaceBundleSplitConditionHitCountThreshold = 5;
+    private int loadBalancerNamespaceBundleSplitConditionHitCountThreshold = 3;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

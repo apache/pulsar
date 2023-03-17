@@ -114,8 +114,10 @@ public class SplitScheduler implements LoadManagerScheduler {
 
         synchronized (bundleSplitStrategy) {
             final Set<SplitDecision> decisions = bundleSplitStrategy.findBundlesToSplit(context, pulsar);
+            if (debugMode) {
+                log.info("Split Decisions:", decisions);
+            }
             if (!decisions.isEmpty()) {
-
                 // currently following the unloading timeout
                 var asyncOpTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -159,10 +161,10 @@ public class SplitScheduler implements LoadManagerScheduler {
                 execute();
                 if (conf.isLoadBalancerDebugModeEnabled()) {
                     StringJoiner joiner = new StringJoiner("\n");
+                    joiner.add("### OwnershipEntrySet start ###");
                     serviceUnitStateChannel.getOwnershipEntrySet().forEach(e -> joiner.add(e.toString()));
-                    log.info("### OwnershipEntrySet start ###");
+                    joiner.add("### OwnershipEntrySet end ###");
                     log.info(joiner.toString());
-                    log.info("### OwnershipEntrySet end ###");
                 }
             } catch (Throwable e) {
                 log.error("Failed to run the split job.", e);

@@ -109,6 +109,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private BrokerRegistry brokerRegistry;
 
+    @Getter
     private ServiceUnitStateChannel serviceUnitStateChannel;
 
     private AntiAffinityGroupPolicyFilter antiAffinityGroupPolicyFilter;
@@ -163,7 +164,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             lookupRequests = ConcurrentOpenHashMap.<String,
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
-    private final CountDownLatch loadStoreInitWaiter = new CountDownLatch(1);
+    private final CountDownLatch initWaiter = new CountDownLatch(1);
 
     public enum Role {
         Leader,
@@ -236,7 +237,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.brokerLoadDataStore.startTableView();
             this.topBundlesLoadDataStore = LoadDataStoreFactory
                     .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
-            this.loadStoreInitWaiter.countDown();
         } catch (LoadDataStoreException e) {
             throw new PulsarServerException(e);
         }
@@ -252,7 +252,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         this.topBundleLoadDataReporter =
                 new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
-
+        this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
+        this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
         var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
         this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
                 .scheduleAtFixedRate(() -> {
@@ -279,12 +280,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         interval, TimeUnit.MILLISECONDS);
 
         this.unloadScheduler = new UnloadScheduler(
-                pulsar, pulsar.getLoadManagerExecutor(), unloadManager,
-                context, serviceUnitStateChannel, antiAffinityGroupPolicyHelper, unloadCounter, unloadMetrics);
+                pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel,
+                antiAffinityGroupPolicyHelper, unloadCounter, unloadMetrics);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
                 pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
         this.splitScheduler.start();
+        this.initWaiter.countDown();
         this.started = true;
     }
 
@@ -535,8 +537,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             int retry = 0;
             while (true) {
                 try {
+                    initWaiter.await();
                     serviceUnitStateChannel.scheduleOwnershipMonitor();
-                    loadStoreInitWaiter.await();
                     topBundlesLoadDataStore.startTableView();
                     unloadScheduler.start();
                     break;
@@ -571,8 +573,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             int retry = 0;
             while (true) {
                 try {
+                    initWaiter.await();
                     serviceUnitStateChannel.cancelOwnershipMonitor();
-                    loadStoreInitWaiter.await();
                     topBundlesLoadDataStore.closeTableView();
                     unloadScheduler.close();
                     break;

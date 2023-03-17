@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.VERSION_ID_INIT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -27,9 +28,12 @@ import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
@@ -40,6 +44,7 @@ import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -52,6 +57,8 @@ public class BrokerLoadDataReporterTest {
     ServiceConfiguration config;
     BrokerStats brokerStats;
     SystemResourceUsage usage;
+    String broker = "broker1";
+    String bundle = "bundle1";
 
     @BeforeMethod
     void setup() {
@@ -124,4 +131,60 @@ public class BrokerLoadDataReporterTest {
         }
     }
 
+    @Test
+    public void testTombstone() throws IllegalAccessException {
+
+        var target = new BrokerLoadDataReporter(pulsar, broker, store);
+
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Assigning, broker, VERSION_ID_INIT), null);
+        verify(store, times(0)).removeAsync(eq(broker));
+
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Deleted, broker, VERSION_ID_INIT), null);
+        verify(store, times(0)).removeAsync(eq(broker));
+
+
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Init, broker, VERSION_ID_INIT), null);
+        verify(store, times(0)).removeAsync(eq(broker));
+
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, broker, VERSION_ID_INIT), null);
+        verify(store, times(0)).removeAsync(eq(broker));
+
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
+        Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(store, times(1)).removeAsync(eq(broker));
+            var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
+            assertEquals(localData, new BrokerLoadData());
+        });
+
+        {
+            target.handleEvent(bundle,
+                    new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
+            verify(store, times(1)).removeAsync(eq(broker));
+            var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
+            assertEquals(localData, new BrokerLoadData());
+        }
+
+        FieldUtils.writeDeclaredField(target, "tombstoneDelayInMillis", 0, true);
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-2", broker, VERSION_ID_INIT), null);
+        Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(store, times(2)).removeAsync(eq(broker));
+            var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
+            assertEquals(localData, new BrokerLoadData());
+        });
+
+        target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null);
+        Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(store, times(3)).removeAsync(eq(broker));
+            var localData = (BrokerLoadData) FieldUtils.readDeclaredField(target, "localData", true);
+            assertEquals(localData, new BrokerLoadData());
+        });
+
+    }
 }

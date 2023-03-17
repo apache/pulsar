@@ -1211,6 +1211,69 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @Test(priority = 15)
+    public void testIsOwner() throws IllegalAccessException {
+
+        var owner1 = channel1.isOwner(bundle);
+        var owner2 = channel2.isOwner(bundle);
+
+        assertFalse(owner1);
+        assertFalse(owner2);
+
+        owner1 = channel1.isOwner(bundle, lookupServiceAddress2);
+        owner2 = channel2.isOwner(bundle, lookupServiceAddress1);
+
+        assertFalse(owner1);
+        assertFalse(owner2);
+
+        channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
+        owner2 = channel2.isOwner(bundle);
+        assertFalse(owner2);
+
+        waitUntilOwnerChanges(channel1, bundle, null);
+        waitUntilOwnerChanges(channel2, bundle, null);
+
+        owner1 = channel1.isOwner(bundle);
+        owner2 = channel2.isOwner(bundle);
+
+        assertTrue(owner1);
+        assertFalse(owner2);
+
+        owner1 = channel1.isOwner(bundle, lookupServiceAddress1);
+        owner2 = channel2.isOwner(bundle, lookupServiceAddress2);
+
+        assertTrue(owner1);
+        assertFalse(owner2);
+
+        owner1 = channel2.isOwner(bundle, lookupServiceAddress1);
+        owner2 = channel1.isOwner(bundle, lookupServiceAddress2);
+
+        assertTrue(owner1);
+        assertFalse(owner2);
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, lookupServiceAddress1, 1));
+        assertTrue(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, null, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, null, lookupServiceAddress1, 1));
+        assertTrue(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, null, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, null, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, null);
+        assertFalse(channel1.isOwner(bundle));
+    }
+
+
     private static ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
         return (ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>>)

@@ -115,6 +115,9 @@ public class BrokerLoadDataTest {
                 + "msgRateIn= 7.00, msgRateOut= 8.00, bundleCount= 9, "
                 + "maxResourceUsage= 300.00%, weightedMaxEMA= 187.50%, msgThroughputEMA= 5.00, "
                 + "updatedAt= " + data.getUpdatedAt() + ", reportedAt= " + data.getReportedAt());
+
+        data.clear();
+        assertEquals(data, new BrokerLoadData());
     }
 
     @Test
@@ -145,6 +148,9 @@ public class BrokerLoadDataTest {
         data.update(other);
 
         assertEquals(data, other);
+
+        data.clear();
+        assertEquals(data, new BrokerLoadData());
     }
 
 

@@ -31,10 +31,15 @@ import static org.testng.Assert.assertEquals;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
@@ -50,6 +55,9 @@ import org.testng.annotations.Test;
 public class DefaultNamespaceBundleSplitStrategyTest {
 
     PulsarService pulsar;
+    ExtensibleLoadManagerWrapper loadManagerWrapper;
+    ExtensibleLoadManagerImpl loadManager;
+    ServiceUnitStateChannel channel;
     BrokerService brokerService;
     PulsarStats pulsarStats;
     Map<String, NamespaceBundleStats> bundleStats;
@@ -85,8 +93,9 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         namespaceBundleFactory = mock(NamespaceBundleFactory.class);
         loadManagerContext = mock(LoadManagerContext.class);
         brokerRegistry = mock(BrokerRegistry.class);
-
-
+        loadManagerWrapper = mock(ExtensibleLoadManagerWrapper.class);
+        loadManager = mock(ExtensibleLoadManagerImpl.class);
+        channel = mock(ServiceUnitStateChannelImpl.class);
 
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(config).when(pulsar).getConfiguration();
@@ -96,6 +105,10 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         doReturn(true).when(namespaceBundleFactory).canSplitBundle(any());
         doReturn(brokerRegistry).when(loadManagerContext).brokerRegistry();
         doReturn(broker).when(brokerRegistry).getBrokerId();
+        doReturn(new AtomicReference(loadManagerWrapper)).when(pulsar).getLoadManager();
+        doReturn(loadManager).when(loadManagerWrapper).get();
+        doReturn(channel).when(loadManager).getServiceUnitStateChannel();
+        doReturn(true).when(channel).isOwner(any());
 
 
         bundleStats = new LinkedHashMap<>();
@@ -145,6 +158,18 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
         var expected = Set.of();
         assertEquals(actual, expected);
+    }
+
+    public void testNoBundleOwner() {
+        var counter = spy(new SplitCounter());
+        config.setLoadBalancerNamespaceBundleSplitConditionHitCountThreshold(0);
+        bundleStats.values().forEach(v -> v.msgRateIn = config.getLoadBalancerNamespaceBundleMaxMsgRate() + 1);
+        doReturn(false).when(channel).isOwner(any());
+        var strategy = new DefaultNamespaceBundleSplitStrategyImpl(counter);
+        var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
+        var expected = Set.of();
+        assertEquals(actual, expected);
+        verify(counter, times(2)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
     }
 
     public void testError() throws Exception {

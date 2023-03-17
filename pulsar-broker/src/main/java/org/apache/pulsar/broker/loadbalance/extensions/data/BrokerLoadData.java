@@ -89,6 +89,7 @@ public class BrokerLoadData {
         bandwidthOut = new ResourceUsage();
         maxResourceUsage = DEFAULT_RESOURCE_USAGE;
         weightedMaxEMA = DEFAULT_RESOURCE_USAGE;
+        msgThroughputEMA = 0;
     }
 
     /**
@@ -196,6 +197,25 @@ public class BrokerLoadData {
         double msgThroughput = msgThroughputIn + msgThroughputOut;
         msgThroughputEMA = updatedAt == 0 ? msgThroughput :
                 msgThroughputEMA * historyPercentage + (1 - historyPercentage) * msgThroughput;
+    }
+
+    public void clear() {
+        cpu = new ResourceUsage();
+        memory = new ResourceUsage();
+        directMemory = new ResourceUsage();
+        bandwidthIn = new ResourceUsage();
+        bandwidthOut = new ResourceUsage();
+        maxResourceUsage = DEFAULT_RESOURCE_USAGE;
+        weightedMaxEMA = DEFAULT_RESOURCE_USAGE;
+        msgThroughputEMA = 0;
+        msgThroughputIn = 0;
+        msgThroughputOut = 0;
+        msgRateIn = 0.0;
+        msgRateOut = 0.0;
+        bundleCount = 0;
+        topics = 0;
+        updatedAt = 0;
+        reportedAt = 0;
     }
 
     public String toString(ServiceConfiguration conf) {
