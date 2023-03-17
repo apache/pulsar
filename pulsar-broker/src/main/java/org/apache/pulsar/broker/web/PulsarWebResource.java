@@ -195,7 +195,7 @@ public abstract class PulsarWebResource {
         String originalPrincipal = originalPrincipal();
         validateOriginalPrincipal(appId, originalPrincipal);
 
-        if (pulsar.getConfiguration().getProxyRoles().contains(appId)) {
+        if (pulsar.getConfiguration().getProxyRoles().contains(appId) || StringUtils.isNotBlank(originalPrincipal())) {
             BrokerService brokerService = pulsar.getBrokerService();
             return brokerService.getAuthorizationService().isSuperUser(appId, clientAuthData())
                     .thenCompose(proxyAuthorizationSuccess -> {
@@ -315,7 +315,8 @@ public abstract class PulsarWebResource {
                             throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
                         }
                         validateOriginalPrincipal(clientAppId, originalPrincipal);
-                        if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                        if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)
+                                || StringUtils.isNotBlank(originalPrincipal)) {
                             AuthorizationService authorizationService =
                                     pulsar.getBrokerService().getAuthorizationService();
                             return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
