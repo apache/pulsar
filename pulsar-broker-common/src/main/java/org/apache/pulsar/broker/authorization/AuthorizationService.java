@@ -341,14 +341,10 @@ public class AuthorizationService {
 
     /**
      * Validates that the authenticatedPrincipal and the originalPrincipal are a valid combination.
-     * Valid combinations fulfill one of the following two rules:
+     * Valid combinations fulfills the following rule:
      * <p>
-     * 1. The authenticatedPrincipal is in {@link ServiceConfiguration#getProxyRoles()}, if, and only if,
+     * The authenticatedPrincipal is in {@link ServiceConfiguration#getProxyRoles()}, if, and only if,
      * the originalPrincipal is set to a role that is not also in {@link ServiceConfiguration#getProxyRoles()}.
-     * <p>
-     * 2. The authenticatedPrincipal and the originalPrincipal are the same, but are not a proxyRole, when
-     * allowNonProxyPrincipalsToBeEqual is true.
-     *
      * @return true when roles are a valid combination and false when roles are an invalid combination
      */
     public boolean isValidOriginalPrincipal(String authenticatedPrincipal,
@@ -364,7 +360,9 @@ public class AuthorizationService {
             }
         } else if (StringUtils.isNotBlank(originalPrincipal)
                 && !(allowNonProxyPrincipalsToBeEqual && originalPrincipal.equals(authenticatedPrincipal))) {
-            errorMsg = "cannot specify originalPrincipal when connecting without valid proxy role.";
+                log.warn("[{}] Non-proxy role [{}] passed originalPrincipal [{}]. This behavior will not "
+                        + "be allowed in a future release. A proxy's role must be in the broker's proxyRoles "
+                        + "configuration.", remoteAddress, authenticatedPrincipal, originalPrincipal);
         }
         if (errorMsg != null) {
             log.warn("[{}] Illegal combination of role [{}] and originalPrincipal [{}]: {}", remoteAddress,
@@ -415,7 +413,7 @@ public class AuthorizationService {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(role)) {
+        if (isProxyRole(role) || StringUtils.isNotBlank(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTenantOperationAsync(
                     tenantName, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTenantOperationAsync(
@@ -482,7 +480,7 @@ public class AuthorizationService {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(role)) {
+        if (isProxyRole(role) || StringUtils.isNotBlank(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespaceOperationAsync(
                     namespaceName, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowNamespaceOperationAsync(
@@ -547,7 +545,7 @@ public class AuthorizationService {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(role)) {
+        if (isProxyRole(role) || StringUtils.isNotBlank(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespacePolicyOperationAsync(
                     namespaceName, policy, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowNamespacePolicyOperationAsync(
@@ -615,7 +613,7 @@ public class AuthorizationService {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(role)) {
+        if (isProxyRole(role) || StringUtils.isNotBlank(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
                     topicName, policy, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicPolicyOperationAsync(
@@ -708,7 +706,7 @@ public class AuthorizationService {
         if (!isValidOriginalPrincipal(role, originalRole, authData)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(role)) {
+        if (isProxyRole(role) || StringUtils.isNotBlank(originalRole)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicOperationAsync(
                     topicName, operation, role, authData);
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowTopicOperationAsync(
