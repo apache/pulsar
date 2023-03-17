@@ -250,7 +250,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         // Edge cases that differ because binary protocol and http protocol have different expectations
         assertTrue(auth.isValidOriginalPrincipal("client", "client", (SocketAddress) null, true));
-        assertFalse(auth.isValidOriginalPrincipal("client", "client", (SocketAddress) null, false));
+        // This assert flips to assertFalse in the 3.0 release.
+        assertTrue(auth.isValidOriginalPrincipal("client", "client", (SocketAddress) null, false));
 
         // Only likely in cases when authentication is disabled, but we still define these to be valid.
         assertTrue(auth.isValidOriginalPrincipal(null, null, (SocketAddress) null, false));
@@ -264,9 +265,10 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         // OriginalPrincipal cannot be proxy role
         assertFalse(auth.isValidOriginalPrincipal("proxy", "proxy", (SocketAddress) null, false));
-        assertFalse(auth.isValidOriginalPrincipal("client", "proxy", (SocketAddress) null, false));
-        assertFalse(auth.isValidOriginalPrincipal("", "proxy", (SocketAddress) null, false));
-        assertFalse(auth.isValidOriginalPrincipal(null, "proxy", (SocketAddress) null, false));
+        // The next 3 asserts flip to assertFalse in the 3.0 release.
+        assertTrue(auth.isValidOriginalPrincipal("client", "proxy", (SocketAddress) null, false));
+        assertTrue(auth.isValidOriginalPrincipal("", "proxy", (SocketAddress) null, false));
+        assertTrue(auth.isValidOriginalPrincipal(null, "proxy", (SocketAddress) null, false));
 
         // Must gracefully handle a missing AuthenticationDataSource
         assertTrue(auth.isValidOriginalPrincipal("proxy", "client", (AuthenticationDataSource) null));
