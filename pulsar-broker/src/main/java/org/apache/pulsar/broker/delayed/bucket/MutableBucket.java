@@ -43,7 +43,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
 
-    MutableBucket(String dispatcherName, ManagedCursor cursor, AsyncSequentialExecutor asyncSequentialExecutor,
+    MutableBucket(String dispatcherName, ManagedCursor cursor, AsyncSequentialExecutor<Void> asyncSequentialExecutor,
                   BucketSnapshotStorage bucketSnapshotStorage) {
         super(dispatcherName, cursor, asyncSequentialExecutor, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();

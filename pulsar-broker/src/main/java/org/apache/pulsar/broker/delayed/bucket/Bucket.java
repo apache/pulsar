@@ -72,7 +72,7 @@ abstract class Bucket {
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
 
-    Bucket(String dispatcherName, ManagedCursor cursor, AsyncSequentialExecutor asyncSequentialExecutor,
+    Bucket(String dispatcherName, ManagedCursor cursor, AsyncSequentialExecutor<Void> asyncSequentialExecutor,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
         this(dispatcherName, cursor, asyncSequentialExecutor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1,
                 0, 0, null, null);

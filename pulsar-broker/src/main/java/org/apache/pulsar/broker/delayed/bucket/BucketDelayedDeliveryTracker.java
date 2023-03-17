@@ -91,8 +91,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final Table<Long, Long, ImmutableBucket> snapshotSegmentLastIndexTable;
 
-    private final AsyncSequentialExecutor asyncSequentialExecutor;
-
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
                                  boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -118,15 +116,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-        this.asyncSequentialExecutor = new AsyncSequentialExecutor<>();
         this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(),
-                asyncSequentialExecutor,
-                bucketSnapshotStorage);
+                new AsyncSequentialExecutor<>(), bucketSnapshotStorage);
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
         ManagedCursor cursor = this.lastMutableBucket.getCursor();
+        AsyncSequentialExecutor<Void> asyncSequentialExecutor = this.lastMutableBucket.getAsyncSequentialExecutor();
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
         cursor.getCursorProperties().keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
