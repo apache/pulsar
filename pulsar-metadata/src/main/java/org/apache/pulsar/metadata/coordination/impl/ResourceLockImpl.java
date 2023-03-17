@@ -77,6 +77,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         if (pendingOperationFuture.isDone()) {
             pendingOperationFuture = CompletableFuture.completedFuture(null);
         }
+
         pendingOperationFuture = pendingOperationFuture.thenCompose(__ -> {
                     synchronized (ResourceLockImpl.this) {
                         if (state != State.Valid) {
