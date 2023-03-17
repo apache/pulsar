@@ -37,6 +37,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
+import org.apache.pulsar.common.util.AsyncSequentialExecutor;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
@@ -46,9 +47,9 @@ class ImmutableBucket extends Bucket {
     @Setter
     private volatile List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
 
-    ImmutableBucket(String dispatcherName, ManagedCursor cursor, AsyncLinearExecutor asyncLinearExecutor,
+    ImmutableBucket(String dispatcherName, ManagedCursor cursor, AsyncSequentialExecutor asyncSequentialExecutor,
                     BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        super(dispatcherName, cursor, asyncLinearExecutor, storage, startLedgerId, endLedgerId);
+        super(dispatcherName, cursor, asyncSequentialExecutor, storage, startLedgerId, endLedgerId);
     }
 
     public Optional<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getSnapshotSegments() {

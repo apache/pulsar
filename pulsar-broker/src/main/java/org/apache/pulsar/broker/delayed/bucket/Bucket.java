@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
+import org.apache.pulsar.common.util.AsyncSequentialExecutor;
 import org.apache.pulsar.common.util.Codec;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -49,7 +50,7 @@ abstract class Bucket {
 
     protected final ManagedCursor cursor;
 
-    protected final AsyncLinearExecutor asyncLinearExecutor;
+    protected final AsyncSequentialExecutor<Void> asyncSequentialExecutor;
 
     protected final BucketSnapshotStorage bucketSnapshotStorage;
 
@@ -71,9 +72,9 @@ abstract class Bucket {
     private volatile CompletableFuture<Long> snapshotCreateFuture;
 
 
-    Bucket(String dispatcherName, ManagedCursor cursor, AsyncLinearExecutor asyncLinearExecutor,
+    Bucket(String dispatcherName, ManagedCursor cursor, AsyncSequentialExecutor asyncSequentialExecutor,
            BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        this(dispatcherName, cursor, asyncLinearExecutor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1,
+        this(dispatcherName, cursor, asyncSequentialExecutor, storage, startLedgerId, endLedgerId, new HashMap<>(), -1, -1,
                 0, 0, null, null);
     }
 
@@ -162,13 +163,13 @@ abstract class Bucket {
         Supplier<CompletableFuture<Void>> supplier =
                 () -> executeWithRetry(() -> cursor.putCursorProperty(bucketKey, String.valueOf(bucketId)),
                         ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
-        return asyncLinearExecutor.submitTask(supplier);
+        return asyncSequentialExecutor.submitTask(supplier);
     }
 
     protected CompletableFuture<Void> removeBucketCursorProperty(String bucketKey) {
         Supplier<CompletableFuture<Void>> supplier =
                 () -> executeWithRetry(() -> cursor.removeCursorProperty(bucketKey),
                         ManagedLedgerException.BadVersionException.class, MaxRetryTimes);
-        return asyncLinearExecutor.submitTask(supplier);
+        return asyncSequentialExecutor.submitTask(supplier);
     }
 }

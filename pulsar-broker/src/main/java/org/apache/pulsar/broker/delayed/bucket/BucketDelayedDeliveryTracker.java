@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.AsyncSequentialExecutor;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
@@ -90,7 +91,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final Table<Long, Long, ImmutableBucket> snapshotSegmentLastIndexTable;
 
-    private final AsyncLinearExecutor asyncLinearExecutor;
+    private final AsyncSequentialExecutor asyncSequentialExecutor;
 
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
@@ -117,8 +118,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-        this.asyncLinearExecutor = new AsyncLinearExecutor();
-        this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), asyncLinearExecutor,
+        this.asyncSequentialExecutor = new AsyncSequentialExecutor<>();
+        this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(),
+                asyncSequentialExecutor,
                 bucketSnapshotStorage);
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
@@ -131,7 +133,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
                 ImmutableBucket immutableBucket =
-                        new ImmutableBucket(dispatcher.getName(), cursor, asyncLinearExecutor,
+                        new ImmutableBucket(dispatcher.getName(), cursor, asyncSequentialExecutor,
                                 this.lastMutableBucket.bucketSnapshotStorage,
                                 Long.parseLong(keys[1]), Long.parseLong(keys[2]));
                 putAndCleanOverlapRange(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
