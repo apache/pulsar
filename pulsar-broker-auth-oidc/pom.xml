@@ -66,13 +66,11 @@
     <dependency>
       <groupId>com.github.ben-manes.caffeine</groupId>
       <artifactId>caffeine</artifactId>
-      <version>3.1.1</version>
     </dependency>
 
     <dependency>
       <groupId>org.asynchttpclient</groupId>
       <artifactId>async-http-client</artifactId>
-      <version>2.12.1</version>
       <scope>provided</scope>
     </dependency>
 
