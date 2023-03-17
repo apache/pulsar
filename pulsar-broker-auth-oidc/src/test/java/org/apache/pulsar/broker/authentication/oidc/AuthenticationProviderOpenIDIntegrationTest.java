@@ -133,7 +133,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCE, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
@@ -225,7 +225,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCE, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         // Use the leeway to allow the token to pass validation and then fail expiration
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");

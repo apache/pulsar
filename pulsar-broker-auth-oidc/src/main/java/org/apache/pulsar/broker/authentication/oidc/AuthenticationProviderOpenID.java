@@ -29,6 +29,7 @@ import com.auth0.jwk.JwkException;
 import com.auth0.jwk.JwkProvider;
 import com.auth0.jwk.UrlJwkProvider;
 import com.auth0.jwt.JWT;
+import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.AlgorithmMismatchException;
 import com.auth0.jwt.exceptions.InvalidClaimException;
@@ -38,7 +39,6 @@ import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
-import com.auth0.jwt.interfaces.JWTVerifier;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.URL;
@@ -121,7 +121,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private String roleClaim;
 
     static final String ALLOWED_TOKEN_ISSUERS = "openIDAllowedTokenIssuers";
-    static final String ALLOWED_AUDIENCE = "openIDAllowedAudience";
+    static final String ALLOWED_AUDIENCES = "openIDAllowedAudiences";
     static final String ROLE_CLAIM = "openIDRoleClaim";
     static final String ACCEPTED_TIME_LEEWAY_SECONDS = "openIDAcceptedTimeLeewaySeconds";
     static final String JWK_CACHE_SIZE = "openIDJwkCacheSize";
@@ -134,22 +134,20 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     static final String METADATA_READ_TIMEOUT_MILLIS = "openIDMetadataReadTimeoutMillis";
     static final String REQUIRE_HTTPS = "openIDRequireHttps";
 
-    private String audience;
+    // The list of audiences that are allowed to connect to this broker. A valid JWT must contain one of the audiences.
+    private String[] allowedAudiences;
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        this.audience = getConfigValueAsString(config, ALLOWED_AUDIENCE);
+        this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, "sub");
         this.acceptedTimeLeeway = getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS, 0);
         this.jwkCacheSize = getConfigValueAsInt(config, JWK_CACHE_SIZE, 10);
         this.jwkExpiresSeconds = getConfigValueAsInt(config, JWK_EXPIRES_SECONDS, 5);
         this.jwkConnectionTimeout = getConfigValueAsInt(config, JWK_CONNECTION_TIMEOUT_MILLIS, 10_000);
         this.jwkReadTimeout = getConfigValueAsInt(config, JWK_READ_TIMEOUT_MILLIS, 10_000);
-
         this.requireHttps = getConfigValueAsBoolean(config, REQUIRE_HTTPS, true);
-        this.issuers = getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS);
-        validateIssuers(this.issuers);
-
+        this.issuers = validateIssuers(getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS));
         this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config);
     }
 
@@ -288,6 +286,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return verifyIssuerAndGetJwk(jwt)
                 .thenCompose(jwk -> {
                     try {
+                        if (!jwt.getAlgorithm().equals(jwk.getAlgorithm())) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
+                            return CompletableFuture.failedFuture(
+                                    new AuthenticationException("JWK's alg [" + jwk.getAlgorithm()
+                                            + "] does not match JWT's alg [" + jwt.getAlgorithm() + "]"));
+                        }
                         // Verify the JWT signature
                         // Throws exception if any verification check fails
                         return CompletableFuture
@@ -395,11 +399,10 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             throw new AuthenticationException("Expected PublicKey alg [" + publicKeyAlg + "] does match actual alg.");
         }
 
-        // We verify issuer when retrieving the PublicKey, so it is not verified here
-        // If the configured audience is null, there is no check for the "aud" claim.
+        // We verify issuer when retrieving the PublicKey, so it is not verified here.
         JWTVerifier verifier = JWT.require(alg)
                 .acceptLeeway(acceptedTimeLeeway)
-                .withAudience(audience)
+                .withAnyOfAudience(allowedAudiences)
                 .build();
 
         try {
@@ -445,10 +448,11 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
      * issuer url is insecure, unless {@link AuthenticationProviderOpenID#REQUIRE_HTTPS} is
      * configured to false.
      * @param allowedIssuers - issuers to validate
+     * @return the validated issuers
      * @throws IllegalArgumentException if the allowedIssuers is empty, or contains insecure issuers when required
      */
-    void validateIssuers(Set<String> allowedIssuers) {
-        if (allowedIssuers.isEmpty()) {
+    Set<String> validateIssuers(Set<String> allowedIssuers) {
+        if (allowedIssuers == null || allowedIssuers.isEmpty()) {
             throw new IllegalArgumentException("Missing configured value for: " + ALLOWED_TOKEN_ISSUERS);
         }
         for (String issuer : allowedIssuers) {
@@ -459,5 +463,20 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 }
             }
         }
+        return allowedIssuers;
+    }
+
+    /**
+     * Validate the configured allow list of allowedAudiences. The allowedAudiences must be set because
+     * JWT must have an audience claim.
+     * See https://openid.net/specs/openid-connect-basic-1_0.html#IDTokenValidation.
+     * @param allowedAudiences
+     * @return the validated audiences
+     */
+    String[] validateAllowedAudiences(Set<String> allowedAudiences) {
+        if (allowedAudiences == null || allowedAudiences.isEmpty()) {
+            throw new IllegalArgumentException("Missing configured value for: " + ALLOWED_AUDIENCES);
+        }
+        return allowedAudiences.toArray(new String[0]);
     }
 }
