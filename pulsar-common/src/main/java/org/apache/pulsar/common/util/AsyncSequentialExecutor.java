@@ -22,6 +22,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
@@ -31,6 +32,7 @@ import org.apache.commons.lang3.tuple.Pair;
  * it cannot guarantee the order in which tasks are completed.
  * </p>
  */
+@ThreadSafe
 public class AsyncSequentialExecutor<T> {
 
     private final Queue<Pair<Supplier<CompletableFuture<T>>, CompletableFuture<T>>> taskQueue =
