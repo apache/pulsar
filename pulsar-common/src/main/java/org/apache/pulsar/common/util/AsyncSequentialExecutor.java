@@ -41,11 +41,11 @@ public class AsyncSequentialExecutor<T> {
 
     public CompletableFuture<T> submitTask(Supplier<CompletableFuture<T>> supplier) {
         CompletableFuture<T> future = new CompletableFuture<>();
-        tryExecAsyncTask(Pair.of(supplier, future));
+        tryStartAsyncTask(Pair.of(supplier, future));
         return future;
     }
 
-    private synchronized void tryExecAsyncTask(
+    private synchronized void tryStartAsyncTask(
             Pair<Supplier<CompletableFuture<T>>, CompletableFuture<T>> taskPair) {
         if (inProgress) {
             taskQueue.add(taskPair);
@@ -57,7 +57,7 @@ public class AsyncSequentialExecutor<T> {
                     Pair<Supplier<CompletableFuture<T>>, CompletableFuture<T>> pair = taskQueue.poll();
                     inProgress = false;
                     if (pair != null) {
-                        tryExecAsyncTask(pair);
+                        tryStartAsyncTask(pair);
                     }
                 }
                 if (ex != null) {
