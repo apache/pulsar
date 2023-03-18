@@ -28,7 +28,9 @@ import org.apache.commons.lang3.tuple.Pair;
 /**
  * Make Asynchronous tasks sequential execution, avoid data races cause operate failures.
  * <p>
- * Note: It can only guarantee the order of start of tasks and will not execute two tasks at the same time, but
+ * Note:The submitted task must be an asynchronous task, so task will use its own thread to execute,
+ * and only use the current thread to start that asynchronous task.
+ * It can only guarantee the order of start of tasks and will not execute two tasks at the same time, but
  * it cannot guarantee the order in which tasks are completed.
  * </p>
  */
