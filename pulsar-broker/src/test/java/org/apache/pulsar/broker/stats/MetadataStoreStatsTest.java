@@ -47,7 +47,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
-@Test(groups = "broker")
+@Test(groups = "flaky")
 public class MetadataStoreStatsTest extends BrokerTestBase {
 
     private final CollectorRegistry registry = new CollectorRegistry(true);

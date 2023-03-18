@@ -19,10 +19,8 @@
 package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
-
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,8 +44,8 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
 
     TestZKServer testZKServer;
 
-    private final ConcurrentHashMap<MetadataStoreExtended, Object> needCloseStore =
-            new ConcurrentHashMap<>();
+    private final List<MetadataStoreExtended> needCloseStore =
+            new ArrayList<>();
 
     @Override
     protected void doInitConf() throws Exception {
@@ -66,7 +64,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
             }
         }
 
-        needCloseStore.keySet().forEach((storeExtended) -> {
+        needCloseStore.forEach((storeExtended) -> {
             try {
                 storeExtended.close();
             } catch (Exception e) {
@@ -87,8 +85,8 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
                 MultiBrokerMetadataConsistencyTest.class.getName()
                         + "configuration_store");
 
-        needCloseStore.put(metadataStore, new Object());
-        needCloseStore.put(configurationStore, new Object());
+        needCloseStore.add(metadataStore);
+        needCloseStore.add(configurationStore);
 
         return super.createPulsarTestContextBuilder(conf)
                 .localMetadataStore(metadataStore)

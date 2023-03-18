@@ -35,6 +35,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
@@ -42,6 +43,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -49,6 +52,8 @@ import com.google.common.collect.Sets;
 import java.util.LinkedHashMap;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -74,12 +79,14 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -90,6 +97,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -99,6 +107,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -142,22 +151,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
-        ExtensibleLoadManagerWrapper primaryLoadManagerWrapper =
-                (ExtensibleLoadManagerWrapper) pulsar1.getLoadManager().get();
-        primaryLoadManager = spy((ExtensibleLoadManagerImpl)
-                FieldUtils.readField(primaryLoadManagerWrapper, "loadManager", true));
-        FieldUtils.writeField(primaryLoadManagerWrapper, "loadManager", primaryLoadManager, true);
+        setPrimaryLoadManager();
 
-        ExtensibleLoadManagerWrapper secondaryLoadManagerWrapper =
-                (ExtensibleLoadManagerWrapper) pulsar2.getLoadManager().get();
-        secondaryLoadManager = spy((ExtensibleLoadManagerImpl)
-                FieldUtils.readField(secondaryLoadManagerWrapper, "loadManager", true));
-        FieldUtils.writeField(secondaryLoadManagerWrapper, "loadManager", secondaryLoadManager, true);
-
-        channel1 = (ServiceUnitStateChannelImpl)
-                FieldUtils.readField(primaryLoadManager, "serviceUnitStateChannel", true);
-        channel2 = (ServiceUnitStateChannelImpl)
-                FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
+        setSecondaryLoadManager();
 
         admin.clusters().createCluster(this.conf.getClusterName(),
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -291,11 +287,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
+            public void initialize(PulsarService pulsar) {
+                // No-op
+            }
+
+            @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
-                                                        LoadManagerContext context) {
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
                 brokers.remove(pulsar1.getLookupServiceAddress());
                 return brokers;
             }
+
         })).when(primaryLoadManager).getBrokerFilterPipeline();
 
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
@@ -308,14 +311,10 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         TopicName topicName = TopicName.get("test-filter-has-exception");
         NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
 
-        doReturn(List.of(new BrokerFilter() {
-            @Override
-            public String name() {
-                return "Mock broker filter";
-            }
-
+        doReturn(List.of(new MockBrokerFilter() {
             @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
                                                         LoadManagerContext context) throws BrokerFilterException {
                 brokers.clear();
                 throw new BrokerFilterException("Test");
@@ -380,6 +379,159 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
 
     @Test
+    public void testMoreThenOneFilter() throws Exception {
+        TopicName topicName = TopicName.get("test-filter-has-exception");
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+
+        String lookupServiceAddress1 = pulsar1.getLookupServiceAddress();
+        doReturn(List.of(new MockBrokerFilter() {
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                brokers.remove(lookupServiceAddress1);
+                return brokers;
+            }
+        },new MockBrokerFilter() {
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                brokers.clear();
+                throw new BrokerFilterException("Test");
+            }
+        })).when(primaryLoadManager).getBrokerFilterPipeline();
+
+        Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
+        assertTrue(brokerLookupData.isPresent());
+        assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+    }
+
+    @Test
+    public void testTopBundlesLoadDataStoreTableViewFromChannelOwner() throws Exception {
+        var topBundlesLoadDataStorePrimary =
+                (LoadDataStore) FieldUtils.readDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", true);
+        var serviceUnitStateChannelPrimary =
+                (ServiceUnitStateChannelImpl) FieldUtils.readDeclaredField(primaryLoadManager,
+                        "serviceUnitStateChannel", true);
+        var tvPrimary =
+                (TableViewImpl) FieldUtils.readDeclaredField(topBundlesLoadDataStorePrimary, "tableView", true);
+
+        var topBundlesLoadDataStoreSecondary =
+                (LoadDataStore) FieldUtils.readDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", true);
+        var tvSecondary =
+                (TableViewImpl) FieldUtils.readDeclaredField(topBundlesLoadDataStoreSecondary, "tableView", true);
+
+        if (serviceUnitStateChannelPrimary.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+            assertNotNull(tvPrimary);
+            assertNull(tvSecondary);
+        } else {
+            assertNull(tvPrimary);
+            assertNotNull(tvSecondary);
+        }
+
+        restartBroker();
+        pulsar1 = pulsar;
+        setPrimaryLoadManager();
+
+        var serviceUnitStateChannelPrimaryNew =
+                (ServiceUnitStateChannelImpl) FieldUtils.readDeclaredField(primaryLoadManager,
+                        "serviceUnitStateChannel", true);
+        var topBundlesLoadDataStorePrimaryNew =
+                (LoadDataStore) FieldUtils.readDeclaredField(primaryLoadManager, "topBundlesLoadDataStore"
+                        , true);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertFalse(serviceUnitStateChannelPrimaryNew.isChannelOwnerAsync().get(5, TimeUnit.SECONDS));
+                    assertNotNull(FieldUtils.readDeclaredField(topBundlesLoadDataStoreSecondary, "tableView"
+                            , true));
+                    assertNull(FieldUtils.readDeclaredField(topBundlesLoadDataStorePrimaryNew, "tableView"
+                            , true));
+                }
+        );
+    }
+
+    @Test
+    public void testRoleChange()
+            throws Exception {
+
+
+        var topBundlesLoadDataStorePrimary = (LoadDataStore<TopBundlesLoadData>)
+                FieldUtils.readDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", true);
+        var topBundlesLoadDataStorePrimarySpy = spy(topBundlesLoadDataStorePrimary);
+        AtomicInteger countPri = new AtomicInteger(3);
+        AtomicInteger countPri2 = new AtomicInteger(3);
+        doAnswer(invocationOnMock -> {
+            if (countPri.decrementAndGet() > 0) {
+                throw new RuntimeException();
+            }
+            // Call the real method
+            reset();
+            return null;
+        }).when(topBundlesLoadDataStorePrimarySpy).startTableView();
+        doAnswer(invocationOnMock -> {
+            if (countPri2.decrementAndGet() > 0) {
+                throw new RuntimeException();
+            }
+            // Call the real method
+            reset();
+            return null;
+        }).when(topBundlesLoadDataStorePrimarySpy).closeTableView();
+        FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimarySpy, true);
+
+        var topBundlesLoadDataStoreSecondary = (LoadDataStore<TopBundlesLoadData>)
+                FieldUtils.readDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", true);
+        var topBundlesLoadDataStoreSecondarySpy = spy(topBundlesLoadDataStoreSecondary);
+        AtomicInteger countSec = new AtomicInteger(3);
+        AtomicInteger countSec2 = new AtomicInteger(3);
+        doAnswer(invocationOnMock -> {
+            if (countSec.decrementAndGet() > 0) {
+                throw new RuntimeException();
+            }
+            // Call the real method
+            reset();
+            return null;
+        }).when(topBundlesLoadDataStoreSecondarySpy).startTableView();
+        doAnswer(invocationOnMock -> {
+            if (countSec2.decrementAndGet() > 0) {
+                throw new RuntimeException();
+            }
+            // Call the real method
+            reset();
+            return null;
+        }).when(topBundlesLoadDataStoreSecondarySpy).closeTableView();
+        FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondarySpy, true);
+
+        if (channel1.isChannelOwnerAsync().get(5, TimeUnit.SECONDS)) {
+            primaryLoadManager.playFollower();
+            primaryLoadManager.playFollower();
+            secondaryLoadManager.playLeader();
+            secondaryLoadManager.playLeader();
+            primaryLoadManager.playLeader();
+            primaryLoadManager.playLeader();
+            secondaryLoadManager.playFollower();
+            secondaryLoadManager.playFollower();
+        } else {
+            primaryLoadManager.playLeader();
+            primaryLoadManager.playLeader();
+            secondaryLoadManager.playFollower();
+            secondaryLoadManager.playFollower();
+            primaryLoadManager.playFollower();
+            primaryLoadManager.playFollower();
+            secondaryLoadManager.playLeader();
+            secondaryLoadManager.playLeader();
+        }
+
+
+        verify(topBundlesLoadDataStorePrimarySpy, times(3)).startTableView();
+        verify(topBundlesLoadDataStorePrimarySpy, times(3)).closeTableView();
+        verify(topBundlesLoadDataStoreSecondarySpy, times(3)).startTableView();
+        verify(topBundlesLoadDataStoreSecondarySpy, times(3)).closeTableView();
+
+        FieldUtils.writeDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStorePrimary, true);
+        FieldUtils.writeDeclaredField(secondaryLoadManager, "topBundlesLoadDataStore", topBundlesLoadDataStoreSecondary, true);
+    }
+
+    @Test
     public void testGetMetrics() throws Exception {
         {
             var brokerLoadMetrics = (AtomicReference<List<Metrics>>)
@@ -431,24 +583,16 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                     FieldUtils.readDeclaredField(primaryLoadManager, "splitMetrics", true);
             SplitCounter splitCounter = new SplitCounter();
             FieldUtils.writeDeclaredField(splitCounter, "splitCount", 35l, true);
-            FieldUtils.writeDeclaredField(splitCounter, "breakdownCounters", new LinkedHashMap<>() {
-                {
-                    put(SplitDecision.Label.Success, new LinkedHashMap<>() {
-                        {
-                            put(Topics, new MutableLong(1));
-                            put(Sessions, new MutableLong(2));
-                            put(MsgRate, new MutableLong(3));
-                            put(Bandwidth, new MutableLong(4));
-                            put(Admin, new MutableLong(5));
-                        }
-                    });
-                    put(SplitDecision.Label.Skip, Map.of(
-                            SplitDecision.Reason.Balanced, new MutableLong(6)
-                    ));
-                    put(SplitDecision.Label.Failure, Map.of(
-                            SplitDecision.Reason.Unknown, new MutableLong(7)));
-                }
-            }, true);
+            FieldUtils.writeDeclaredField(splitCounter, "breakdownCounters", Map.of(
+                    SplitDecision.Label.Success, Map.of(
+                            Topics, new AtomicLong(1),
+                            Sessions, new AtomicLong(2),
+                            MsgRate, new AtomicLong(3),
+                            Bandwidth, new AtomicLong(4),
+                            Admin, new AtomicLong(5)),
+                    SplitDecision.Label.Failure, Map.of(
+                            SplitDecision.Reason.Unknown, new AtomicLong(6))
+            ), true);
             splitMetrics.set(splitCounter.toMetrics(pulsar.getAdvertisedAddress()));
         }
 
@@ -523,8 +667,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=MsgRate, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Bandwidth, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=4}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Admin, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=5}]
-                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Balanced, result=Skip}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
-                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=7}]
+                        dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
                         dimensions=[{broker=localhost, metric=assign, result=Empty}], metrics=[{brk_lb_assign_broker_breakdown_total=2}]
                         dimensions=[{broker=localhost, metric=assign, result=Skip}], metrics=[{brk_lb_assign_broker_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=assign, result=Success}], metrics=[{brk_lb_assign_broker_breakdown_total=1}]
@@ -565,6 +708,20 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertEquals(actual, expected);
     }
 
+    private static abstract class MockBrokerFilter implements BrokerFilter {
+
+        @Override
+        public String name() {
+            return "Mock-broker-filter";
+        }
+
+        @Override
+        public void initialize(PulsarService pulsar) {
+            // No-op
+        }
+
+    }
+
     private static void cleanTableView(ServiceUnitStateChannel channel)
             throws IllegalAccessException {
         var tv = (TableViewImpl<ServiceUnitStateData>)
@@ -572,6 +729,26 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         var cache = (ConcurrentMap<String, ServiceUnitStateData>)
                 FieldUtils.readField(tv, "data", true);
         cache.clear();
+    }
+
+    private void setPrimaryLoadManager() throws IllegalAccessException {
+        ExtensibleLoadManagerWrapper wrapper =
+                (ExtensibleLoadManagerWrapper) pulsar1.getLoadManager().get();
+        primaryLoadManager = spy((ExtensibleLoadManagerImpl)
+                FieldUtils.readField(wrapper, "loadManager", true));
+        FieldUtils.writeField(wrapper, "loadManager", primaryLoadManager, true);
+        channel1 = (ServiceUnitStateChannelImpl)
+                FieldUtils.readField(primaryLoadManager, "serviceUnitStateChannel", true);
+    }
+
+    private void setSecondaryLoadManager() throws IllegalAccessException {
+        ExtensibleLoadManagerWrapper wrapper =
+                (ExtensibleLoadManagerWrapper) pulsar2.getLoadManager().get();
+        secondaryLoadManager = spy((ExtensibleLoadManagerImpl)
+                FieldUtils.readField(wrapper, "loadManager", true));
+        FieldUtils.writeField(wrapper, "loadManager", secondaryLoadManager, true);
+        channel2 = (ServiceUnitStateChannelImpl)
+                FieldUtils.readField(secondaryLoadManager, "serviceUnitStateChannel", true);
     }
 
     private CompletableFuture<NamespaceBundle> getBundleAsync(PulsarService pulsar, TopicName topic) {

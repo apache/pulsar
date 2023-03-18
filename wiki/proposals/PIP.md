@@ -82,7 +82,7 @@ The process works in the following way:
    the "xxx" number should be chosen to be the next number from the existing PIP 
    issues, listed [here]([url](https://github.com/apache/pulsar/labels/PIP)).
 2. The author(s) will send a note to the dev@pulsar.apache.org mailing list
-   to start the discussion, using subject prefix `[DISCUSS] PIP-xxx: `. The discussion
+   to start the discussion, using subject prefix `[DISCUSS] PIP-xxx: {PIP TITLE}`. The discussion
    need to happen in the mailing list. Please avoid discussing it using
    GitHub comments in the PIP GitHub issue, as it creates two tracks 
    of feedback.
@@ -90,10 +90,11 @@ The process works in the following way:
    authors to the text of the proposal.
 4. Once some consensus is reached, there will be a vote to formally approve
    the proposal.
-   The vote will be held on the dev@pulsar.apache.org mailing list. Everyone
-   is welcome to vote on the proposal, though it will be considered to be binding
-   only the vote of PMC members.
-   I would be required to have a lazy majority of at least 3 binding +1s votes.
+   The vote will be held on the dev@pulsar.apache.org mailing list, by
+   sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}".
+   Everyone is welcome to vote on the proposal, though only the the vote of the PMC 
+   members will be considered binding.
+   It is required to have a lazy majority of at least 3 binding +1s votes.
    The vote should stay open for at least 48 hours.
 5. When the vote is closed, if the outcome is positive, the state of the
    proposal is updated, and the Pull Requests associated with this proposal can

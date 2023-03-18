@@ -558,6 +558,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void updateRates() {
         msgOut.calculateRate();
         msgExpired.calculateRate();
+        expiryMonitor.updateRates();
+
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();

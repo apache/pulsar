@@ -361,17 +361,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long delayedDeliveryMinIndexCountPerBucket = 50000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
-            The delayed message index bucket time step(in seconds) in per bucket snapshot segment, \
+            The delayed message index time step(in seconds) in per bucket snapshot segment, \
             after reaching the max time step limitation, the snapshot segment will be cut off.""")
-    private long delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+    private int delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = """
+            The max number of delayed message index in per bucket snapshot segment, -1 means no limitation\
+            after reaching the max number limitation, the snapshot segment will be cut off.""")
+    private int delayedDeliveryMaxIndexesPerBucketSnapshotSegment = 5000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max number of delayed message index bucket, \
             after reaching the max buckets limitation, the adjacent buckets will be merged.""")
     private int delayedDeliveryMaxNumBuckets = 50;
-
-    @FieldContext(category = CATEGORY_SERVER, doc = "Enable share the delayed message index across subscriptions")
-    private boolean delayedDeliverySharedIndexEnabled = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay. "
@@ -2557,6 +2559,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(only used in load balancer extension logics)"
     )
     private double loadBalancerBundleLoadReportPercentage = 10;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Service units'(bundles) split interval. Broker periodically checks whether "
+                    + "some service units(e.g. bundles) should split if they become hot-spots. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private int loadBalancerSplitIntervalMinutes = 1;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Max number of bundles to split to per cycle. "
+                    + "(only used in load balancer extension logics)"
+    )
+    private int loadBalancerMaxNumberOfBundlesToSplitPerCycle = 10;
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
+            doc = "Threshold to the consecutive count of fulfilled split conditions. "
+                    + "If the split scheduler consecutively finds bundles that meet split conditions "
+                    + "many times bigger than this threshold, the scheduler will trigger splits on the bundles "
+                    + "(if the number of bundles is less than loadBalancerNamespaceMaximumBundles). "
+                    + "(only used in load balancer extension logics)"
+    )
+    private int loadBalancerNamespaceBundleSplitConditionThreshold = 5;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

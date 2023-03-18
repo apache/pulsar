@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 
 public class BrokerMaxTopicCountFilter implements BrokerFilter {
 
@@ -35,7 +37,13 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
     }
 
     @Override
+    public void initialize(PulsarService pulsar) {
+        // No-op
+    }
+
+    @Override
     public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                ServiceUnitId serviceUnit,
                                                 LoadManagerContext context) throws BrokerFilterException {
         int loadBalancerBrokerMaxTopics = context.brokerConfiguration().getLoadBalancerBrokerMaxTopics();
         brokers.keySet().removeIf(broker -> {

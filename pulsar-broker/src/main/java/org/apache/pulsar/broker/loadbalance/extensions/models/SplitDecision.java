@@ -19,9 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Failure;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Skip;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Balanced;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Unknown;
 import lombok.Data;
 
@@ -36,7 +34,6 @@ public class SplitDecision {
 
     public enum Label {
         Success,
-        Skip,
         Failure
     }
 
@@ -46,7 +43,6 @@ public class SplitDecision {
         MsgRate,
         Bandwidth,
         Admin,
-        Balanced,
         Unknown
     }
 
@@ -60,11 +56,6 @@ public class SplitDecision {
         split = null;
         label = null;
         reason = null;
-    }
-
-    public void skip() {
-        label = Skip;
-        reason = Balanced;
     }
 
     public void succeed(Reason reason) {

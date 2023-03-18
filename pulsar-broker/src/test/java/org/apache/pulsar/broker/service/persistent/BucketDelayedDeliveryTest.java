@@ -18,7 +18,19 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -32,6 +44,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         conf.setDelayedDeliveryTrackerFactoryClassName(BucketDelayedDeliveryTrackerFactory.class.getName());
         conf.setDelayedDeliveryMaxNumBuckets(10);
         conf.setDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds(1);
+        conf.setDelayedDeliveryMaxIndexesPerBucketSnapshotSegment(10);
         conf.setDelayedDeliveryMinIndexCountPerBucket(50);
         conf.setManagedLedgerMaxEntriesPerLedger(50);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
@@ -42,5 +55,52 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
     @AfterClass(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testBucketDelayedDeliveryWithAllConsumersDisconnecting() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelaysWithAllConsumerDis");
+
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
+        List<String> bucketKeys =
+                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties().keySet().stream()
+                        .filter(x -> x.startsWith(ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+
+        c1.close();
+
+        // Attach a new consumer. Since there are no consumers connected, this will trigger the cursor rewind
+        @Cleanup
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Dispatcher dispatcher2 = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        List<String> bucketKeys2 =
+                ((PersistentDispatcherMultipleConsumers) dispatcher2).getCursor().getCursorProperties().keySet().stream()
+                        .filter(x -> x.startsWith(ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
+        Assert.assertEquals(bucketKeys, bucketKeys2);
     }
 }

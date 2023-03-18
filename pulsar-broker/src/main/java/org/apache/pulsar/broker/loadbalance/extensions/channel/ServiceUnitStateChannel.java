@@ -20,7 +20,9 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import java.io.Closeable;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
@@ -164,4 +166,19 @@ public interface ServiceUnitStateChannel extends Closeable {
      */
     void listen(StateChangeListener listener);
 
+    /**
+     * Returns service unit ownership entry set.
+     * @return a set of service unit ownership entries
+     */
+    Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet();
+
+    /**
+     * Schedules ownership monitor to periodically check and correct invalid ownership states.
+     */
+    void scheduleOwnershipMonitor();
+
+    /**
+     * Cancels the ownership monitor.
+     */
+    void cancelOwnershipMonitor();
 }
