@@ -142,7 +142,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                     log.info(String.format(
                             CANNOT_SPLIT_BUNDLE_MSG
                                     + " Split condition hit count: %d is"
-                                    + " smaller than or equal to threshold: %d. "
+                                    + " less than or equal to threshold: %d. "
                                     + "Topics: %d/%d, "
                                     + "Sessions: (%d+%d)/%d, "
                                     + "Message Rate: %.2f/%d (msgs/s), "

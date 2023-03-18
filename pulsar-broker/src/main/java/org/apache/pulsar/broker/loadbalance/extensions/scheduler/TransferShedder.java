@@ -351,7 +351,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             if (unloadConditionHitCount <= conf.getLoadBalancerSheddingConditionHitCountThreshold()) {
                 if (debugMode) {
                     log.info(CANNOT_CONTINUE_UNLOAD_MSG
-                                    + " Shedding condition hit count:{} is less than the threshold:{}.",
+                                    + " Shedding condition hit count:{} is less than or equal to the threshold:{}.",
                             unloadConditionHitCount, conf.getLoadBalancerSheddingConditionHitCountThreshold());
                 }
                 counter.update(Skip, HitCount);
