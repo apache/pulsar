@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
-
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
