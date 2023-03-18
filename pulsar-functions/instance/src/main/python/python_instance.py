@@ -352,6 +352,17 @@ class PythonInstance(object):
       if crypto_key_reader is not None:
         encryption_key = self.instance_config.function_details.sink.producerSpec.cryptoSpec.producerEncryptionKeyName[0]
 
+      compression_type = pulsar.CompressionType.LZ4
+      if self.instance_config.function_details.sink.producerSpec.compressionType is not None:
+        if self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("NONE"):
+          compression_type = pulsar.CompressionType.NONE
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("ZLIB"):
+          compression_type = pulsar.CompressionType.ZLib
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("ZSTD"):
+          compression_type = pulsar.CompressionType.ZSTD
+        elif self.instance_config.function_details.sink.producerSpec.compressionType == Function_pb2.CompressionType.Value("SNAPPY"):
+          compression_type = pulsar.CompressionType.SNAPPY
+
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         schema=self.output_schema,
@@ -359,7 +370,7 @@ class PythonInstance(object):
         batching_enabled=True,
         batching_type=batch_type,
         batching_max_publish_delay_ms=10,
-        compression_type=pulsar.CompressionType.LZ4,
+        compression_type=compression_type,
         # set send timeout to be infinity to prevent potential deadlock with consumer
         # that might happen when consumer is blocked due to unacked messages
         send_timeout_millis=0,
