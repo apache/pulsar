@@ -19,28 +19,53 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.collect.Multimap;
+
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.prometheus.client.CollectorRegistry;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.impl.stats.BatchMetadataStoreStats;
+import org.apache.pulsar.metadata.impl.stats.MetadataStoreStats;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
 @Test(groups = "broker")
 public class MetadataStoreStatsTest extends BrokerTestBase {
+
+    private final CollectorRegistry registry = new CollectorRegistry(true);
+    private String metadataStoreStatsIsolationToken;
+    private String batchMetadataStoreStatsIsolationToken;
+
+    @BeforeClass
+    public void metricIsolationSetup() {
+        metadataStoreStatsIsolationToken = MetadataStoreStats.registerMetrics(registry);
+        batchMetadataStoreStatsIsolationToken = BatchMetadataStoreStats.registerMetrics(registry);
+    }
+
+    @AfterClass
+    public void metricIsolationTearDown() {
+        MetadataStoreStats.unregisterMetrics(metadataStoreStatsIsolationToken, registry);
+        BatchMetadataStoreStats.unregisterMetric(batchMetadataStoreStatsIsolationToken, registry);
+    }
 
     @BeforeMethod(alwaysRun = true)
     @Override
@@ -65,6 +90,22 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    private String getMetricStr(ByteArrayOutputStream out) {
+        ByteBuf buffer = Unpooled.buffer();
+        SimpleTextOutputStream simpleTextOutputStream = new SimpleTextOutputStream(buffer);
+        PrometheusMetricsGeneratorUtils.generateSystemMetrics(registry, simpleTextOutputStream, configClusterName);
+
+        buffer = simpleTextOutputStream.getBuffer();
+
+        int readIndex = buffer.readerIndex();
+        int readableBytes = buffer.readableBytes();
+        for (int i = 0; i < readableBytes; i++) {
+            out.write(buffer.getByte(readIndex + i));
+        }
+
+        return out.toString();
     }
 
     @Test
@@ -95,8 +136,9 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
-        String metricsStr = output.toString();
+
+        String metricsStr = getMetricStr(output);
+
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
         String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsStr + "\n";
@@ -177,8 +219,7 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
         }
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, false, false, false, false, output);
-        String metricsStr = output.toString();
+        String metricsStr = getMetricStr(output);
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
 
         Collection<PrometheusMetricsTest.Metric> executorQueueSize = metricsMap.get("pulsar_batch_metadata_store_executor_queue_size");

@@ -186,7 +186,7 @@ public class PrometheusMetricsGenerator {
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
-            generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
+            generateSystemMetrics(CollectorRegistry.defaultRegistry, stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
                     includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStreams);

@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.metadata.impl.stats;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
+
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MetadataStoreStats implements AutoCloseable {
@@ -36,29 +40,23 @@ public final class MetadataStoreStats implements AutoCloseable {
 
     protected static final String PREFIX = "pulsar_metadata_store_";
 
-    private static final Histogram OPS_LATENCY = Histogram
-            .build(PREFIX + "ops_latency", "-")
-            .unit("ms")
-            .buckets(BUCKETS)
-            .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
-            .register();
-    private static final Counter PUT_BYTES = Counter
-            .build(PREFIX + "put", "-")
-            .unit("bytes")
-            .labelNames(METADATA_STORE_LABEL_NAME)
-            .register();
 
-    private final Histogram.Child getOpsSucceedChild;
-    private final Histogram.Child delOpsSucceedChild;
-    private final Histogram.Child putOpsSucceedChild;
-    private final Histogram.Child getOpsFailedChild;
-    private final Histogram.Child delOpsFailedChild;
-    private final Histogram.Child putOpsFailedChild;
-    private final Counter.Child putBytesChild;
+    private static Histogram OPS_LATENCY;
+    private static Counter PUT_BYTES;
+
+    private Histogram.Child getOpsSucceedChild;
+    private Histogram.Child delOpsSucceedChild;
+    private Histogram.Child putOpsSucceedChild;
+    private Histogram.Child getOpsFailedChild;
+    private Histogram.Child delOpsFailedChild;
+    private Histogram.Child putOpsFailedChild;
+    private Counter.Child putBytesChild;
     private final String metadataStoreName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public MetadataStoreStats(String metadataStoreName) {
+        MetadataStoreStats.registerMetrics(CollectorRegistry.defaultRegistry);
+
         this.metadataStoreName = metadataStoreName;
 
         this.getOpsSucceedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
@@ -68,6 +66,61 @@ public final class MetadataStoreStats implements AutoCloseable {
         this.delOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
         this.putOpsFailedChild = OPS_LATENCY.labels(metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
         this.putBytesChild = PUT_BYTES.labels(metadataStoreName);
+    }
+
+    private static String metricOverrideByUnittest = "";
+
+    @VisibleForTesting
+    public static String registerMetrics(CollectorRegistry registry) {
+        boolean isUnittestMetricOverride = registry.equals(CollectorRegistry.defaultRegistry);
+
+        // lock to avoid different instance re-register metrics
+        synchronized (MetadataStoreStats.class) {
+            boolean createMetric = false;
+
+            if (OPS_LATENCY == null) {
+                createMetric = true;
+
+                OPS_LATENCY = Histogram
+                        .build(PREFIX + "ops_latency", "-")
+                        .unit("ms")
+                        .buckets(BUCKETS)
+                        .labelNames(METADATA_STORE_LABEL_NAME, OPS_TYPE_LABEL_NAME, STATUS)
+                        .register(registry);
+            }
+
+            if (PUT_BYTES == null) {
+                PUT_BYTES = Counter
+                        .build(PREFIX + "put", "-")
+                        .unit("bytes")
+                        .labelNames(METADATA_STORE_LABEL_NAME)
+                        .register(registry);
+            }
+
+            if (createMetric && isUnittestMetricOverride) {
+                metricOverrideByUnittest = UUID.randomUUID().toString();
+                return metricOverrideByUnittest;
+            }
+        }
+
+        return "";
+    }
+
+    @VisibleForTesting
+    public static void unregisterMetrics(String registerToken, CollectorRegistry registry) {
+        synchronized (MetadataStoreStats.class) {
+            if (registerToken.equals(metricOverrideByUnittest)) {
+                metricOverrideByUnittest = "";
+
+                registry.unregister(PUT_BYTES);
+                registry.unregister(OPS_LATENCY);
+
+                PUT_BYTES = null;
+                OPS_LATENCY = null;
+
+                registerMetrics(CollectorRegistry.defaultRegistry);
+            }
+        }
     }
 
     public void recordGetOpsSucceeded(long millis) {
@@ -98,13 +151,20 @@ public final class MetadataStoreStats implements AutoCloseable {
     @Override
     public void close() throws Exception {
         if (this.closed.compareAndSet(false, true)) {
-            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
-            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_DEL, STATUS_SUCCESS);
-            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_PUT, STATUS_SUCCESS);
-            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_GET, STATUS_FAIL);
-            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
-            OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
-            PUT_BYTES.remove(this.metadataStoreName);
+            synchronized (MetadataStoreStats.this) {
+                if (OPS_LATENCY != null) {
+                    OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_GET, STATUS_SUCCESS);
+                    OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_DEL, STATUS_SUCCESS);
+                    OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_PUT, STATUS_SUCCESS);
+                    OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_GET, STATUS_FAIL);
+                    OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_DEL, STATUS_FAIL);
+                    OPS_LATENCY.remove(this.metadataStoreName, OPS_TYPE_PUT, STATUS_FAIL);
+                }
+
+                if (PUT_BYTES != null) {
+                    PUT_BYTES.remove(this.metadataStoreName);
+                }
+            }
         }
     }
 }

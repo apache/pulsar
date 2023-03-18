@@ -41,7 +41,7 @@ public class PrometheusMetricsGeneratorUtils {
         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
-            generateSystemMetrics(stream, cluster);
+            generateSystemMetrics(CollectorRegistry.defaultRegistry, stream, cluster);
             if (metricsProviders != null) {
                 for (PrometheusRawMetricsProvider metricsProvider : metricsProviders) {
                     metricsProvider.generate(stream);
@@ -53,9 +53,9 @@ public class PrometheusMetricsGeneratorUtils {
         }
     }
 
-    public static void generateSystemMetrics(SimpleTextOutputStream stream, String cluster) {
+    public static void generateSystemMetrics(CollectorRegistry registry, SimpleTextOutputStream stream, String cluster) {
         Enumeration<Collector.MetricFamilySamples> metricFamilySamples =
-                CollectorRegistry.defaultRegistry.metricFamilySamples();
+                registry.metricFamilySamples();
         while (metricFamilySamples.hasMoreElements()) {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 

@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.metadata.impl.stats;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -28,27 +32,10 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
     private static final String NAME = "name";
 
-    private static final Gauge EXECUTOR_QUEUE_SIZE = Gauge
-            .build("pulsar_batch_metadata_store_executor_queue_size", "-")
-            .labelNames(NAME)
-            .register();
-    private static final Histogram OPS_WAITING = Histogram
-            .build("pulsar_batch_metadata_store_queue_wait_time", "-")
-            .unit("ms")
-            .labelNames(NAME)
-            .buckets(BUCKETS)
-            .register();
-    private static final Histogram BATCH_EXECUTE_TIME = Histogram
-            .build("pulsar_batch_metadata_store_batch_execute_time", "-")
-            .unit("ms")
-            .labelNames(NAME)
-            .buckets(BUCKETS)
-            .register();
-    private static final Histogram OPS_PER_BATCH = Histogram
-            .build("pulsar_batch_metadata_store_batch_size", "-")
-            .labelNames(NAME)
-            .buckets(BUCKETS)
-            .register();
+    private static Gauge EXECUTOR_QUEUE_SIZE;
+    private static Histogram OPS_WAITING;
+    private static Histogram BATCH_EXECUTE_TIME;
+    private static Histogram OPS_PER_BATCH;
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final ThreadPoolExecutor executor;
@@ -59,6 +46,8 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     private final Histogram.Child opsPerBatchChild;
 
     public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor) {
+        BatchMetadataStoreStats.registerMetrics(CollectorRegistry.defaultRegistry);
+
         if (executor instanceof ThreadPoolExecutor tx) {
             this.executor = tx;
         } else {
@@ -80,6 +69,81 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
 
     }
 
+    private static String metricOverrideByUnittest = "";
+
+    @VisibleForTesting
+    public static String registerMetrics(CollectorRegistry registry) {
+        boolean isUnittestMetricOverride = registry.equals(CollectorRegistry.defaultRegistry);
+
+        // lock to avoid different instance re-register metrics
+        synchronized (BatchMetadataStoreStats.class) {
+            boolean createMetric = false;
+
+            if (EXECUTOR_QUEUE_SIZE == null) {
+                createMetric = true;
+
+                EXECUTOR_QUEUE_SIZE = Gauge
+                        .build("pulsar_batch_metadata_store_executor_queue_size", "-")
+                        .labelNames(NAME)
+                        .register(registry);
+            }
+
+            if (OPS_WAITING == null) {
+                OPS_WAITING = Histogram
+                        .build("pulsar_batch_metadata_store_queue_wait_time", "-")
+                        .unit("ms")
+                        .labelNames(NAME)
+                        .buckets(BUCKETS)
+                        .register(registry);
+            }
+
+            if (BATCH_EXECUTE_TIME == null) {
+                BATCH_EXECUTE_TIME = Histogram
+                        .build("pulsar_batch_metadata_store_batch_execute_time", "-")
+                        .unit("ms")
+                        .labelNames(NAME)
+                        .buckets(BUCKETS)
+                        .register(registry);
+            }
+
+            if (OPS_PER_BATCH == null) {
+                OPS_PER_BATCH = Histogram
+                        .build("pulsar_batch_metadata_store_batch_size", "-")
+                        .labelNames(NAME)
+                        .buckets(BUCKETS)
+                        .register(registry);
+            }
+
+            if (createMetric && isUnittestMetricOverride) {
+                metricOverrideByUnittest = UUID.randomUUID().toString();
+                return metricOverrideByUnittest;
+            }
+        }
+
+        return "";
+    }
+
+    @VisibleForTesting
+    public static void unregisterMetric(String registerToken, CollectorRegistry registry) {
+        synchronized (BatchMetadataStoreStats.class) {
+            if (registerToken.equals(metricOverrideByUnittest)) {
+                metricOverrideByUnittest = "";
+
+                registry.unregister(EXECUTOR_QUEUE_SIZE);
+                registry.unregister(OPS_WAITING);
+                registry.unregister(BATCH_EXECUTE_TIME);
+                registry.unregister(OPS_PER_BATCH);
+
+                EXECUTOR_QUEUE_SIZE = null;
+                OPS_WAITING = null;
+                BATCH_EXECUTE_TIME = null;
+                OPS_PER_BATCH = null;
+
+                registerMetrics(CollectorRegistry.defaultRegistry);
+            }
+        }
+    }
+
     public void recordOpWaiting(long millis) {
         this.batchOpsWaitingChild.observe(millis);
     }
@@ -95,10 +159,23 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     @Override
     public void close() throws Exception {
         if (closed.compareAndSet(false, true)) {
-            EXECUTOR_QUEUE_SIZE.remove(this.metadataStoreName);
-            OPS_WAITING.remove(this.metadataStoreName);
-            BATCH_EXECUTE_TIME.remove(this.metadataStoreName);
-            OPS_PER_BATCH.remove(metadataStoreName);
+            synchronized (BatchMetadataStoreStats.class) {
+                if (EXECUTOR_QUEUE_SIZE != null) {
+                    EXECUTOR_QUEUE_SIZE.remove(this.metadataStoreName);
+                }
+
+                if (OPS_WAITING != null) {
+                    OPS_WAITING.remove(this.metadataStoreName);
+                }
+
+                if (BATCH_EXECUTE_TIME != null) {
+                    BATCH_EXECUTE_TIME.remove(this.metadataStoreName);
+                }
+
+                if (OPS_PER_BATCH != null) {
+                    OPS_PER_BATCH.remove(metadataStoreName);
+                }
+            }
         }
     }
 }
