@@ -222,8 +222,8 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             trackFuture = revalidate(value);
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("Previous revalidating is not finished while revalidate newValue={}, value={}, version={}",
-                        value, value, version);
+                log.debug("Previous revalidating is not finished while revalidate value={}, version={}",
+                        value, version);
             }
             trackFuture = pendingOperationFuture.exceptionally(ex -> null)
                     .thenCompose(__ -> revalidate(value));
