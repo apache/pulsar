@@ -54,32 +54,37 @@ public class AntiAffinityGroupPolicyHelper {
             String bundle,
             String srcBroker,
             Optional<String> dstBroker) {
+
         try {
             var antiAffinityGroupOptional = LoadManagerShared.getNamespaceAntiAffinityGroup(
                     pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle));
-            if (antiAffinityGroupOptional.isPresent()) {
-
-                // copy to retain the input brokers
-                Map<String, BrokerLookupData> candidates = new HashMap<>(brokers);
-
-                filter(candidates, bundle);
-
-                candidates.remove(srcBroker);
-
-                // unload case
-                if (dstBroker.isEmpty()) {
-                    return !candidates.isEmpty();
-                }
-
-                // transfer case
-                return candidates.containsKey(dstBroker.get());
+            if (antiAffinityGroupOptional.isEmpty()) {
+                return true;
             }
+
+            // bundle has anti-affinityGroup
+            if (!pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled()) {
+                return false;
+            }
+
+            // copy to retain the input brokers
+            Map<String, BrokerLookupData> candidates = new HashMap<>(brokers);
+
+            filter(candidates, bundle);
+
+            candidates.remove(srcBroker);
+
+            // unload case
+            if (dstBroker.isEmpty()) {
+                return !candidates.isEmpty();
+            }
+
+            // transfer case
+            return candidates.containsKey(dstBroker.get());
         } catch (MetadataStoreException e) {
             log.error("Failed to check unload candidates. Assumes that bundle:{} cannot unload ", bundle, e);
             return false;
         }
-
-        return true;
     }
 
     public void listenFailureDomainUpdate() {

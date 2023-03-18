@@ -227,6 +227,12 @@ public class TopKBundlesTest {
 
         assertEquals(top0.bundleName(), bundle2);
         assertEquals(top1.bundleName(), bundle1);
+
+        configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
+
+        topKBundles.update(bundleStats, 2);
+
+        assertEquals(topKBundles.getLoadData().getTopBundlesLoadData().size(), 0);
     }
 
 

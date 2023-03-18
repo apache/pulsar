@@ -456,21 +456,18 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         if (pulsar == null || allocationPolicies == null) {
             return true;
         }
-        var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
-                context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+
         String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespace, bundleRange);
 
-        if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled
-                && !canTransferWithIsolationPoliciesToBroker(
+        if (!canTransferWithIsolationPoliciesToBroker(
                 context, availableBrokers, namespaceBundle, srcBroker, dstBroker)) {
             return false;
         }
 
-        if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled
-                && !antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
+        if (!antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
             return false;
         }
         return true;
@@ -495,6 +492,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 || !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
             return true;
         }
+
+        // bundle has isolation policies.
+        if (!context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled()) {
+            return false;
+        }
+
         boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
         Set<String> candidates = isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, namespaceBundle);
 

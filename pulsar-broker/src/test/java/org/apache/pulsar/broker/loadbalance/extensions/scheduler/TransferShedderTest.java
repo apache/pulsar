@@ -500,6 +500,25 @@ public class TransferShedderTest {
         assertEquals(res, expected);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
+
+
+        // test setLoadBalancerSheddingBundlesWithPoliciesEnabled=false;
+        doReturn(true).when(allocationPoliciesSpy).areIsolationPoliciesPresent(any());
+        ctx.brokerConfiguration().setLoadBalancerTransferEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
+        res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+
+        // Test unload a has isolation policies broker.
+        ctx.brokerConfiguration().setLoadBalancerTransferEnabled(false);
+        res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 2);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
     }
 
     public BrokerLookupData getLookupData() {
@@ -601,37 +620,9 @@ public class TransferShedderTest {
         var expected2 = new HashSet<>();
         expected2.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
                 Success, Overloaded));
-        assertEquals(res, expected2);
+        assertEquals(res2, expected2);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
-    }
-
-    @Test
-    public void testLoadBalancerSheddingBundlesWithPoliciesEnabledConfig()
-            throws IllegalAccessException, MetadataStoreException {
-
-        var ctx = setupContext();
-        var counter = new UnloadCounter();
-        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
-        TransferShedder transferShedder = new TransferShedder(pulsar, counter, antiAffinityGroupPolicyHelper);
-        var allocationPoliciesSpy = (SimpleResourceAllocationPolicies)
-                spy(FieldUtils.readDeclaredField(transferShedder, "allocationPolicies", true));
-        doReturn(true).when(allocationPoliciesSpy).areIsolationPoliciesPresent(any());
-        FieldUtils.writeDeclaredField(transferShedder, "allocationPolicies", allocationPoliciesSpy, true);
-        LocalPolicies localPolicies = new LocalPolicies(null, null, "namespaceAntiAffinityGroup");
-        doReturn(Optional.of(localPolicies)).when(localPoliciesResources).getLocalPolicies(any());
-
-        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
-
-        var expected = new HashSet<>();
-        expected.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
-                Success, Overloaded));
-        expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker2")),
-                Success, Overloaded));
-        assertEquals(res, expected);
-        assertEquals(counter.getLoadAvg(), setupLoadAvg);
-        assertEquals(counter.getLoadStd(), setupLoadStd);
-        assertEquals(res, expected);
     }
 
     @Test
