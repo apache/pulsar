@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.auth;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import java.util.concurrent.ExecutionException;
 import javax.naming.AuthenticationException;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
@@ -47,7 +48,11 @@ public class MockMutableAuthenticationState implements AuthenticationState {
 
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
-        return null;
+        try {
+            return this.authenticateAsync(authData).get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
