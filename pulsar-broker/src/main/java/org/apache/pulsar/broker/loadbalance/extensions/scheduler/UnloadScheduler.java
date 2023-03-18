@@ -18,21 +18,30 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Success;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
 
@@ -43,6 +52,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
 
     private final ScheduledExecutorService loadManagerExecutor;
 
+    private final PulsarService pulsar;
+
     private final UnloadManager unloadManager;
 
     private final LoadManagerContext context;
@@ -51,32 +62,49 @@ public class UnloadScheduler implements LoadManagerScheduler {
 
     private final ServiceConfiguration conf;
 
+    private final UnloadCounter counter;
+
+    private final AtomicReference<List<Metrics>> unloadMetrics;
+
+    private long counterLastUpdatedAt = 0;
+
     private volatile ScheduledFuture<?> task;
+
+    private final Set<String> unloadBrokers;
 
     private final Map<String, Long> recentlyUnloadedBundles;
 
     private final Map<String, Long> recentlyUnloadedBrokers;
 
-    private volatile CompletableFuture<Void> currentRunningFuture = null;
-
-    public UnloadScheduler(ScheduledExecutorService loadManagerExecutor,
+    public UnloadScheduler(PulsarService pulsar,
+                           ScheduledExecutorService loadManagerExecutor,
                            UnloadManager unloadManager,
                            LoadManagerContext context,
-                           ServiceUnitStateChannel channel) {
-        this(loadManagerExecutor, unloadManager, context,
-                channel, createNamespaceUnloadStrategy(context.brokerConfiguration()));
+                           ServiceUnitStateChannel channel,
+                           AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper,
+                           UnloadCounter counter,
+                           AtomicReference<List<Metrics>> unloadMetrics) {
+        this(pulsar, loadManagerExecutor, unloadManager, context, channel,
+                createNamespaceUnloadStrategy(pulsar, antiAffinityGroupPolicyHelper, counter), counter, unloadMetrics);
     }
 
     @VisibleForTesting
-    protected UnloadScheduler(ScheduledExecutorService loadManagerExecutor,
+    protected UnloadScheduler(PulsarService pulsar,
+                              ScheduledExecutorService loadManagerExecutor,
                               UnloadManager unloadManager,
                               LoadManagerContext context,
                               ServiceUnitStateChannel channel,
-                              NamespaceUnloadStrategy strategy) {
+                              NamespaceUnloadStrategy strategy,
+                              UnloadCounter counter,
+                              AtomicReference<List<Metrics>> unloadMetrics) {
+        this.pulsar = pulsar;
         this.namespaceUnloadStrategy = strategy;
         this.recentlyUnloadedBundles = new HashMap<>();
         this.recentlyUnloadedBrokers = new HashMap<>();
+        this.unloadBrokers = new HashSet<>();
         this.loadManagerExecutor = loadManagerExecutor;
+        this.counter = counter;
+        this.unloadMetrics = unloadMetrics;
         this.unloadManager = unloadManager;
         this.context = context;
         this.conf = context.brokerConfiguration();
@@ -96,62 +124,72 @@ public class UnloadScheduler implements LoadManagerScheduler {
             }
             return;
         }
-        if (currentRunningFuture != null && !currentRunningFuture.isDone()) {
-            if (debugMode) {
-                log.info("Auto namespace unload is running. Skipping.");
-            }
-            return;
-        }
         // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
         final long timeout = System.currentTimeMillis()
                 - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
-        this.currentRunningFuture = channel.isChannelOwnerAsync().thenCompose(isChannelOwner -> {
-            if (!isChannelOwner) {
-                if (debugMode) {
-                    log.info("Current broker is not channel owner. Skipping.");
+        long asyncOpTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
+        synchronized (namespaceUnloadStrategy) {
+            try {
+                Boolean isChannelOwner = channel.isChannelOwnerAsync().get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
+                if (!isChannelOwner) {
+                    if (debugMode) {
+                        log.info("Current broker is not channel owner. Skipping.");
+                    }
+                    return;
                 }
-                return CompletableFuture.completedFuture(null);
-            }
-            return context.brokerRegistry().getAvailableBrokersAsync().thenCompose(availableBrokers -> {
+                List<String> availableBrokers = context.brokerRegistry().getAvailableBrokersAsync()
+                        .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
                 if (debugMode) {
-                   log.info("Available brokers: {}", availableBrokers);
+                    log.info("Available brokers: {}", availableBrokers);
                 }
                 if (availableBrokers.size() <= 1) {
                     log.info("Only 1 broker available: no load shedding will be performed. Skipping.");
-                    return CompletableFuture.completedFuture(null);
+                    return;
                 }
-                final UnloadDecision unloadDecision = namespaceUnloadStrategy
+                final Set<UnloadDecision> decisions = namespaceUnloadStrategy
                         .findBundlesForUnloading(context, recentlyUnloadedBundles, recentlyUnloadedBrokers);
                 if (debugMode) {
                     log.info("[{}] Unload decision result: {}",
-                            namespaceUnloadStrategy.getClass().getSimpleName(), unloadDecision.toString());
+                            namespaceUnloadStrategy.getClass().getSimpleName(), decisions);
                 }
-                if (unloadDecision.getUnloads().isEmpty()) {
+                if (decisions.isEmpty()) {
                     if (debugMode) {
                         log.info("[{}] Unload decision unloads is empty. Skipping.",
                                 namespaceUnloadStrategy.getClass().getSimpleName());
                     }
-                    return CompletableFuture.completedFuture(null);
+                    return;
                 }
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                unloadDecision.getUnloads().forEach((broker, unload) -> {
-                    log.info("[{}] Unloading bundle: {}", namespaceUnloadStrategy.getClass().getSimpleName(), unload);
-                    futures.add(unloadManager.waitAsync(channel.publishUnloadEventAsync(unload), unload.serviceUnit(),
-                                    conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS)
-                            .thenAccept(__ -> {
-                                recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
-                                recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
-                    }));
+                unloadBrokers.clear();
+                decisions.forEach(decision -> {
+                    if (decision.getLabel() == Success) {
+                        Unload unload = decision.getUnload();
+                        log.info("[{}] Unloading bundle: {}",
+                                namespaceUnloadStrategy.getClass().getSimpleName(), unload);
+                        futures.add(unloadManager.waitAsync(channel.publishUnloadEventAsync(unload),
+                                        unload.serviceUnit(), decision, asyncOpTimeoutMs, TimeUnit.MILLISECONDS)
+                                .thenAccept(__ -> {
+                                    unloadBrokers.add(unload.sourceBroker());
+                                    recentlyUnloadedBundles.put(unload.serviceUnit(), System.currentTimeMillis());
+                                    recentlyUnloadedBrokers.put(unload.sourceBroker(), System.currentTimeMillis());
+                                }));
+                    }
                 });
-                return FutureUtil.waitForAll(futures).exceptionally(ex -> {
-                    log.error("[{}] Namespace unload has exception.",
-                            namespaceUnloadStrategy.getClass().getSimpleName(), ex);
-                    return null;
-                });
-            });
-        });
+                FutureUtil.waitForAll(futures)
+                        .whenComplete((__, ex) -> counter.updateUnloadBrokerCount(unloadBrokers.size()))
+                        .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
+            } catch (Exception ex) {
+                log.error("[{}] Namespace unload has exception.",
+                        namespaceUnloadStrategy.getClass().getSimpleName(), ex);
+            } finally {
+                if (counter.updatedAt() > counterLastUpdatedAt) {
+                    unloadMetrics.set(counter.toMetrics(pulsar.getAdvertisedAddress()));
+                    counterLastUpdatedAt = counter.updatedAt();
+                }
+            }
+        }
     }
 
     @Override
@@ -174,7 +212,10 @@ public class UnloadScheduler implements LoadManagerScheduler {
         this.recentlyUnloadedBrokers.clear();
     }
 
-    private static NamespaceUnloadStrategy createNamespaceUnloadStrategy(ServiceConfiguration conf) {
+    private static NamespaceUnloadStrategy createNamespaceUnloadStrategy(PulsarService pulsar,
+                                                                         AntiAffinityGroupPolicyHelper helper,
+                                                                         UnloadCounter counter) {
+        ServiceConfiguration conf = pulsar.getConfiguration();
         try {
             return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), NamespaceUnloadStrategy.class,
                     Thread.currentThread().getContextClassLoader());
@@ -183,7 +224,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
                     conf.getLoadBalancerLoadPlacementStrategy(), e);
         }
         log.error("create namespace unload strategy failed. using TransferShedder instead.");
-        return new TransferShedder();
+        return new TransferShedder(pulsar, counter, helper);
     }
 
     private boolean isLoadBalancerSheddingEnabled() {

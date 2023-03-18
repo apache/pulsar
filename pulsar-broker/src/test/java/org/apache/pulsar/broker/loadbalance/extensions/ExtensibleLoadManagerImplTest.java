@@ -64,8 +64,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentMap;
-import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -74,9 +72,7 @@ import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
-import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
@@ -206,10 +202,9 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @BeforeMethod
-    protected void initializeState() throws IllegalAccessException {
+    protected void initializeState() throws PulsarAdminException {
+        admin.namespaces().unload("public/default");
         reset(primaryLoadManager, secondaryLoadManager);
-        cleanTableView(channel1);
-        cleanTableView(channel2);
     }
 
     @Test
@@ -561,20 +556,20 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             FieldUtils.writeDeclaredField(unloadCounter, "loadStd", 0.3, true);
             FieldUtils.writeDeclaredField(unloadCounter, "breakdownCounters", Map.of(
                     Success, new LinkedHashMap<>() {{
-                        put(Overloaded, new MutableLong(1));
-                        put(Underloaded, new MutableLong(2));
+                        put(Overloaded, new AtomicLong(1));
+                        put(Underloaded, new AtomicLong(2));
                     }},
                     Skip, new LinkedHashMap<>() {{
-                        put(Balanced, new MutableLong(3));
-                        put(NoBundles, new MutableLong(4));
-                        put(CoolDown, new MutableLong(5));
-                        put(OutDatedData, new MutableLong(6));
-                        put(NoLoadData, new MutableLong(7));
-                        put(NoBrokers, new MutableLong(8));
-                        put(Unknown, new MutableLong(9));
+                        put(Balanced, new AtomicLong(3));
+                        put(NoBundles, new AtomicLong(4));
+                        put(CoolDown, new AtomicLong(5));
+                        put(OutDatedData, new AtomicLong(6));
+                        put(NoLoadData, new AtomicLong(7));
+                        put(NoBrokers, new AtomicLong(8));
+                        put(Unknown, new AtomicLong(9));
                     }},
                     Failure, Map.of(
-                            Unknown, new MutableLong(10))
+                            Unknown, new AtomicLong(10))
             ), true);
             unloadMetrics.set(unloadCounter.toMetrics(pulsar.getAdvertisedAddress()));
         }
@@ -720,15 +715,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             // No-op
         }
 
-    }
-
-    private static void cleanTableView(ServiceUnitStateChannel channel)
-            throws IllegalAccessException {
-        var tv = (TableViewImpl<ServiceUnitStateData>)
-                FieldUtils.readField(channel, "tableview", true);
-        var cache = (ConcurrentMap<String, ServiceUnitStateData>)
-                FieldUtils.readField(tv, "data", true);
-        cache.clear();
     }
 
     private void setPrimaryLoadManager() throws IllegalAccessException {

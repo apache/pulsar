@@ -18,29 +18,21 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.models;
 
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Skip;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Success;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Balanced;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBundles;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoLoadData;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
  * Defines the information required to unload or transfer a service unit(e.g. bundle).
  */
 @Data
+@AllArgsConstructor
 public class UnloadDecision {
-    Multimap<String, Unload> unloads;
+    Unload unload;
     Label label;
     Reason reason;
-    Double loadAvg;
-    Double loadStd;
+
     public enum Label {
         Success,
         Skip,
@@ -55,39 +47,20 @@ public class UnloadDecision {
         OutDatedData,
         NoLoadData,
         NoBrokers,
+        Admin,
         Unknown
     }
 
     public UnloadDecision() {
-        unloads = ArrayListMultimap.create();
+        unload = null;
         label = null;
         reason = null;
-        loadAvg = null;
-        loadStd = null;
     }
 
     public void clear() {
-        unloads.clear();
+        unload = null;
         label = null;
         reason = null;
-        loadAvg = null;
-        loadStd = null;
-    }
-
-    public void skip(int numOfOverloadedBrokers,
-                     int numOfUnderloadedBrokers,
-                     int numOfBrokersWithEmptyLoadData,
-                     int numOfBrokersWithFewBundles) {
-        label = Skip;
-        if (numOfOverloadedBrokers == 0 && numOfUnderloadedBrokers == 0) {
-            reason = Balanced;
-        } else if (numOfBrokersWithEmptyLoadData > 0) {
-            reason = NoLoadData;
-        } else if (numOfBrokersWithFewBundles > 0) {
-            reason = NoBundles;
-        } else {
-            reason = Unknown;
-        }
     }
 
     public void skip(Reason reason) {
@@ -95,22 +68,9 @@ public class UnloadDecision {
         this.reason = reason;
     }
 
-    public void succeed(
-                        int numOfOverloadedBrokers,
-                        int numOfUnderloadedBrokers) {
-
-        label = Success;
-        if (numOfOverloadedBrokers > numOfUnderloadedBrokers) {
-            reason = Overloaded;
-        } else {
-            reason = Underloaded;
-        }
-    }
-
-
-    public void fail() {
-        label = Failure;
-        reason = Unknown;
+    public void succeed(Reason reason) {
+        this.label = Success;
+        this.reason = reason;
     }
 
 }

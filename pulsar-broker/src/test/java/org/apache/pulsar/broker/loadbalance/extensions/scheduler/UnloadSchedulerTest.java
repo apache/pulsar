@@ -28,23 +28,29 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Lists;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.stats.Metrics;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Test(groups = "broker")
 public class UnloadSchedulerTest {
@@ -70,23 +76,28 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testExecuteSuccess() {
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
+        UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         BrokerRegistry registry = context.brokerRegistry();
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
         UnloadManager unloadManager = mock(UnloadManager.class);
+        PulsarService pulsar = mock(PulsarService.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         doReturn(CompletableFuture.completedFuture(true)).when(channel).isChannelOwnerAsync();
         doReturn(CompletableFuture.completedFuture(Lists.newArrayList("broker-1", "broker-2")))
                 .when(registry).getAvailableBrokersAsync();
         doReturn(CompletableFuture.completedFuture(null)).when(channel).publishUnloadEventAsync(any());
         doReturn(CompletableFuture.completedFuture(null)).when(unloadManager)
-                .waitAsync(any(), any(), anyLong(), any());
+                .waitAsync(any(), any(), any(), anyLong(), any());
         UnloadDecision decision = new UnloadDecision();
         Unload unload = new Unload("broker-1", "bundle-1");
-        decision.getUnloads().put("broker-1", unload);
-        doReturn(decision).when(unloadStrategy).findBundlesForUnloading(any(), any(), any());
+        decision.setUnload(unload);
+        decision.setLabel(UnloadDecision.Label.Success);
+        doReturn(Set.of(decision)).when(unloadStrategy).findBundlesForUnloading(any(), any(), any());
 
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
+        UnloadScheduler scheduler = new UnloadScheduler(pulsar, loadManagerExecutor, unloadManager, context,
+                channel, unloadStrategy, counter, reference);
 
         scheduler.execute();
 
@@ -94,7 +105,7 @@ public class UnloadSchedulerTest {
 
         // Test empty unload.
         UnloadDecision emptyUnload = new UnloadDecision();
-        doReturn(emptyUnload).when(unloadStrategy).findBundlesForUnloading(any(), any(), any());
+        doReturn(Set.of(emptyUnload)).when(unloadStrategy).findBundlesForUnloading(any(), any(), any());
 
         scheduler.execute();
 
@@ -103,26 +114,29 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testExecuteMoreThenOnceWhenFirstNotDone() throws InterruptedException {
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
+        UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         BrokerRegistry registry = context.brokerRegistry();
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
         UnloadManager unloadManager = mock(UnloadManager.class);
+        PulsarService pulsar = mock(PulsarService.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         doReturn(CompletableFuture.completedFuture(true)).when(channel).isChannelOwnerAsync();
         doAnswer(__ -> CompletableFuture.supplyAsync(() -> {
                 try {
                     // Delay 5 seconds to finish.
-                    TimeUnit.SECONDS.sleep(5);
+                    TimeUnit.SECONDS.sleep(1);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
                 return Lists.newArrayList("broker-1", "broker-2");
             }, Executors.newFixedThreadPool(1))).when(registry).getAvailableBrokersAsync();
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
-
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
-        CountDownLatch latch = new CountDownLatch(10);
-        for (int i = 0; i < 10; i++) {
+        UnloadScheduler scheduler = new UnloadScheduler(pulsar, loadManagerExecutor, unloadManager, context,
+                channel, unloadStrategy, counter, reference);
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
+        CountDownLatch latch = new CountDownLatch(5);
+        for (int i = 0; i < 5; i++) {
             executorService.execute(() -> {
                 scheduler.execute();
                 latch.countDown();
@@ -130,18 +144,21 @@ public class UnloadSchedulerTest {
         }
         latch.await();
 
-        verify(registry, times(1)).getAvailableBrokersAsync();
+        verify(registry, times(5)).getAvailableBrokersAsync();
     }
 
     @Test(timeOut = 30 * 1000)
     public void testDisableLoadBalancer() {
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
+        UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         context.brokerConfiguration().setLoadBalancerEnabled(false);
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         UnloadManager unloadManager = mock(UnloadManager.class);
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
-
+        PulsarService pulsar = mock(PulsarService.class);
+        UnloadScheduler scheduler = new UnloadScheduler(pulsar, loadManagerExecutor, unloadManager, context,
+                channel, unloadStrategy, counter, reference);
         scheduler.execute();
 
         verify(channel, times(0)).isChannelOwnerAsync();
@@ -155,12 +172,16 @@ public class UnloadSchedulerTest {
 
     @Test(timeOut = 30 * 1000)
     public void testNotChannelOwner() {
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
+        UnloadCounter counter = new UnloadCounter();
         LoadManagerContext context = setupContext();
         context.brokerConfiguration().setLoadBalancerEnabled(false);
         ServiceUnitStateChannel channel = mock(ServiceUnitStateChannel.class);
         NamespaceUnloadStrategy unloadStrategy = mock(NamespaceUnloadStrategy.class);
         UnloadManager unloadManager = mock(UnloadManager.class);
-        UnloadScheduler scheduler = new UnloadScheduler(loadManagerExecutor, unloadManager, context, channel, unloadStrategy);
+        PulsarService pulsar = mock(PulsarService.class);
+        UnloadScheduler scheduler = new UnloadScheduler(pulsar, loadManagerExecutor, unloadManager, context,
+                channel, unloadStrategy, counter, reference);
         doReturn(CompletableFuture.completedFuture(false)).when(channel).isChannelOwnerAsync();
 
         scheduler.execute();

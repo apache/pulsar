@@ -54,9 +54,6 @@ public class AntiAffinityGroupPolicyHelper {
             String bundle,
             String srcBroker,
             Optional<String> dstBroker) {
-
-
-
         try {
             var antiAffinityGroupOptional = LoadManagerShared.getNamespaceAntiAffinityGroup(
                     pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle));

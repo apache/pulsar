@@ -18,12 +18,20 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Failure;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Skip;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Balanced;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.CoolDown;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBrokers;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBundles;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoLoadData;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.OutDatedData;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Overloaded;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.MinMaxPriorityQueue;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -39,6 +47,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
@@ -80,19 +89,26 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private final IsolationPoliciesHelper isolationPoliciesHelper;
     private final AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
 
-    private final UnloadDecision decision = new UnloadDecision();
+    private final Set<UnloadDecision> decisionCache;
+    private final UnloadCounter counter;
 
     @VisibleForTesting
-    public TransferShedder(){
+    public TransferShedder(UnloadCounter counter){
         this.pulsar = null;
+        this.decisionCache = new HashSet<>();
         this.allocationPolicies = null;
+        this.counter = counter;
         this.isolationPoliciesHelper = null;
         this.antiAffinityGroupPolicyHelper = null;
     }
 
-    public TransferShedder(PulsarService pulsar, AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper) {
+    public TransferShedder(PulsarService pulsar,
+                           UnloadCounter counter,
+                           AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper){
         this.pulsar = pulsar;
+        this.decisionCache = new HashSet<>();
         this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
+        this.counter = counter;
         this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
         this.antiAffinityGroupPolicyHelper = antiAffinityGroupPolicyHelper;
     }
@@ -241,13 +257,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
 
     @Override
-    public UnloadDecision findBundlesForUnloading(LoadManagerContext context,
+    public Set<UnloadDecision> findBundlesForUnloading(LoadManagerContext context,
                                                   Map<String, Long> recentlyUnloadedBundles,
                                                   Map<String, Long> recentlyUnloadedBrokers) {
         final var conf = context.brokerConfiguration();
-        decision.clear();
+        decisionCache.clear();
         stats.clear();
-        var selectedBundlesCache = decision.getUnloads();
 
         try {
             final var loadStore = context.brokerLoadDataStore();
@@ -255,21 +270,16 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
 
             var skipReason = stats.update(context.brokerLoadDataStore(), recentlyUnloadedBrokers, conf);
-            if (!skipReason.isEmpty()) {
-                decision.skip(skipReason.get());
-                log.warn("Failed to update load stat. Reason:{}. Stop unloading.", decision.getReason());
-                return decision;
+            if (skipReason.isPresent()) {
+                log.warn("Failed to update load stat. Reason:{}. Stop unloading.", skipReason.get());
+                counter.update(Skip, skipReason.get());
+                return decisionCache;
             }
-            decision.setLoadAvg(stats.avg);
-            decision.setLoadStd(stats.std);
+            counter.updateLoadData(stats.avg, stats.std);
 
             if (debugMode) {
                 log.info("brokers' load stats:{}", stats);
             }
-
-            // success metrics
-            int numOfOverloadedBrokers = 0;
-            int numOfUnderloadedBrokers = 0;
 
             // skip metrics
             int numOfBrokersWithEmptyLoadData = 0;
@@ -283,9 +293,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 availableBrokers = context.brokerRegistry().getAvailableBrokerLookupDataAsync()
                         .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (ExecutionException | InterruptedException | TimeoutException e) {
-                decision.skip(Unknown);
-                log.warn("Failed to fetch available brokers. Reason:{}. Stop unloading.", decision.getReason(), e);
-                return decision;
+                counter.update(Skip, Unknown);
+                log.warn("Failed to fetch available brokers. Reason: Unknown. Stop unloading.", e);
+                return decisionCache;
             }
 
             while (true) {
@@ -295,6 +305,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     }
                     break;
                 }
+                UnloadDecision.Reason reason;
                 if (stats.std() <= targetStd) {
                     if (hasMsgThroughput(context, stats.minBrokers.peekLast())) {
                         if (debugMode) {
@@ -303,10 +314,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                         }
                         break;
                     } else {
-                        numOfUnderloadedBrokers++;
+                        reason = Underloaded;
                     }
                 } else {
-                    numOfOverloadedBrokers++;
+                    reason = Overloaded;
                 }
 
                 String maxBroker = stats.maxBrokers().pollLast();
@@ -365,13 +376,16 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                             if (remainingTopBundles > 1
                                     && (trafficMarkedToOffload < offloadThroughput
                                     || !atLeastOneBundleSelected)) {
+                                Unload unload;
                                 if (transfer) {
-                                    selectedBundlesCache.put(maxBroker,
-                                            new Unload(maxBroker, bundle, Optional.of(minBroker)));
+                                    unload = new Unload(maxBroker, bundle, Optional.of(minBroker));
                                 } else {
-                                    selectedBundlesCache.put(maxBroker,
-                                            new Unload(maxBroker, bundle));
+                                    unload = new Unload(maxBroker, bundle);
                                 }
+                                var decision = new UnloadDecision();
+                                decision.setUnload(unload);
+                                decision.succeed(reason);
+                                decisionCache.add(decision);
                                 trafficMarkedToOffload += throughput;
                                 atLeastOneBundleSelected = true;
                                 remainingTopBundles--;
@@ -403,26 +417,24 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             }
 
             if (debugMode) {
-                log.info("selectedBundlesCache:{}", selectedBundlesCache);
+                log.info("decisionCache:{}", decisionCache);
             }
-
-            if (decision.getUnloads().isEmpty()) {
-                decision.skip(
-                        numOfOverloadedBrokers,
-                        numOfUnderloadedBrokers,
-                        numOfBrokersWithEmptyLoadData,
-                        numOfBrokersWithFewBundles);
-            } else {
-                decision.succeed(
-                        numOfOverloadedBrokers,
-                        numOfUnderloadedBrokers);
+            if (decisionCache.isEmpty()) {
+                UnloadDecision.Reason reason;
+                if (numOfBrokersWithEmptyLoadData > 0) {
+                    reason = NoLoadData;
+                } else if (numOfBrokersWithFewBundles > 0) {
+                    reason = NoBundles;
+                } else {
+                    reason = Balanced;
+                }
+                counter.update(Skip, reason);
             }
         } catch (Throwable e) {
             log.error("Failed to process unloading. ", e);
-            decision.fail();
+            this.counter.update(Failure, Unknown);
         }
-
-        return decision;
+        return decisionCache;
     }
 
 
@@ -457,7 +469,6 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         if (!antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
             return false;
         }
-
         return true;
     }
 
