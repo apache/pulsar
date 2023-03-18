@@ -607,8 +607,10 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    // This test is different in branch-2.11 and older because the behavior changes after branch-2.11.
+    // See https://github.com/apache/pulsar/pull/19830 for additional information.
     @Test(timeOut = 30000)
-    public void testConnectCommandWithInvalidRoleCombinations() throws Exception {
+    public void testConnectCommandWithDifferentRoleCombinations() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
         String authMethodName = authenticationProvider.getAuthMethodName();
@@ -621,19 +623,20 @@ public class ServerCnxTest {
         svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
 
         // Invalid combinations where authData is proxy role
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "pass.proxy");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", null);
-        // Invalid combinations where original principal is set to a pass.proxy role
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.proxy");
-        // Invalid combinations where the original principal is set to a non-proxy role
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client1", "pass.client");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client");
-        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client1");
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "pass.proxy", false);
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", "", false);
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.proxy", null, false);
+        // Only considered valid because there is no requirement for that only a proxy role can pass
+        // an original principal
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.proxy", true);
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client1", "pass.client", true);
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client", true);
+        verifyAuthRoleAndOriginalPrincipalBehavior(authMethodName, "pass.client", "pass.client1", true);
     }
 
     private void verifyAuthRoleAndOriginalPrincipalBehavior(String authMethodName, String authData,
-                                                            String originalPrincipal) throws Exception {
+                                                            String originalPrincipal,
+                                                            boolean shouldPass) throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
         assertEquals(serverCnx.getState(), State.Start);
@@ -643,9 +646,15 @@ public class ServerCnxTest {
         channel.writeInbound(clientCommand);
 
         Object response = getResponse();
-        assertTrue(response instanceof CommandError);
-        assertEquals(((CommandError) response).getError(), ServerError.AuthorizationError);
-        assertEquals(serverCnx.getState(), State.Failed);
+        if (shouldPass) {
+            assertTrue(response instanceof CommandConnected);
+            assertEquals(serverCnx.getState(), State.Connected);
+            assertTrue(serverCnx.isActive());
+        } else {
+            assertTrue(response instanceof CommandError);
+            assertEquals(((CommandError) response).getError(), ServerError.AuthorizationError);
+            assertEquals(serverCnx.getState(), State.Failed);
+        }
         channel.finish();
     }
 
