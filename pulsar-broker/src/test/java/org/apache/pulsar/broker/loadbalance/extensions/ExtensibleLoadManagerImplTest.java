@@ -95,6 +95,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -372,6 +373,66 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertFalse(otherLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
     }
 
+    @Test(timeOut = 30 * 1000)
+    public void testSplitBundleAdminAPI() throws Exception {
+        String namespace = "public/default";
+        String topic = "persistent://" + namespace + "/test-split";
+        admin.topics().createPartitionedTopic(topic, 10);
+        BundlesData bundles = admin.namespaces().getBundles(namespace);
+        int numBundles = bundles.getNumBundles();
+        var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
+
+        String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
+
+        long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
+
+        admin.namespaces().splitNamespaceBundle(namespace, firstBundle, true, null);
+
+        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+        assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+        String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+        String midBundle = String.format("0x%08x", mid);
+        String highBundle = String.format("0x%08x", bundleRanges.get(1));
+        assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+        assertTrue(bundlesData.getBoundaries().contains(midBundle));
+        assertTrue(bundlesData.getBoundaries().contains(highBundle));
+
+        // Test split bundle with invalid bundle range.
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "invalid", true, null);
+            fail();
+        } catch (PulsarAdminException ex) {
+            assertTrue(ex.getMessage().contains("Invalid bundle range"));
+        }
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testSplitBundleWithSpecificPositionAdminAPI() throws Exception {
+        String namespace = "public/default";
+        String topic = "persistent://" + namespace + "/test-split-with-specific-position";
+        admin.topics().createPartitionedTopic(topic, 10);
+        BundlesData bundles = admin.namespaces().getBundles(namespace);
+        int numBundles = bundles.getNumBundles();
+
+        var bundleRanges = bundles.getBoundaries().stream().map(Long::decode).sorted().toList();
+
+        String firstBundle = bundleRanges.get(0) + "_" + bundleRanges.get(1);
+
+        long mid = bundleRanges.get(0) + (bundleRanges.get(1) - bundleRanges.get(0)) / 2;
+        long splitPosition = mid + 100;
+
+        admin.namespaces().splitNamespaceBundle(namespace, firstBundle, true,
+                "specified_positions_divide", List.of(bundleRanges.get(0), bundleRanges.get(1), splitPosition));
+
+        BundlesData bundlesData = admin.namespaces().getBundles(namespace);
+        assertEquals(bundlesData.getNumBundles(), numBundles + 1);
+        String lowBundle = String.format("0x%08x", bundleRanges.get(0));
+        String midBundle = String.format("0x%08x", splitPosition);
+        String highBundle = String.format("0x%08x", bundleRanges.get(1));
+        assertTrue(bundlesData.getBoundaries().contains(lowBundle));
+        assertTrue(bundlesData.getBoundaries().contains(midBundle));
+        assertTrue(bundlesData.getBoundaries().contains(highBundle));
+    }
 
     @Test
     public void testMoreThenOneFilter() throws Exception {

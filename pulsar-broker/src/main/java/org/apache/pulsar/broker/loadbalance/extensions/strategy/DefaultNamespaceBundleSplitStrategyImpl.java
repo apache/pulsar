@@ -138,7 +138,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                                     maxBundleBandwidth / LoadManagerShared.MIBI);
                         }
                         var decision = new SplitDecision();
-                        decision.setSplit(new Split(bundle, context.brokerRegistry().getBrokerId(), new HashMap<>()));
+                        decision.setSplit(new Split(bundle, context.brokerRegistry().getBrokerId()));
                         decision.succeed(reason);
                         decisionCache.add(decision);
                         int bundleNum = namespaceBundleCount.getOrDefault(namespace, 0);

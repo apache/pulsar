@@ -54,7 +54,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertNotNull;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -297,7 +296,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             }
         }
         try {
-            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()))
+            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1))
                     .get(2, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IllegalStateException) {
@@ -554,11 +553,15 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             }
             // Call the real method
             reset(namespaceService);
+            doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
+                    .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
             return future;
         }).when(namespaceService).updateNamespaceBundles(any(), any());
         doReturn(namespaceService).when(pulsar1).getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
+                .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
 
-        Split split = new Split(bundle, ownerAddr1.get(), new HashMap<>());
+        Split split = new Split(bundle, ownerAddr1.get());
         channel1.publishSplitEventAsync(split);
 
         waitUntilState(channel1, bundle, Deleted);
@@ -570,7 +573,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
         // Verify the retry count
         verify(((ServiceUnitStateChannelImpl) channel1), times(badVersionExceptionCount + 1))
-                .splitServiceUnitOnceAndRetry(any(), any(), any(), any(), any(), any(), anyLong(), any());
+                .splitServiceUnitOnceAndRetry(any(), any(), any(), any(), any(), any(), any(), any(), anyLong(), any());
 
         // Assert child bundle ownerships in the channels.
         String childBundle1 = "public/default/0x7fffffff_0xffffffff";

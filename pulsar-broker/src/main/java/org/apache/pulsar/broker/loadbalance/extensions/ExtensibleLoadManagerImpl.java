@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static java.lang.String.format;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Follower;
 import static org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl.Role.Leader;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Success;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Admin;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Label.Success;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Admin;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,7 +57,9 @@ import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilte
 import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
@@ -71,11 +74,15 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreExcept
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 
@@ -406,7 +413,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     }
                     Unload unload = new Unload(sourceBroker, bundle.toString(), destinationBroker);
                     UnloadDecision unloadDecision =
-                            new UnloadDecision(unload, Success, Admin);
+                            new UnloadDecision(unload, UnloadDecision.Label.Success, UnloadDecision.Reason.Admin);
                     return unloadAsync(unloadDecision,
                             conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
                 });
@@ -419,6 +426,53 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
         return unloadManager.waitAsync(future, unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
                 .thenRun(() -> unloadCounter.updateUnloadBrokerCount(1));
+    }
+
+    public CompletableFuture<Void> splitNamespaceBundleAsync(ServiceUnitId bundle,
+                                                             NamespaceBundleSplitAlgorithm splitAlgorithm,
+                                                             List<Long> boundaries) {
+        final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle.toString());
+        final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle.toString());
+        NamespaceBundle namespaceBundle =
+                pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
+        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, splitAlgorithm, boundaries)
+                .thenCompose(splitBundlesPair -> {
+                    if (splitBundlesPair == null) {
+                        String msg = format("Bundle %s not found under namespace", namespaceBundle);
+                        log.error(msg);
+                        return FutureUtil.failedFuture(new IllegalStateException(msg));
+                    }
+
+                    return getOwnershipAsync(Optional.empty(), bundle)
+                            .thenCompose(brokerOpt -> {
+                                if (brokerOpt.isEmpty()) {
+                                    String msg = String.format("Namespace bundle: %s is not owned by any broker.",
+                                            bundle);
+                                    log.warn(msg);
+                                    throw new IllegalStateException(msg);
+                                }
+                                String sourceBroker = brokerOpt.get();
+                                SplitDecision splitDecision = new SplitDecision();
+                                List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
+                                Map<String, Optional<String>> splitServiceUnitToDestBroker = new HashMap<>();
+                                splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
+                                        .put(splitBundle.getBundleRange(), Optional.empty()));
+                                splitDecision.setSplit(
+                                        new Split(bundle.toString(), sourceBroker, splitServiceUnitToDestBroker));
+                                splitDecision.setLabel(Success);
+                                splitDecision.setReason(Admin);
+                                return splitAsync(splitDecision,
+                                        conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+                            });
+                });
+    }
+
+    private CompletableFuture<Void> splitAsync(SplitDecision decision,
+                                               long timeout,
+                                               TimeUnit timeoutUnit) {
+        Split split = decision.getSplit();
+        CompletableFuture<Void> future = serviceUnitStateChannel.publishSplitEventAsync(split);
+        return splitManager.waitAsync(future, decision.getSplit().serviceUnit(), decision, timeout, timeoutUnit);
     }
 
     @Override
