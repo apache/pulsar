@@ -31,7 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
-import org.apache.commons.lang.mutable.MutableInt;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
