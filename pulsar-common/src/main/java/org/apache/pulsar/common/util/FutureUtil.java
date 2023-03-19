@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -182,7 +183,12 @@ public class FutureUtil {
         public static <T> Sequencer<T> create() {
             return new Sequencer<>(false);
         }
+
+        /**
+         * @throws NullPointerException NPE when param is null
+         */
         public synchronized CompletableFuture<T> sequential(Supplier<CompletableFuture<T>> newTask) {
+            Objects.requireNonNull(newTask);
             if (sequencerFuture.isDone()) {
                 if (sequencerFuture.isCompletedExceptionally() && allowExceptionBreakChain) {
                     return sequencerFuture;
