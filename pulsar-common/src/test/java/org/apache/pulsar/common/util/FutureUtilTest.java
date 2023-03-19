@@ -53,9 +53,8 @@ public class FutureUtilTest {
         timeoutException.printStackTrace(new PrintWriter(stringWriter, true));
         assertEquals(stringWriter.toString(),
                 "org.apache.pulsar.common.util.FutureUtil$LowOverheadTimeoutException: "
-                        + "hello world" + System.lineSeparator()
-                        + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)" +
-                        System.lineSeparator());
+                + "hello world" + System.lineSeparator()
+                + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)" + System.lineSeparator());
     }
 
     @Test
@@ -153,8 +152,7 @@ public class FutureUtilTest {
         f2.complete("2");
         f3.complete("3");
         f4.complete("4");
-        CompletableFuture<Optional<Object>> ret =
-                FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
+        CompletableFuture<Optional<Object>> ret = FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
         assertEquals(ret.join().get(), "3");
         // test not matched predicate result
         CompletableFuture<String> f5 = new CompletableFuture<>();
