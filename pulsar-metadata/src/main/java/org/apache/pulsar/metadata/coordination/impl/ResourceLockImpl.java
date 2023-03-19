@@ -44,7 +44,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private long version;
     private final CompletableFuture<Void> expiredFuture;
     private boolean revalidateAfterReconnection = false;
-    private CompletableFuture<Void> pendingOperationFuture;
+    private final FutureUtil.Sequencer<Void> sequencer;
 
     private enum State {
         Init,
@@ -61,7 +61,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         this.path = path;
         this.version = -1;
         this.expiredFuture = new CompletableFuture<>();
-        this.pendingOperationFuture = CompletableFuture.completedFuture(null);
+        this.sequencer = FutureUtil.Sequencer.create();
         this.state = State.Init;
     }
 
@@ -74,22 +74,16 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     public synchronized CompletableFuture<Void> updateValue(T newValue) {
         // If there is an operation in progress, we're going to let it complete before attempting to
         // update the value
-        if (pendingOperationFuture.isDone()) {
-            pendingOperationFuture = CompletableFuture.completedFuture(null);
-        }
+        return sequencer.sequential(() -> {
+            synchronized (ResourceLockImpl.this) {
+                if (state != State.Valid) {
+                    return CompletableFuture.failedFuture(
+                            new IllegalStateException("Lock was not in valid state: " + state));
+                }
 
-        pendingOperationFuture = pendingOperationFuture.thenCompose(__ -> {
-                    synchronized (ResourceLockImpl.this) {
-                        if (state != State.Valid) {
-                            return CompletableFuture.failedFuture(
-                                    new IllegalStateException("Lock was not in valid state: " + state));
-                        }
-
-                        return acquire(newValue);
-                    }
-                });
-
-        return pendingOperationFuture;
+                return acquire(newValue);
+            }
+        });
     }
 
     @Override
@@ -216,20 +210,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
      * This method is thread-safe and it will perform multiple re-validation operations in turn.
      */
     synchronized CompletableFuture<Void> silentRevalidateOnce() {
-        final CompletableFuture<Void> trackFuture;
-        // If the lock is first revalidated. the pending operation future should always be completed.
-        if (pendingOperationFuture.isDone()) {
-            trackFuture = revalidate(value);
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("Previous revalidating is not finished while revalidate value={}, version={}",
-                        value, version);
-            }
-            trackFuture = pendingOperationFuture.exceptionally(ex -> null)
-                    .thenCompose(__ -> revalidate(value));
-        }
-        // Assign the pending operation future here to ensure
-        return pendingOperationFuture = trackFuture
+        return sequencer.sequential(() -> revalidate(value))
                 .thenRun(() -> log.info("Successfully revalidated the lock on {}", path))
                 .exceptionally(ex -> {
                     synchronized (ResourceLockImpl.this) {
