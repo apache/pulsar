@@ -22,13 +22,13 @@ import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProvide
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE_DEFAULT;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.incrementFailureMetric;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -63,11 +63,13 @@ class OpenIDProviderMetadataCache {
                                     reader.readValue(result.getResponseBodyAsBytes());
                             verifyIssuer(issuer, openIDProviderMetadata);
                             future.complete(openIDProviderMetadata);
-                        } catch (IOException e) {
+                        } catch (AuthenticationException e) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                            future.completeExceptionally(e);
+                        } catch (Exception e) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
                             future.completeExceptionally(new AuthenticationException(
                                     "Error retrieving OpenID Provider Metadata at " + issuer + ": " + e.getMessage()));
-                        } catch (AuthenticationException e) {
-                            future.completeExceptionally(e);
                         }
                         return future;
                     });
@@ -96,10 +98,7 @@ class OpenIDProviderMetadataCache {
      * @return the {@link OpenIDProviderMetadata} for the given issuer
      * @throws AuthenticationException if any exceptions occur while retrieving the metadata.
      */
-    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(String issuer) {
-        if (issuer == null) {
-            return CompletableFuture.failedFuture(new IllegalArgumentException("Issuer must not be null."));
-        }
+    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(@Nonnull String issuer) {
         return cache.get(issuer);
     }
 
@@ -117,7 +116,7 @@ class OpenIDProviderMetadataCache {
      */
     private void verifyIssuer(@Nonnull String issuer, OpenIDProviderMetadata metadata) throws AuthenticationException {
         if (!issuer.equals(metadata.getIssuer())) {
-            AuthenticationProviderOpenID.incrementFailureMetric(AuthenticationExceptionCode.ISSUER_MISMATCH);
+            incrementFailureMetric(AuthenticationExceptionCode.ISSUER_MISMATCH);
             throw new AuthenticationException(String.format("Issuer URL mismatch: [%s] should match [%s]",
                     issuer, metadata.getIssuer()));
         }

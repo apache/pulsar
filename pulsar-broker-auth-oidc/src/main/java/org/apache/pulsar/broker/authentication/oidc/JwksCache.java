@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProvide
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE_DEFAULT;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.incrementFailureMetric;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.auth0.jwk.Jwk;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +30,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,11 +59,13 @@ public class JwksCache {
                                 HashMap<String, Object> jwks =
                                         reader.readValue(result.getResponseBodyAsBytes());
                                 future.complete(convertToJwks(jwksUri, jwks));
-                            } catch (IOException e) {
-                                future.completeExceptionally(new AuthenticationException(
-                                        "Error retrieving JWKS at " + jwksUri + ": " + e.getMessage()));
                             } catch (AuthenticationException e) {
+                                incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
                                 future.completeExceptionally(e);
+                            } catch (Exception e) {
+                                incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                                future.completeExceptionally(new AuthenticationException(
+                                        "Error retrieving public key at " + jwksUri + ": " + e.getMessage()));
                             }
                             return future;
                         });
@@ -81,6 +83,7 @@ public class JwksCache {
 
     CompletableFuture<Jwk> getJwk(String jwksUri, String keyId) {
         if (jwksUri == null) {
+            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
             return CompletableFuture.failedFuture(new IllegalArgumentException("jwksUri must not be null."));
         }
         return cache.get(jwksUri).thenApply(jwks -> {
@@ -89,6 +92,7 @@ public class JwksCache {
                     return jwk;
                 }
             }
+            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
             throw new IllegalArgumentException("No JWK found for jwks uri " + jwksUri + " and Key ID " + keyId);
         });
     }
@@ -96,7 +100,7 @@ public class JwksCache {
     /**
      * The JWK Set is stored in the "keys" key see https://www.rfc-editor.org/rfc/rfc7517#section-5.1.
      *
-     * @param jwksUri - the URI used to retreive the JWKS
+     * @param jwksUri - the URI used to retrieve the JWKS
      * @param jwks - the JWKS to convert
      * @return a list of {@link Jwk}
      */
@@ -110,7 +114,7 @@ public class JwksCache {
             }
             return result;
         } catch (ClassCastException e) {
-            throw new AuthenticationException("Keys value at JWKS URI not a list: " + jwksUri);
+            throw new AuthenticationException("Malformed JWKS returned by: " + jwksUri);
         }
     }
 }
