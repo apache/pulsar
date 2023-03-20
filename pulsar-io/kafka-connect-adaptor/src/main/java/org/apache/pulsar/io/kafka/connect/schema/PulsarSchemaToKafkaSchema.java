@@ -200,7 +200,7 @@ public class PulsarSchemaToKafkaSchema {
                 if (pulsarSchema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
                     KeyValueSchema kvSchema = (KeyValueSchema) pulsarSchema;
                     return SchemaBuilder.map(getKafkaConnectSchema(kvSchema.getKeySchema()),
-                                             getKafkaConnectSchema(kvSchema.getValueSchema()))
+                                    getOptionalKafkaConnectSchema(kvSchema.getValueSchema()))
                                 .build();
                 }
                 org.apache.avro.Schema avroSchema = parseAvroSchema(
