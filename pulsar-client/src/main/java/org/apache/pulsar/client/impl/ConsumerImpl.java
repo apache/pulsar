@@ -1050,7 +1050,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         }
 
-        return closeFuture;
+        return closeFuture.thenCompose(ignore -> {
+            if (retryLetterProducer != null){
+                return retryLetterProducer.closeAsync();
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }).thenCompose(ignore -> {
+            if (deadLetterProducer != null){
+                return deadLetterProducer.thenCompose(p -> p.closeAsync());
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        });
     }
 
     private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
