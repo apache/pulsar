@@ -147,16 +147,14 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testTokenWithValidJWK() throws Exception {
         String role = "superuser";
-        String token = generateToken(validJwk, issuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 10000));
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
     }
 
     @Test
     public void testTokenWithInvalidJWK() throws Exception {
         String role = "superuser";
-        String token = generateToken(invalidJwk, issuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 10000));
+        String token = generateToken(invalidJwk, issuer, role, "allowed-audience",0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
         } catch (ExecutionException e) {
@@ -170,8 +168,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         // that does not match the issuer on the token
         String failIssuer = server.baseUrl() + "/fail";
         String role = "superuser";
-        String token = generateToken(validJwk, failIssuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 10000));
+        String token = generateToken(validJwk, failIssuer, role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
         } catch (ExecutionException e) {
@@ -182,8 +179,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testAuthenticationStateOpenIDForValidToken() throws Exception {
         String role = "superuser";
-        String token = generateToken(validJwk, issuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 10000));
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         AuthenticationState state = provider.newAuthState(null, null, null);
         AuthData result = state.authenticateAsync(AuthData.of(token.getBytes())).get();
         assertNull(result);
@@ -195,8 +191,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testAuthenticationStateOpenIDForExpiredToken() throws Exception {
         String role = "superuser";
-        String token = generateToken(validJwk, issuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() - 10000));
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, -10000L);
         AuthenticationState state = provider.newAuthState(null, null, null);
         try {
             state.authenticateAsync(AuthData.of(token.getBytes())).get();
@@ -208,14 +203,13 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testAuthenticationStateOpenIDForValidTokenWithNoExp() throws Exception {
         String role = "superuser";
-        String token = generateToken(validJwk, issuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), null);
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, null);
         AuthenticationState state = provider.newAuthState(null, null, null);
-        AuthData result = state.authenticateAsync(AuthData.of(token.getBytes())).get();
-        assertNull(result);
-        assertEquals(state.getAuthRole(), role);
-        assertEquals(state.getAuthDataSource().getCommandData(), token);
-        assertFalse(state.isExpired());
+        try {
+            state.authenticateAsync(AuthData.of(token.getBytes())).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+        }
     }
 
     @Test
@@ -233,8 +227,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         provider.initialize(conf);
 
         String role = "superuser";
-        String token = generateToken(validJwk, issuer, role, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis()));
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 0L);
         AuthenticationState state = provider.newAuthState(null, null, null);
         AuthData result = state.authenticateAsync(AuthData.of(token.getBytes())).get();
         assertNull(result);
@@ -249,11 +242,9 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     @Test
     public void testAuthenticationStateOpenIDAllowsRoleChange() throws Exception {
         String role1 = "superuser";
-        String token1 = generateToken(validJwk, issuer, role1, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 10000));
+        String token1 = generateToken(validJwk, issuer, role1, "allowed-audience", 0L, 0L, 10000L);
         String role2 = "otheruser";
-        String token2 = generateToken(validJwk, issuer, role2, "allowed-audience",
-                new Date(System.currentTimeMillis()), new Date(System.currentTimeMillis() + 10000));
+        String token2 = generateToken(validJwk, issuer, role2, "allowed-audience", 0L, 0L, 10000L);
         AuthenticationState state = provider.newAuthState(null, null, null);
         AuthData result1 = state.authenticateAsync(AuthData.of(token1.getBytes())).get();
         assertNull(result1);
@@ -268,7 +259,9 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         assertFalse(state.isExpired());
     }
 
-    private String generateToken(String kid, String issuer, String subject, String audience, Date iat, Date exp) {
+    private String generateToken(String kid, String issuer, String subject, String audience,
+                                 Long iatOffset, Long nbfOffset, Long expOffset) {
+        long now = System.currentTimeMillis();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         defaultJwtBuilder.setHeaderParam("kid", kid);
         defaultJwtBuilder.setHeaderParam("typ", "JWT");
@@ -276,8 +269,9 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         defaultJwtBuilder.setIssuer(issuer);
         defaultJwtBuilder.setSubject(subject);
         defaultJwtBuilder.setAudience(audience);
-        defaultJwtBuilder.setIssuedAt(iat);
-        defaultJwtBuilder.setExpiration(exp);
+        defaultJwtBuilder.setIssuedAt(iatOffset != null ? new Date(now + iatOffset) : null);
+        defaultJwtBuilder.setNotBefore(nbfOffset != null ? new Date(now + nbfOffset) : null);
+        defaultJwtBuilder.setExpiration(expOffset != null ? new Date(now + expOffset) : null);
         defaultJwtBuilder.signWith(privateKey);
         return defaultJwtBuilder.compact();
     }

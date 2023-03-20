@@ -114,7 +114,7 @@ public class AuthenticationProviderOpenIDTest {
     public void testThatSupportedAlgsWork(SignatureAlgorithm alg) throws AuthenticationException {
         KeyPair keyPair = Keys.keyPairFor(alg);
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        defaultJwtBuilder.setAudience(basicProviderAudience);
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
         defaultJwtBuilder.signWith(keyPair.getPrivate());
 
         // Convert to the right class
@@ -128,7 +128,7 @@ public class AuthenticationProviderOpenIDTest {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        defaultJwtBuilder.setAudience(basicProviderAudience);
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         // Choose a different algorithm from a different alg family
@@ -141,7 +141,7 @@ public class AuthenticationProviderOpenIDTest {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        defaultJwtBuilder.setAudience(basicProviderAudience);
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         // Choose a different algorithm but within the same alg family as above
@@ -153,8 +153,34 @@ public class AuthenticationProviderOpenIDTest {
     public void ensureExpiredTokenFails() {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
-        defaultJwtBuilder.setAudience(basicProviderAudience);
-        defaultJwtBuilder.setExpiration(Date.from(Instant.EPOCH));
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
+        defaultJwtBuilder.setExpiration(Date.from(Instant.now().minusSeconds(60)));
+        defaultJwtBuilder.signWith(keyPair.getPrivate());
+        DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
+        Assert.assertThrows(AuthenticationException.class,
+                () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
+    }
+
+    @Test
+    public void ensureFutureNBFFails() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
+        // Override the exp set in the above method
+        defaultJwtBuilder.setNotBefore(Date.from(Instant.now().plusSeconds(60)));
+        defaultJwtBuilder.signWith(keyPair.getPrivate());
+        DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
+        Assert.assertThrows(AuthenticationException.class,
+                () -> basicProvider.verifyJWT(keyPair.getPublic(), SignatureAlgorithm.RS256.getValue(), jwt));
+    }
+
+    @Test
+    public void ensureFutureIATFails() throws Exception {
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
+        addValidMandatoryClaims(defaultJwtBuilder, basicProviderAudience);
+        // Override the exp set in the above method
+        defaultJwtBuilder.setIssuedAt(Date.from(Instant.now().plusSeconds(60)));
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT jwt = JWT.decode(defaultJwtBuilder.compact());
         Assert.assertThrows(AuthenticationException.class,
@@ -177,8 +203,8 @@ public class AuthenticationProviderOpenIDTest {
 
         // Build the JWT with an only recently expired token
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
+        addValidMandatoryClaims(defaultJwtBuilder, "leewayAudience");
         defaultJwtBuilder.setExpiration(Date.from(Instant.ofEpochMilli(System.currentTimeMillis() - 5000L)));
-        defaultJwtBuilder.setAudience("leewayAudience");
         defaultJwtBuilder.signWith(keyPair.getPrivate());
         DecodedJWT expectedValue = JWT.decode(defaultJwtBuilder.compact());
 
@@ -312,5 +338,15 @@ public class AuthenticationProviderOpenIDTest {
 
         // A JWT with an empty list role claim must result in a null role
         assertNull(provider.getRole(jwt));
+    }
+
+    // Method simplifies adding the required claims. For the tests that need to verify invalid values for these
+    // claims, it is sufficient to set the values after calling this method.
+    private void addValidMandatoryClaims(DefaultJwtBuilder defaultJwtBuilder, String audience) {
+        defaultJwtBuilder.setExpiration(Date.from(Instant.now().plusSeconds(60)));
+        defaultJwtBuilder.setNotBefore(Date.from(Instant.now()));
+        defaultJwtBuilder.setIssuedAt(Date.from(Instant.now()));
+        defaultJwtBuilder.setAudience(audience);
+        defaultJwtBuilder.setSubject("my-role");
     }
 }

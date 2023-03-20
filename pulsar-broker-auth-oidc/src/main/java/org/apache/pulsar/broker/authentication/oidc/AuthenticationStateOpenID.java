@@ -71,12 +71,9 @@ class AuthenticationStateOpenID implements AuthenticationState {
                 .authenticateTokenAsync(authenticationDataSource)
                 .thenApply(jwt -> {
                     this.role = provider.getRole(jwt);
-                    if (jwt.getExpiresAt() != null) {
-                        this.expiration = jwt.getExpiresAt().getTime();
-                    } else {
-                        // Disable expiration
-                        this.expiration = Long.MAX_VALUE;
-                    }
+                    // OIDC requires setting the exp claim, so this should never be null.
+                    // We verify it is not null during token validation.
+                    this.expiration = jwt.getExpiresAt().getTime();
                     // Single stage authentication, so return null here
                     return null;
                 });

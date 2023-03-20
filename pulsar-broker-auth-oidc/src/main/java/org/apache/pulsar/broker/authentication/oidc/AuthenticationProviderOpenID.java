@@ -26,6 +26,7 @@ import com.auth0.jwk.InvalidPublicKeyException;
 import com.auth0.jwk.Jwk;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
+import com.auth0.jwt.RegisteredClaims;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.exceptions.AlgorithmMismatchException;
 import com.auth0.jwt.exceptions.InvalidClaimException;
@@ -392,9 +393,14 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         }
 
         // We verify issuer when retrieving the PublicKey, so it is not verified here.
+        // The claim presence requirements are based on https://openid.net/specs/openid-connect-basic-1_0.html#IDToken
         JWTVerifier verifier = JWT.require(alg)
                 .acceptLeeway(acceptedTimeLeewaySeconds)
                 .withAnyOfAudience(allowedAudiences)
+                .withClaimPresence(RegisteredClaims.ISSUED_AT)
+                .withClaimPresence(RegisteredClaims.EXPIRES_AT)
+                .withClaimPresence(RegisteredClaims.NOT_BEFORE)
+                .withClaimPresence(RegisteredClaims.SUBJECT)
                 .build();
 
         try {
