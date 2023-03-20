@@ -89,6 +89,19 @@ class ContextImpl(pulsar.Context):
   def get_current_message_topic_name(self):
     return self.message.topic_name()
 
+  def get_message_sequence_id(self):
+    if not self.get_message_id():
+      return None
+    ledger_id = self.get_message_id().ledger_id()
+    entry_id = self.get_message_id().entry_id()
+    offset = (ledger_id << 28) | entry_id
+    return offset
+
+  def get_message_partition_index(self):
+    if not self.get_message_id():
+      return None
+    return self.get_message_id().partition()
+
   def get_partition_key(self):
     return self.message.partition_key()
 

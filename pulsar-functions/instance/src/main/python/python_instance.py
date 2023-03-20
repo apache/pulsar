@@ -106,6 +106,7 @@ class PythonInstance(object):
     self.execution_thread = None
     self.atmost_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATMOST_ONCE')
     self.atleast_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('ATLEAST_ONCE')
+    self.effectively_once = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('EFFECTIVELY_ONCE')
     self.manual = self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value('MANUAL')
     self.auto_ack = self.instance_config.function_details.autoAck
     self.contextimpl = None
@@ -143,11 +144,15 @@ class PythonInstance(object):
     if self.instance_config.function_details.source.subscriptionType == Function_pb2.SubscriptionType.Value("FAILOVER"):
       mode = pulsar._pulsar.ConsumerType.Failover
 
+    if self.instance_config.function_details.retainOrdering or \
+      self.instance_config.function_details.processingGuarantees == Function_pb2.ProcessingGuarantees.Value("EFFECTIVELY_ONCE"):
+      mode = pulsar._pulsar.ConsumerType.Failover
+
     position = pulsar._pulsar.InitialPosition.Latest
     if self.instance_config.function_details.source.subscriptionPosition == Function_pb2.SubscriptionPosition.Value("EARLIEST"):
       position = pulsar._pulsar.InitialPosition.Earliest
 
-    subscription_name = self.instance_config.function_details.source.subscriptionName    
+    subscription_name = self.instance_config.function_details.source.subscriptionName
 
     if not (subscription_name and subscription_name.strip()):
       subscription_name = str(self.instance_config.function_details.tenant) + "/" + \
@@ -293,7 +298,7 @@ class PythonInstance(object):
 
   def done_producing(self, consumer, orig_message, topic, result, sent_message):
     if result == pulsar.Result.Ok:
-      if self.auto_ack and self.atleast_once:
+      if self.auto_ack and self.atleast_once or self.effectively_once:
         consumer.acknowledge(orig_message)
     else:
       error_msg = "Failed to publish to topic [%s] with error [%s] with src message id [%s]" % (topic, result, orig_message.message_id())
@@ -302,14 +307,27 @@ class PythonInstance(object):
       # If producer fails send output then send neg ack for input message back to broker
       consumer.negative_acknowledge(orig_message)
 
-
   def process_result(self, output, msg):
-    if output is not None and self.instance_config.function_details.sink.topic != None and \
+    if output is not None and self.instance_config.function_details.sink.topic is not None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       if self.output_serde is None:
         self.setup_output_serde()
+      if self.effectively_once:
+        if self.contextimpl.get_message_partition_index() is None or \
+                self.contextimpl.get_message_partition_index() >= 0:
+          Log.error("Partitioned topic is not available in effectively_once mode.")
+          raise Exception("Partitioned topic is not available in effectively_once mode.")
+
+        producer_id = self.instance_config.function_details.sink.topic
+        producer = self.contextimpl.publish_producers.get(producer_id)
+        if producer is None:
+          self.setup_producer(producer_name=producer_id)
+          self.contextimpl.publish_producers[producer_id] = self.producer
+          Log.info("Setup producer [%s] successfully in effectively_once mode." % self.producer.producer_name())
+
       if self.producer is None:
         self.setup_producer()
+        Log.info("Setup producer successfully.")
 
       # only serialize function output when output schema is not set
       output_object = output
@@ -318,9 +336,21 @@ class PythonInstance(object):
 
       if output_object is not None:
         props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64ify(msg.message.message_id().serialize())}
-        self.producer.send_async(output_object, partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()), properties=props)
+        if self.effectively_once:
+          self.producer.send_async(output_object,
+                                   partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
+                                   properties=props,
+                                   sequence_id=self.contextimpl.get_message_sequence_id())
+          Log.debug("Send message with sequence ID [%s] using the producer [%s] in effectively_once mode." %
+                    (self.contextimpl.get_message_sequence_id(), self.producer.producer_name()))
+        else:
+          self.producer.send_async(output_object,
+                                   partial(self.done_producing, msg.consumer, msg.message, self.producer.topic()),
+                                   properties=props)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
+    elif self.effectively_once:
+      msg.consumer.acknowledge_cumulative(msg.message)
 
   def setup_output_serde(self):
     if self.instance_config.function_details.sink.serDeClassName != None and \
@@ -332,7 +362,7 @@ class PythonInstance(object):
       serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER)
       self.output_serde = serde_kclass()
 
-  def setup_producer(self):
+  def setup_producer(self, producer_name=None):
     if self.instance_config.function_details.sink.topic != None and \
             len(self.instance_config.function_details.sink.topic) > 0:
       Log.debug("Setting up producer for topic %s" % self.instance_config.function_details.sink.topic)
@@ -366,6 +396,7 @@ class PythonInstance(object):
       self.producer = self.pulsar_client.create_producer(
         str(self.instance_config.function_details.sink.topic),
         schema=self.output_schema,
+        producer_name=producer_name,
         block_if_queue_full=True,
         batching_enabled=True,
         batching_type=batch_type,
