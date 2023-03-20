@@ -159,17 +159,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     }
 
     /**
-     * Authenticate the parameterized {@link AuthenticationDataSource}.
-     *
-     * If the {@link AuthenticationProviderToken} is enabled and the JWT does not have an Issuer ("iss") claim,
-     * this class will use the {@link AuthenticationProviderToken} to verify/authenticate the token. See the
-     * documentation for {@link AuthenticationProviderToken} regarding configuration.
-     *
-     * Otherwise, this class will verify/authenticate the token by retrieving the Public key from allow listed issuers.
+     * Authenticate the parameterized {@link AuthenticationDataSource} by verifying the issuer is an allowed issuer,
+     * then retrieving the JWKS URI from the issuer, then retrieving the Public key from the JWKS URI, and finally
+     * verifying the JWT signature and claims.
      *
      * @param authData - the authData passed by the Pulsar Broker containing the token.
-     * @return the role, if the JWT is authenticated
-     * @throws AuthenticationException if the JWT is invalid
+     * @return the role, if the JWT is authenticated, otherwise a failed future.
      */
     @Override
     public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
@@ -315,22 +310,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         return new AuthenticationStateOpenID(this, remoteAddress, sslSession);
     }
 
-    /**
-     * Closes this stream and releases any system resources associated
-     * with it. If the stream is already closed then invoking this
-     * method has no effect.
-     *
-     * <p> As noted in {@link AutoCloseable#close()}, cases where the
-     * close may fail require careful attention. It is strongly advised
-     * to relinquish the underlying resources and to internally
-     * <em>mark</em> the {@code Closeable} as closed, prior to throwing
-     * the {@code IOException}.
-     *
-     * @throws IOException if an I/O error occurs
-     */
     @Override
     public void close() throws IOException {
-        // noop
     }
 
     /**
