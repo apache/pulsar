@@ -709,6 +709,42 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void schemaKeyValueSchemaNullValueNoUnwrapTest() throws Exception {
+        props.put("unwrapKeyValueIfAvailable", "false");
+        JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema = JSONSchema
+                .of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
+                        .withPojo(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class)
+                        .withAlwaysAllowNull(true)
+                        .build());
+        KeyValue<Integer, String> kv = new KeyValue<>(11, null);
+        Map<String, Object> expected = new HashMap();
+        expected.put("11", null);
+        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, jsonSchema), "key",
+                "STRING", expected, "MAP");
+        Assert.assertNull(((Map)sinkRecord.value()).get(11));
+        String key =(String)sinkRecord.key();
+        Assert.assertEquals(key, "key");
+    }
+
+    @Test
+    public void schemaKeyValueSchemaNullValueNoUnwrapTestAvro() throws Exception {
+        props.put("unwrapKeyValueIfAvailable", "false");
+        RecordSchemaBuilder builder = SchemaBuilder
+                .record("test");
+        builder.property("op", "test");
+        builder.field("test").type(SchemaType.STRING);
+        GenericSchema<GenericRecord> schema = GenericAvroSchema.of(builder.build(SchemaType.AVRO));
+        KeyValue<Integer, String> kv = new KeyValue<>(11, null);
+        Map<String, Object> expected = new HashMap();
+        expected.put("11", null);
+        SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, schema), "key",
+                "STRING", expected, "MAP");
+        Assert.assertNull(((Map)sinkRecord.value()).get(11));
+        String key =(String)sinkRecord.key();
+        Assert.assertEquals(key, "key");
+    }
+
+    @Test
     public void kafkaLogicalTypesTimestampTest() {
         Schema schema = new TestSchema(SchemaInfoImpl.builder()
                 .name(Timestamp.LOGICAL_NAME)
