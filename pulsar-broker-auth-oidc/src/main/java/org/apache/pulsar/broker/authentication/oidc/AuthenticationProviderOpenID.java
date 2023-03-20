@@ -186,26 +186,15 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         try {
             token = AuthenticationProviderToken.getToken(authData);
         } catch (AuthenticationException e) {
-            // To see the stack trace, turn on debug logging.
-            log.warn("[Audit Event] Auth failed for request from remote ip [{}] with reason: {}",
-                    authData.getPeerAddress(), e.getMessage());
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             return CompletableFuture.failedFuture(e);
         }
-        final SocketAddress peerAddress = authData.getPeerAddress();
         return authenticateToken(token)
                 .whenComplete((jwt, e) -> {
                     if (jwt != null) {
-                        // TODO determine how audit logging fits into the provider. Seems like it should
-                        // be part of the framework, not in the provider itself.
-                        log.info("[Audit Event] Auth succeeded for request from remote ip [{}] for role [{}]",
-                                peerAddress, jwt.getClaim(roleClaim));
                         AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-                    } else {
-                        log.warn("[Audit Event] Auth failed for request from remote ip [{}] with reason: {}",
-                                peerAddress, e.getMessage());
-                        // Failure metrics are incremented within methods above
                     }
+                    // Failure metrics are incremented within methods above
                 });
     }
 
