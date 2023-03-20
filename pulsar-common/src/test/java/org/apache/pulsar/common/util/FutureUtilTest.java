@@ -220,7 +220,7 @@ public class FutureUtilTest {
         }
         for (int i = 0; i < concurrentNum - 1; i++) {
             if (i >= 2) {
-                Assert.assertEquals(list2.get(i), i + 1);
+                Assert.assertEquals(list2.get(i), Integer.valueOf(i + 1));
             } else {
                 Assert.assertEquals(list2.get(i), (Integer) i);
             }
