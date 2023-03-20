@@ -193,8 +193,7 @@ public class FutureUtil {
                 if (sequencerFuture.isCompletedExceptionally() && allowExceptionBreakChain) {
                     return sequencerFuture;
                 }
-                // Break the link chain
-                sequencerFuture = CompletableFuture.completedFuture(null);
+                return sequencerFuture = newTask.get();
             }
             return sequencerFuture = allowExceptionBreakChain
                     ? sequencerFuture.thenCompose(__ -> newTask.get())
