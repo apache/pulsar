@@ -177,8 +177,8 @@ public class FutureUtil {
             this.allowExceptionBreakChain = allowExceptionBreakChain;
         }
 
-        public static <T> Sequencer<T> create(boolean allowExceptionBreakLink) {
-            return new Sequencer<>(allowExceptionBreakLink);
+        public static <T> Sequencer<T> create(boolean allowExceptionBreakChain) {
+            return new Sequencer<>(allowExceptionBreakChain);
         }
         public static <T> Sequencer<T> create() {
             return new Sequencer<>(false);
