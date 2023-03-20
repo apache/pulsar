@@ -58,6 +58,7 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
         final String partitionedTopicName = "persistent://my-property/my-ns/tp1_" + randomStr;
         final String topic_p0 = partitionedTopicName + TopicName.PARTITIONED_TOPIC_SUFFIX + "0";
         final String subscriptionName = "sub1";
+        final String topicRetry = topic_p0 + "-" + subscriptionName + "-RETRY";
         final String topicDLQ = topic_p0 + "-" + subscriptionName + "-DLQ";
 
         admin.topics().createPartitionedTopic(partitionedTopicName, 2);
@@ -70,6 +71,11 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
         pcEntry.consumer.close();
         pcEntry.producer.close();
         admin.topics().deletePartitionedTopic(partitionedTopicName);
+<<<<<<< HEAD
+=======
+        admin.topics().deletePartitionedTopic(topicRetry);
+        admin.topics().deletePartitionedTopic(topicDLQ);
+>>>>>>> 24e4b41a44b (add another case to reproduce the issue)
     }
 
     @Test
@@ -85,6 +91,10 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
 
         // cleanup.
         producer.close();
+<<<<<<< HEAD
+=======
+        admin.topics().delete(topicName, false);
+>>>>>>> 24e4b41a44b (add another case to reproduce the issue)
     }
 
     @Test
@@ -100,6 +110,10 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
 
         // cleanup.
         producer.close();
+<<<<<<< HEAD
+=======
+        admin.topics().delete(topicName, false);
+>>>>>>> 24e4b41a44b (add another case to reproduce the issue)
     }
 
     @AllArgsConstructor
