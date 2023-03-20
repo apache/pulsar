@@ -22,12 +22,8 @@ import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfig
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsSet;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsString;
-import com.auth0.jwk.GuavaCachedJwkProvider;
 import com.auth0.jwk.InvalidPublicKeyException;
 import com.auth0.jwk.Jwk;
-import com.auth0.jwk.JwkException;
-import com.auth0.jwk.JwkProvider;
-import com.auth0.jwk.UrlJwkProvider;
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
@@ -41,16 +37,12 @@ import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import java.io.IOException;
 import java.net.SocketAddress;
-import java.net.URL;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -60,6 +52,10 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncHttpClientConfig;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,11 +93,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     // This caches the map from Issuer URL to the jwks_uri served at the /.well-known/openid-configuration endpoint
     private OpenIDProviderMetadataCache openIDProviderMetadataCache;
 
-    // A map from the jwks_uri for an issuer to GuavaCachedJwkProvider.
-    // A broker loads a single provider once, so this map is shared across all connections.
-    // As a result, the caching in each JwkProvider is broker wide.
-    // This map is bounded by the number of allow listed issuers.
-    private final Map<URL, GuavaCachedJwkProvider> issuerToJwkProviders = new ConcurrentHashMap<>();
+    // A cache used to store the results of getting the JWKS from the jwks_uri for an issuer.
+    private JwksCache jwksCache;
 
     // A list of supported algorithms. This is the "alg" field on the JWT.
     // Source for strings: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
@@ -112,27 +105,26 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private static final String ALG_ES384 = "ES384";
     private static final String ALG_ES512 = "ES512";
 
-    private long acceptedTimeLeeway; // seconds
-    private int jwkCacheSize;
-    private int jwkExpiresSeconds;
-    private int jwkConnectionTimeout;
-    private int jwkReadTimeout;
+    private long acceptedTimeLeewaySeconds;
     private boolean requireHttps;
     private String roleClaim;
 
     static final String ALLOWED_TOKEN_ISSUERS = "openIDAllowedTokenIssuers";
     static final String ALLOWED_AUDIENCES = "openIDAllowedAudiences";
     static final String ROLE_CLAIM = "openIDRoleClaim";
+    static final String ROLE_CLAIM_DEFAULT = "sub";
     static final String ACCEPTED_TIME_LEEWAY_SECONDS = "openIDAcceptedTimeLeewaySeconds";
-    static final String JWK_CACHE_SIZE = "openIDJwkCacheSize";
-    static final String JWK_EXPIRES_SECONDS = "openIDJwkExpiresSeconds";
-    static final String JWK_CONNECTION_TIMEOUT_MILLIS = "openIDJwkConnectionTimeoutMillis";
-    static final String JWK_READ_TIMEOUT_MILLIS = "openIDJwkReadTimeoutMillis";
-    static final String METADATA_CACHE_SIZE = "openIDMetadataCacheSize";
-    static final String METADATA_EXPIRES_SECONDS = "openIDMetadataExpiresSeconds";
-    static final String METADATA_CONNECTION_TIMEOUT_MILLIS = "openIDMetadataConnectionTimeoutMillis";
-    static final String METADATA_READ_TIMEOUT_MILLIS = "openIDMetadataReadTimeoutMillis";
+    static final int ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT = 0;
+    static final String CACHE_SIZE = "openIDCacheSize";
+    static final int CACHE_SIZE_DEFAULT = 5;
+    static final String CACHE_EXPIRATION_SECONDS = "openIDCacheExpirationSeconds";
+    static final int CACHE_EXPIRATION_SECONDS_DEFAULT = 24 * 60 * 60;
+    static final String HTTP_CONNECTION_TIMEOUT_MILLIS = "openIDHttpConnectionTimeoutMillis";
+    static final int HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT = 10_000;
+    static final String HTTP_READ_TIMEOUT_MILLIS = "openIDHttpReadTimeoutMillis";
+    static final int HTTP_READ_TIMEOUT_MILLIS_DEFAULT = 10_000;
     static final String REQUIRE_HTTPS = "openIDRequireHttps";
+    static final boolean REQUIRE_HTTPS_DEFAULT = true;
 
     // The list of audiences that are allowed to connect to this broker. A valid JWT must contain one of the audiences.
     private String[] allowedAudiences;
@@ -140,15 +132,24 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
-        this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, "sub");
-        this.acceptedTimeLeeway = getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS, 0);
-        this.jwkCacheSize = getConfigValueAsInt(config, JWK_CACHE_SIZE, 10);
-        this.jwkExpiresSeconds = getConfigValueAsInt(config, JWK_EXPIRES_SECONDS, 5);
-        this.jwkConnectionTimeout = getConfigValueAsInt(config, JWK_CONNECTION_TIMEOUT_MILLIS, 10_000);
-        this.jwkReadTimeout = getConfigValueAsInt(config, JWK_READ_TIMEOUT_MILLIS, 10_000);
-        this.requireHttps = getConfigValueAsBoolean(config, REQUIRE_HTTPS, true);
+        this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
+        this.acceptedTimeLeewaySeconds = getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS,
+                ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT);
+        this.requireHttps = getConfigValueAsBoolean(config, REQUIRE_HTTPS, REQUIRE_HTTPS_DEFAULT);
         this.issuers = validateIssuers(getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS));
-        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config);
+
+        int connectionTimeout = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
+                HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
+        int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
+        // TODO do we want to easily support custom TLS configuration? It'd be available via the JVM's args.
+        AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
+                .setConnectTimeout(connectionTimeout)
+                .setReadTimeout(readTimeout)
+                .build();
+        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(clientConfig);
+
+        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient);
+        this.jwksCache = new JwksCache(config, httpClient);
     }
 
     @Override
@@ -315,16 +316,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         }
         // Retrieve the metadata: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
         return openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(jwt.getIssuer())
-                .thenCompose(metadata -> {
-                    JwkProvider jwkProvider = getJwkProviderForIssuer(metadata.getJwksUri());
-                    try {
-                        return CompletableFuture.completedFuture(jwkProvider.get(jwt.getKeyId()));
-                    } catch (JwkException e) {
-                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
-                        return CompletableFuture.failedFuture(
-                                new AuthenticationException("Unable to retrieve PublicKey: " + e.getMessage()));
-                    }
-                });
+                .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
     }
 
     @Override
@@ -401,7 +393,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
         // We verify issuer when retrieving the PublicKey, so it is not verified here.
         JWTVerifier verifier = JWT.require(alg)
-                .acceptLeeway(acceptedTimeLeeway)
+                .acceptLeeway(acceptedTimeLeewaySeconds)
                 .withAnyOfAudience(allowedAudiences)
                 .build();
 
@@ -426,15 +418,6 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_VERIFYING_JWT);
             throw new AuthenticationException("JWT verification failed: " + e.getMessage());
         }
-    }
-
-    private JwkProvider getJwkProviderForIssuer(URL issuer) {
-        return issuerToJwkProviders.computeIfAbsent(issuer, (iss) -> {
-            // TODO This is synchronous, must be made async
-            JwkProvider baseProvider = new UrlJwkProvider(iss, this.jwkConnectionTimeout, this.jwkReadTimeout);
-            return new GuavaCachedJwkProvider(baseProvider, this.jwkCacheSize, this.jwkExpiresSeconds,
-                    TimeUnit.SECONDS);
-        });
     }
 
     static void incrementFailureMetric(AuthenticationExceptionCode code) {

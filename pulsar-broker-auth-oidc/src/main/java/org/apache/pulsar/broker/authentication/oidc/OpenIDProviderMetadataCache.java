@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.authentication.oidc;
 
-import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_CACHE_SIZE;
-import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_CONNECTION_TIMEOUT_MILLIS;
-import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_EXPIRES_SECONDS;
-import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.METADATA_READ_TIMEOUT_MILLIS;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS_DEFAULT;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
@@ -30,15 +30,11 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.DefaultAsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 
 /**
  * Class used to cache metadata responses from OpenID Providers.
@@ -53,7 +49,6 @@ class OpenIDProviderMetadataCache {
      * @throws AuthenticationException if the URL is malformed or there is an exception while opening the connection
      */
     private AsyncCacheLoader<String, OpenIDProviderMetadata> getLoader(AsyncHttpClient client) {
-        // TODO do we need a dedicated serde thread? Seems like no, so can we ignore this executor?
         return (issuer, executor) ->
                 // TODO OIDC spec https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
                 // calls for normalization according to RFC3986. Is that important to verify here?
@@ -70,7 +65,7 @@ class OpenIDProviderMetadataCache {
                             future.complete(openIDProviderMetadata);
                         } catch (IOException e) {
                             future.completeExceptionally(new AuthenticationException(
-                                    "Error retrieving OpenID Provider Metadata: " + e.getMessage()));
+                                    "Error retrieving OpenID Provider Metadata at " + issuer + ": " + e.getMessage()));
                         } catch (AuthenticationException e) {
                             future.completeExceptionally(e);
                         }
@@ -80,17 +75,10 @@ class OpenIDProviderMetadataCache {
 
     private final AsyncLoadingCache<String, OpenIDProviderMetadata> cache;
 
-    OpenIDProviderMetadataCache(ServiceConfiguration config) {
-        int maxSize = getConfigValueAsInt(config, METADATA_CACHE_SIZE, 10);
-        int expireAfterSeconds = getConfigValueAsInt(config, METADATA_EXPIRES_SECONDS, 24);
-        int connectionTimeout = getConfigValueAsInt(config, METADATA_CONNECTION_TIMEOUT_MILLIS, 10_000);
-        int readTimeout = getConfigValueAsInt(config, METADATA_READ_TIMEOUT_MILLIS, 10_000);
-        // TODO do we want to easily support custom TLS configuration? It'd be available via the JVM's args.
-        AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
-                .setConnectTimeout(connectionTimeout)
-                .setReadTimeout(readTimeout)
-                .build();
-        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(clientConfig);
+    OpenIDProviderMetadataCache(ServiceConfiguration config, AsyncHttpClient httpClient) {
+        int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
+        int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
+                CACHE_EXPIRATION_SECONDS_DEFAULT);
         this.cache = Caffeine.newBuilder()
                 .maximumSize(maxSize)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
@@ -112,18 +100,7 @@ class OpenIDProviderMetadataCache {
         if (issuer == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Issuer must not be null."));
         }
-        try {
-            return cache.get(issuer);
-        } catch (CompletionException e) {
-            AuthenticationProviderOpenID.incrementFailureMetric(
-                    AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
-            if (e.getCause() instanceof AuthenticationException) {
-                return CompletableFuture.failedFuture(e.getCause());
-            } else {
-                return CompletableFuture.failedFuture(
-                        new AuthenticationException("Error retrieving OpenID Provider Metadata: " + e.getMessage()));
-            }
-        }
+        return cache.get(issuer);
     }
 
     /**

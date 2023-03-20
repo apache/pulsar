@@ -22,7 +22,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.net.URL;
 
 /**
  * A Simple Class representing the essential fields of the OpenID Provider Metadata.
@@ -34,10 +33,10 @@ import java.net.URL;
 public class OpenIDProviderMetadata {
 
     private final String issuer;
-    private final URL jwksUri;
+    private final String jwksUri;
 
     @JsonCreator(mode = JsonCreator.Mode.PROPERTIES)
-    public OpenIDProviderMetadata(@JsonProperty("issuer") String issuer, @JsonProperty("jwks_uri") URL jwksUri) {
+    public OpenIDProviderMetadata(@JsonProperty("issuer") String issuer, @JsonProperty("jwks_uri") String jwksUri) {
         this.issuer = issuer;
         this.jwksUri = jwksUri;
     }
@@ -48,7 +47,7 @@ public class OpenIDProviderMetadata {
     }
 
     @JsonGetter
-    public URL getJwksUri() {
+    public String getJwksUri() {
         return jwksUri;
     }
 }
