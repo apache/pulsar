@@ -184,7 +184,6 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
 
         Map<String, String> kafkaConnectorProps = Maps.newHashMap();
         kafkaConnectorProps.put("file", file.toString());
-        // kafkaConnectorProps.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
         props.put("kafkaConnectorConfigProperties", kafkaConnectorProps);
 
         this.context = mock(SinkContext.class);
