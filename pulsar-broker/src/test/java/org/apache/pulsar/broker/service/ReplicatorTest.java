@@ -880,7 +880,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             fail("Delete topic should fail if enabled replicator");
         } catch (Exception ex) {
             assertTrue(ex instanceof PulsarAdminException);
-            assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), ((PulsarAdminException) ex).getStatusCode());
+            assertEquals(((PulsarAdminException) ex).getStatusCode(), 422/* Unprocessable entity*/);
         }
     }
 
@@ -894,7 +894,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             fail("Delete topic should fail if enabled replicator");
         } catch (Exception ex) {
             assertTrue(ex instanceof PulsarAdminException);
-            assertEquals(Response.Status.BAD_REQUEST.getStatusCode(), ((PulsarAdminException) ex).getStatusCode());
+            assertEquals(((PulsarAdminException) ex).getStatusCode(), 422/* Unprocessable entity*/);
         }
     }
 
