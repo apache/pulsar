@@ -240,7 +240,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
         topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
         topicPolicies.getEntryFilters().updateTopicValue(data.getEntryFilters());
-        this.subscriptionPolicies = data.getSubscriptionPolicies();
+        if (data.getSubscriptionPolicies() != null) {
+            this.subscriptionPolicies = data.getSubscriptionPolicies();
+        }
 
         updateEntryFilters();
     }
