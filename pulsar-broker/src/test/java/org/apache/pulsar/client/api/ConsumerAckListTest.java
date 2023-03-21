@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Test(groups = "broker-api")
 public class ConsumerAckListTest extends ProducerConsumerBase {
@@ -111,4 +112,39 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         latch.await();
     }
 
+    @Test(timeOut = 30000)
+    public void testAckMessageInAnotherTopic() throws Exception {
+        final String[] topics = {
+                "persistent://my-property/my-ns/test-ack-message-in-other-topic1" + UUID.randomUUID(),
+                "persistent://my-property/my-ns/test-ack-message-in-other-topic2" + UUID.randomUUID(),
+                "persistent://my-property/my-ns/test-ack-message-in-other-topic3" + UUID.randomUUID()
+        };
+        @Cleanup final Consumer<String> allTopicsConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topics)
+                .subscriptionName("sub1")
+                .subscribe();
+        Consumer<String> partialTopicsConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topics[0], topics[1])
+                .subscriptionName("sub2")
+                .subscribe();
+        for (String topic : topics) {
+            final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(topic)
+                    .create();
+            producer.send("msg");
+            producer.close();
+        }
+        final List<Message<String>> messages = new ArrayList<>();
+        for (int i = 0; i < topics.length; i++) {
+            messages.add(allTopicsConsumer.receive());
+        }
+        partialTopicsConsumer.acknowledge(messages.stream().map(Message::getMessageId).collect(Collectors.toList()));
+        pulsarClient.newProducer(Schema.STRING).topic(topics[0]).create().send("done");
+        partialTopicsConsumer.close();
+        partialTopicsConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topics[0])
+                .subscriptionName("sub2").subscribe();
+        final Message<String> msg = partialTopicsConsumer.receive();
+        Assert.assertEquals(msg.getValue(), "done");
+        partialTopicsConsumer.close();
+    }
 }

@@ -496,8 +496,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             topicToMessageIdMap.forEach((topicPartitionName, messageIds) -> {
                 ConsumerImpl<T> consumer = consumers.get(topicPartitionName);
-                resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
-                        .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
+                if (consumer != null) {
+                    resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
+                            .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
+                } else {
+                    log.warn("MessageIds whose owner topic is {} will be discard because the consumer is not connected",
+                            topicPartitionName);
+                }
             });
         }
         return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
