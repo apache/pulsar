@@ -1478,9 +1478,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
             return null;
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
 
-        doAnswer((invokactionOnMock) -> {
-            ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])
-                    .markDeleteComplete(invokactionOnMock.getArguments()[3]);
+        doAnswer((invocationOnMock) -> {
+            ((MarkDeleteCallback) invocationOnMock.getArguments()[2])
+                    .markDeleteComplete(invocationOnMock.getArguments()[3]);
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
     }
@@ -2287,15 +2287,16 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         CompactedTopic compactedTopic = mock(CompactedTopic.class);
-        PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
-                Compactor.COMPACTION_SUBSCRIPTION,
-                cursorMock);
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(compactedTopic).newCompactedLedger(any(), anyLong());
+        PersistentSubscription sub = new CompactorSubscription(
+                topic, compactedTopic, Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
 
-        doAnswer((invokactionOnMock) -> {
-            ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])
+        doAnswer((invocationOnMock) -> {
+            ((MarkDeleteCallback) invocationOnMock.getArguments()[2])
                     .markDeleteFailed(new ManagedLedgerException
                                     .CursorAlreadyClosedException("Cursor was already closed"),
-                            invokactionOnMock.getArguments()[3]);
+                            invocationOnMock.getArguments()[3]);
             return null;
         }).when(cursorMock).asyncMarkDelete(any(), any(), any(MarkDeleteCallback.class), any());
 
