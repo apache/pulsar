@@ -1061,7 +1061,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         if (deadLetterProducer != null) {
             closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
-                log.warn("Exception ignored in closing deadLetterProducer of consumer", ex);
+                if (ex != null) {
+                    log.warn("Exception ignored in closing deadLetterProducer of consumer", ex);
+                }
             }));
         }
         return FutureUtil.waitForAll(closeFutures);
