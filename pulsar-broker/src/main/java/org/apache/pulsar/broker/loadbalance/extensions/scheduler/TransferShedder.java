@@ -30,9 +30,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Underloaded;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import com.google.common.annotations.VisibleForTesting;
-import java.util.HashSet;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -372,7 +370,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     if (!isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
                         if (debugMode) {
                             log.info(CANNOT_CONTINUE_UNLOAD_MSG
-                                            + " std:{} <= targetStd:{} and minBroker:{} has msg throughput.",
+                                            + "The overall cluster load meets the target, std:{} <= targetStd:{},"
+                                            + " and minBroker:{} is not underloaded.",
                                     stats.std(), targetStd, stats.peekMinBroker());
                         }
                         break;
@@ -465,7 +464,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 int remainingTopBundles = maxBrokerTopBundlesLoadData.size();
                 for (var e : maxBrokerTopBundlesLoadData) {
                     String bundle = e.bundleName();
-                    if (!channel.isOwner(bundle, maxBroker)) {
+                    if (channel != null && !channel.isOwner(bundle, maxBroker)) {
                         if (debugMode) {
                             log.warn(String.format(CANNOT_UNLOAD_BUNDLE_MSG
                                     + " MaxBroker:%s is not the owner.", bundle, maxBroker));
@@ -514,6 +513,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                             + maxBrokerBundleThroughput;
                             while (minBrokerTopBundlesLoadDataIter.hasNext()) {
                                 var minBrokerBundleData = minBrokerTopBundlesLoadDataIter.next();
+                                if (!isTransferable(context, availableBrokers,
+                                        minBrokerBundleData.bundleName(), minBroker, Optional.of(maxBroker))) {
+                                    continue;
+                                }
                                 var minBrokerBundleThroughput =
                                         minBrokerBundleData.stats().msgThroughputIn
                                                 + minBrokerBundleData.stats().msgThroughputOut;
@@ -649,7 +652,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
         return brokerLoadData.getWeightedMaxEMA()
                 < avgLoad * Math.min(0.5, Math.max(0.0,
-                context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd()));
+                context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
     }
 
 
@@ -672,7 +675,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return false;
         }
 
-        if (!antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
+        if (antiAffinityGroupPolicyHelper != null
+                && !antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
             return false;
         }
         return true;

@@ -243,7 +243,7 @@ public class TransferShedderTest {
         namespaceBundleStats4.msgThroughputOut = load4;
         var namespaceBundleStats5 = new NamespaceBundleStats();
         namespaceBundleStats5.msgThroughputOut = load5;
-        var topKBundles = new TopKBundles();
+        var topKBundles = new TopKBundles(pulsar);
         topKBundles.update(Map.of(
                 bundlePrefix + "/0x00000000_0x1FFFFFFF", namespaceBundleStats1,
                 bundlePrefix + "/0x1FFFFFFF_0x2FFFFFFF", namespaceBundleStats2,
@@ -414,14 +414,15 @@ public class TransferShedderTest {
     }
 
     @Test
-    public void testNoOwnerLoadData() {
+    public void testNoOwnerLoadData() throws IllegalAccessException {
         UnloadCounter counter = new UnloadCounter();
         TransferShedder transferShedder = new TransferShedder(counter);
+        FieldUtils.writeDeclaredField(transferShedder, "channel", channel, true);
         var ctx = setupContext();
         doReturn(false).when(channel).isOwner(any(), any());
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         assertTrue(res.isEmpty());
-        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBrokers).get(), 1);
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
     }
@@ -530,15 +531,15 @@ public class TransferShedderTest {
         doReturn(FutureUtil.failedFuture(new TimeoutException())).when(registry).getAvailableBrokerLookupDataAsync();
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         assertEquals(counter.getBreakdownCounters().get(Failure).get(Unknown).get(), 1);
-        assertEquals(counter.getLoadAvg(), setupLoadAvg);
-        assertEquals(counter.getLoadStd(), setupLoadStd);
+        assertEquals(counter.getLoadAvg(), 0.0);
+        assertEquals(counter.getLoadStd(), 0.0);
     }
 
     @Test(timeOut = 30 * 1000)
     public void testBundlesWithIsolationPolicies() throws IllegalAccessException {
+        doReturn(true).when(antiAffinityGroupPolicyHelper).canUnload(any(), any(), any(), any());
         UnloadCounter counter = new UnloadCounter();
         TransferShedder transferShedder = spy(new TransferShedder(pulsar, counter, antiAffinityGroupPolicyHelper));
-
         var allocationPoliciesSpy = (SimpleResourceAllocationPolicies)
                 spy(FieldUtils.readDeclaredField(transferShedder, "allocationPolicies", true));
         FieldUtils.writeDeclaredField(transferShedder, "allocationPolicies", allocationPoliciesSpy, true);
@@ -679,6 +680,13 @@ public class TransferShedderTest {
         UnloadCounter counter = new UnloadCounter();
         TransferShedder transferShedder = new TransferShedder(counter);
         var ctx = getContext();
+        BrokerRegistry brokerRegistry = mock(BrokerRegistry.class);
+        doReturn(CompletableFuture.completedFuture(Map.of(
+                "broker1", mock(BrokerLookupData.class),
+                "broker2", mock(BrokerLookupData.class),
+                "broker3", mock(BrokerLookupData.class)
+        ))).when(brokerRegistry).getAvailableBrokerLookupDataAsync();
+        doReturn(brokerRegistry).when(ctx).brokerRegistry();
         ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         brokerLoadDataStore.pushAsync("broker1", getCpuLoad(ctx, 10, "broker1"));
@@ -752,8 +760,6 @@ public class TransferShedderTest {
         var expected = new HashSet<UnloadDecision>();
         expected.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
                 Success, Overloaded));
-        expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker2")),
-                Success, Overloaded));
         assertEquals(res, expected);
         assertEquals(counter.getLoadAvg(), 0.26400000000000007);
         assertEquals(counter.getLoadStd(), 0.27644891028904417);
@@ -813,6 +819,38 @@ public class TransferShedderTest {
                 FieldUtils.readDeclaredField(transferShedder, "stats", true);
         assertEquals(stats.std(), 0.050000004900021836);
     }
+
+    @Test
+    public void testSkipBundlesGreaterThanTargetThroughputAfterSplit() {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = getContext();
+        ctx.brokerConfiguration().setLoadBalancerBrokerLoadTargetStd(0.20);
+
+        var brokerRegistry = mock(BrokerRegistry.class);
+        doReturn(brokerRegistry).when(ctx).brokerRegistry();
+        doReturn(CompletableFuture.completedFuture(Map.of(
+                "broker1", mock(BrokerLookupData.class),
+                "broker2", mock(BrokerLookupData.class)
+        ))).when(brokerRegistry).getAvailableBrokerLookupDataAsync();
+
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+        topBundlesLoadDataStore.pushAsync("broker1",
+                getTopBundlesLoad("my-tenant/my-namespaceA", 1, 500000000));
+        topBundlesLoadDataStore.pushAsync("broker2",
+                getTopBundlesLoad("my-tenant/my-namespaceB", 500000000, 500000000));
+
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        brokerLoadDataStore.pushAsync("broker1", getCpuLoad(ctx, 50, "broker1"));
+        brokerLoadDataStore.pushAsync("broker2", getCpuLoad(ctx, 100, "broker2"));
+
+
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
+    }
+
 
     @Test
     public void testUnloadBundlesLessThanTargetThroughputAfterSplit() throws IllegalAccessException {
@@ -877,17 +915,17 @@ public class TransferShedderTest {
 
         var expected = new HashSet<UnloadDecision>();
         expected.add(new UnloadDecision(
-                new Unload("broker2",
-                        res.stream().filter(x -> x.getUnload().sourceBroker().equals("broker2")).findFirst().get()
-                                .getUnload().serviceUnit(), Optional.of("broker2")),
-                Success, Overloaded));
-        expected.add(new UnloadDecision(
                 new Unload("broker1",
                         res.stream().filter(x -> x.getUnload().sourceBroker().equals("broker1")).findFirst().get()
                         .getUnload().serviceUnit(), Optional.of("broker2")),
                 Success, Overloaded));
-        assertEquals(counter.getLoadAvg(), 5.05);
-        assertEquals(counter.getLoadStd(), 4.95);
+        expected.add(new UnloadDecision(
+                new Unload("broker2",
+                        res.stream().filter(x -> x.getUnload().sourceBroker().equals("broker2")).findFirst().get()
+                                .getUnload().serviceUnit(), Optional.of("broker1")),
+                Success, Overloaded));
+        assertEquals(counter.getLoadAvg(), 0.74);
+        assertEquals(counter.getLoadStd(), 0.26);
         assertEquals(res, expected);
         var stats = (TransferShedder.LoadStats)
                 FieldUtils.readDeclaredField(transferShedder, "stats", true);
@@ -914,7 +952,7 @@ public class TransferShedderTest {
         expected.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
                 Success, Overloaded));
         expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker2")),
-                Success, Overloaded));
+                Success, Underloaded));
         assertEquals(res, expected);
         assertEquals(counter.getLoadAvg(), 0.26400000000000007);
         assertEquals(counter.getLoadStd(), 0.27644891028904417);
@@ -927,7 +965,7 @@ public class TransferShedderTest {
         var ctx = setupContext();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
 
-        var load = getCpuLoad(ctx,  4, "broker2");
+        var load = getCpuLoad(ctx,  3 , "broker2");
         brokerLoadDataStore.pushAsync("broker2", load);
         brokerLoadDataStore.pushAsync("broker4", getCpuLoad(ctx,  55, "broker4"));
         brokerLoadDataStore.pushAsync("broker5", getCpuLoad(ctx,  65, "broker5"));
@@ -940,8 +978,8 @@ public class TransferShedderTest {
         expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker2")),
                 Success, Underloaded));
         assertEquals(res, expected);
-        assertEquals(counter.getLoadAvg(), 0.26400000000000007);
-        assertEquals(counter.getLoadStd(), 0.27644891028904417);
+        assertEquals(counter.getLoadAvg(), 0.262);
+        assertEquals(counter.getLoadStd(), 0.2780935094532054);
     }
 
     @Test
@@ -973,7 +1011,7 @@ public class TransferShedderTest {
         for (int i = 0; i < max; i++) {
             var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
             assertTrue(res.isEmpty());
-            assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
+            assertEquals(counter.getBreakdownCounters().get(Skip).get(HitCount).get(), i+1);
             assertEquals(counter.getLoadAvg(), setupLoadAvg);
             assertEquals(counter.getLoadStd(), setupLoadStd);
         }
@@ -1031,7 +1069,7 @@ public class TransferShedderTest {
         var stats = (TransferShedder.LoadStats)
                 FieldUtils.readDeclaredField(transferShedder, "stats", true);
         assertEquals(stats.avg(), 2.4240000000000004);
-        assertEquals(stats.std(), 3.5699882912973253);
+        assertEquals(stats.std(), 2.781643776903451);
     }
 
     @Test
