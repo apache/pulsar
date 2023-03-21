@@ -33,6 +33,8 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.HashSet;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -165,7 +167,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             double maxd = Math.max(0, max - offload);
             double mind = min + offload;
             sqSum += maxd * maxd + mind * mind;
-            std = Math.sqrt(sqSum / totalBrokers - avg * avg);
+            std = Math.sqrt(Math.abs(sqSum / totalBrokers - avg * avg));
             numberOfBrokerSheddingPerCycle++;
             minBrokerIndex++;
         }
@@ -264,9 +266,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         void setLoadDataStore(LoadDataStore<BrokerLoadData> loadDataStore) {
             this.loadDataStore = loadDataStore;
             brokersSortedByLoad.addAll(loadDataStore.entrySet());
-            Collections.sort(brokersSortedByLoad, (a, b) -> Double.compare(
-                    a.getValue().getWeightedMaxEMA(),
-                    b.getValue().getWeightedMaxEMA()));
+            brokersSortedByLoad.sort(Comparator.comparingDouble(
+                    a -> a.getValue().getWeightedMaxEMA()));
             maxBrokerIndex = brokersSortedByLoad.size() - 1;
             minBrokerIndex = 0;
         }
@@ -405,29 +406,32 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }
-                double max = maxBrokerLoadData.get().getWeightedMaxEMA();
-                double min = minBrokerLoadData.get().getWeightedMaxEMA();
-                double offload = (max - min) / 2 / max;
+                double maxLoad = maxBrokerLoadData.get().getWeightedMaxEMA();
+                double minLoad = minBrokerLoadData.get().getWeightedMaxEMA();
+                double offload = (maxLoad - minLoad) / 2;
                 BrokerLoadData brokerLoadData = maxBrokerLoadData.get();
-                double brokerThroughput = brokerLoadData.getMsgThroughputIn() + brokerLoadData.getMsgThroughputOut();
-                double offloadThroughput = brokerThroughput * offload;
+                double maxBrokerThroughput = brokerLoadData.getMsgThroughputIn()
+                        + brokerLoadData.getMsgThroughputOut();
+                double minBrokerThroughput = minBrokerLoadData.get().getMsgThroughputIn()
+                        + minBrokerLoadData.get().getMsgThroughputOut();
+                double offloadThroughput = maxBrokerThroughput * offload / maxLoad;
 
                 if (debugMode) {
                     log.info(String.format(
                             "Attempting to shed load from broker:%s%s, which has the max resource "
                                     + "usage:%.2f%%, targetStd:%.2f,"
-                                    + " -- Trying to offload %.2f%%, %.2f KByte/s of traffic, "
-                                    + "left throughput %.2f KByte/s",
+                                    + " -- Trying to offload %.2f%%, %.2f KByte/s of traffic.",
                             maxBroker, transfer ? " to broker:" + minBroker : "",
-                            max * 100,
+                            maxLoad * 100,
                             targetStd,
                             offload * 100,
                             offloadThroughput / KB,
-                            (brokerThroughput - offloadThroughput) / KB
+                            (maxBrokerThroughput - offloadThroughput) / KB
                     ));
                 }
 
                 double trafficMarkedToOffload = 0;
+                double trafficMarkedToGain = 0;
 
                 Optional<TopBundlesLoadData> bundlesLoadData = context.topBundleLoadDataStore().get(maxBroker);
                 if (bundlesLoadData.isEmpty() || bundlesLoadData.get().getTopBundlesLoadData().isEmpty()) {
@@ -437,24 +441,29 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     continue;
                 }
 
-                var topBundlesLoadData = bundlesLoadData.get().getTopBundlesLoadData();
-                if (topBundlesLoadData.size() == 1) {
+                var maxBrokerTopBundlesLoadData = bundlesLoadData.get().getTopBundlesLoadData();
+                if (maxBrokerTopBundlesLoadData.size() == 1) {
                     numOfBrokersWithFewBundles++;
                     log.warn(String.format(CANNOT_UNLOAD_BROKER_MSG
                                     + " Sole namespace bundle:%s is overloading the broker. ",
-                            maxBroker, topBundlesLoadData.iterator().next()));
+                            maxBroker, maxBrokerTopBundlesLoadData.iterator().next()));
                     continue;
                 }
+                Optional<TopBundlesLoadData> minBundlesLoadData = context.topBundleLoadDataStore().get(minBroker);
+                var minBrokerTopBundlesLoadDataIter =
+                        minBundlesLoadData.isPresent() ? minBundlesLoadData.get().getTopBundlesLoadData().iterator() :
+                                null;
 
-                if (topBundlesLoadData.isEmpty()) {
+
+                if (maxBrokerTopBundlesLoadData.isEmpty()) {
                     numOfBrokersWithFewBundles++;
                     log.warn(String.format(CANNOT_UNLOAD_BROKER_MSG
                             + " Broker overloaded despite having no bundles", maxBroker));
                     continue;
                 }
 
-                int remainingTopBundles = topBundlesLoadData.size();
-                for (var e : topBundlesLoadData) {
+                int remainingTopBundles = maxBrokerTopBundlesLoadData.size();
+                for (var e : maxBrokerTopBundlesLoadData) {
                     String bundle = e.bundleName();
                     if (!channel.isOwner(bundle, maxBroker)) {
                         if (debugMode) {
@@ -490,20 +499,75 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     }
 
                     var bundleData = e.stats();
-                    double throughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
-
-                    if (throughput + trafficMarkedToOffload > offloadThroughput) {
-                        if (debugMode) {
-                            log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
-                                            + " The traffic to unload:%.2f KByte/s is "
-                                            + "greater than threshold:%.2f KByte/s.",
-                                    bundle, (throughput + trafficMarkedToOffload) / KB, offloadThroughput / KB));
+                    double maxBrokerBundleThroughput = bundleData.msgThroughputIn + bundleData.msgThroughputOut;
+                    boolean swap = false;
+                    List<Unload> minToMaxUnloads = new ArrayList<>();
+                    double minBrokerBundleSwapThroughput = 0.0;
+                    if (trafficMarkedToOffload - trafficMarkedToGain + maxBrokerBundleThroughput > offloadThroughput) {
+                        // see if we can swap bundles from min to max broker to balance better.
+                        if (transfer && minBrokerTopBundlesLoadDataIter != null) {
+                            var maxBrokerNewThroughput =
+                                    maxBrokerThroughput - trafficMarkedToOffload + trafficMarkedToGain
+                                            - maxBrokerBundleThroughput;
+                            var minBrokerNewThroughput =
+                                    minBrokerThroughput + trafficMarkedToOffload - trafficMarkedToGain
+                                            + maxBrokerBundleThroughput;
+                            while (minBrokerTopBundlesLoadDataIter.hasNext()) {
+                                var minBrokerBundleData = minBrokerTopBundlesLoadDataIter.next();
+                                var minBrokerBundleThroughput =
+                                        minBrokerBundleData.stats().msgThroughputIn
+                                                + minBrokerBundleData.stats().msgThroughputOut;
+                                var maxBrokerNewThroughputTmp = maxBrokerNewThroughput + minBrokerBundleThroughput;
+                                var minBrokerNewThroughputTmp = minBrokerNewThroughput - minBrokerBundleThroughput;
+                                if (maxBrokerNewThroughputTmp < maxBrokerThroughput
+                                        && minBrokerNewThroughputTmp < maxBrokerThroughput) {
+                                    minToMaxUnloads.add(new Unload(minBroker,
+                                            minBrokerBundleData.bundleName(), Optional.of(maxBroker)));
+                                    maxBrokerNewThroughput = maxBrokerNewThroughputTmp;
+                                    minBrokerNewThroughput = minBrokerNewThroughputTmp;
+                                    minBrokerBundleSwapThroughput += minBrokerBundleThroughput;
+                                    if (minBrokerNewThroughput <= maxBrokerNewThroughput
+                                            && maxBrokerNewThroughput < maxBrokerThroughput * 0.75) {
+                                        swap = true;
+                                        break;
+                                    }
+                                }
+                            }
                         }
-                        break;
+                        if (!swap) {
+                            if (debugMode) {
+                                log.info(String.format(CANNOT_UNLOAD_BUNDLE_MSG
+                                                + " The traffic to unload:%.2f - gain:%.2f = %.2f KByte/s is "
+                                                + "greater than the target :%.2f KByte/s.",
+                                        bundle,
+                                        (trafficMarkedToOffload + maxBrokerBundleThroughput) / KB,
+                                        trafficMarkedToGain / KB,
+                                        (trafficMarkedToOffload - trafficMarkedToGain + maxBrokerBundleThroughput) / KB,
+                                        offloadThroughput / KB));
+                            }
+                            break;
+                        }
                     }
-
                     Unload unload;
                     if (transfer) {
+                        if (swap) {
+                            minToMaxUnloads.forEach(minToMaxUnload -> {
+                                if (debugMode) {
+                                    log.info("Decided to gain bundle:{} from min broker:{}",
+                                            minToMaxUnload.serviceUnit(), minToMaxUnload.sourceBroker());
+                                }
+                                var decision = new UnloadDecision();
+                                decision.setUnload(minToMaxUnload);
+                                decision.succeed(reason);
+                                decisionCache.add(decision);
+                            });
+                            if (debugMode) {
+                                log.info(String.format(
+                                        "Total traffic %.2f KByte/s to transfer from min broker:%s to max broker:%s.",
+                                        minBrokerBundleSwapThroughput / KB, minBroker, maxBroker));
+                                trafficMarkedToGain += minBrokerBundleSwapThroughput;
+                            }
+                        }
                         unload = new Unload(maxBroker, bundle, Optional.of(minBroker));
                     } else {
                         unload = new Unload(maxBroker, bundle);
@@ -512,22 +576,28 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     decision.setUnload(unload);
                     decision.succeed(reason);
                     decisionCache.add(decision);
-                    trafficMarkedToOffload += throughput;
+                    trafficMarkedToOffload += maxBrokerBundleThroughput;
                     remainingTopBundles--;
 
                     if (debugMode) {
                         log.info(String.format("Decided to unload bundle:%s, throughput:%.2f KByte/s."
-                                        + " The traffic marked to unload:%.2f KByte/s."
-                                        + " Threshold:%.2f KByte/s.",
-                                bundle, throughput / KB, trafficMarkedToOffload / KB, offloadThroughput / KB));
+                                        + " The traffic marked to unload:%.2f - gain:%.2f = %.2f KByte/s."
+                                        + " Target:%.2f KByte/s.",
+                                bundle, maxBrokerBundleThroughput / KB,
+                                trafficMarkedToOffload / KB,
+                                trafficMarkedToGain / KB,
+                                (trafficMarkedToOffload - trafficMarkedToGain) / KB,
+                                offloadThroughput / KB));
                     }
                 }
                 if (trafficMarkedToOffload > 0) {
-                    stats.offload(max, min, offload);
+                    var adjustedOffload =
+                            (trafficMarkedToOffload - trafficMarkedToGain) * maxLoad / maxBrokerThroughput;
+                    stats.offload(maxLoad, minLoad, adjustedOffload);
                     if (debugMode) {
                         log.info(
                                 String.format("brokers' load stats:%s, after offload{max:%.2f, min:%.2f, offload:%.2f}",
-                                        stats, max, min, offload));
+                                        stats, maxLoad, minLoad, adjustedOffload));
                     }
                 } else {
                     numOfBrokersWithFewBundles++;

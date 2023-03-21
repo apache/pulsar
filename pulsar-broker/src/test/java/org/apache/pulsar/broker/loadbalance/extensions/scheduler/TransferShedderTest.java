@@ -149,7 +149,7 @@ public class TransferShedderTest {
                     (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
             return new NamespaceBundle(NamespaceName.get(namespace), hashRange, factory);
         }).when(factory).getBundle(anyString(), anyString());
-        doReturn(new AtomicReference(loadManagerWrapper)).when(pulsar).getLoadManager();
+        doReturn(new AtomicReference<>(loadManagerWrapper)).when(pulsar).getLoadManager();
         doReturn(loadManager).when(loadManagerWrapper).get();
         doReturn(channel).when(loadManager).getServiceUnitStateChannel();
         doReturn(true).when(channel).isOwner(any(), any());
@@ -228,6 +228,29 @@ public class TransferShedderTest {
         var topKBundles = new TopKBundles(pulsar);
         topKBundles.update(Map.of(bundlePrefix + "/0x00000000_0x0FFFFFFF", namespaceBundleStats1,
                 bundlePrefix + "/0x0FFFFFFF_0xFFFFFFFF", namespaceBundleStats2), 2);
+        return topKBundles.getLoadData();
+    }
+
+    public TopBundlesLoadData getTopBundlesLoad(String bundlePrefix,
+                                                int load1, int load2, int load3, int load4, int load5) {
+        var namespaceBundleStats1 = new NamespaceBundleStats();
+        namespaceBundleStats1.msgThroughputOut = load1;
+        var namespaceBundleStats2 = new NamespaceBundleStats();
+        namespaceBundleStats2.msgThroughputOut = load2;
+        var namespaceBundleStats3 = new NamespaceBundleStats();
+        namespaceBundleStats3.msgThroughputOut = load3;
+        var namespaceBundleStats4 = new NamespaceBundleStats();
+        namespaceBundleStats4.msgThroughputOut = load4;
+        var namespaceBundleStats5 = new NamespaceBundleStats();
+        namespaceBundleStats5.msgThroughputOut = load5;
+        var topKBundles = new TopKBundles();
+        topKBundles.update(Map.of(
+                bundlePrefix + "/0x00000000_0x1FFFFFFF", namespaceBundleStats1,
+                bundlePrefix + "/0x1FFFFFFF_0x2FFFFFFF", namespaceBundleStats2,
+                bundlePrefix + "/0x2FFFFFFF_0x3FFFFFFF", namespaceBundleStats3,
+                bundlePrefix + "/0x3FFFFFFF_0x4FFFFFFF", namespaceBundleStats4,
+                bundlePrefix + "/0x4FFFFFFF_0x5FFFFFFF", namespaceBundleStats5
+        ), 5);
         return topKBundles.getLoadData();
     }
 
@@ -527,7 +550,7 @@ public class TransferShedderTest {
         var ctx = setupContext();
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         var expected = new HashSet<UnloadDecision>();
-        expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker2")),
+        expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker1")),
                 Success, Overloaded));
         assertEquals(res, expected);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
@@ -615,28 +638,9 @@ public class TransferShedderTest {
         }).when(policies).shouldFailoverToSecondaries(eq(namespaceName), anyInt());
     }
 
-    private PulsarService getMockPulsar(PulsarService pulsar) {
-        var namespaceService = mock(NamespaceService.class);
-        doReturn(namespaceService).when(pulsar).getNamespaceService();
-        NamespaceBundleFactory factory = mock(NamespaceBundleFactory.class);
-        doReturn(factory).when(namespaceService).getNamespaceBundleFactory();
-        doAnswer(answer -> {
-            String namespace = answer.getArgument(0, String.class);
-            String bundleRange = answer.getArgument(1, String.class);
-            String[] boundaries = bundleRange.split("_");
-            Long lowerEndpoint = Long.decode(boundaries[0]);
-            Long upperEndpoint = Long.decode(boundaries[1]);
-            Range<Long> hashRange = Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
-                    (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
-            return new NamespaceBundle(NamespaceName.get(namespace), hashRange, factory);
-        }).when(factory).getBundle(anyString(), anyString());
-        return pulsar;
-    }
-
 
     @Test
     public void testBundlesWithAntiAffinityGroup() throws IllegalAccessException, MetadataStoreException {
-
         var counter = new UnloadCounter();
         TransferShedder transferShedder = new TransferShedder(pulsar, counter, antiAffinityGroupPolicyHelper);
         var allocationPoliciesSpy = (SimpleResourceAllocationPolicies)
@@ -754,6 +758,142 @@ public class TransferShedderTest {
         assertEquals(counter.getLoadAvg(), 0.26400000000000007);
         assertEquals(counter.getLoadStd(), 0.27644891028904417);
     }
+
+    @Test
+    public void testUnloadBundlesGreaterThanTargetThroughput() throws IllegalAccessException {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = getContext();
+
+        var brokerRegistry = mock(BrokerRegistry.class);
+        doReturn(brokerRegistry).when(ctx).brokerRegistry();
+        doReturn(CompletableFuture.completedFuture(Map.of(
+                "broker1", mock(BrokerLookupData.class),
+                "broker2", mock(BrokerLookupData.class)
+        ))).when(brokerRegistry).getAvailableBrokerLookupDataAsync();
+
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+        topBundlesLoadDataStore.pushAsync("broker1", getTopBundlesLoad("my-tenant/my-namespaceA", 1000000, 2000000, 3000000, 4000000, 5000000));
+        topBundlesLoadDataStore.pushAsync("broker2",
+                getTopBundlesLoad("my-tenant/my-namespaceB", 100000000, 180000000, 220000000, 250000000, 250000000));
+
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        brokerLoadDataStore.pushAsync("broker1", getCpuLoad(ctx, 10, "broker1"));
+        brokerLoadDataStore.pushAsync("broker2", getCpuLoad(ctx, 1000, "broker2"));
+
+
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        var expected = new HashSet<UnloadDecision>();
+        expected.add(new UnloadDecision(
+                new Unload("broker2", "my-tenant/my-namespaceB/0x00000000_0x1FFFFFFF", Optional.of("broker1")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker2", "my-tenant/my-namespaceB/0x1FFFFFFF_0x2FFFFFFF", Optional.of("broker1")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker2", "my-tenant/my-namespaceB/0x2FFFFFFF_0x3FFFFFFF", Optional.of("broker1")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker1", "my-tenant/my-namespaceA/0x00000000_0x1FFFFFFF", Optional.of("broker2")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker1", "my-tenant/my-namespaceA/0x1FFFFFFF_0x2FFFFFFF", Optional.of("broker2")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker1","my-tenant/my-namespaceA/0x2FFFFFFF_0x3FFFFFFF", Optional.of("broker2")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker1","my-tenant/my-namespaceA/0x3FFFFFFF_0x4FFFFFFF", Optional.of("broker2")),
+                Success, Overloaded));
+        assertEquals(counter.getLoadAvg(), 5.05);
+        assertEquals(counter.getLoadStd(), 4.95);
+        assertEquals(res, expected);
+        var stats = (TransferShedder.LoadStats)
+                FieldUtils.readDeclaredField(transferShedder, "stats", true);
+        assertEquals(stats.std(), 0.050000004900021836);
+    }
+
+    @Test
+    public void testUnloadBundlesLessThanTargetThroughputAfterSplit() throws IllegalAccessException {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = getContext();
+
+        var brokerRegistry = mock(BrokerRegistry.class);
+        doReturn(brokerRegistry).when(ctx).brokerRegistry();
+        doReturn(CompletableFuture.completedFuture(Map.of(
+                "broker1", mock(BrokerLookupData.class),
+                "broker2", mock(BrokerLookupData.class)
+        ))).when(brokerRegistry).getAvailableBrokerLookupDataAsync();
+
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+        topBundlesLoadDataStore.pushAsync("broker1", getTopBundlesLoad("my-tenant/my-namespaceA", 1000000, 2000000, 3000000, 4000000, 5000000));
+        topBundlesLoadDataStore.pushAsync("broker2", getTopBundlesLoad("my-tenant/my-namespaceB", 490000000, 510000000));
+
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        brokerLoadDataStore.pushAsync("broker1", getCpuLoad(ctx, 10, "broker1"));
+        brokerLoadDataStore.pushAsync("broker2", getCpuLoad(ctx, 1000, "broker2"));
+
+
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        var expected = new HashSet<UnloadDecision>();
+        expected.add(new UnloadDecision(
+                new Unload("broker2", "my-tenant/my-namespaceB/0x00000000_0x0FFFFFFF", Optional.of("broker1")),
+                Success, Overloaded));
+        assertEquals(counter.getLoadAvg(), 5.05);
+        assertEquals(counter.getLoadStd(), 4.95);
+        assertEquals(res, expected);
+        var stats = (TransferShedder.LoadStats)
+                FieldUtils.readDeclaredField(transferShedder, "stats", true);
+        assertEquals(stats.std(), 0.050000004900021836);
+
+    }
+
+
+    @Test
+    public void testUnloadBundlesGreaterThanTargetThroughputAfterSplit() throws IllegalAccessException {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = getContext();
+
+        var brokerRegistry = mock(BrokerRegistry.class);
+        doReturn(brokerRegistry).when(ctx).brokerRegistry();
+        doReturn(CompletableFuture.completedFuture(Map.of(
+                "broker1", mock(BrokerLookupData.class),
+                "broker2", mock(BrokerLookupData.class)
+        ))).when(brokerRegistry).getAvailableBrokerLookupDataAsync();
+
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+        topBundlesLoadDataStore.pushAsync("broker1", getTopBundlesLoad("my-tenant/my-namespaceA", 2400000, 2400000));
+        topBundlesLoadDataStore.pushAsync("broker2", getTopBundlesLoad("my-tenant/my-namespaceB", 5000000, 5000000));
+
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        brokerLoadDataStore.pushAsync("broker1", getCpuLoad(ctx, 48, "broker1"));
+        brokerLoadDataStore.pushAsync("broker2", getCpuLoad(ctx, 100, "broker2"));
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+
+        var expected = new HashSet<UnloadDecision>();
+        expected.add(new UnloadDecision(
+                new Unload("broker2",
+                        res.stream().filter(x -> x.getUnload().sourceBroker().equals("broker2")).findFirst().get()
+                                .getUnload().serviceUnit(), Optional.of("broker2")),
+                Success, Overloaded));
+        expected.add(new UnloadDecision(
+                new Unload("broker1",
+                        res.stream().filter(x -> x.getUnload().sourceBroker().equals("broker1")).findFirst().get()
+                        .getUnload().serviceUnit(), Optional.of("broker2")),
+                Success, Overloaded));
+        assertEquals(counter.getLoadAvg(), 5.05);
+        assertEquals(counter.getLoadStd(), 4.95);
+        assertEquals(res, expected);
+        var stats = (TransferShedder.LoadStats)
+                FieldUtils.readDeclaredField(transferShedder, "stats", true);
+        assertEquals(stats.std(), 2.5809568279517847E-8);
+    }
+
 
     @Test
     public void testMinBrokerWithZeroTraffic() throws IllegalAccessException {
