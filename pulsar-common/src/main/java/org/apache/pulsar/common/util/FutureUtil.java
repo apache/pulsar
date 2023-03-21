@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -239,12 +240,27 @@ public class FutureUtil {
         return future;
     }
 
+    /**
+     * @throws RejectedExecutionException if this task cannot be accepted for execution
+     * @throws NullPointerException if one of params is null
+     */
     public static <T> @Nonnull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
                                                                  Executor executor) {
         Objects.requireNonNull(futureSupplier);
         Objects.requireNonNull(executor);
-        return CompletableFuture.completedFuture(null)
-                .thenComposeAsync(__ -> futureSupplier.get(), executor);
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        try {
+            executor.execute(() -> futureSupplier.get().whenComplete((result, error) -> {
+                if (error != null) {
+                    future.completeExceptionally(error);
+                    return;
+                }
+                future.complete(result);
+            }));
+        } catch (RejectedExecutionException ex) {
+            future.completeExceptionally(ex);
+        }
+        return future;
     }
 
 
