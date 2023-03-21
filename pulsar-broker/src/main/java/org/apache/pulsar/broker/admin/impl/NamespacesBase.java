@@ -310,11 +310,12 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
         // remove from owned namespace map and ephemeral node from ZK
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final CompletableFuture<Void> deleteSystemTopicFuture;
         // remove system topics first.
         Set<String> noPartitionedTopicPolicySystemTopic = new HashSet<>();
         Set<String> partitionedTopicPolicySystemTopic = new HashSet<>();
         Set<String> partitionSystemTopic = new HashSet<>();
+        Set<String> noPartitionSystemTopic = new HashSet<>();
         if (!topics.isEmpty()) {
             for (String topic : topics) {
                 try {
@@ -327,9 +328,10 @@ public abstract class NamespacesBase extends AdminResource {
                         }
                     } else {
                         if (topicName.isPartitioned()) {
-                            partitionSystemTopic.add(topic);
+                            partitionSystemTopic.add(topicName.getPartitionedTopicName());
+                        } else {
+                            noPartitionSystemTopic.add(topic);
                         }
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
                     }
                 } catch (Exception ex) {
                     log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
@@ -337,12 +339,15 @@ public abstract class NamespacesBase extends AdminResource {
                     return;
                 }
             }
+            deleteSystemTopicFuture = internalDeleteTopicsAsync(noPartitionSystemTopic)
+                    .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionSystemTopic))
+                    .thenCompose(ignore -> internalDeleteTopicsAsync(noPartitionedTopicPolicySystemTopic))
+                    .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicySystemTopic));
+        } else {
+            deleteSystemTopicFuture = CompletableFuture.completedFuture(null);
         }
-        for (String partitionedTopic : partitionSystemTopic) {
-            futures.add(namespaceResources().getPartitionedTopicResources()
-                    .deletePartitionedTopicAsync(TopicName.get(partitionedTopic)));
-        }
-        FutureUtil.waitForAll(futures)
+
+        deleteSystemTopicFuture
                 .thenCompose(ignore -> internalDeleteTopicsAsync(noPartitionedTopicPolicySystemTopic))
                 .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicySystemTopic))
                 .thenCompose(__ -> {
