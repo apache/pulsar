@@ -456,6 +456,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         if (pulsar == null || allocationPolicies == null) {
             return true;
         }
+
         String namespace = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
         NamespaceBundle namespaceBundle =
@@ -491,6 +492,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 || !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
             return true;
         }
+
+        // bundle has isolation policies.
+        if (!context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled()) {
+            return false;
+        }
+
         boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
         Set<String> candidates = isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, namespaceBundle);
 

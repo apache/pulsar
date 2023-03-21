@@ -105,6 +105,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
             brokersCopy.remove(srcBroker);
             var dstBroker = brokersCopy.entrySet().iterator().next().getKey();
 
+            // test setLoadBalancerSheddingBundlesWithPoliciesEnabled = true
+            conf.setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
             assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
                     "not-enabled-" + namespace + "/" + bundle,
                     srcBroker, Optional.of(dstBroker)));
@@ -128,6 +130,34 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
             assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
                     namespaceBundle,
                     dstBroker, Optional.empty()));
+
+            // test setLoadBalancerSheddingBundlesWithPoliciesEnabled = false
+            conf.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
+            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
+                    "not-enabled-" + namespace + "/" + bundle,
+                    srcBroker, Optional.of(dstBroker)));
+
+            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
+                    "not-enabled-" + namespace + "/" + bundle,
+                    srcBroker, Optional.empty()));
+
+            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
+                    namespaceBundle,
+                    srcBroker, Optional.of(dstBroker)));
+
+            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
+                    namespaceBundle,
+                    dstBroker, Optional.of(srcBroker)));
+
+            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
+                    namespaceBundle,
+                    srcBroker, Optional.empty()));
+
+            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
+                    namespaceBundle,
+                    dstBroker, Optional.empty()));
+
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

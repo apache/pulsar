@@ -24,10 +24,14 @@ import java.util.List;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
@@ -36,13 +40,22 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 @Getter
 @ToString
 @EqualsAndHashCode
-@NoArgsConstructor
+@Slf4j
 public class TopKBundles {
 
     // temp array for sorting
     private final List<Map.Entry<String, ? extends Comparable>> arr = new ArrayList<>();
 
     private final TopBundlesLoadData loadData = new TopBundlesLoadData();
+
+    private final PulsarService pulsar;
+
+    private final SimpleResourceAllocationPolicies allocationPolicies;
+
+    public TopKBundles(PulsarService pulsar) {
+        this.pulsar = pulsar;
+        this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
+    }
 
     /**
      * Update the topK bundles from the input bundleStats.
@@ -52,26 +65,35 @@ public class TopKBundles {
      */
     public void update(Map<String, NamespaceBundleStats> bundleStats, int topk) {
         arr.clear();
-        for (var etr : bundleStats.entrySet()) {
-            if (etr.getKey().startsWith(NamespaceName.SYSTEM_NAMESPACE.toString())) {
-                continue;
+        try {
+            var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
+                    pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            for (var etr : bundleStats.entrySet()) {
+                String bundle = etr.getKey();
+                if (bundle.startsWith(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+                    continue;
+                }
+                if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled && hasPolicies(bundle)) {
+                    continue;
+                }
+                arr.add(etr);
             }
-            arr.add(etr);
-        }
-        var topKBundlesLoadData = loadData.getTopBundlesLoadData();
-        topKBundlesLoadData.clear();
-        if (arr.isEmpty()) {
-            return;
-        }
-        topk = Math.min(topk, arr.size());
-        partitionSort(arr, topk);
+            var topKBundlesLoadData = loadData.getTopBundlesLoadData();
+            topKBundlesLoadData.clear();
+            if (arr.isEmpty()) {
+                return;
+            }
+            topk = Math.min(topk, arr.size());
+            partitionSort(arr, topk);
 
-        for (int i = 0; i < topk; i++) {
-            var etr = arr.get(i);
-            topKBundlesLoadData.add(
-                    new TopBundlesLoadData.BundleLoadData(etr.getKey(), (NamespaceBundleStats) etr.getValue()));
+            for (int i = 0; i < topk; i++) {
+                var etr = arr.get(i);
+                topKBundlesLoadData.add(
+                        new TopBundlesLoadData.BundleLoadData(etr.getKey(), (NamespaceBundleStats) etr.getValue()));
+            }
+        } finally {
+            arr.clear();
         }
-        arr.clear();
     }
 
     static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
@@ -108,5 +130,24 @@ public class TopKBundles {
             }
         }
         Collections.sort(arr.subList(0, end), (a, b) -> b.getValue().compareTo(a.getValue()));
+    }
+
+    private boolean hasPolicies(String bundle) {
+        NamespaceName namespace = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle));
+        if (allocationPolicies.areIsolationPoliciesPresent(namespace)) {
+            return true;
+        }
+
+        try {
+            var antiAffinityGroupOptional =
+                    LoadManagerShared.getNamespaceAntiAffinityGroup(pulsar, namespace.toString());
+            if (antiAffinityGroupOptional.isPresent()) {
+                return true;
+            }
+        } catch (MetadataStoreException e) {
+            log.error("Failed to get localPolicies for bundle:{}.", bundle, e);
+            throw new RuntimeException(e);
+        }
+        return false;
     }
 }

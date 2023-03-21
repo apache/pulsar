@@ -97,8 +97,8 @@ public class TransferShedderTest {
     double setupLoadStd = 0.3982762860126121;
 
     PulsarService pulsar;
-    AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
     ServiceConfiguration conf;
+    AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
     LocalPoliciesResources localPoliciesResources;
     String bundleD1 = "my-tenant/my-namespaceD/0x00000000_0x0FFFFFFF";
     String bundleD2 = "my-tenant/my-namespaceD/0x0FFFFFFF_0xFFFFFFFF";
@@ -109,8 +109,7 @@ public class TransferShedderTest {
     public void init() throws MetadataStoreException {
         pulsar = mock(PulsarService.class);
         conf = new ServiceConfiguration();
-        doReturn(conf).when(pulsar).getConfiguration();
-
+        conf.setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
         var pulsarResources = mock(PulsarResources.class);
         var namespaceResources = mock(NamespaceResources.class);
         var isolationPolicyResources = mock(NamespaceResources.IsolationPolicyResources.class);
@@ -118,6 +117,7 @@ public class TransferShedderTest {
         var namespaceService = mock(NamespaceService.class);
         localPoliciesResources = mock(LocalPoliciesResources.class);
         antiAffinityGroupPolicyHelper = mock(AntiAffinityGroupPolicyHelper.class);
+        doReturn(conf).when(pulsar).getConfiguration();
         doReturn(namespaceService).when(pulsar).getNamespaceService();
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
         doReturn(localPoliciesResources).when(pulsarResources).getLocalPolicies();
@@ -138,9 +138,9 @@ public class TransferShedderTest {
         }).when(factory).getBundle(anyString(), anyString());
         doReturn(true).when(antiAffinityGroupPolicyHelper).canUnload(any(), any(), any(), any());
     }
+
     public LoadManagerContext setupContext(){
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         brokerLoadDataStore.pushAsync("broker1", getCpuLoad(ctx,  2));
@@ -160,7 +160,6 @@ public class TransferShedderTest {
 
     public LoadManagerContext setupContext(int clusterSize) {
         var ctx = getContext();
-        ctx.brokerConfiguration().setLoadBalancerDebugModeEnabled(true);
 
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
@@ -170,7 +169,7 @@ public class TransferShedderTest {
             int brokerLoad = rand.nextInt(100);
             brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad));
             int bundleLoad = rand.nextInt(brokerLoad + 1);
-            topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("bundle" + i,
+            topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
                     bundleLoad, brokerLoad - bundleLoad));
         }
         return ctx;
@@ -199,7 +198,7 @@ public class TransferShedderTest {
         namespaceBundleStats1.msgThroughputOut = load1;
         var namespaceBundleStats2 = new NamespaceBundleStats();
         namespaceBundleStats2.msgThroughputOut = load2;
-        var topKBundles = new TopKBundles();
+        var topKBundles = new TopKBundles(pulsar);
         topKBundles.update(Map.of(bundlePrefix + "/0x00000000_0x0FFFFFFF", namespaceBundleStats1,
                 bundlePrefix + "/0x0FFFFFFF_0xFFFFFFFF", namespaceBundleStats2), 2);
         return topKBundles.getLoadData();
@@ -208,7 +207,7 @@ public class TransferShedderTest {
     public TopBundlesLoadData getTopBundlesLoad(String bundlePrefix, int load1) {
         var namespaceBundleStats1 = new NamespaceBundleStats();
         namespaceBundleStats1.msgThroughputOut = load1;
-        var topKBundles = new TopKBundles();
+        var topKBundles = new TopKBundles(pulsar);
         topKBundles.update(Map.of(bundlePrefix + "/0x00000000_0x0FFFFFFF", namespaceBundleStats1), 2);
         return topKBundles.getLoadData();
     }
@@ -220,7 +219,7 @@ public class TransferShedderTest {
         namespaceBundleStats1.msgThroughputOut = load1 * 1e6;
         var namespaceBundleStats2 = new NamespaceBundleStats();
         namespaceBundleStats2.msgThroughputOut = load2 * 1e6;
-        var topKBundles = new TopKBundles();
+        var topKBundles = new TopKBundles(pulsar);
         topKBundles.update(Map.of(namespace + "/0x00000000_0x7FFFFFF", namespaceBundleStats1,
                 namespace + "/0x7FFFFFF_0xFFFFFFF", namespaceBundleStats2), 2);
         return topKBundles.getLoadData();
@@ -229,6 +228,8 @@ public class TransferShedderTest {
     public LoadManagerContext getContext(){
         var ctx = mock(LoadManagerContext.class);
         var conf = new ServiceConfiguration();
+        conf.setLoadBalancerDebugModeEnabled(true);
+        conf.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
         var brokerLoadDataStore = new LoadDataStore<BrokerLoadData>() {
             Map<String, BrokerLoadData> map = new HashMap<>();
             @Override
@@ -461,8 +462,6 @@ public class TransferShedderTest {
         BrokerRegistry registry = ctx.brokerRegistry();
         doReturn(FutureUtil.failedFuture(new TimeoutException())).when(registry).getAvailableBrokerLookupDataAsync();
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
-
-        assertTrue(res.isEmpty());
         assertEquals(counter.getBreakdownCounters().get(Skip).get(Unknown).get(), 1);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
@@ -499,6 +498,25 @@ public class TransferShedderTest {
         expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.empty()),
                 Success, Overloaded));
         assertEquals(res, expected);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+
+
+        // test setLoadBalancerSheddingBundlesWithPoliciesEnabled=false;
+        doReturn(true).when(allocationPoliciesSpy).areIsolationPoliciesPresent(any());
+        ctx.brokerConfiguration().setLoadBalancerTransferEnabled(true);
+        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
+        res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+
+        // Test unload a has isolation policies broker.
+        ctx.brokerConfiguration().setLoadBalancerTransferEnabled(false);
+        res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 2);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
     }
@@ -602,7 +620,7 @@ public class TransferShedderTest {
         var expected2 = new HashSet<>();
         expected2.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
                 Success, Overloaded));
-        assertEquals(res, expected2);
+        assertEquals(res2, expected2);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
     }

@@ -48,7 +48,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         this.lookupServiceAddress = lookupServiceAddress;
         this.bundleLoadDataStore = bundleLoadDataStore;
         this.lastBundleStatsUpdatedAt = 0;
-        this.topKBundles = new TopKBundles();
+        this.topKBundles = new TopKBundles(pulsar);
     }
 
     @Override
