@@ -31,6 +31,7 @@ message DelayedIndex {
 message SnapshotSegmentMetadata {
     map<uint64, bytes> delayed_index_bit_map = 1;
     required uint64 max_schedule_timestamp = 2;
+    required uint64 min_schedule_timestamp = 3;
 }
 
 message SnapshotSegment {

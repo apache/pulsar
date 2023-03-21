@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.AsyncOperationTimeoutSeconds;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
 import com.google.protobuf.ByteString;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +45,12 @@ import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 class ImmutableBucket extends Bucket {
 
     @Setter
-    private volatile List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
+    private List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
+
+    boolean merging = false;
+
+    @Setter
+    List<Long> firstScheduleTimestamps = new ArrayList<>();
 
     ImmutableBucket(String dispatcherName, ManagedCursor cursor,
                     BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
@@ -92,6 +98,9 @@ class ImmutableBucket extends Bucket {
 
                         this.setLastSegmentEntryId(metadataList.size());
                         this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
+                        List<Long> firstScheduleTimestamps = metadataList.stream().map(
+                                        SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
+                        this.setFirstScheduleTimestamps(firstScheduleTimestamps);
 
                         return nextSnapshotEntryIndex + 1;
                     });
