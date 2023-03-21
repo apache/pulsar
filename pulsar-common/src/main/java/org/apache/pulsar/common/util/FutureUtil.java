@@ -36,6 +36,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -237,6 +238,15 @@ public class FutureUtil {
         future.whenComplete((res, exception) -> scheduledFuture.cancel(false));
         return future;
     }
+
+    public static <T> @Nonnull CompletableFuture<T> composeAsync(Supplier<CompletableFuture<T>> futureSupplier,
+                                                                 Executor executor) {
+        Objects.requireNonNull(futureSupplier);
+        Objects.requireNonNull(executor);
+        return CompletableFuture.completedFuture(null)
+                .thenComposeAsync(__ -> futureSupplier.get(), executor);
+    }
+
 
     /**
      * Creates a low-overhead timeout exception which is performance optimized to minimize allocations

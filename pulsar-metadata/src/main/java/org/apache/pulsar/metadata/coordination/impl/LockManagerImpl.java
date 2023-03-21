@@ -53,6 +53,7 @@ class LockManagerImpl<T> implements LockManager<T> {
     private final MetadataStoreExtended store;
     private final MetadataCache<T> cache;
     private final MetadataSerde<T> serde;
+    private final FutureUtil.Sequencer<Void> sequencer;
     private final ExecutorService executor;
 
     private enum State {
@@ -72,6 +73,7 @@ class LockManagerImpl<T> implements LockManager<T> {
         this.cache = store.getMetadataCache(serde);
         this.serde = serde;
         this.executor = executor;
+        this.sequencer = FutureUtil.Sequencer.create();
         store.registerSessionListener(this::handleSessionEvent);
         store.registerListener(this::handleDataNotification);
     }
@@ -118,9 +120,8 @@ class LockManagerImpl<T> implements LockManager<T> {
     private void handleSessionEvent(SessionEvent se) {
         // We want to make sure we're processing one event at a time and that we're done with one event before going
         // for the next one.
-        executor.execute(SafeRunnable.safeRun(() -> {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-
+        sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
+            final List<CompletableFuture<Void>> futures = new ArrayList<>();
             if (se == SessionEvent.SessionReestablished) {
                 log.info("Metadata store session has been re-established. Revalidating all the existing locks.");
                 for (ResourceLockImpl<T> lock : locks.values()) {
@@ -133,13 +134,12 @@ class LockManagerImpl<T> implements LockManager<T> {
                     futures.add(lock.revalidateIfNeededAfterReconnection());
                 }
             }
-
-            try {
-                FutureUtil.waitForAll(futures).get();
-            } catch (ExecutionException | InterruptedException e) {
-                log.warn("Failure when processing session event", e);
-            }
-        }));
+            return FutureUtil.waitForAll(futures)
+                    .exceptionally(ex -> {
+                        log.warn("Failure when processing session event", ex);
+                        return null;
+                    });
+        }, executor));
     }
 
     private void handleDataNotification(Notification n) {
