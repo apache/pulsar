@@ -64,4 +64,9 @@ public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
         testExclamationFunction(Runtime.PYTHON, true, false, false);
     }
 
+    @Test(groups = {"python_function", "function"})
+    public void testAvroSchemaFunctionTest() throws Exception {
+        testAvroSchemaFunction(Runtime.PYTHON);
+    }
+
 }

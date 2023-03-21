@@ -24,12 +24,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ExecutionError;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import io.confluent.connect.avro.AvroData;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
+import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Time;
@@ -37,10 +41,79 @@ import org.apache.kafka.connect.data.Timestamp;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroData;
 
 @Slf4j
 public class PulsarSchemaToKafkaSchema {
+
+    private static class OptionalForcingSchema implements Schema {
+
+        Schema sourceSchema;
+
+        public OptionalForcingSchema(Schema sourceSchema) {
+            this.sourceSchema = sourceSchema;
+        }
+
+        @Override
+        public Type type() {
+            return sourceSchema.type();
+        }
+
+        @Override
+        public boolean isOptional() {
+            return true;
+        }
+
+        @Override
+        public Object defaultValue() {
+            return sourceSchema.defaultValue();
+        }
+
+        @Override
+        public String name() {
+            return sourceSchema.name();
+        }
+
+        @Override
+        public Integer version() {
+            return sourceSchema.version();
+        }
+
+        @Override
+        public String doc() {
+            return sourceSchema.doc();
+        }
+
+        @Override
+        public Map<String, String> parameters() {
+            return sourceSchema.parameters();
+        }
+
+        @Override
+        public Schema keySchema() {
+            return sourceSchema.keySchema();
+        }
+
+        @Override
+        public Schema valueSchema() {
+            return sourceSchema.valueSchema();
+        }
+
+        @Override
+        public List<Field> fields() {
+            return sourceSchema.fields();
+        }
+
+        @Override
+        public Field field(String s) {
+            return sourceSchema.field(s);
+        }
+
+        @Override
+        public Schema schema() {
+            return sourceSchema.schema();
+        }
+    }
+
     private static final ImmutableMap<SchemaType, Schema> pulsarSchemaTypeToKafkaSchema;
     private static final ImmutableSet<String> kafkaLogicalSchemas;
     private static final AvroData avroData = new AvroData(1000);
@@ -74,11 +147,15 @@ public class PulsarSchemaToKafkaSchema {
     }
 
     // Parse json to shaded schema
-    private static org.apache.pulsar.kafka.shade.avro.Schema parseAvroSchema(String schemaJson) {
-        final org.apache.pulsar.kafka.shade.avro.Schema.Parser parser =
-                new org.apache.pulsar.kafka.shade.avro.Schema.Parser();
+    private static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
+        final org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
         parser.setValidateDefaults(false);
         return parser.parse(schemaJson);
+    }
+
+    public static Schema getOptionalKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema) {
+        Schema s = getKafkaConnectSchema(pulsarSchema);
+        return new OptionalForcingSchema(s);
     }
 
     public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema) {
@@ -123,12 +200,11 @@ public class PulsarSchemaToKafkaSchema {
                 if (pulsarSchema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
                     KeyValueSchema kvSchema = (KeyValueSchema) pulsarSchema;
                     return SchemaBuilder.map(getKafkaConnectSchema(kvSchema.getKeySchema()),
-                                             getKafkaConnectSchema(kvSchema.getValueSchema()))
+                                    getOptionalKafkaConnectSchema(kvSchema.getValueSchema()))
                                 .build();
                 }
-                org.apache.pulsar.kafka.shade.avro.Schema avroSchema =
-                        parseAvroSchema(new String(pulsarSchema.getSchemaInfo().getSchema(),
-                                StandardCharsets.UTF_8));
+                org.apache.avro.Schema avroSchema = parseAvroSchema(
+                        new String(pulsarSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
                 return avroData.toConnectSchema(avroSchema);
             });
         } catch (ExecutionException | UncheckedExecutionException | ExecutionError ee) {

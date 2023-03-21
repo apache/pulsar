@@ -158,8 +158,7 @@ public class OwnershipCache {
      * @param suName
      *            name of the <code>ServiceUnit</code>
      * @return The ephemeral node data showing the current ownership info in <code>ZooKeeper</code>
-     * @throws Exception
-     *             throws exception if no ownership info is found
+     * or empty if no ownership info is found
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suName);

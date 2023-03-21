@@ -19,16 +19,22 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -36,17 +42,28 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -329,10 +346,14 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         int topicLevelNum = 0;
         int namespaceLevelNum = 0;
+        int subscriptionLevelNum = 0;
         for (PrometheusMetricsTest.Metric metric : metrics) {
             if (exposeTopicLevelMetrics && metric.tags.get("topic").equals(topic)) {
                 Assert.assertTrue(metric.value > 0);
                 topicLevelNum++;
+                if ("test_sub".equals(metric.tags.get("subscription"))) {
+                    subscriptionLevelNum++;
+                }
             } else if (!exposeTopicLevelMetrics && metric.tags.get("namespace").equals(namespace)) {
                 Assert.assertTrue(metric.value > 0);
                 namespaceLevelNum++;
@@ -341,11 +362,16 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         if (exposeTopicLevelMetrics) {
             Assert.assertTrue(topicLevelNum > 0);
+            Assert.assertTrue(subscriptionLevelNum > 0);
             Assert.assertEquals(0, namespaceLevelNum);
         } else {
             Assert.assertTrue(namespaceLevelNum > 0);
             Assert.assertEquals(topicLevelNum, 0);
         }
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertTrue(stats.getSubscriptions().get("test_sub").getDelayedMessageIndexSizeInBytes() > 0);
+        assertTrue(stats.getDelayedMessageIndexSizeInBytes() > 0);
     }
 
     @Test
@@ -401,5 +427,102 @@ public class PersistentTopicTest extends BrokerTestBase {
         // `removeConsumer` should update last active
         assertTrue(persistentSubscription.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
         assertTrue(persistentSubscription2.getCursor().getLastActive() > beforeRemoveConsumerTimestamp);
+    }
+
+
+    @Test
+    public void testCreateNonExistentPartitions() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop/ns-abc/testCreateNonExistentPartitions";
+        admin.topics().createPartitionedTopic(topicName, 4);
+        TopicName partition = TopicName.get(topicName).getPartition(4);
+        try {
+            @Cleanup
+            Producer<byte[]> producer = pulsarClient.newProducer()
+                    .topic(partition.toString())
+                    .create();
+            fail("unexpected behaviour");
+        } catch (PulsarClientException.TopicDoesNotExistException ignored) {
+
+        }
+        Assert.assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
+    }
+
+    @Test
+    public void testCompatibilityWithPartitionKeyword() throws PulsarAdminException, PulsarClientException {
+        final String topicName = "persistent://prop/ns-abc/testCompatibilityWithPartitionKeyword";
+        TopicName topicNameEntity = TopicName.get(topicName);
+        String partition2 = topicNameEntity.getPartition(2).toString();
+        // Create a non-partitioned topic with -partition- keyword
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(partition2)
+                .create();
+        List<String> topics = admin.topics().getList("prop/ns-abc");
+        // Close previous producer to simulate reconnect
+        producer.close();
+        // Disable auto topic creation
+        conf.setAllowAutoTopicCreation(false);
+        // Check the topic exist in the list.
+        Assert.assertTrue(topics.contains(partition2));
+        // Check this topic has no partition metadata.
+        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topics().getPartitionedTopicMetadata(topicName));
+        // Reconnect to the broker and expect successful because the topic has existed in the broker.
+        producer = pulsarClient.newProducer()
+                .topic(partition2)
+                .create();
+        producer.close();
+        // Check the topic exist in the list again.
+        Assert.assertTrue(topics.contains(partition2));
+        // Check this topic has no partition metadata again.
+        Assert.assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topics().getPartitionedTopicMetadata(topicName));
+    }
+
+    @Test
+    public void testDeleteTopicFail() throws Exception {
+        final String fullyTopicName = "persistent://prop/ns-abc/" + "tp_"
+                + UUID.randomUUID().toString().replaceAll("-", "");
+        // Mock topic.
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        doReturn(brokerService).when(pulsar).getBrokerService();
+
+        // Create a sub, and send one message.
+        Consumer consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(fullyTopicName).subscriptionName("sub1")
+                .subscribe();
+        consumer1.close();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(fullyTopicName).create();
+        producer.send("1");
+        producer.close();
+
+        // Make a failed delete operation.
+        AtomicBoolean makeDeletedFailed = new AtomicBoolean(true);
+        PersistentTopic persistentTopic = (PersistentTopic) brokerService.getTopic(fullyTopicName, false).get().get();
+        doAnswer(invocation -> {
+            CompletableFuture future = (CompletableFuture) invocation.getArguments()[1];
+            if (makeDeletedFailed.get()) {
+                future.completeExceptionally(new RuntimeException("mock ex for test"));
+            } else {
+                future.complete(null);
+            }
+            return null;
+        }).when(brokerService)
+                .deleteTopicAuthenticationWithRetry(any(String.class), any(CompletableFuture.class), anyInt());
+        try {
+            persistentTopic.delete().get();
+        } catch (Exception e) {
+            org.testng.Assert.assertTrue(e instanceof ExecutionException);
+            org.testng.Assert.assertTrue(e.getCause() instanceof java.lang.RuntimeException);
+            org.testng.Assert.assertEquals(e.getCause().getMessage(), "mock ex for test");
+        }
+
+        // Assert topic works after deleting failure.
+        Consumer consumer2 = pulsarClient.newConsumer(Schema.STRING).topic(fullyTopicName).subscriptionName("sub1")
+                .subscribe();
+        org.testng.Assert.assertEquals("1", consumer2.receive(2, TimeUnit.SECONDS).getValue());
+        consumer2.close();
+
+        // Make delete success.
+        makeDeletedFailed.set(false);
+        persistentTopic.delete().get();
     }
 }

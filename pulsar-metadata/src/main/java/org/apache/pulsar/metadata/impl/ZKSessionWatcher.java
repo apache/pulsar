@@ -66,7 +66,8 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         this.scheduler = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("metadata-store-zk-session-watcher"));
         this.task =
-                scheduler.scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
+                scheduler.scheduleWithFixedDelay(
+                        catchingAndLoggingThrowables(this::checkConnectionStatus), tickTimeMillis,
                         tickTimeMillis,
                         TimeUnit.MILLISECONDS);
         this.currentStatus = SessionEvent.SessionReestablished;

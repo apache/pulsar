@@ -37,7 +37,6 @@ import org.testng.annotations.Test;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * @author hezhangjian
@@ -92,7 +91,7 @@ public class BundleSplitterTaskTest {
         bundleData.setLongTermData(averageMessageData);
         loadData.getBundleData().put("ten/ns/0x00000000_0x80000000", bundleData);
 
-        final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+        final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
         Assert.assertEquals(bundlesToSplit.size(), 0);
     }
 
@@ -142,7 +141,7 @@ public class BundleSplitterTaskTest {
         loadData.getBundleData().put("ten/ns/0x40000000_0x60000000", bundleData3);
 
         int currentBundleCount = pulsar.getNamespaceService().getBundleCount(NamespaceName.get("ten/ns"));
-        final Set<String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
+        final Map<String, String> bundlesToSplit = bundleSplitterTask.findBundlesToSplit(loadData, pulsar);
         Assert.assertEquals(bundlesToSplit.size() + currentBundleCount,
                 pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles());
     }

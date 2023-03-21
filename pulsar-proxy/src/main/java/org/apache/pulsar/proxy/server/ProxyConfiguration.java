@@ -135,6 +135,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            doc = "Is metadata store read-only operations."
+    )
+    private boolean metadataStoreAllowReadOnlyOperations;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
             doc = "Max size of messages.",
             maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
     private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
@@ -156,6 +162,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
                 + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
     )
     private int zooKeeperCacheExpirySeconds = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            deprecated = true,
+            doc = "Is zooKeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -799,6 +813,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WEBSOCKET,
+            doc = "Interval of time to sending the ping to keep alive in WebSocket proxy. "
+                    + "This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
             doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
@@ -909,5 +929,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public boolean isMetadataStoreAllowReadOnlyOperations() {
+        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 }

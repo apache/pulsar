@@ -49,7 +49,7 @@ public class FunctionUtils {
         NarClassLoader ncl = (NarClassLoader) classLoader;
         String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
-        FunctionDefinition conf = ObjectMapperFactory.getThreadLocalYaml().readValue(configStr,
+        FunctionDefinition conf = ObjectMapperFactory.getYamlMapper().reader().readValue(configStr,
         FunctionDefinition.class);
         if (StringUtils.isEmpty(conf.getFunctionClass())) {
             throw new IOException(
@@ -73,7 +73,7 @@ public class FunctionUtils {
 
     public static FunctionDefinition getFunctionDefinition(NarClassLoader narClassLoader) throws IOException {
         String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, FunctionDefinition.class);
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, FunctionDefinition.class);
     }
 
     public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory) throws IOException {

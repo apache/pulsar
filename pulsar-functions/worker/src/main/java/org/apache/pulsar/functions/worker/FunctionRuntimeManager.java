@@ -198,17 +198,17 @@ public class FunctionRuntimeManager implements AutoCloseable {
             if (workerConfig.getThreadContainerFactory() != null) {
                 this.runtimeFactory = new ThreadRuntimeFactory();
                 workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getThreadLocal().convertValue(
+                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                                 workerConfig.getThreadContainerFactory(), Map.class));
             } else if (workerConfig.getProcessContainerFactory() != null) {
                 this.runtimeFactory = new ProcessRuntimeFactory();
                 workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getThreadLocal().convertValue(
+                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                                 workerConfig.getProcessContainerFactory(), Map.class));
             } else if (workerConfig.getKubernetesContainerFactory() != null) {
                 this.runtimeFactory = new KubernetesRuntimeFactory();
                 workerConfig.setFunctionRuntimeFactoryConfigs(
-                        ObjectMapperFactory.getThreadLocal().convertValue(
+                        ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                                 workerConfig.getKubernetesContainerFactory(), Map.class));
             } else {
                 throw new RuntimeException("A Function Runtime Factory needs to be set");

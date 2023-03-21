@@ -64,6 +64,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
             if (interceptor instanceof AppendIndexMetadataInterceptor) {
                 index = ((AppendIndexMetadataInterceptor) interceptor).getIndex();
+                break;
             }
         }
         return index;
@@ -79,6 +80,15 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
     }
 
     @Override
+    public void afterFailedAddEntry(int numberOfMessages) {
+        for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
+            if (interceptor instanceof AppendIndexMetadataInterceptor) {
+                ((AppendIndexMetadataInterceptor) interceptor).decreaseWithNumberOfMessages(numberOfMessages);
+            }
+        }
+    }
+
+    @Override
     public void onManagedLedgerPropertiesInitialize(Map<String, String> propertiesMap) {
         if (propertiesMap == null || propertiesMap.size() == 0) {
             return;
@@ -89,6 +99,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                 if (interceptor instanceof AppendIndexMetadataInterceptor) {
                   ((AppendIndexMetadataInterceptor) interceptor)
                           .recoveryIndexGenerator(Long.parseLong(propertiesMap.get(INDEX)));
+                  break;
                 }
             }
         }
@@ -117,6 +128,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                                             ((AppendIndexMetadataInterceptor) interceptor)
                                                     .recoveryIndexGenerator(brokerEntryMetadata.getIndex());
                                         }
+                                        break;
                                     }
                                 }
                             }
@@ -144,6 +156,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
         for (BrokerEntryMetadataInterceptor interceptor : brokerEntryMetadataInterceptors) {
             if (interceptor instanceof AppendIndexMetadataInterceptor) {
                 propertiesMap.put(INDEX, String.valueOf(((AppendIndexMetadataInterceptor) interceptor).getIndex()));
+                break;
             }
         }
     }

@@ -53,7 +53,7 @@ public class ProxyExtensionUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = MockProxyExtension.class;
         when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
             .thenReturn(handlerClass);
@@ -85,7 +85,7 @@ public class ProxyExtensionUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = MockProxyExtension.class;
         when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
             .thenReturn(handlerClass);
@@ -118,7 +118,7 @@ public class ProxyExtensionUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
             .thenReturn(handlerClass);

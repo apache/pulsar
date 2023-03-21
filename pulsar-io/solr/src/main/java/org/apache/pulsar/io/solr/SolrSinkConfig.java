@@ -86,7 +86,7 @@ public class SolrSinkConfig implements Serializable {
 
     public static SolrSinkConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), SolrSinkConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), SolrSinkConfig.class);
     }
 
     public void validate() {

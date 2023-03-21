@@ -49,7 +49,6 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.admin.impl.OffloaderObjectsScannerUtils;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -76,7 +75,6 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,12 +196,6 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    if (cause instanceof PulsarAdminException.ConflictException) {
-                        log.info("[{}] There are new topics created during the namespace deletion, "
-                                + "retry to delete the namespace again.", namespaceName);
-                        pulsar().getExecutor().execute(() -> internalDeleteNamespaceAsync(force));
-                    }
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to delete namespace {}", clientAppId(), namespaceName, ex);
                     }
@@ -813,11 +805,13 @@ public class Namespaces extends NamespacesBase {
     public void unloadNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                      @QueryParam("destinationBroker") String destinationBroker) {
         validateNamespaceName(tenant, namespace);
-        internalUnloadNamespaceBundleAsync(bundleRange, authoritative)
+        internalUnloadNamespaceBundleAsync(bundleRange, destinationBroker, authoritative)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), bundleRange);
+                    log.info("[{}] Successfully unloaded namespace bundle {}",
+                            clientAppId(), bundleRange);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
@@ -2575,7 +2569,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/property/{key}")
-    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiOperation(value = "Remove property value for a given key on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
     public void removeProperty(
@@ -2695,7 +2689,7 @@ public class Namespaces extends NamespacesBase {
                             } else {
                                 first = true;
                             }
-                            String json = ObjectMapperFactory.getThreadLocal().writeValueAsString(data);
+                            String json = objectWriter().writeValueAsString(data);
                             out.write(json);
                         }
 
@@ -2747,8 +2741,11 @@ public class Namespaces extends NamespacesBase {
     @POST
     @Path("/{tenant}/{namespace}/entryFilters")
     @ApiOperation(value = "Set entry filters for namespace")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Specified entry filters are not valid"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")
+    })
     public void setEntryFiltersPerTopic(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
                                        @PathParam("namespace") String namespace,
                                        @ApiParam(value = "entry filters", required = true)

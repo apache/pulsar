@@ -34,7 +34,16 @@ function reissue_certificate() {
   keyfile=$1
   certfile=$2
   openssl x509 -x509toreq -in $certfile -signkey $keyfile -out ${certfile}.csr
-  openssl x509 -req -CA ca-cert.pem -CAkey ca-key -in ${certfile}.csr -text -outform pem -out $certfile -days 3650 -CAcreateserial -extfile <(printf "subjectAltName = DNS:localhost, IP:127.0.0.1")
+  openssl x509 -req -CA ca-cert.pem -CAkey ca-key -in ${certfile}.csr -text -outform pem -days 3650 -sha256 -CAcreateserial -extfile <(printf "subjectAltName = DNS:localhost, IP:127.0.0.1") > $certfile
+  rm ${certfile}.csr
+}
+
+function reissue_certificate_no_subject() {
+  keyfile=$1
+  certfile=$2
+  openssl x509 -x509toreq -in $certfile -signkey $keyfile -out ${certfile}.csr
+  openssl x509 -req -CA ca-cert.pem -CAkey ca-key -in ${certfile}.csr -text -outform pem -days 3650 -sha256 -CAcreateserial > $certfile
+  rm ${certfile}.csr
 }
 
 generate_ca
@@ -53,6 +62,11 @@ reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls
 cp ca-cert.pem $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cacert.pem
 reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem \
   $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem
+
+# Use $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/cacert.pem as trusted cert
+reissue_certificate_no_subject \
+  $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-key.pem \
+  $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-cert.pem
 
 generate_ca
 cp ca-cert.pem $ROOT_DIR/bouncy-castle/bcfips-include-test/src/test/resources/authentication/tls/cacert.pem

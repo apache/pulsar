@@ -53,7 +53,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void acquireLocks(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -104,7 +104,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void cleanupOnClose(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService coordinationService = new CoordinationServiceImpl(store);
@@ -135,7 +135,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void updateValue(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -159,7 +159,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void updateValueWhenVersionIsOutOfSync(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -175,7 +175,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(cache.get(key + "/1").join().get(), "lock-1");
 
         store.put(key + "/1",
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-2"),
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-2"),
                 Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
 
         lock.updateValue("value-2").join();
@@ -187,7 +187,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void updateValueWhenKeyDisappears(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         MetadataCache<String> cache = store.getMetadataCache(String.class);
 
@@ -213,7 +213,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
     public void revalidateLockWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                MetadataStoreConfig.builder().build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         @Cleanup
         CoordinationService cs2 = new CoordinationServiceImpl(store);
@@ -283,7 +283,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
 
         // Simulate existing lock with same content. The 2nd acquirer will steal the lock
         String path2 = newKey();
-        store1.put(path2, ObjectMapperFactory.getThreadLocal().writeValueAsBytes("value-1"), Optional.of(-1L),
+        store1.put(path2, ObjectMapperFactory.getMapper().writer().writeValueAsBytes("value-1"), Optional.of(-1L),
                 EnumSet.of(CreateOption.Ephemeral)).join();
 
         ResourceLock<String> rl2 = lm2.acquireLock(path2, "value-1").join();

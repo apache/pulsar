@@ -27,6 +27,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats
 
 /**
  * Statistics for a non-persistent partitioned topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class NonPersistentPartitionedTopicStatsImpl extends NonPersistentTopicStatsImpl

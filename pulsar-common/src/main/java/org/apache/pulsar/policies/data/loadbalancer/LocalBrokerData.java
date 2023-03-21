@@ -249,11 +249,18 @@ public class LocalBrokerData implements LoadManagerReport {
                 cpu.percentUsage(), memory.percentUsage(), directMemory.percentUsage(), bandwidthIn.percentUsage(),
                 bandwidthOut.percentUsage());
     }
-
+    @Deprecated
     public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
         return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
+                directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
+                bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
+    }
+    public double getMaxResourceUsageWithWeight(final double cpuWeight,
+                                                final double directMemoryWeight, final double bandwidthInWeight,
+                                                final double bandwidthOutWeight) {
+        return max(cpu.percentUsage() * cpuWeight,
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }

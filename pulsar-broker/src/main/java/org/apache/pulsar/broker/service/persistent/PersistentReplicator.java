@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PersistentReplicator extends AbstractReplicator
         implements Replicator, ReadEntriesCallback, DeleteCallback {
 
-    private final PersistentTopic topic;
+    protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
@@ -249,7 +249,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
                 }
                 cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
-                        null, PositionImpl.LATEST);
+                        null, topic.getMaxReadPosition());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Not scheduling read due to pending read. Messages To Read {}",
@@ -558,6 +558,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void updateRates() {
         msgOut.calculateRate();
         msgExpired.calculateRate();
+        expiryMonitor.updateRates();
+
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();

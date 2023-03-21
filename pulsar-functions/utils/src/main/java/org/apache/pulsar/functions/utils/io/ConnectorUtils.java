@@ -112,7 +112,7 @@ public class ConnectorUtils {
     public static ConnectorDefinition getConnectorDefinition(NarClassLoader narClassLoader) throws IOException {
         String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
 
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, ConnectorDefinition.class);
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, ConnectorDefinition.class);
     }
 
     public static List<ConfigFieldDefinition> getConnectorConfigDefinition(ClassLoader classLoader,

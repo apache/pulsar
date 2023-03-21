@@ -299,4 +299,26 @@ public class BookKeeperClientFactoryImplTest {
         assertNull(FieldUtils.readField(builder, "eventLoopGroup", true));
     }
 
+    @Test
+    public void testBookKeeperLimitStatsLoggingConfiguration() throws Exception {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertFalse(
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getLimitStatsLogging());
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        ClientConfiguration clientConfiguration =
+                (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
+        assertFalse(clientConfiguration.getLimitStatsLogging());
+
+        conf.setBookkeeperClientLimitStatsLogging(true);
+        assertTrue(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getLimitStatsLogging());
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup, mock(StatsLogger.class),
+                factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf));
+        clientConfiguration =
+                (ClientConfiguration) FieldUtils.readField(builder, "conf", true);
+        assertTrue(clientConfiguration.getLimitStatsLogging());
+    }
 }

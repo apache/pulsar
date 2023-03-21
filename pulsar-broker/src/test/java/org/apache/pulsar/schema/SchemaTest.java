@@ -496,13 +496,17 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         // set schema
-        SchemaInfo schemaInfo = SchemaInfoImpl
-                .builder()
-                .schema(new byte[0])
-                .name("dummySchema")
-                .type(schema)
-                .build();
-        admin.schemas().createSchema(topic, schemaInfo);
+        if (!schema.equals(SchemaType.BYTES)) {
+            // don't upload bytes schema with admin API
+            // because null schema means the BYTES schema
+            SchemaInfo schemaInfo = SchemaInfoImpl
+                    .builder()
+                    .schema(new byte[0])
+                    .name("dummySchema")
+                    .type(schema)
+                    .build();
+            admin.schemas().createSchema(topic, schemaInfo);
+        }
 
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
@@ -527,7 +531,8 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Message<GenericRecord> message2 = consumer2.receive();
         if (schema == SchemaType.BYTES) {
             assertEquals(schema, message.getReaderSchema().get().getSchemaInfo().getType());
-            assertEquals(schema, message2.getReaderSchema().get().getSchemaInfo().getType());
+            // default schema of AUTO_CONSUME is BYTES
+            assertTrue(message2.getReaderSchema().get().toString().contains("BYTES"));
         } else if (schema == SchemaType.NONE) {
             // schema NONE is always reported as BYTES
             assertEquals(SchemaType.BYTES, message.getReaderSchema().get().getSchemaInfo().getType());

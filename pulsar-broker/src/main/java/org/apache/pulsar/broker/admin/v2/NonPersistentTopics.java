@@ -184,7 +184,10 @@ public class NonPersistentTopics extends PersistentTopics {
 
     @GET
     @Path("{tenant}/{namespace}/{topic}/partitioned-stats")
-    @ApiOperation(value = "Get the stats for the partitioned topic.")
+    @ApiOperation(
+            value = "Get the stats for the partitioned topic.",
+            response = NonPersistentPartitionedTopicStatsImpl.class
+    )
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 401, message = "Don't have permission to administrate resources on this tenant"),

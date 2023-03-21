@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -866,6 +867,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         Assert.assertEquals(getPersistencePolicies, persistencePolicies);
         consumer.close();
+    }
+
+    @Test(dataProvider = "invalidPersistentPolicies")
+    public void testSetIncorrectPersistentPolicies(int ensembleSize, int writeQuorum, int ackQuorum) throws Exception {
+        admin.topics().createNonPartitionedTopic(persistenceTopic);
+        PersistencePolicies persistence1 = new PersistencePolicies(ensembleSize, writeQuorum, ackQuorum, 0.0);
+
+        boolean failed = false;
+        try {
+            admin.topicPolicies().setPersistence(persistenceTopic, persistence1);
+        } catch (PulsarAdminException e) {
+            failed = true;
+            Assert.assertEquals(e.getStatusCode(), 400);
+        }
+        assertTrue(failed);
+        admin.topics().delete(persistenceTopic);
     }
 
     @Test
@@ -3107,6 +3124,19 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         TopicPolicies topicPolicies =pulsar.getTopicPoliciesService()
                 .getTopicPoliciesBypassCacheAsync(TopicName.get(persistenceTopic)).get(5, TimeUnit.SECONDS);
         assertNull(topicPolicies);
+    }
+
+    @Test
+    public void testProduceChangesWithEncryptionRequired() throws Exception {
+        final String beforeLac = admin.topics().getInternalStats(topicPolicyEventsTopic).lastConfirmedEntry;
+        admin.namespaces().setEncryptionRequiredStatus(myNamespace, true);
+        // just an update to trigger writes on __change_events
+        admin.topicPolicies().setMaxConsumers(testTopic, 5);
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    final PersistentTopicInternalStats newLac = admin.topics().getInternalStats(topicPolicyEventsTopic);
+                    assertNotEquals(newLac, beforeLac);
+                });
     }
 
 }

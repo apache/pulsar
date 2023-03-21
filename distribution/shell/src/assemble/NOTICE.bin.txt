@@ -1,0 +1,218 @@
+
+Apache Pulsar
+Copyright 2017-2022 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
+
+
+----------------------------------------------------------------------------------------------------
+
+Bouncy Castle
+Copyright (c) 2000-2015 The Legion Of The Bouncy Castle Inc. (http://www.bouncycastle.org)
+
+Jcip
+Copyright (c) 2005 Brian Goetz and Tim Peierls
+
+JCommander
+Copyright 2010 Cedric Beust cedric@beust.com
+
+EA Agent Loader
+Copyright (C) 2015 Electronic Arts Inc.  All rights reserved.
+
+Jackson
+Copyright ©2009 FasterXML, LLC
+
+Caffeine
+Copyright 2015 Ben Manes. All Rights Reserved.
+
+Java SemVer
+Copyright 2012-2014 Zafar Khaja <zafarkhaja@gmail.com>.
+
+GSon
+Copyright 2008 Google Inc.
+
+Guava
+Copyright (C) 2010 The Guava Authors
+
+Protocol Buffers - Google's data interchange format
+Copyright 2008 Google Inc.  All rights reserved.
+
+Swagger
+Copyright 2016 SmartBear Software
+
+DataSketches
+Copyright 2017, Yahoo! Inc.
+
+Java Annotations API
+Copyright (c) 2012-2013 Oracle and/or its affiliates. All rights reserved.
+
+Bean Validation API
+Copyright © 2007-2013 Red Hat, Inc.
+
+Java Web Service REST API
+Copyright (c) 2012-2015 Oracle and/or its affiliates. All rights reserved.
+
+JLine
+Copyright (c) 2002-2006, Marc Prud'hommeaux <mwp1@cornell.edu> All rights reserved.
+
+Joda Time
+Copyright 2001-2005 Stephen Colebourne
+
+Java Native Access JNA
+Copyright (c) 2007 Timothy Wall, All Rights Reserved
+
+AsyncHttpClient
+Copyright 2014-2016 AsyncHttpClient Project
+
+Jersey
+Copyright (c) 2011-2017 Oracle and/or its affiliates. All rights reserved.
+
+HdrHistogram
+Copyright (c) 2012, 2013, 2014, 2015, 2016 Gil Tene
+Copyright (c) 2014 Michael Barker
+Copyright (c) 2014 Matt Warren
+All rights reserved.
+
+Javassist
+Copyright (C) 1999- by Shigeru Chiba, All rights reserved.
+
+SLF4J
+Copyright (c) 2004-2017 QOS.ch
+
+Spotbugs
+Copyright (C) 1991, 1999 Free Software Foundation, Inc.
+
+RocksDB
+Copyright (c) 2011-present, Facebook, Inc.  All rights reserved.
+Copyright (c) 2011 The LevelDB Authors. All rights reserved.
+
+----------------------------------------------------------------------------------------------------
+Apache Log4j
+Copyright 1999-2017 Apache Software Foundation
+
+ResolverUtil.java
+Copyright 2005-2006 Tim Fennell
+
+Dumbster SMTP test server
+Copyright 2004 Jason Paul Kitchen
+
+TypeUtil.java
+Copyright 2002-2012 Ramnivas Laddad, Juergen Hoeller, Chris Beams
+
+picocli (http://picocli.info)
+Copyright 2017 Remko Popma
+
+----------------------------------------------------------------------------------------------------
+
+Prometheus instrumentation library for JVM applications
+Copyright 2012-2015 The Prometheus Authors
+
+This product includes software developed at
+Boxever Ltd. (http://www.boxever.com/).
+
+This product includes software developed at
+SoundCloud Ltd. (http://soundcloud.com/).
+
+This product includes software developed as part of the
+Ocelli project by Netflix Inc. (https://github.com/Netflix/ocelli/).
+
+----------------------------------------------------------------------------------------------------
+
+Netty
+Copyright 2014 The Netty Project
+
+High Performance Primitive Collections for Java
+(c) Carrot Search s.c., http://carrotsearch.com/
+
+
+----------------------------------------------------------------------------------------------------
+gRPC
+Copyright 2014 The gRPC Authors
+
+This product contains a modified portion of 'OkHttp', an open source
+HTTP & SPDY client for Android and Java applications, which can be obtained
+at:
+
+  * LICENSE:
+    * okhttp/third_party/okhttp/LICENSE (Apache License 2.0)
+  * HOMEPAGE:
+    * https://github.com/square/okhttp
+  * LOCATION_IN_GRPC:
+    * okhttp/third_party/okhttp
+
+This product contains a modified portion of 'Netty', an open source
+networking library, which can be obtained at:
+
+  * LICENSE:
+    * netty/third_party/netty/LICENSE.txt (Apache License 2.0)
+  * HOMEPAGE:
+    * https://netty.io
+  * LOCATION_IN_GRPC:
+* netty/third_party/netty
+
+----------------------------------------------------------------------------------------------------
+
+Apache Commons Lang
+Copyright 2001-2018 The Apache Software Foundation
+
+This product includes software from the Spring Framework,
+under the Apache License 2.0 (see: StringUtils.containsWhitespace())
+
+----------------------------------------------------------------------------------------------------
+
+Netty tc-native
+Copyright 2016 The Netty Project
+
+This product contains a forked and modified version of Tomcat Native
+
+  * LICENSE:
+    * ASL2
+  * HOMEPAGE:
+    * http://tomcat.apache.org/native-doc/
+    * https://svn.apache.org/repos/asf/tomcat/native/
+
+----------------------------------------------------------------------------------------------------
+
+Jetty Web Container
+Copyright 1995-2018 Mort Bay Consulting Pty Ltd.
+
+The Jetty Web Container is Copyright Mort Bay Consulting Pty Ltd
+unless otherwise noted.
+
+The UnixCrypt.java code implements the one way cryptography used by
+Unix systems for simple password protection.  Copyright 1996 Aki Yoshida,
+modified April 2001  by Iris Van den Broeke, Daniel Deville.
+Permission to use, copy, modify and distribute UnixCrypt
+for non-commercial or commercial purposes and without fee is
+granted provided that the copyright notice appears in all copies.
+
+------------------------------------------------------------------------------------
+
+This product includes software developed by Apache
+ PureJavaCrc32C from apache-hadoop-common http://hadoop.apache.org/
+ (Apache 2.0 license)
+
+This library containd statically linked libstdc++. This inclusion is allowed by
+"GCC RUntime Library Exception"
+http://gcc.gnu.org/onlinedocs/libstdc++/manual/license.html
+
+== Contributors ==
+  * Tatu Saloranta
+    * Providing benchmark suite
+  * Alec Wysoker
+    * Performance and memory usage improvement
+
+------------------------------------------------------------------------------------
+
+A few parts of the Checker Framework have more permissive licenses.
+
+ * The annotations are licensed under the MIT License.  (The text of this
+   license appears below.)  More specifically, all the parts of the Checker
+   Framework that you might want to include with your own program use the
+   MIT License.  This is the checker-qual.jar file and all the files that
+   appear in it:  every file in a qual/ directory, plus utility files such
+   as NullnessUtil.java, RegexUtil.java, SignednessUtil.java, etc.
+   In addition, the cleanroom implementations of third-party annotations,
+   which the Checker Framework recognizes as aliases for its own
+   annotations, are licensed under the MIT License.

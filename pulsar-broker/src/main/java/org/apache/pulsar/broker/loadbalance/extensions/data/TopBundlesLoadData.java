@@ -18,19 +18,25 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
  * Defines the information of top bundles load data.
  */
 @Getter
+@ToString
+@EqualsAndHashCode
+@NoArgsConstructor
 public class TopBundlesLoadData {
 
-    private final List<BundleLoadData> topBundlesLoadData;
+    private final List<BundleLoadData> topBundlesLoadData = new ArrayList<>();
 
     public record BundleLoadData(String bundleName, NamespaceBundleStats stats) {
         public BundleLoadData {
@@ -38,21 +44,4 @@ public class TopBundlesLoadData {
         }
     }
 
-    private TopBundlesLoadData(List<BundleLoadData> bundleStats, int topK) {
-        topBundlesLoadData = bundleStats
-                .stream()
-                .sorted((o1, o2) -> o2.stats().compareTo(o1.stats()))
-                .limit(topK)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Give full bundle stats, and return the top K bundle stats.
-     *
-     * @param bundleStats full bundle stats.
-     * @param topK Top K bundles.
-     */
-    public static TopBundlesLoadData of(List<BundleLoadData> bundleStats, int topK) {
-        return new TopBundlesLoadData(bundleStats, topK);
-    }
 }

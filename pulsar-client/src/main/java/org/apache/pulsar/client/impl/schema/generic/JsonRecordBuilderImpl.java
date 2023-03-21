@@ -19,16 +19,14 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class JsonRecordBuilderImpl implements GenericRecordBuilder {
-
-    private static ObjectMapper objectMapper = new ObjectMapper();
 
     private final GenericSchemaImpl genericSchema;
     private Map<String, Object> map = new HashMap<>();
@@ -97,7 +95,7 @@ public class JsonRecordBuilderImpl implements GenericRecordBuilder {
 
     @Override
     public GenericRecord build() {
-        JsonNode jn = objectMapper.valueToTree(map);
+        JsonNode jn = ObjectMapperFactory.getMapperWithIncludeAlways().getObjectMapper().valueToTree(map);
         return new GenericJsonRecord(
                 null,
                 genericSchema.getFields(),

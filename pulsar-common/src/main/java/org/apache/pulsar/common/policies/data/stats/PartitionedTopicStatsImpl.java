@@ -28,6 +28,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Statistics for a partitioned topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class PartitionedTopicStatsImpl extends TopicStatsImpl implements PartitionedTopicStats {

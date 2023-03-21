@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -81,7 +80,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ExecutorProvider executorProvider;
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
-    final BlockingQueue<Message<T>> incomingMessages;
+    protected UnAckedMessageTracker unAckedMessageTracker;
+    final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected final int maxReceiverQueueSize;
@@ -142,6 +142,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(this.maxReceiverQueueSize)
                         .maxNumBytes(userBatchReceivePolicy.getMaxNumBytes())
+                        .messagesFromMultiTopicsEnabled(userBatchReceivePolicy.isMessagesFromMultiTopicsEnabled())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
                 log.warn("BatchReceivePolicy maxNumMessages: {} is greater than maxReceiverQueueSize: {}, "
@@ -153,6 +154,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumMessages())
                         .maxNumBytes(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumBytes())
+                        .messagesFromMultiTopicsEnabled(userBatchReceivePolicy.isMessagesFromMultiTopicsEnabled())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
                 log.warn("BatchReceivePolicy maxNumMessages: {} or maxNumBytes: {} is less than 0. "
@@ -169,6 +171,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             incomingQueueLock = new ReentrantLock();
         } else {
             incomingQueueLock = new NoOpLock();
+        }
+
+        if (conf.getAckTimeoutMillis() != 0) {
+            if (conf.getAckTimeoutRedeliveryBackoff() != null) {
+                this.unAckedMessageTracker = new UnAckedTopicMessageRedeliveryTracker(client, this, conf);
+            } else {
+                this.unAckedMessageTracker = new UnAckedTopicMessageTracker(client, this, conf);
+            }
+        } else {
+            this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
         initReceiverQueueSize();
@@ -202,6 +214,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             int newSize = Math.min(maxReceiverQueueSize, oldSize * 2);
             setCurrentReceiverQueueSize(newSize);
         }
+    }
+
+    // if lister is not null, we will track unAcked msg in callMessageListener
+    protected void trackUnAckedMsgIfNoListener(MessageId messageId, int redeliveryCount) {
+        if (listener == null) {
+            unAckedMessageTracker.add(messageId, redeliveryCount);
+        }
+    }
+
+    protected MessageId normalizeMessageId(MessageId messageId) {
+        if (messageId instanceof BatchMessageIdImpl) {
+            // do not add each item in batch message into tracker
+            return ((BatchMessageIdImpl) messageId).toMessageIdImpl();
+        }
+        return messageId;
     }
 
     protected void reduceCurrentReceiverQueueSize() {
@@ -953,7 +980,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
+        String topicName = null;
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            // one batch receive request only can receive the same topic partition
+            // messages to ensure cumulative ack is not lost.
+            if (!this.batchReceivePolicy.isMessagesFromMultiTopicsEnabled()) {
+                // get the first message's `topicName` to check if
+                // the following message peeked is the same topic message.
+                if (messages.size() == 1) {
+                    topicName = messages.getMessageList().get(0).getTopicName();
+                }
+                // if the peeked message is not the same topic as the first message, return the batch receive result
+                if (topicName != null && !topicName.equals(msgPeeked.getTopicName())) {
+                    break;
+                }
+            }
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
@@ -1088,6 +1129,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // after enabled message listener.
             receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
+            MessageId id;
+            if (this instanceof ConsumerImpl) {
+                id = normalizeMessageId(msg.getMessageId());
+            } else {
+                id = msg.getMessageId();
+            }
+            unAckedMessageTracker.add(id, msg.getRedeliveryCount());
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,

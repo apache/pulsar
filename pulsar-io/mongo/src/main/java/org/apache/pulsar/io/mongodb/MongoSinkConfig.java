@@ -61,7 +61,7 @@ public class MongoSinkConfig extends MongoAbstractConfig {
 
     public static MongoSinkConfig load(Map<String, Object> map) throws IOException {
         final ObjectMapper mapper = new ObjectMapper();
-        final MongoSinkConfig cfg = mapper.readValue(new ObjectMapper().writeValueAsString(map), MongoSinkConfig.class);
+        final MongoSinkConfig cfg = mapper.readValue(mapper.writeValueAsString(map), MongoSinkConfig.class);
 
         return cfg;
     }

@@ -305,6 +305,14 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
             batchMessageContainerField.setAccessible(true);
             batchMessageContainerField.set(spyProducer, batchMessageContainer);
+            /* Without `batchMessageContainer.setProducer(producer);` it throws NPE since producer is null, and
+                eventually sendAsync() catches this NPE and releases the memory and semaphore.
+                } catch (Throwable t) {
+                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
+                            new PulsarClientException(t, msg.getSequenceId()));
+                }
+            */
+            batchMessageContainer.setProducer(producer);
 
             spyProducer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
             Assert.fail("can not reach here");

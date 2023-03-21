@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.GeneratedMessageV3;
 import java.lang.reflect.InvocationTargetException;
@@ -37,6 +36,7 @@ import org.apache.pulsar.client.impl.schema.reader.ProtobufReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufWriter;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * A schema implementation to deal with protobuf generated messages.
@@ -83,7 +83,7 @@ public class ProtobufSchema<T extends com.google.protobuf.GeneratedMessageV3> ex
         });
 
         try {
-            return new ObjectMapper().writeValueAsString(protoBufParsingInfos);
+            return ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsString(protoBufParsingInfos);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

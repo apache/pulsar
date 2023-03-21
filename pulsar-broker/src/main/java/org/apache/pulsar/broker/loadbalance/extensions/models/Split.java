@@ -30,5 +30,12 @@ public record Split(
 
     public Split {
         Objects.requireNonNull(serviceUnit);
+        if (splitServiceUnitToDestBroker != null && splitServiceUnitToDestBroker.size() != 2) {
+            throw new IllegalArgumentException("Split service unit should be split into 2 service units.");
+        }
+    }
+
+    public Split(String serviceUnit, String sourceBroker) {
+        this(serviceUnit, sourceBroker, null);
     }
 }
