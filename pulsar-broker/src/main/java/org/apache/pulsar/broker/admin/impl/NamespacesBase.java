@@ -310,22 +310,28 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
         // remove from owned namespace map and ephemeral node from ZK
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+        final CompletableFuture<Void> deleteSystemTopicFuture;
         // remove system topics first.
         Set<String> noPartitionedTopicPolicySystemTopic = new HashSet<>();
         Set<String> partitionedTopicPolicySystemTopic = new HashSet<>();
+        Set<String> partitionSystemTopic = new HashSet<>();
+        Set<String> noPartitionSystemTopic = new HashSet<>();
         if (!topics.isEmpty()) {
             for (String topic : topics) {
                 try {
+                    TopicName topicName = TopicName.get(topic);
                     if (EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
-                        TopicName topicName = TopicName.get(topic);
                         if (topicName.isPartitioned()) {
-                            partitionedTopicPolicySystemTopic.add(topic);
+                            partitionedTopicPolicySystemTopic.add(topicName.getPartitionedTopicName());
                         } else {
                             noPartitionedTopicPolicySystemTopic.add(topic);
                         }
                     } else {
-                        futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                        if (topicName.isPartitioned()) {
+                            partitionSystemTopic.add(topicName.getPartitionedTopicName());
+                        } else {
+                            noPartitionSystemTopic.add(topic);
+                        }
                     }
                 } catch (Exception ex) {
                     log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
@@ -333,8 +339,15 @@ public abstract class NamespacesBase extends AdminResource {
                     return;
                 }
             }
+            deleteSystemTopicFuture = internalDeleteTopicsAsync(noPartitionSystemTopic)
+                    .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionSystemTopic))
+                    .thenCompose(ignore -> internalDeleteTopicsAsync(noPartitionedTopicPolicySystemTopic))
+                    .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicySystemTopic));
+        } else {
+            deleteSystemTopicFuture = CompletableFuture.completedFuture(null);
         }
-        FutureUtil.waitForAll(futures)
+
+        deleteSystemTopicFuture
                 .thenCompose(ignore -> internalDeleteTopicsAsync(noPartitionedTopicPolicySystemTopic))
                 .thenCompose(ignore -> internalDeletePartitionedTopicsAsync(partitionedTopicPolicySystemTopic))
                 .thenCompose(__ -> {
@@ -510,9 +523,6 @@ public abstract class NamespacesBase extends AdminResource {
                             }
                             String partitionedTopic = topicName.getPartitionedTopicName();
                             if (!partitionedTopics.contains(partitionedTopic)) {
-                                // Distinguish partitioned topic to avoid duplicate deletion of the same schema
-                                topicFutures.add(pulsar().getAdminClient().topics().deletePartitionedTopicAsync(
-                                        partitionedTopic, true, true));
                                 partitionedTopics.add(partitionedTopic);
                             }
                         } else {
@@ -524,10 +534,10 @@ public abstract class NamespacesBase extends AdminResource {
                                 }
                                 continue;
                             }
-                            topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
-                                    topic, true, true));
                             nonPartitionedTopics.add(topic);
                         }
+                        topicFutures.add(pulsar().getAdminClient().topics().deleteAsync(
+                                topic, true, true));
                     } catch (Exception e) {
                         String errorMessage = String.format("Failed to force delete topic %s, "
                                         + "but the previous deletion command of partitioned-topics:%s "
@@ -538,6 +548,11 @@ public abstract class NamespacesBase extends AdminResource {
                         asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, errorMessage));
                         return;
                     }
+                }
+
+                for (String partitionedTopic : partitionedTopics) {
+                    topicFutures.add(namespaceResources().getPartitionedTopicResources()
+                            .deletePartitionedTopicAsync(TopicName.get(partitionedTopic)));
                 }
 
                 if (log.isDebugEnabled()) {
