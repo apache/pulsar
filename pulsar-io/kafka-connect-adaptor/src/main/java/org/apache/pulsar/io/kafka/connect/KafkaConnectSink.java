@@ -437,8 +437,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
             if (nativeObject instanceof KeyValue) {
                 KeyValue kv = (KeyValue) nativeObject;
-                key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
-                value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
+                key = KafkaConnectData.getKafkaConnectDataFromSchema(kv.getKey(), keySchema);
+                value = KafkaConnectData.getKafkaConnectDataFromSchema(kv.getValue(), valueSchema);
             } else if (nativeObject != null) {
                 throw new IllegalStateException("Cannot extract KeyValue data from " + nativeObject.getClass());
             } else {
