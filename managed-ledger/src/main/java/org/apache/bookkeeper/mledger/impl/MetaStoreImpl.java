@@ -43,6 +43,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
@@ -247,7 +248,7 @@ public class MetaStoreImpl implements MetaStore {
     @Override
     public void asyncRemoveCursor(String ledgerName, String cursorName, MetaStoreCallback<Void> callback) {
         String path = PREFIX + ledgerName + "/" + cursorName;
-        log.info("[{}] Remove consumer={}", ledgerName, cursorName);
+        log.info("[{}] Remove cursor={}", ledgerName, cursorName);
 
         store.delete(path, Optional.empty())
                 .thenAcceptAsync(v -> {
@@ -257,8 +258,15 @@ public class MetaStoreImpl implements MetaStore {
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
                 .exceptionally(ex -> {
-                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> callback
-                            .operationFailed(getException(ex))));
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                        if (actEx instanceof MetadataStoreException.NotFoundException){
+                            log.info("[{}] [{}] cursor delete done because it did not exist.", ledgerName, cursorName);
+                            callback.operationComplete(null, null);
+                            return;
+                        }
+                        callback.operationFailed(getException(ex));
+                    }));
                     return null;
                 });
     }
