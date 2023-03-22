@@ -72,10 +72,10 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
         MutableDouble minThroughputRate = new MutableDouble(Integer.MAX_VALUE);
         brokersData.forEach((broker, data) -> {
             TimeAverageBrokerData timeAverageData = data.getTimeAverageData();
-            double msgRate = timeAverageData.getLongTermMsgRateIn()
-                    + timeAverageData.getLongTermMsgRateOut();
-            double throughputRate = timeAverageData.getLongTermMsgThroughputIn()
-                    + timeAverageData.getLongTermMsgThroughputOut();
+            double msgRate = timeAverageData.getShortTermMsgRateIn()
+                    + timeAverageData.getShortTermMsgRateOut();
+            double throughputRate = timeAverageData.getShortTermMsgThroughputIn()
+                    + timeAverageData.getShortTermMsgThroughputOut();
             if (msgRate > maxMsgRate.getValue() || throughputRate > maxThroughputRate.getValue()) {
                 overloadedBroker.setValue(broker);
                 maxMsgRate.setValue(msgRate);
