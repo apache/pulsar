@@ -140,7 +140,7 @@ public class ThreadRuntime implements Runtime {
         return loadJars(jarFile, instanceConfig, functionId, narExtractionDirectory, fnCache);
     }
 
-    private static ClassLoader loadJars(String jarFile,
+    public static ClassLoader loadJars(String jarFile,
                                  InstanceConfig instanceConfig,
                                  String functionId,
                                  String narExtractionDirectory,
@@ -175,8 +175,11 @@ public class ThreadRuntime implements Runtime {
                     Collections.emptyList());
         }
 
-        log.info("Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
-                instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(functionId));
+        if (instanceConfig.getFunctionDetails() != null) {
+            log.info(
+                    "Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
+                    instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(functionId));
+        }
 
         fnClassLoader = fnCache.getClassLoader(functionId);
         if (null == fnClassLoader) {
