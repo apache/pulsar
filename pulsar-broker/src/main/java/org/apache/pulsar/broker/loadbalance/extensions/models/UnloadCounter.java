@@ -68,7 +68,7 @@ public class UnloadCounter {
                         Underloaded, new AtomicLong(),
                         Admin, new AtomicLong()),
                 Skip, Map.of(
-        HitCount, new AtomicLong(),
+                        HitCount, new AtomicLong(),
                         NoBundles, new AtomicLong(),
                         CoolDown, new AtomicLong(),
                         OutDatedData, new AtomicLong(),

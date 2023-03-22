@@ -153,6 +153,7 @@ public class TopBundleLoadDataReporterTest {
     }
 
     public void testReport(){
+        pulsar.getConfiguration().setLoadBalancerMaxNumberOfBundlesInBundleLoadReport(1);
         var target = new TopBundleLoadDataReporter(pulsar, broker, store);
         doReturn(1l).when(pulsarStats).getUpdatedAt();
         var expected = new TopKBundles(pulsar);

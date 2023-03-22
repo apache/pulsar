@@ -114,6 +114,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private AntiAffinityGroupPolicyFilter antiAffinityGroupPolicyFilter;
 
+    @Getter
     private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
@@ -150,6 +151,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private boolean started = false;
 
     private final AssignCounter assignCounter = new AssignCounter();
+    @Getter
     private final UnloadCounter unloadCounter = new UnloadCounter();
     private final SplitCounter splitCounter = new SplitCounter();
 
@@ -281,7 +283,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         this.unloadScheduler = new UnloadScheduler(
                 pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel,
-                antiAffinityGroupPolicyHelper, unloadCounter, unloadMetrics);
+                unloadCounter, unloadMetrics);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
                 pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);

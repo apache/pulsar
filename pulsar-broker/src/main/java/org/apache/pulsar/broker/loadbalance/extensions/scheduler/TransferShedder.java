@@ -100,6 +100,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private IsolationPoliciesHelper isolationPoliciesHelper;
     private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
     private Set<UnloadDecision> decisionCache;
+    @Getter
     private UnloadCounter counter;
     private ServiceUnitStateChannel channel;
     private int unloadConditionHitCount = 0;
@@ -124,6 +125,18 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
         this.channel = ServiceUnitStateChannelImpl.get(pulsar);
         this.antiAffinityGroupPolicyHelper = antiAffinityGroupPolicyHelper;
+    }
+
+    @Override
+    public void initialize(PulsarService pulsar){
+        this.pulsar = pulsar;
+        this.decisionCache = new HashSet<>();
+        this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
+        var manager = ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get());
+        this.counter = manager.getUnloadCounter();
+        this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
+        this.channel = ServiceUnitStateChannelImpl.get(pulsar);
+        this.antiAffinityGroupPolicyHelper = manager.getAntiAffinityGroupPolicyHelper();
     }
 
 
@@ -424,8 +437,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                             maxLoad * 100,
                             targetStd,
                             offload * 100,
-                            offloadThroughput / KB,
-                            (maxBrokerThroughput - offloadThroughput) / KB
+                            offloadThroughput / KB
                     ));
                 }
 
