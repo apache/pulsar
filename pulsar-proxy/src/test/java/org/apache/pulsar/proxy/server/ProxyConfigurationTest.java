@@ -69,7 +69,6 @@ public class ProxyConfigurationTest {
             printWriter.println("zookeeperSessionTimeoutMs=60");
             printWriter.println("zooKeeperCacheExpirySeconds=500");
             printWriter.println("httpMaxRequestHeaderSize=1234");
-            printWriter.println("httpClientRequestBufferSize=4321");
         }
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -78,7 +77,6 @@ public class ProxyConfigurationTest {
         assertEquals(serviceConfig.getMetadataStoreSessionTimeoutMillis(), 60);
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
         assertEquals(serviceConfig.getHttpMaxRequestHeaderSize(), 1234);
-        assertEquals(serviceConfig.getHttpClientRequestBufferSize(), 4321);
 
         testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
