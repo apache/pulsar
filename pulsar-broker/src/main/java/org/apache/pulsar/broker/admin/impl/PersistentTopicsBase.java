@@ -314,7 +314,10 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
         } catch (Exception e) {
-            if (isManagedLedgerNotFoundException(e)) {
+            Throwable t = FutureUtil.unwrapCompletionException(e);
+            if (t instanceof IllegalStateException){
+                throw new RestException(422/* Unprocessable entity*/, t.getMessage());
+            } else if (isManagedLedgerNotFoundException(e)) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
             } else {
                 log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
@@ -1040,7 +1043,9 @@ public class PersistentTopicsBase extends AdminResource {
         } catch (Exception e) {
             Throwable t = e.getCause();
             log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
-            if (t instanceof TopicBusyException) {
+            if (t instanceof IllegalStateException){
+                throw new RestException(422/* Unprocessable entity*/, t.getMessage());
+            } else if (t instanceof TopicBusyException) {
                 throw new RestException(Status.PRECONDITION_FAILED, t.getMessage());
             } else if (isManagedLedgerNotFoundException(e)) {
                 throw new RestException(Status.NOT_FOUND, "Topic not found");
