@@ -189,7 +189,8 @@ public class JavaInstanceStarter implements AutoCloseable {
         }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
         FunctionCacheManager fnCache = new FunctionCacheManagerImpl(rootClassLoader);
-        ClassLoader functionClassLoader = ThreadRuntime.loadJars(jarFile, instanceConfig, functionId, narExtractionDirectory, fnCache);
+        ClassLoader functionClassLoader = ThreadRuntime.loadJars(jarFile, instanceConfig, functionId,
+                functionDetailsBuilder.getName(), narExtractionDirectory, fnCache);
         inferringMissingTypeClassName(functionDetailsBuilder, functionClassLoader);
         Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
@@ -327,7 +328,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                     Map<String, Object> userConfigs = new Gson().fromJson(functionDetailsBuilder.getUserConfig(),
                             new TypeToken<Map<String, Object>>() {
                             }.getType());
-                    boolean isWindowConfigPresent = userConfigs != null && userConfigs.containsKey(WindowConfig.WINDOW_CONFIG_KEY);
+                    boolean isWindowConfigPresent =
+                            userConfigs != null && userConfigs.containsKey(WindowConfig.WINDOW_CONFIG_KEY);
                     String className = functionDetailsBuilder.getClassName();
                     if (isWindowConfigPresent) {
                         WindowConfig windowConfig = new Gson().fromJson(
@@ -358,7 +360,8 @@ public class JavaInstanceStarter implements AutoCloseable {
             case SINK:
                 if ((functionDetailsBuilder.hasSink()
                         && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
-                    String typeArg = getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
+                    String typeArg =
+                            getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
 
                     Function.SinkSpec.Builder sinkBuilder =
                             Function.SinkSpec.newBuilder(functionDetailsBuilder.getSink());
@@ -376,7 +379,8 @@ public class JavaInstanceStarter implements AutoCloseable {
             case SOURCE:
                 if ((functionDetailsBuilder.hasSource()
                         && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())) {
-                    String typeArg = getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
+                    String typeArg =
+                            getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
 
                     Function.SourceSpec.Builder sourceBuilder =
                             Function.SourceSpec.newBuilder(functionDetailsBuilder.getSource());
