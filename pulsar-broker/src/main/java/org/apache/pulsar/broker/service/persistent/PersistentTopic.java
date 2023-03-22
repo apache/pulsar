@@ -824,7 +824,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                            replicatedSubscriptionState, subscriptionProperties)
+                            replicatedSubscriptionState, subscriptionProperties, startMessageId)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
@@ -915,7 +915,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
             InitialPosition initialPosition, long startMessageRollbackDurationSec, boolean replicated,
-                                                                   Map<String, String> subscriptionProperties) {
+                                                                   Map<String, String> subscriptionProperties,
+                                                                   MessageId startMessageId) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -955,6 +956,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
                 } else {
                     subscriptionFuture.complete(subscription);
+                }
+                SubType subType = subscription.getType();
+                if ((subType == SubType.Failover || subType == SubType.Exclusive)
+                        && startMessageId instanceof MessageIdImpl msgId) {
+                    cursor.moveReadPositionForward(new PositionImpl(msgId.getLedgerId(), msgId.getEntryId()));
                 }
             }
 
