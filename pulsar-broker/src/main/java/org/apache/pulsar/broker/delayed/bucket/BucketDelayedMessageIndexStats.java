@@ -79,7 +79,7 @@ public class BucketDelayedMessageIndexStats {
         });
 
         delayedMessageIndexBucketOpLatencyMs.forEach((typeName, statsBuckets) -> {
-            statsBuckets.collect();
+            statsBuckets.refresh();
             long[] buckets = statsBuckets.getBuckets();
             for (int i = 0; i < buckets.length; i++) {
                 long count = buckets[i];
