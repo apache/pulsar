@@ -121,6 +121,8 @@ Describe how the user will use the metrics to monitor the feature: Which alerts 
 <!--
 A detailed description of the security details that ought to be considered for the PIP. This is most relevant for any new HTTP endpoints, new Pulsar Protocol Commands, and new security features. The goal is to describe details like which role will have permission to perform an action.
 
+An important aspect to consider is also multi-tenancy: Is the feature I'm adding has the permissions / roles set in such a way that prevent one tenant accessing another tenant data/configuration? For example, if I add a feature to allow functions to persist state across fail-over, I must design the interface to access that state in way that prevents the function to view a state of another function or another tenant. Place appropriate roles / permissions to block that.
+
 If there is uncertainty for this section, please submit the PIP and request for feedback on the mailing list.
 -->
 
