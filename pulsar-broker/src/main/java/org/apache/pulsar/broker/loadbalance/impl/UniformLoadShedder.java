@@ -73,12 +73,17 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
             double msgRate = data.getLocalData().getMsgRateIn() + data.getLocalData().getMsgRateOut();
             double throughputRate = data.getLocalData().getMsgThroughputIn()
                     + data.getLocalData().getMsgThroughputOut();
-            if (msgRate > maxMsgRate.getValue() || throughputRate > maxThroughputRate.getValue()) {
+            if ( ((conf.getLoadBalancerMsgRateDifferenceShedderThreshold() > 0)
+                    && (msgRate > maxMsgRate.getValue())) ||
+                    ((conf.getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold() > 0)
+                            && (throughputRate > maxThroughputRate.getValue()))) {
                 overloadedBroker.setValue(broker);
                 maxMsgRate.setValue(msgRate);
                 maxThroughputRate.setValue(throughputRate);
             }
-            if (msgRate < minMsgRate.getValue() || throughputRate < minThroughputRate.getValue()) {
+            if (((conf.getLoadBalancerMsgRateDifferenceShedderThreshold() > 0) && (msgRate < minMsgRate.getValue()))
+                    || ((conf.getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold() > 0)
+                    && (throughputRate < minThroughputRate.getValue()))) {
                 underloadedBroker.setValue(broker);
                 minMsgRate.setValue(msgRate);
                 minThroughputRate.setValue(throughputRate);
