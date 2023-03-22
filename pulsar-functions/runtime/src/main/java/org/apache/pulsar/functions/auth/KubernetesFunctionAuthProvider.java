@@ -33,7 +33,8 @@ public interface KubernetesFunctionAuthProvider extends FunctionAuthProvider {
     void initialize(CoreV1Api coreClient);
 
     /**
-     * @deprecated use {@link #initialize(CoreV1Api, byte[], java.util.function.Function, KubernetesRuntimeFactoryConfig)}
+     * @deprecated use
+     * {@link #initialize(CoreV1Api, byte[], java.util.function.Function, KubernetesRuntimeFactoryConfig)}
      */
     @Deprecated(since = "3.0.0")
     default void initialize(CoreV1Api coreClient, byte[] caBytes,
