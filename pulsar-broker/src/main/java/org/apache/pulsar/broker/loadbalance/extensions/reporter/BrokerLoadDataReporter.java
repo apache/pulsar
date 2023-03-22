@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -61,7 +63,9 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
 
     private final BrokerLoadData lastData;
 
-    private volatile long lastTombstonedAt;
+    private final ScheduledExecutorService executor;
+
+    private long lastTombstonedAt;
 
     private long tombstoneDelayInMillis;
 
@@ -71,6 +75,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         this.brokerLoadDataStore = brokerLoadDataStore;
         this.lookupServiceAddress = lookupServiceAddress;
         this.pulsar = pulsar;
+        this.executor = pulsar.getLoadManagerExecutor();
         this.conf = this.pulsar.getConfiguration();
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -176,7 +181,8 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         return 100 * Math.abs((oldValue - newValue) / oldValue);
     }
 
-    private void tombstone() {
+    @VisibleForTesting
+    protected void tombstone() {
         var now = System.currentTimeMillis();
         if (now - lastTombstonedAt < tombstoneDelayInMillis) {
             return;
@@ -201,7 +207,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
 
     @Override
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
-        this.pulsar.getLoadManagerExecutor().execute(() -> {
+        executor.execute(() -> {
             ServiceUnitState state = ServiceUnitStateData.state(data);
             switch (state) {
                 case Releasing, Splitting -> {

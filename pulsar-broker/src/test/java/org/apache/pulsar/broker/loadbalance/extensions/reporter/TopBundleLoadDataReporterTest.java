@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -50,6 +52,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -68,6 +71,7 @@ public class TopBundleLoadDataReporterTest {
     String bundle2 = "my-tenant/my-namespace2/0x00000000_0x0FFFFFFF";
     String bundle = bundle1;
     String broker = "broker-1";
+    ScheduledExecutorService executor;
 
     @BeforeMethod
     void setup() throws MetadataStoreException {
@@ -81,15 +85,16 @@ public class TopBundleLoadDataReporterTest {
         isolationPolicyResources = mock(NamespaceResources.IsolationPolicyResources.class);
         var namespaceResources = mock(NamespaceResources.class);
         localPoliciesResources = mock(LocalPoliciesResources.class);
+        executor = Executors
+                .newSingleThreadScheduledExecutor(new
+                        ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
 
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(pulsarStats).when(brokerService).getPulsarStats();
         doReturn(CompletableFuture.completedFuture(null)).when(store).pushAsync(any(), any());
-        doReturn(Executors
-                .newSingleThreadScheduledExecutor(new
-                        ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager")))
-                .when(pulsar).getLoadManagerExecutor();
+        doReturn(CompletableFuture.completedFuture(null)).when(store).removeAsync(any());
+        doReturn(executor).when(pulsar).getLoadManagerExecutor();
 
         doReturn(pulsarResources).when(pulsar).getPulsarResources();
         doReturn(namespaceResources).when(pulsarResources).getNamespaceResources();
@@ -107,6 +112,11 @@ public class TopBundleLoadDataReporterTest {
         stats2.msgRateIn = 10000;
         bundleStats.put(bundle2, stats2);
         doReturn(bundleStats).when(brokerService).getBundleStats();
+    }
+
+    @AfterMethod
+    void shutdown(){
+        executor.shutdown();
     }
 
     public void testZeroUpdatedAt() {
@@ -165,47 +175,56 @@ public class TopBundleLoadDataReporterTest {
     @Test
     public void testTombstone() throws IllegalAccessException {
 
-        var target = new TopBundleLoadDataReporter(pulsar, broker, store);
+        var target = spy(new TopBundleLoadDataReporter(pulsar, broker, store));
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Assigning, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
+        verify(target, times(0)).tombstone();
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Deleted, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
+        verify(target, times(0)).tombstone();
 
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Init, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
+        verify(target, times(0)).tombstone();
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Free, broker, VERSION_ID_INIT), null);
         verify(store, times(0)).removeAsync(eq(broker));
+        verify(target, times(0)).tombstone();
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(target, times(1)).tombstone();
             verify(store, times(1)).removeAsync(eq(broker));
         });
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
-        verify(store, times(    1)).removeAsync(eq(broker));
+        Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(target, times(2)).tombstone();
+            verify(store, times(1)).removeAsync(eq(broker));
+        });
 
         FieldUtils.writeDeclaredField(target, "tombstoneDelayInMillis", 0, true);
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Splitting, "broker-2", broker, VERSION_ID_INIT), null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(target, times(3)).tombstone();
             verify(store, times(2)).removeAsync(eq(broker));
         });
 
         target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, broker, VERSION_ID_INIT), null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
+            verify(target, times(4)).tombstone();
             verify(store, times(3)).removeAsync(eq(broker));
         });
-
     }
 }
