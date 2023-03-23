@@ -166,8 +166,10 @@ class ImmutableBucket extends Bucket {
             return bucketSnapshotStorage.getBucketSnapshotSegment(getAndUpdateBucketId(), nextSegmentEntryId,
                     lastSegmentEntryId).whenComplete((__, ex) -> {
                 if (ex != null) {
-                    log.warn("[{}] Failed to get remain bucket snapshot segment, bucketKey: {}.",
-                            dispatcherName, bucketKey(), ex);
+                    log.warn(
+                            "[{}] Failed to get remain bucket snapshot segment, bucketKey: {},"
+                                    + " nextSegmentEntryId: {}, lastSegmentEntryId: {}",
+                            dispatcherName, bucketKey(), nextSegmentEntryId, lastSegmentEntryId, ex);
                 }
             });
         }, BucketSnapshotPersistenceException.class, MaxRetryTimes);
