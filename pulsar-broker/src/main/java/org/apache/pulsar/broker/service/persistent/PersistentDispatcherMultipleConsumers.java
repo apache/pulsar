@@ -1089,8 +1089,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public void clearDelayedMessages() {
-        this.delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
+    public CompletableFuture<Void> clearDelayedMessages() {
+        if (!topic.isDelayedDeliveryEnabled()) {
+            CompletableFuture.completedFuture(null);
+        }
+
+        synchronized (this) {
+            if (delayedDeliveryTracker.isEmpty()) {
+                delayedDeliveryTracker = Optional
+                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+            }
+        }
+
+        return this.delayedDeliveryTracker.get().clear();
     }
 
     @Override

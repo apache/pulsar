@@ -1078,13 +1078,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new AsyncCallbacks.DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
-                            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
                         }
 
                         @Override
                         public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (exception instanceof MetadataNotFoundException) {
-                                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                                asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
                                 return;
                             }
 
@@ -1094,10 +1094,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                     }, null);
         } else {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
         }
 
         return unsubscribeFuture;
+    }
+
+    private void asyncDeleteCursorWithClearDelayedMessage(String subscriptionName,
+                                                          CompletableFuture<Void> unsubscribeFuture) {
+        PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
+        if (persistentSubscription == null) {
+            log.warn("Can't find subscription [{}]", subscriptionName);
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+        }
+
+        subscriptions.get(subscriptionName).getDispatcher().clearDelayedMessages().whenComplete((__, ex) -> {
+            if (ex != null) {
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            }
+        });
     }
 
     private void asyncDeleteCursor(String subscriptionName, CompletableFuture<Void> unsubscribeFuture) {

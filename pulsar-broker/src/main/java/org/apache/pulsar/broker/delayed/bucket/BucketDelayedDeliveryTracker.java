@@ -31,6 +31,7 @@ import com.google.common.collect.TreeRangeMap;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -117,19 +118,23 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.sharedBucketPriorityQueue = new TripleLongPriorityQueue();
         this.immutableBuckets = TreeRangeMap.create();
         this.snapshotSegmentLastIndexTable = HashBasedTable.create();
-        this.lastMutableBucket = new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), bucketSnapshotStorage);
+        this.lastMutableBucket =
+                new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), FutureUtil.Sequencer.create(),
+                        bucketSnapshotStorage);
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
         ManagedCursor cursor = this.lastMutableBucket.getCursor();
+        FutureUtil.Sequencer<Void> sequencer = this.lastMutableBucket.getSequencer();
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
         cursor.getCursorProperties().keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
                 ImmutableBucket immutableBucket =
-                        new ImmutableBucket(dispatcher.getName(), cursor, this.lastMutableBucket.bucketSnapshotStorage,
+                        new ImmutableBucket(dispatcher.getName(), cursor, sequencer,
+                                this.lastMutableBucket.bucketSnapshotStorage,
                                 Long.parseLong(keys[1]), Long.parseLong(keys[2]));
                 putAndCleanOverlapRange(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
                         immutableBucket, toBeDeletedBucketMap);
@@ -585,12 +590,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized void clear() {
-        cleanImmutableBuckets(true);
-        sharedBucketPriorityQueue.clear();
-        lastMutableBucket.clear();
-        snapshotSegmentLastIndexTable.clear();
-        numberDelayedMessages = 0;
+    public synchronized CompletableFuture<Void> clear() {
+        return cleanImmutableBuckets(true).thenRun(() -> {
+            synchronized (this) {
+                sharedBucketPriorityQueue.clear();
+                lastMutableBucket.clear();
+                snapshotSegmentLastIndexTable.clear();
+                numberDelayedMessages = 0;
+            }
+        });
     }
 
     @Override
@@ -601,14 +609,23 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         sharedBucketPriorityQueue.close();
     }
 
-    private void cleanImmutableBuckets(boolean delete) {
+    private CompletableFuture<Void> cleanImmutableBuckets(boolean delete) {
         if (immutableBuckets != null) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
             Iterator<ImmutableBucket> iterator = immutableBuckets.asMapOfRanges().values().iterator();
             while (iterator.hasNext()) {
                 ImmutableBucket bucket = iterator.next();
-                bucket.clear(delete);
+                if (delete) {
+                    futures.add(bucket.clear().thenAccept(x -> iterator.remove()));
+                } else {
+                    bucket.getSnapshotCreateFuture().ifPresent(future -> futures.add(future.thenApply(x -> null)));
+                }
+                numberDelayedMessages -= bucket.getNumberBucketDelayedMessages();
                 iterator.remove();
             }
+            return FutureUtil.waitForAll(futures);
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 

@@ -649,9 +649,16 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             cursor.getNumberOfEntriesInBacklog(false));
                 }
                 if (dispatcher != null) {
-                    dispatcher.clearDelayedMessages();
+                    dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
+                        if (ex != null) {
+                            future.completeExceptionally(ex);
+                        } else {
+                            future.complete(null);
+                        }
+                    });
+                } else {
+                    future.complete(null);
                 }
-                future.complete(null);
             }
 
             @Override
