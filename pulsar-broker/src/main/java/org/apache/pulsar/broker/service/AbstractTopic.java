@@ -171,7 +171,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public DispatchRateImpl getSubscriptionDispatchRate(String subscriptionName) {
-        return Optional.ofNullable(subscriptionPolicies != null ? subscriptionPolicies.get(subscriptionName) : null)
+        return Optional.ofNullable(subscriptionPolicies.get(subscriptionName))
                 .map(SubscriptionPolicies::getDispatchRate)
                 .map(DispatchRateImpl::normalize)
                 .orElse(this.topicPolicies.getSubscriptionDispatchRate().get());
