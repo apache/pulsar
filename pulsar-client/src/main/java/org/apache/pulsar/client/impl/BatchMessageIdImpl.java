@@ -78,9 +78,41 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return toByteArray(batchIndex, batchSize);
     }
 
+    @Deprecated
+    public boolean ackIndividual() {
+        return MessageIdAdvUtils.acknowledge(this, true);
+    }
+
+    @Deprecated
+    public boolean ackCumulative() {
+        return MessageIdAdvUtils.acknowledge(this, false);
+    }
+
+    @Deprecated
+    public int getOutstandingAcksInSameBatch() {
+        return 0;
+    }
+
     @Override
     public int getBatchSize() {
         return batchSize;
+    }
+
+    @Deprecated
+    public int getOriginalBatchSize() {
+        return this.batchSize;
+    }
+
+    @Deprecated
+    public MessageIdImpl prevBatchMessageId() {
+        return (MessageIdImpl) MessageIdAdvUtils.prevMessageId(this);
+    }
+
+    // MessageIdImpl is widely used as the key of a hash map, in this case, we should convert the batch message id to
+    // have the correct hash code.
+    @Deprecated
+    public MessageIdImpl toMessageIdImpl() {
+        return (MessageIdImpl) MessageIdAdvUtils.discardBatch(this);
     }
 
     @Override

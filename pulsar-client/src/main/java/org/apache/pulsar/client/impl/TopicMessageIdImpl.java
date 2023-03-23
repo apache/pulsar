@@ -48,6 +48,11 @@ public class TopicMessageIdImpl extends TopicMessageId.Impl {
         return getOwnerTopic();
     }
 
+    @Deprecated
+    public MessageId getInnerMessageId() {
+        return new MessageIdImpl(getLedgerId(), getEntryId(), getPartitionIndex());
+    }
+
     @Override
     public boolean equals(Object obj) {
         return super.equals(obj);
