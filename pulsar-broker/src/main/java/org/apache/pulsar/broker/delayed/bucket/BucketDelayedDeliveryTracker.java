@@ -554,11 +554,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             // Back bucket state
                             bucket.setCurrentSegmentEntryId(preSegmentEntryId);
 
-                            log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}",
-                                    dispatcher.getName(), bucket.bucketKey(), ex);
+                            log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}, segmentEntryId: {}",
+                                    dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1, ex);
                         } else {
                             log.info("[{}] Load next bucket snapshot segment finish, bucketKey: {}, segmentEntryId: {}",
-                                    dispatcher.getName(), bucket.bucketKey(), bucket.currentSegmentEntryId);
+                                    dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1);
                         }
                     }).get(AsyncOperationTimeoutSeconds * MaxRetryTimes, TimeUnit.SECONDS);
                 } catch (Exception e) {
