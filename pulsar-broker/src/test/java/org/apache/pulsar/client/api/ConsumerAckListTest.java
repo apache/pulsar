@@ -31,7 +31,6 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 @Test(groups = "broker-api")
 public class ConsumerAckListTest extends ProducerConsumerBase {
@@ -127,24 +126,28 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
                 .topic(topics[0], topics[1])
                 .subscriptionName("sub2")
                 .subscribe();
-        for (String topic : topics) {
+        for (int i = 0; i < topics.length; i++) {
             final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                    .topic(topic)
+                    .topic(topics[i])
                     .create();
-            producer.send("msg");
+            producer.send("msg-" + i);
             producer.close();
         }
-        final List<Message<String>> messages = new ArrayList<>();
+        final List<MessageId> messageIdList = new ArrayList<>();
         for (int i = 0; i < topics.length; i++) {
-            messages.add(allTopicsConsumer.receive());
+            messageIdList.add(allTopicsConsumer.receive().getMessageId());
         }
-        partialTopicsConsumer.acknowledge(messages.stream().map(Message::getMessageId).collect(Collectors.toList()));
-        pulsarClient.newProducer(Schema.STRING).topic(topics[0]).create().send("done");
+        try {
+            partialTopicsConsumer.acknowledge(messageIdList);
+            Assert.fail();
+        } catch (PulsarClientException.NotConnectedException ignored) {
+        }
         partialTopicsConsumer.close();
         partialTopicsConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topics[0])
                 .subscriptionName("sub2").subscribe();
+        pulsarClient.newProducer(Schema.STRING).topic(topics[0]).create().send("done");
         final Message<String> msg = partialTopicsConsumer.receive();
-        Assert.assertEquals(msg.getValue(), "done");
+        Assert.assertEquals(msg.getValue(), "msg-0");
         partialTopicsConsumer.close();
     }
 }

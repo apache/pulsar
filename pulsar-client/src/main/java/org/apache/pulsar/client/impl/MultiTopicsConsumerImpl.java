@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -494,15 +495,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 topicToMessageIdMap.get(topicMessageId.getOwnerTopic())
                         .add(MessageIdImpl.convertToMessageIdImpl(topicMessageId));
             }
-            topicToMessageIdMap.forEach((topicPartitionName, messageIds) -> {
-                ConsumerImpl<T> consumer = consumers.get(topicPartitionName);
-                if (consumer != null) {
-                    resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
-                            .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
-                } else {
-                    log.warn("MessageIds whose owner topic is {} will be discard because the consumer is not connected",
-                            topicPartitionName);
+            final Map<ConsumerImpl<T>, List<MessageId>> consumerToMessageIds = new IdentityHashMap<>();
+            for (Map.Entry<String, List<MessageId>> entry : topicToMessageIdMap.entrySet()) {
+                ConsumerImpl<T> consumer = consumers.get(entry.getKey());
+                if (consumer == null) {
+                    return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
                 }
+                // Trigger the acknowledgment later to avoid sending partial acknowledgments
+                consumerToMessageIds.put(consumer, entry.getValue());
+            }
+            consumerToMessageIds.forEach((consumer, messageIds) -> {
+                resultFutures.add(consumer.doAcknowledgeWithTxn(messageIds, ackType, properties, txn)
+                        .thenAccept((res) -> messageIdList.forEach(unAckedMessageTracker::remove)));
             });
         }
         return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
