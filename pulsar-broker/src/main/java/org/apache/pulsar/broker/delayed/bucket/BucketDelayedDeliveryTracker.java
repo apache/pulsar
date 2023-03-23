@@ -560,7 +560,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             log.info("[{}] Load next bucket snapshot segment finish, bucketKey: {}, segmentEntryId: {}",
                                     dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1);
                         }
-                    }).get(AsyncOperationTimeoutSeconds * MaxRetryTimes, TimeUnit.SECONDS);
+                    }).get(AsyncOperationTimeoutSeconds * (MaxRetryTimes + 1), TimeUnit.SECONDS);
                 } catch (Exception e) {
                     // Ignore exception to reload this segment on the next schedule.
                     log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{}",
