@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.reporter;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ScheduledExecutorService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -48,18 +47,15 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
 
     private final TopKBundles topKBundles;
 
-    private final ScheduledExecutorService executor;
-
     private long lastBundleStatsUpdatedAt;
 
-    private long lastTombstonedAt;
+    private volatile long lastTombstonedAt;
     private long tombstoneDelayInMillis;
 
     public TopBundleLoadDataReporter(PulsarService pulsar,
                                      String lookupServiceAddress,
                                      LoadDataStore<TopBundlesLoadData> bundleLoadDataStore) {
         this.pulsar = pulsar;
-        this.executor = pulsar.getLoadManagerExecutor();
         this.lookupServiceAddress = lookupServiceAddress;
         this.bundleLoadDataStore = bundleLoadDataStore;
         this.lastBundleStatsUpdatedAt = 0;
@@ -127,20 +123,21 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
 
     @Override
     public void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t) {
-        executor.execute(() -> {
-            ServiceUnitState state = ServiceUnitStateData.state(data);
-            switch (state) {
-                case Releasing, Splitting -> {
-                    if (StringUtils.equals(data.sourceBroker(), lookupServiceAddress)) {
-                        tombstone();
-                    }
-                }
-                case Owned -> {
-                    if (StringUtils.equals(data.dstBroker(), lookupServiceAddress)) {
-                        tombstone();
-                    }
+        if (t != null) {
+            return;
+        }
+        ServiceUnitState state = ServiceUnitStateData.state(data);
+        switch (state) {
+            case Releasing, Splitting -> {
+                if (StringUtils.equals(data.sourceBroker(), lookupServiceAddress)) {
+                    tombstone();
                 }
             }
-        });
+            case Owned -> {
+                if (StringUtils.equals(data.dstBroker(), lookupServiceAddress)) {
+                    tombstone();
+                }
+            }
+        }
     }
 }

@@ -149,7 +149,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         private double avg;
         private double std;
         private LoadDataStore<BrokerLoadData> loadDataStore;
-        private  List<Map.Entry<String, BrokerLoadData>> brokersSortedByLoad;
+        private List<Map.Entry<String, BrokerLoadData>> brokersSortedByLoad;
         int maxBrokerIndex;
         int minBrokerIndex;
         int numberOfBrokerSheddingPerCycle;

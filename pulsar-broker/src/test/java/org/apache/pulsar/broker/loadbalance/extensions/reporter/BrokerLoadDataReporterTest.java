@@ -173,6 +173,12 @@ public class BrokerLoadDataReporterTest {
         verify(target, times(0)).tombstone();
 
         target.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT),
+                new RuntimeException());
+        verify(store, times(0)).removeAsync(eq(broker));
+        verify(target, times(0)).tombstone();
+
+        target.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Releasing, "broker-2", broker, VERSION_ID_INIT), null);
         Awaitility.waitAtMost(3, TimeUnit.SECONDS).untilAsserted(() -> {
             verify(target, times(1)).tombstone();
