@@ -42,11 +42,29 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
     boolean isDriverSupported(String driverName);
 
     /**
-     * Create a ledger offloader with the provided configuration, user-metadata and scheduler.
+     * Create a ledger offloader with the provided configuration, user-metadata, scheduler and offloaderStats.
      *
      * @param offloadPolicies offload policies
      * @param userMetadata user metadata
      * @param scheduler scheduler
+     * @return the offloader instance
+     * @throws IOException when fail to create an offloader
+     */
+    default T create(OffloadPoliciesImpl offloadPolicies,
+             Map<String, String> userMetadata,
+             OrderedScheduler scheduler)
+            throws IOException {
+        return create(offloadPolicies, userMetadata, scheduler, null);
+    }
+
+
+    /**
+     * Create a ledger offloader with the provided configuration, user-metadata, scheduler and offloaderStats.
+     *
+     * @param offloadPolicies offload policies
+     * @param userMetadata user metadata
+     * @param scheduler scheduler
+     * @param offloaderStats offloaderStats
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
@@ -56,6 +74,7 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
              LedgerOffloaderStats offloaderStats)
         throws IOException;
 
+
     /**
      * Create a ledger offloader with the provided configuration, user-metadata, schema storage and scheduler.
      *
@@ -63,6 +82,26 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
      * @param userMetadata user metadata
      * @param schemaStorage used for schema lookup in offloader
      * @param scheduler scheduler
+     * @return the offloader instance
+     * @throws IOException when fail to create an offloader
+     */
+    default T create(OffloadPoliciesImpl offloadPolicies,
+                     Map<String, String> userMetadata,
+                     SchemaStorage schemaStorage,
+                     OrderedScheduler scheduler)
+            throws IOException {
+        return create(offloadPolicies, userMetadata, schemaStorage, scheduler, null);
+    }
+
+    /**
+     * Create a ledger offloader with the provided configuration, user-metadata, schema storage,
+     * scheduler and offloaderStats.
+     *
+     * @param offloadPolicies offload policies
+     * @param userMetadata user metadata
+     * @param schemaStorage used for schema lookup in offloader
+     * @param scheduler scheduler
+     * @param offloaderStats offloaderStats
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
