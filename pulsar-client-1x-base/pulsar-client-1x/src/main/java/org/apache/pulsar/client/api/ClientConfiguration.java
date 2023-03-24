@@ -158,7 +158,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for handling connections to brokers <i>(default is Runtime.getRuntime().availableProcessors())</i>.
      *
      * @param numIoThreads
      */
@@ -175,7 +175,7 @@ public class ClientConfiguration implements Serializable {
     }
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for message listeners <i>(default is Runtime.getRuntime().availableProcessors())</i>.
      *
      * @param numListenerThreads
      */
