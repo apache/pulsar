@@ -63,9 +63,6 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         sourceConfig.put("topic.prefix", "stores");
         sourceConfig.put("table.include.list", "DB2INST1.STORES");
 
-        //sourceConfig.put("snapshot.mode", "schema_only");  //??
-
-        //sourceConfig.put("schema.include.list", "inv"); //??
         sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/db2");
     }
@@ -75,7 +72,7 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         log.info("start debezium db2 server container.");
         Preconditions.checkState(debeziumDB2DbContainer == null);
         debeziumDB2DbContainer = container;
-        pulsarCluster.startService(DebeziumOracleDbContainer.NAME, debeziumDB2DbContainer);
+        pulsarCluster.startService(DebeziumDB2DbContainer.NAME, debeziumDB2DbContainer);
     }
 
     @SneakyThrows
@@ -144,7 +141,6 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
 
     @Override
     public int initialDelayForMsgReceive() {
-        // LogMiner takes a lot of time to get messages out
         return 30;
     }
 
@@ -162,7 +158,7 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     public void close() {
         if (pulsarCluster != null) {
             if (debeziumDB2DbContainer != null) {
-                PulsarCluster.stopService(DebeziumOracleDbContainer.NAME, debeziumDB2DbContainer);
+                PulsarCluster.stopService(DebeziumDB2DbContainer.NAME, debeziumDB2DbContainer);
                 debeziumDB2DbContainer = null;
             }
         }

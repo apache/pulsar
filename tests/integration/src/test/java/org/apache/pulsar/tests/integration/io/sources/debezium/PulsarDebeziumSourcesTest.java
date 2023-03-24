@@ -28,6 +28,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.tests.integration.containers.DebeziumDB2DbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMsSqlContainer;
 import org.apache.pulsar.tests.integration.containers.DebeziumMySQLContainer;
@@ -77,6 +78,10 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
     @Test(groups = "source")
     public void testDebeziumMsSqlSource() throws Exception{
         testDebeziumMsSqlConnect("org.apache.kafka.connect.json.JsonConverter", true);
+    }
+    @Test(groups = "source")
+    public void testDebeziumDb2Source() throws Exception{
+        testDebeziumDb2Connect("org.apache.kafka.connect.json.JsonConverter", true);
     }
 
     private void testDebeziumMySqlConnect(String converterClassName, boolean jsonWithEnvelope,
@@ -242,6 +247,41 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         runner.testSource(sourceTester);
     }
 
+    private void testDebeziumDb2Connect(String converterClassName, boolean jsonWithEnvelope) throws Exception {
+
+        final String tenant = TopicName.PUBLIC_TENANT;
+        final String namespace = TopicName.DEFAULT_NAMESPACE;
+        final String outputTopicName = "debe-output-topic-name-" + testId.getAndIncrement();
+        final String consumeTopicName = "debezium/db2/mydb2.DB2INST1.STORES";
+        final String sourceName = "test-source-debezium-db2-" + functionRuntimeType + "-" + randomName(8);
+
+        final int numMessages = 1;
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
+                .build();
+
+        @Cleanup
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        initNamespace(admin);
+
+        admin.topics().createNonPartitionedTopic(consumeTopicName);
+        admin.topics().createNonPartitionedTopic(outputTopicName);
+
+        @Cleanup
+        DebeziumDB2DbSourceTester sourceTester = new DebeziumDB2DbSourceTester(pulsarCluster);
+        sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
+
+        DebeziumDB2DbContainer db2Container = new DebeziumDB2DbContainer(pulsarCluster.getClusterName());
+        sourceTester.setServiceContainer(db2Container);
+
+        PulsarIODebeziumSourceRunner runner = new PulsarIODebeziumSourceRunner(pulsarCluster, functionRuntimeType.toString(),
+                converterClassName, tenant, namespace, sourceName, outputTopicName, numMessages, jsonWithEnvelope,
+                consumeTopicName, client);
+
+        runner.testSource(sourceTester);
+    }
     protected void initNamespace(PulsarAdmin admin) {
         log.info("[initNamespace] start.");
         try {
@@ -253,6 +293,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
                 "debezium/mongodb",
                 "debezium/postgresql",
                 "debezium/mssql",
+                "debezium/db2"
             };
             Policies policies = new Policies();
             policies.retention_policies = new RetentionPolicies(-1, 50);

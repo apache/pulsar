@@ -57,9 +57,6 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
                 .withEnv("IS_OSXFS", "false")
                 .withEnv("PERSISTENT_HOME", "true")
                 .withEnv("HADR_ENABLED", "false")
-               // .withEnv("ETCD_ENDPOINT", "")
-               // .withEnv("ETCD_USERNAME", "")
-               // .withEnv("ETCD_PASSWORD", "")
                 .withPrivilegedMode(true)
             .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
             .withCreateContainerCmdModifier(createContainerCmd -> {
