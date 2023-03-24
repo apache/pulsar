@@ -243,7 +243,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder lookupTimeout(int lookupTimeout, TimeUnit unit);
 
     /**
-     * Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for handling connections to brokers <i>(default is Runtime.getRuntime().availableProcessors())</i>.
      *
      * @param numIoThreads the number of IO threads
      * @return the client builder instance
@@ -251,7 +251,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder ioThreads(int numIoThreads);
 
     /**
-     * Set the number of threads to be used for message listeners <i>(default: 1 thread)</i>.
+     * Set the number of threads to be used for message listeners <i>(default is Runtime.getRuntime().availableProcessors())</i>.
      *
      * <p>The listener thread pool is shared across all the consumers and readers that are
      * using a "listener" model to get messages. For a given consumer, the listener will be
