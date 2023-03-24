@@ -126,13 +126,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         return kvs;
     }
 
-    protected void testFunctionLocalRun(Runtime runtime) throws  Exception {
+    protected void testFunctionLocalRun(Runtime runtime) throws Exception {
         if (functionRuntimeType == FunctionRuntimeType.THREAD) {
             return;
         }
 
 
-        String inputTopicName = "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
+        String inputTopicName =
+                "persistent://public/default/test-function-local-run-" + runtime + "-input-" + randomName(8);
         String outputTopicName = "test-function-local-run-" + runtime + "-output-" + randomName(8);
 
         final int numMessages = 10;
@@ -377,7 +378,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         if (runtime == Runtime.PYTHON) {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE, EXCEPTION_PYTHON_CLASS, schema);
+                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
+                    EXCEPTION_PYTHON_CLASS, schema);
         } else {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema);
@@ -550,7 +552,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        switch (runtime){
+        switch (runtime) {
             case JAVA:
                 submitFunction(
                         runtime,
@@ -622,7 +624,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     .create();
 
             for (int i = 0; i < numMessages; i++) {
-                producer.newMessage().key(String.valueOf(i)).property("count", String.valueOf(i)).value(("message-" + i).getBytes(UTF_8)).send();
+                producer.newMessage().key(String.valueOf(i)).property("count", String.valueOf(i))
+                        .value(("message-" + i).getBytes(UTF_8)).send();
             }
 
             Set<String> expectedMessages = new HashSet<>();
@@ -731,6 +734,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // update parallelism
         updateFunctionParallelism(functionName, 2);
 
+        // update code file
+        switch (runtime) {
+            case JAVA:
+                updateFunctionCodeFile(functionName, "test");
+                break;
+            case PYTHON:
+                updateFunctionCodeFile(functionName, EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                updateFunctionCodeFile(functionName, EXCLAMATION_GO_FILE);
+                break;
+        }
+
         //get function status
         getFunctionStatus(functionName, 0, true, 2);
 
@@ -819,7 +835,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         if (StringUtils.isNotEmpty(inputTopicName)) {
             ensureSubscriptionCreated(
-                inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
         }
 
         CommandGenerator generator;
@@ -853,7 +869,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
         String command = "";
 
-        switch (runtime){
+        switch (runtime) {
             case JAVA:
                 command = generator.generateCreateFunctionCommand();
                 break;
@@ -883,6 +899,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         generator.setFunctionName(functionName);
         generator.setParallelism(parallelism);
         String command = generator.generateUpdateFunctionCommand();
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("Updated successfully"));
+    }
+
+    private void updateFunctionCodeFile(String functionName, String codeFile) throws Exception {
+
+        CommandGenerator generator = new CommandGenerator();
+        generator.setFunctionName(functionName);
+        String command = generator.generateUpdateFunctionCommand(codeFile);
 
         log.info("---------- Function command: {}", command);
         String[] commands = {
@@ -1042,7 +1073,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStats.instances.get(0).getMetrics().getUserExceptionsTotal(), 0);
         assertTrue(functionStats.instances.get(0).getMetrics().getAvgProcessLatency() > 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getReceivedTotal(), numMessages);
-        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(), numMessages);
+        assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getProcessedSuccessfullyTotal(),
+                numMessages);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getSystemExceptionsTotal(), 0);
         assertEquals(functionStats.instances.get(0).getMetrics().getOneMin().getUserExceptionsTotal(), 0);
         assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
@@ -1145,7 +1177,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             lastInvocationTimeGreaterThanZero = lastInvocationTimeGreaterThanZero
                     || functionStatus.getInstances().get(i).getStatus().getLastInvocationTime() > 0;
             totalMessagesProcessed += functionStatus.getInstances().get(i).getStatus().getNumReceived();
-            totalMessagesSuccessfullyProcessed += functionStatus.getInstances().get(i).getStatus().getNumSuccessfullyProcessed();
+            totalMessagesSuccessfullyProcessed +=
+                    functionStatus.getInstances().get(i).getStatus().getNumSuccessfullyProcessed();
             if (checkRestarts) {
                 assertEquals(functionStatus.getInstances().get(i).getStatus().getNumRestarts(), 0);
             }
@@ -1420,7 +1453,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     AVRO_SCHEMA_FUNCTION_PYTHON_FILE,
                     AVRO_SCHEMA_PYTHON_CLASS,
                     Schema.AVRO(AvroTestObject.class),
-                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null, "avro_schema_test_function.AvroTestObject", "avro_schema_test_function.AvroTestObject");
+                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null,
+                    "avro_schema_test_function.AvroTestObject", "avro_schema_test_function.AvroTestObject");
         }
         log.info("pulsar submitFunction");
 
@@ -1430,7 +1464,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         Set<Object> expectedSet = new HashSet<>();
 
         log.info("test-avro-schema producer connected: " + producer.isConnected());
-        for (int i = 0 ; i < numMessages ; i++) {
+        for (int i = 0; i < numMessages; i++) {
             AvroTestObject inputObject = new AvroTestObject();
             inputObject.setBaseValue(i);
             MessageId messageId = producer.send(inputObject);
@@ -1457,7 +1491,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
 
         log.info("test-avro-schema consumer connected: " + consumer.isConnected());
-        for (int i = 0 ; i < numMessages ; i++) {
+        for (int i = 0; i < numMessages; i++) {
             log.info("test-avro-schema consumer receive [{}] start", i);
             Message<AvroTestObject> message = consumer.receive();
             log.info("test-avro-schema consumer receive [{}] over", i);
@@ -1495,7 +1529,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         final int numMessages = 10;
 
         // submit the exclamation function
-        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
+        submitFunction(runtime, inputTopicName, outputTopicName, functionName, null,
+                InitializableFunction.class.getName(), schema,
                 Collections.singletonMap("publish-topic", outputTopicName), null, null, null, null, null);
 
         // publish and consume result
@@ -1650,7 +1685,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
 
-    protected void testGenericObjectFunction(String function, boolean removeAgeField, boolean keyValue) throws Exception {
+    protected void testGenericObjectFunction(String function, boolean removeAgeField, boolean keyValue)
+            throws Exception {
         log.info("start {} function test ...", function);
 
         String ns = "public/ns-genericobject-" + randomName(8);
@@ -1721,13 +1757,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     GenericRecord genericRecord = message.getValue();
                     if (keyValue) {
                         @SuppressWarnings("unchecked")
-                        KeyValue<GenericRecord, GenericRecord> keyValueObject = (KeyValue<GenericRecord, GenericRecord>) genericRecord.getNativeObject();
+                        KeyValue<GenericRecord, GenericRecord> keyValueObject =
+                                (KeyValue<GenericRecord, GenericRecord>) genericRecord.getNativeObject();
                         GenericRecord key = keyValueObject.getKey();
                         GenericRecord value = keyValueObject.getValue();
-                        key.getFields().forEach(f-> {
+                        key.getFields().forEach(f -> {
                             log.info("key field {} value {}", f.getName(), key.getField(f.getName()));
                         });
-                        value.getFields().forEach(f-> {
+                        value.getFields().forEach(f -> {
                             log.info("value field {} value {}", f.getName(), value.getField(f.getName()));
                         });
                         assertEquals(i, key.getField("age"));
@@ -1743,7 +1780,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     } else {
                         GenericRecord value = genericRecord;
                         log.info("received value {}", value);
-                        value.getFields().forEach(f-> {
+                        value.getFields().forEach(f -> {
                             log.info("value field {} value {}", f.getName(), value.getField(f.getName()));
                         });
 
@@ -1939,13 +1976,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     private <T> void generateDataByDifferentSchema(String ns,
-                                               String baseTopic,
-                                               PulsarClient pulsarClient,
-                                               Schema<T> schema,
-                                               T data,
-                                               int messageCnt,
-                                               ObjectNode inputSpecNode,
-                                               Map<String, AtomicInteger> topicMsgCntMap) throws PulsarClientException {
+                                                   String baseTopic,
+                                                   PulsarClient pulsarClient,
+                                                   Schema<T> schema,
+                                                   T data,
+                                                   int messageCnt,
+                                                   ObjectNode inputSpecNode,
+                                                   Map<String, AtomicInteger> topicMsgCntMap)
+            throws PulsarClientException {
         String topic = ns + "/" + baseTopic;
         Producer<T> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
