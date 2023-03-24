@@ -605,8 +605,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     public synchronized void close() {
         super.close();
         lastMutableBucket.close();
-        cleanImmutableBuckets(false);
         sharedBucketPriorityQueue.close();
+        try {
+            cleanImmutableBuckets(false).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("[{}] Failed wait to snapshot generate", dispatcher.getName(), e);
+        }
     }
 
     private CompletableFuture<Void> cleanImmutableBuckets(boolean delete) {
@@ -616,7 +620,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             while (iterator.hasNext()) {
                 ImmutableBucket bucket = iterator.next();
                 if (delete) {
-                    futures.add(bucket.clear().thenAccept(x -> iterator.remove()));
+                    futures.add(bucket.clear());
                 } else {
                     bucket.getSnapshotCreateFuture().ifPresent(future -> futures.add(future.thenApply(x -> null)));
                 }

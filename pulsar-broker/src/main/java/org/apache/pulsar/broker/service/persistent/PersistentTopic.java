@@ -1104,7 +1104,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           CompletableFuture<Void> unsubscribeFuture) {
         PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
         if (persistentSubscription == null) {
-            log.warn("Can't find subscription [{}]", subscriptionName);
+            log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
             asyncDeleteCursor(subscriptionName, unsubscribeFuture);
         }
 

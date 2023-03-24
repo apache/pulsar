@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
@@ -1091,17 +1092,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     @Override
     public CompletableFuture<Void> clearDelayedMessages() {
         if (!topic.isDelayedDeliveryEnabled()) {
-            CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(null);
         }
 
-        synchronized (this) {
-            if (delayedDeliveryTracker.isEmpty()) {
-                delayedDeliveryTracker = Optional
-                        .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+        if (delayedDeliveryTracker.isEmpty() && topic.getBrokerService()
+                .getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory) {
+            synchronized (this) {
+                if (delayedDeliveryTracker.isEmpty()) {
+                    delayedDeliveryTracker = Optional
+                            .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                }
             }
         }
 
-        return this.delayedDeliveryTracker.get().clear();
+        if (delayedDeliveryTracker.isPresent()) {
+            return this.delayedDeliveryTracker.get().clear();
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     @Override

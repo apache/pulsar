@@ -107,7 +107,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
 
     @Test
-    public void testUnsubscribes() throws PulsarClientException {
+    public void testUnsubscribe() throws PulsarClientException {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testUnsubscribes");
 
         @Cleanup
