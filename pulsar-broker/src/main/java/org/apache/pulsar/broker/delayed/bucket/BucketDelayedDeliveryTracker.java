@@ -688,7 +688,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 .orElse(false);
     }
 
-    @Override
     public boolean containsMessage(long ledgerId, long entryId) {
         if (lastMutableBucket.containsMessage(ledgerId, entryId)) {
             return true;

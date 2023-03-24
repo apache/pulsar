@@ -333,7 +333,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     Predicate<PositionImpl> skipCondition = null;
                     final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
                     if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
-                        skipCondition = position -> deliveryTracker
+                        skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
                                 .containsMessage(position.getLedgerId(), position.getEntryId());
                     }
                     cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
