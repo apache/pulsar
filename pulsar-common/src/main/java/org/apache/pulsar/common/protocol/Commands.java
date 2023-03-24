@@ -364,7 +364,7 @@ public class Commands {
         cmd.setError()
                 .setRequestId(requestId)
                 .setError(serverError)
-                .setMessage(message);
+                .setMessage(message != null ? message : "");
         return cmd;
     }
 
@@ -397,7 +397,7 @@ public class Commands {
                 .setProducerId(producerId)
                 .setSequenceId(sequenceId)
                 .setError(error)
-                .setMessage(errorMsg);
+                .setMessage(errorMsg != null ? errorMsg : "");
         return cmd;
     }
 
