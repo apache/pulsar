@@ -188,7 +188,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         brokerLoadDataStore.removeAsync(lookupServiceAddress)
                 .whenComplete((__, e) -> {
                             if (e != null) {
-                                log.error("Failed to clean broker load data.");
+                                log.error("Failed to clean broker load data.", e);
                                 lastTombstonedAt = lastSuccessfulTombstonedAt;
                             } else {
                                 boolean debug = ExtensibleLoadManagerImpl.debug(conf, log);

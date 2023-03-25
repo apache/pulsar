@@ -109,7 +109,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
         bundleLoadDataStore.removeAsync(lookupServiceAddress)
                 .whenComplete((__, e) -> {
                             if (e != null) {
-                                log.error("Failed to clean broker load data.");
+                                log.error("Failed to clean broker load data.", e);
                                 lastTombstonedAt = lastSuccessfulTombstonedAt;
                             } else {
                                 boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);

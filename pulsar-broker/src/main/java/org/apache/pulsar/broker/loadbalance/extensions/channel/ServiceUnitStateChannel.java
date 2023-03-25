@@ -65,6 +65,12 @@ public interface ServiceUnitStateChannel extends Closeable {
     CompletableFuture<Boolean> isChannelOwnerAsync();
 
     /**
+     * Checks if the current broker is the owner broker of the system topic in this channel.
+     * @return True if the current broker is the owner. Otherwise, false.
+     */
+    boolean isChannelOwner();
+
+    /**
      * Handles the metadata session events to track
      * if the connection between the broker and metadata store is stable or not.
      * This will be registered as a metadata SessionEvent listener.

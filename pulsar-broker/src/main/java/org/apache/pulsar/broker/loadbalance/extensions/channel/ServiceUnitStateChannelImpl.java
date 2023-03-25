@@ -427,7 +427,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         });
     }
 
-    private boolean isChannelOwner() {
+    public boolean isChannelOwner() {
         try {
             return isChannelOwnerAsync().get(
                     MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
@@ -1011,6 +1011,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                     log.error("Failed to run the cleanup job for the broker {}, "
                                                     + "totalCleanupErrorCnt:{}.",
                                             broker, totalCleanupErrorCnt.incrementAndGet(), e);
+                                } finally {
+                                    cleanupJobs.remove(broker);
                                 }
                             }
                             , delayed);
@@ -1084,7 +1086,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         getContext().topBundleLoadDataStore().removeAsync(broker);
         getContext().brokerLoadDataStore().removeAsync(broker);
 
-        cleanupJobs.remove(broker);
         log.info("Completed a cleanup for the inactive broker:{} in {} ms. "
                         + "Cleaned up orphan service units: orphanServiceUnitCleanupCnt:{}, "
                         + "approximate cleanupErrorCnt:{}, metrics:{} ",

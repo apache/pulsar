@@ -102,6 +102,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private static final long MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS = 200;
 
+    private static final long MONITOR_INTERVAL_IN_MILLIS = 120_000;
+
     private PulsarService pulsar;
 
     private ServiceConfiguration conf;
@@ -142,6 +144,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private ScheduledFuture brokerLoadDataReportTask;
     private ScheduledFuture topBundlesLoadDataReportTask;
+
+    private ScheduledFuture monitorTask;
     private SplitScheduler splitScheduler;
 
     private UnloadManager unloadManager;
@@ -173,7 +177,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         Follower
     }
 
-    private Role role;
+    private volatile Role role;
 
     /**
      * Life cycle: Constructor -> initialize -> start -> close.
@@ -280,6 +284,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         },
                         interval,
                         interval, TimeUnit.MILLISECONDS);
+
+        this.monitorTask = this.pulsar.getLoadManagerExecutor()
+                .scheduleAtFixedRate(() -> {
+                            monitor();
+                        },
+                        MONITOR_INTERVAL_IN_MILLIS,
+                        MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
 
         this.unloadScheduler = new UnloadScheduler(
                 pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel,
@@ -498,6 +509,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 topBundlesLoadDataReportTask.cancel(true);
             }
 
+            if (monitorTask != null) {
+                monitorTask.cancel(true);
+            }
+
             this.brokerLoadDataStore.close();
             this.topBundlesLoadDataStore.close();
             this.unloadScheduler.close();
@@ -630,5 +645,30 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
 
         return metricsCollection;
+    }
+
+    private void monitor() {
+        try {
+            initWaiter.await();
+
+            // Monitor role
+            // Periodically check the role in case ZK watcher fails.
+            var isChannelOwner = serviceUnitStateChannel.isChannelOwner();
+            if (isChannelOwner) {
+                if (role != Leader) {
+                    log.warn("Current role:{} does not match with the channel ownership:{}. "
+                            + "Playing the leader role.", role, isChannelOwner);
+                    playLeader();
+                }
+            } else {
+                if (role != Follower) {
+                    log.warn("Current role:{} does not match with the channel ownership:{}. "
+                            + "Playing the follower role.", role, isChannelOwner);
+                    playFollower();
+                }
+            }
+        } catch (Throwable e) {
+            log.error("Failed to get the channel ownership.", e);
+        }
     }
 }
