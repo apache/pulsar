@@ -34,6 +34,7 @@ import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotF
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
 
@@ -42,9 +43,9 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     private final TripleLongPriorityQueue priorityQueue;
 
-    MutableBucket(String dispatcherName, ManagedCursor cursor,
+    MutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
                   BucketSnapshotStorage bucketSnapshotStorage) {
-        super(dispatcherName, cursor, bucketSnapshotStorage, -1L, -1L);
+        super(dispatcherName, cursor, sequencer, bucketSnapshotStorage, -1L, -1L);
         this.priorityQueue = new TripleLongPriorityQueue();
     }
 
@@ -134,7 +135,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, bucketSnapshotStorage,
+        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, sequencer, bucketSnapshotStorage,
                 startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);

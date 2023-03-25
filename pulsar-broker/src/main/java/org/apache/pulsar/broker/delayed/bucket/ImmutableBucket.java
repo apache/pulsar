@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
-import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.AsyncOperationTimeoutSeconds;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
@@ -28,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +36,7 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
@@ -52,9 +51,9 @@ class ImmutableBucket extends Bucket {
     @Setter
     List<Long> firstScheduleTimestamps = new ArrayList<>();
 
-    ImmutableBucket(String dispatcherName, ManagedCursor cursor,
+    ImmutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
                     BucketSnapshotStorage storage, long startLedgerId, long endLedgerId) {
-        super(dispatcherName, cursor, storage, startLedgerId, endLedgerId);
+        super(dispatcherName, cursor, sequencer, storage, startLedgerId, endLedgerId);
     }
 
     public Optional<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getSnapshotSegments() {
@@ -117,8 +116,9 @@ class ImmutableBucket extends Bucket {
                     () -> bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, nextSegmentEntryId,
                             nextSegmentEntryId).whenComplete((___, ex) -> {
                         if (ex != null) {
-                            log.warn("[{}] Failed to get bucket snapshot segment. bucketKey: {}, bucketId: {}",
-                                    dispatcherName, bucketKey(), bucketId, ex);
+                            log.warn("[{}] Failed to get bucket snapshot segment. bucketKey: {},"
+                                            + " bucketId: {}, segmentEntryId: {}", dispatcherName, bucketKey(),
+                                    bucketId, nextSegmentEntryId, ex);
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(bucketSnapshotSegments -> {
@@ -191,48 +191,9 @@ class ImmutableBucket extends Bucket {
         });
     }
 
-    void clear(boolean delete) {
+    CompletableFuture<Void> clear() {
         delayedIndexBitMap.clear();
-        if (delete) {
-            final String bucketKey = bucketKey();
-            try {
-                getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).exceptionally(e -> null).thenCompose(__ -> {
-                        if (getSnapshotCreateFuture().isPresent() && getBucketId().isEmpty()) {
-                            log.error("[{}] Can't found bucketId, don't execute delete operate, bucketKey: {}",
-                                    dispatcherName, bucketKey);
-                            return CompletableFuture.completedFuture(null);
-                        }
-                        long bucketId = getAndUpdateBucketId();
-                        return removeBucketCursorProperty(bucketKey()).thenAccept(___ -> {
-                            executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
-                            BucketSnapshotPersistenceException.class, MaxRetryTimes)
-                            .whenComplete((____, ex) -> {
-                                if (ex != null) {
-                                    log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                                            dispatcherName, bucketId, bucketKey, ex);
-                                } else {
-                                    log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
-                                            dispatcherName, bucketId, bucketKey);
-                                }
-                            });
-                    });
-                }).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                log.error("Failed to clear bucket snapshot, bucketKey: {}", bucketKey, e);
-                if (e instanceof InterruptedException) {
-                    Thread.currentThread().interrupt();
-                }
-                throw new RuntimeException(e);
-            }
-        } else {
-            getSnapshotCreateFuture().ifPresent(snapshotGenerateFuture -> {
-                try {
-                    snapshotGenerateFuture.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    log.warn("[{}] Failed wait to snapshot generate, bucketId: {}, bucketKey: {}", dispatcherName,
-                            getBucketId(), bucketKey());
-                }
-            });
-        }
+        return getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).exceptionally(e -> null)
+                .thenCompose(__ -> asyncDeleteBucketSnapshot());
     }
 }

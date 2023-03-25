@@ -79,6 +79,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -1078,13 +1079,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new AsyncCallbacks.DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
-                            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
                         }
 
                         @Override
                         public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (exception instanceof MetadataNotFoundException) {
-                                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                                asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
                                 return;
                             }
 
@@ -1094,10 +1095,49 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                     }, null);
         } else {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
         }
 
         return unsubscribeFuture;
+    }
+
+    private void asyncDeleteCursorWithClearDelayedMessage(String subscriptionName,
+                                                          CompletableFuture<Void> unsubscribeFuture) {
+        if (!isDelayedDeliveryEnabled()
+                || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
+        }
+
+        PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
+        if (persistentSubscription == null) {
+            log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
+        }
+
+        Dispatcher dispatcher = persistentSubscription.getDispatcher();
+        final Dispatcher temporaryDispatcher;
+        if (dispatcher == null) {
+            log.info("[{}][{}] Dispatcher is null, try to create temporary dispatcher to clear delayed message", topic,
+                    subscriptionName);
+            dispatcher = temporaryDispatcher =
+                    new PersistentDispatcherMultipleConsumers(this, persistentSubscription.cursor,
+                            persistentSubscription);
+        } else {
+            temporaryDispatcher = null;
+        }
+
+        dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
+            if (ex != null) {
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            }
+            if (temporaryDispatcher != null) {
+                temporaryDispatcher.close();
+            }
+        });
     }
 
     private void asyncDeleteCursor(String subscriptionName, CompletableFuture<Void> unsubscribeFuture) {

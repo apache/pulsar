@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
 import java.util.NavigableSet;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**
@@ -81,8 +82,10 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
 
     /**
      * Clear all delayed messages from the tracker.
+     *
+     * @return CompletableFuture<Void>
      */
-    void clear();
+    CompletableFuture<Void> clear();
 
     /**
      * Close the subscription tracker and release all resources.
