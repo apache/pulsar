@@ -279,7 +279,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         });
 
                         immutableBucket.setCurrentSegmentEntryId(immutableBucket.lastSegmentEntryId);
-                        immutableBuckets.remove(
+                        immutableBuckets.asMapOfRanges().remove(
                                 Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId));
                         snapshotSegmentLastIndexTable.remove(lastDelayedIndex.getLedgerId(),
                                 lastDelayedIndex.getTimestamp());
@@ -447,8 +447,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                         return CompletableFuture.allOf(removeAFuture, removeBFuture);
                                     });
 
-                            immutableBuckets.remove(Range.closed(bucketA.startLedgerId, bucketA.endLedgerId));
-                            immutableBuckets.remove(Range.closed(bucketB.startLedgerId, bucketB.endLedgerId));
+                            Map<Range<Long>, ImmutableBucket> immutableBucketMap = immutableBuckets.asMapOfRanges();
+                            immutableBucketMap.remove(Range.closed(bucketA.startLedgerId, bucketA.endLedgerId));
+                            immutableBucketMap.remove(Range.closed(bucketB.startLedgerId, bucketB.endLedgerId));
                         }
                     });
         });
@@ -530,14 +531,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     }
 
                     if (bucket.currentSegmentEntryId == bucket.lastSegmentEntryId) {
-                        immutableBuckets.remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
+                        immutableBuckets.asMapOfRanges().remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
                         bucket.asyncDeleteBucketSnapshot();
                         continue;
                     }
 
                     bucket.asyncLoadNextBucketSnapshotEntry().thenAccept(indexList -> {
                         if (CollectionUtils.isEmpty(indexList)) {
-                            immutableBuckets.remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
+                            immutableBuckets.asMapOfRanges()
+                                    .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
                             bucket.asyncDeleteBucketSnapshot();
                             return;
                         }
