@@ -85,7 +85,8 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
+        admin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");

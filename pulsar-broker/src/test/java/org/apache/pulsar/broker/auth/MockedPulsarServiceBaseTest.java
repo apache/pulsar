@@ -403,7 +403,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected TenantInfoImpl createDefaultTenantInfo() throws PulsarAdminException {
         // create local cluster if not exist
         if (!admin.clusters().getClusters().contains(configClusterName)) {
-            admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
+            admin.clusters().createCluster(configClusterName, ClusterData.builder()
+                    .serviceUrl(pulsar.getWebServiceAddress())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         }
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add(configClusterName);
@@ -459,7 +461,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
         if (!admin.clusters().getClusters().contains(configClusterName)) {
             admin.clusters().createCluster(configClusterName,
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                            .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         }
 
         if (!admin.tenants().getTenants().contains(tenant)) {

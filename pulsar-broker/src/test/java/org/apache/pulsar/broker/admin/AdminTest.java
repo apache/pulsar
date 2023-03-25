@@ -258,7 +258,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(clusters, never()).validateSuperUserAccessAsync();
 
         asyncRequests(ctx -> clusters.createCluster(ctx,
-                "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
+                "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.use.example.com:6650").build()));
         // ensure to read from ZooKeeper directly
         //clusters.clustersListCache().clear();
         assertEquals(asyncRequests(ctx -> clusters.getClusters(ctx)), Set.of("use"));
@@ -266,7 +267,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // Check creating existing cluster
         try {
             asyncRequests(ctx -> clusters.createCluster(ctx, "use",
-                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
+                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080")
+                            .brokerServiceUrl("pulsar://broker.messaging.use.example.com:6650").build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
@@ -281,13 +283,16 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         assertEquals(asyncRequests(ctx -> clusters.getCluster(ctx, "use")),
-                ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
+                ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.use.example.com:6650").build());
 
         asyncRequests(ctx -> clusters.updateCluster(ctx, "use",
-                ClusterDataImpl.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build()));
+                ClusterDataImpl.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080")
+                        .brokerServiceUrl("pulsar://new-broker.messaging.use.example.com:6650").build()));
 
         assertEquals(asyncRequests(ctx -> clusters.getCluster(ctx, "use")),
-                ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080")
+                        .brokerServiceUrl("pulsar://new-broker.messaging.use.example.com:6650").build());
 
         try {
             asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
@@ -334,7 +339,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            asyncRequests(ctx -> clusters.updateCluster(ctx, "use", ClusterDataImpl.builder().build()));
+            asyncRequests(ctx -> clusters.updateCluster(ctx, "use", ClusterDataImpl.builder()
+                    .serviceUrl(pulsar.getWebServiceAddress())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 404);
@@ -373,7 +380,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             });
         try {
             asyncRequests(ctx -> clusters.createCluster(ctx, "test",
-                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com:8080").build()));
+                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com:8080")
+                            .brokerServiceUrl("pulsar://broker.messaging.test.example.com:6650").build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -387,7 +395,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         store.invalidateAll();
         try {
             asyncRequests(ctx -> clusters.updateCluster(ctx, "test",
-                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com").build()));
+                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com")
+                            .brokerServiceUrl("pulsar://broker.messaging.test.example.com").build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -434,7 +443,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // Check name validations
         try {
             asyncRequests(ctx -> clusters.createCluster(ctx, "bf@",
-                    ClusterDataImpl.builder().serviceUrl("http://dummy.messaging.example.com").build()));
+                    ClusterDataImpl.builder().serviceUrl("http://dummy.messaging.example.com")
+                            .brokerServiceUrl("pulsar://dummy.messaging.example.com").build()));
             fail("should have filed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
@@ -466,7 +476,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(1)).validateSuperUserAccessAsync();
 
         // create local cluster
-        asyncRequests(ctx -> clusters.createCluster(ctx, configClusterName, ClusterDataImpl.builder().build()));
+        asyncRequests(ctx -> clusters.createCluster(ctx, configClusterName, ClusterDataImpl.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build()));
 
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add(configClusterName);
@@ -709,6 +721,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         asyncRequests(ctx -> clusters.createCluster(ctx, "use", ClusterDataImpl.builder()
                 .serviceUrl("http://broker.messaging.use.example.com")
                 .serviceUrlTls("https://broker.messaging.use.example.com:4443")
+                .brokerServiceUrl("pulsar://broker.messaging.use.example.com")
                 .build()));
 
         URI requestUri = new URI(
@@ -773,7 +786,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         TenantInfoImpl admin = TenantInfoImpl.builder()
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
-        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl("http://example.pulsar").build();
+        ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl("http://example.pulsar")
+                .brokerServiceUrl("pulsar://example.pulsar").build();
         asyncRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData ));
         asyncRequests(ctx -> properties.createTenant(ctx, property, admin));
 

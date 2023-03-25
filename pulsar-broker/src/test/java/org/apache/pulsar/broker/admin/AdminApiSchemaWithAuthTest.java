@@ -84,7 +84,8 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
         admin = Mockito.spy(pulsarAdminBuilder.build());
 
         // Setup namespaces
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Set.of("test"));

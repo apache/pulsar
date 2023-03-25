@@ -47,7 +47,9 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         internalSetup();
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
         String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl(getPulsarServiceList().get(0).getWebServiceAddress())
+                .brokerServiceUrl(getPulsarServiceList().get(0).getBrokerServiceUrl()).build());
         admin.tenants().createTenant(TENANT,
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NAMESPACE);

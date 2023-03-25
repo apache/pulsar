@@ -215,9 +215,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(null).when(namespaces).clientAuthData();
         doReturn(Set.of("use", "usw", "usc", "global")).when(namespaces).clusters();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080").build());
-        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080").build());
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080")
+                .brokerServiceUrl("pulsar://broker-use.com:6650").build());
+        admin.clusters().createCluster("usw", ClusterData.builder().serviceUrl("http://broker-usw.com:8080")
+                .brokerServiceUrl("pulsar://broker-usw.com:6650").build());
+        admin.clusters().createCluster("usc", ClusterData.builder().serviceUrl("http://broker-usc.com:8080")
+                .brokerServiceUrl("pulsar://broker-usc.com:6650").build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use", "usc", "usw")));
         admin.tenants().createTenant(this.testOtherTenant,

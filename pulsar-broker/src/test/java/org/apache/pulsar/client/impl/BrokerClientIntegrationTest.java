@@ -674,7 +674,9 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     public void testCleanProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        admin.clusters().createCluster("global", ClusterData.builder().build());
+        admin.clusters().createCluster("global", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.namespaces().createNamespace("my-property/global/lookup");
 
         final int operationTimeOut = 500;

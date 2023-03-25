@@ -52,7 +52,8 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     }
 
     private void baseSetupCommon() throws Exception {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("prop",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");

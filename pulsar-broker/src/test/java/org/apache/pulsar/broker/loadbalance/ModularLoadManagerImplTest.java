@@ -318,7 +318,8 @@ public class ModularLoadManagerImplTest {
         final String cluster = "test";
         String namespace = tenant + "/" + cluster + "/" + "test";
         String topic = "persistent://" + namespace + "/my-topic1";
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl("http://" + pulsar1.getAdvertisedAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress())
+                .brokerServiceUrl(pulsar1.getBrokerServiceUrl()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace, 16);
@@ -562,7 +563,8 @@ public class ModularLoadManagerImplTest {
         final String broker1Address = pulsar1.getAdvertisedAddress() + "0";
         final String broker2Address = pulsar2.getAdvertisedAddress() + "1";
         final String sharedBroker = "broker3";
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl("http://" + pulsar1.getAdvertisedAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress())
+                .brokerServiceUrl(pulsar1.getBrokerServiceUrl()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(tenant + "/" + cluster + "/" + namespace);
@@ -661,7 +663,8 @@ public class ModularLoadManagerImplTest {
         final String brokerAddress = pulsar1.getAdvertisedAddress();
         final String broker1Address = pulsar1.getAdvertisedAddress() + 1;
 
-        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl("http://" + pulsar1.getAdvertisedAddress()).build());
+        admin1.clusters().createCluster(cluster, ClusterData.builder().serviceUrl(pulsar1.getWebServiceAddress())
+                .brokerServiceUrl(pulsar1.getBrokerServiceUrl()).build());
         admin1.tenants().createTenant(tenant,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(namespace);

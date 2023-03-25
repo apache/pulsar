@@ -63,7 +63,8 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     protected void setup() throws Exception {
         super.internalSetup();
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("prop",
                 new TenantInfoImpl(Set.of("appid1"), Set.of("test")));
         admin.namespaces().createNamespace("prop/ns-abc");

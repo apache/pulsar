@@ -56,7 +56,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
 
         // Setup namespaces
         admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
-                .build());
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Collections.singleton(CLUSTER_NAME))

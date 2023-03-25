@@ -194,7 +194,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -212,7 +213,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
@@ -230,7 +232,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
@@ -368,7 +371,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", ClusterData.builder().build());
+        admin.clusters().createCluster("test", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("p1",
                 new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
         admin.namespaces().createNamespace("p1/ns1");
@@ -447,7 +452,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/my-ns/my-topic-1";
 
         internalSetup(new AuthenticationToken(ADMIN_TOKEN));
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(new HashSet<>(), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
@@ -476,7 +482,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("test", ClusterData.builder().build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).
+                brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("p1",
                 new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
         admin.namespaces().createNamespace("p1/ns1");

@@ -95,7 +95,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         PulsarAdmin admin = buildAdminClient("admin");
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.close();
     }
 
