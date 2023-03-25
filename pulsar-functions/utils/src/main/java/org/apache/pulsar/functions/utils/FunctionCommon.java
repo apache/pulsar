@@ -255,7 +255,7 @@ public class FunctionCommon {
           conn.setRequestProperty("Authorization", encoding);
         }
 
-        try (InputStream in = conn.openStream()) {
+        try (InputStream in = conn.getInputStream()) {
             log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
             Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
