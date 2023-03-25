@@ -75,11 +75,15 @@ class MutableBucket extends Bucket implements AutoCloseable {
         SnapshotSegment.Builder snapshotSegmentBuilder = SnapshotSegment.newBuilder();
         SnapshotSegmentMetadata.Builder segmentMetadataBuilder = SnapshotSegmentMetadata.newBuilder();
 
+        List<Long> firstScheduleTimestamps = new ArrayList<>();
         long currentTimestampUpperLimit = 0;
+        long currentFirstTimestamp = 0L;
         while (!delayedIndexQueue.isEmpty()) {
             DelayedIndex delayedIndex = delayedIndexQueue.peek();
             long timestamp = delayedIndex.getTimestamp();
             if (currentTimestampUpperLimit == 0) {
+                currentFirstTimestamp = timestamp;
+                firstScheduleTimestamps.add(currentFirstTimestamp);
                 currentTimestampUpperLimit = timestamp + timeStepPerBucketSnapshotSegment - 1;
             }
 
@@ -104,6 +108,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
                     || (maxIndexesPerBucketSnapshotSegment != -1
                     && snapshotSegmentBuilder.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
                 segmentMetadataBuilder.setMaxScheduleTimestamp(timestamp);
+                segmentMetadataBuilder.setMinScheduleTimestamp(currentFirstTimestamp);
                 currentTimestampUpperLimit = 0;
 
                 Iterator<Map.Entry<Long, RoaringBitmap>> iterator = bitMap.entrySet().iterator();
@@ -134,6 +139,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);
         bucket.setLastSegmentEntryId(lastSegmentEntryId);
+        bucket.setFirstScheduleTimestamps(firstScheduleTimestamps);
 
         // Skip first segment, because it has already been loaded
         List<SnapshotSegment> snapshotSegments = bucketSnapshotSegments.subList(1, bucketSnapshotSegments.size());
