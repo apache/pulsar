@@ -75,7 +75,7 @@ public class BucketDelayedMessageIndexStats {
             String[] labels = splitKey(k);
             String[] labelsAndValues = new String[] {"state", labels[0], "type", labels[1]};
             String key = OP_COUNT_NAME + joinKey(labelsAndValues);
-            metrics.put(key, new TopicMetricBean(OP_COUNT_NAME, count.longValue(), labelsAndValues));
+            metrics.put(key, new TopicMetricBean(OP_COUNT_NAME, count.sumThenReset(), labelsAndValues));
         });
 
         delayedMessageIndexBucketOpLatencyMs.forEach((typeName, statsBuckets) -> {

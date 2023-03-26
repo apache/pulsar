@@ -457,12 +457,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     .thenAccept(combinedDelayedIndexQueue -> {
                         synchronized (BucketDelayedDeliveryTracker.this) {
                             long createStartTime = System.currentTimeMillis();
-                    stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
-                    Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
-                            lastMutableBucket.createImmutableBucketAndAsyncPersistent(
-                                    timeStepPerBucketSnapshotSegmentInMillis, maxIndexesPerBucketSnapshotSegment,
-                                    sharedBucketPriorityQueue, combinedDelayedIndexQueue, buckets.get(0).startLedgerId,
-                                    buckets.get(buckets.size() - 1).endLedgerId);
+                            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
+                            Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
+                                    lastMutableBucket.createImmutableBucketAndAsyncPersistent(
+                                            timeStepPerBucketSnapshotSegmentInMillis,
+                                            maxIndexesPerBucketSnapshotSegment,
+                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue, buckets.get(0).startLedgerId,
+                                            buckets.get(buckets.size() - 1).endLedgerId);
 
                             // Merge bit map to new bucket
                             Map<Long, RoaringBitmap> delayedIndexBitMap =

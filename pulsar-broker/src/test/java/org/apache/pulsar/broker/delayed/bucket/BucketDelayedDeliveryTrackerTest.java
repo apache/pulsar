@@ -158,7 +158,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
 
     @Test(dataProvider = "delayedTracker")
-    public void testContainsMessage(DelayedDeliveryTracker tracker) {
+    public void testContainsMessage(BucketDelayedDeliveryTracker tracker) {
         tracker.addMessage(1, 1, 10);
         tracker.addMessage(2, 2, 20);
 
