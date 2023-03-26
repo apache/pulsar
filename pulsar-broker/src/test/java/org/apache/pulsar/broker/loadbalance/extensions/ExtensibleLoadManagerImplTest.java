@@ -472,6 +472,18 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertFalse(admin.namespaces().getNamespaces("public").contains(namespace));
     }
 
+    @Test(timeOut = 30 * 1000)
+    public void testCheckOwnershipPresentWithSystemNamespace() throws Exception {
+        NamespaceBundle namespaceBundle =
+                getBundleAsync(pulsar1, TopicName.get(NamespaceName.SYSTEM_NAMESPACE + "/test")).get();
+        try {
+            pulsar1.getNamespaceService().checkOwnershipPresent(namespaceBundle);
+        } catch (Exception ex) {
+            log.info("Got exception", ex);
+            assertTrue(ex.getCause() instanceof UnsupportedOperationException);
+        }
+    }
+
     @Test
     public void testMoreThenOneFilter() throws Exception {
         TopicName topicName = TopicName.get("test-filter-has-exception");
