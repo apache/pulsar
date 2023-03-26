@@ -1705,8 +1705,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
-                    schemaVersion = Optional.ofNullable(response.getSchemaVersion());  // 这里记录当前这个producer的 schemaVersion
-                    schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));  // 这里记录了schemaCache到schema的缓存
+                    schemaVersion = Optional.ofNullable(response.getSchemaVersion());
+                    schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));
 
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately
