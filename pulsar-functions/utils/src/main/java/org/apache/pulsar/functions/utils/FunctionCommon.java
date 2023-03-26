@@ -40,6 +40,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -50,6 +51,7 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.auth.AuthenticationDataBasic;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -247,15 +249,15 @@ public class FunctionCommon {
     }
 
     public static void downloadFromHttpUrl(String destPkgUrl, File targetFile) throws IOException {
-        URL website = new URL(destPkgUrl);
-        URLConnection conn = website.openConnection();
-        String userInfo = website.getUserInfo();
-        if (userInfo != null && !userInfo.isBlank()) {
-          String encoding = "Basic " + Base64.getEncoder().encodeToString(userInfo.getBytes());
-          conn.setRequestProperty("Authorization", encoding);
+        final URL url = new URL(destPkgUrl);
+        final URLConnection connection = url.openConnection();
+        if (StringUtils.isNotEmpty(url.getUserInfo())) {
+            final AuthenticationDataBasic authBasic = new AuthenticationDataBasic(url.getUserInfo());
+            for (Map.Entry<String, String> header : authBasic.getHttpHeaders()) {
+                connection.setRequestProperty(header.getKey(), header.getValue());
+            }
         }
-
-        try (InputStream in = conn.getInputStream()) {
+        try (InputStream in = connection.getInputStream()) {
             log.info("Downloading function package from {} to {} ...", destPkgUrl, targetFile.getAbsoluteFile());
             Files.copy(in, targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
