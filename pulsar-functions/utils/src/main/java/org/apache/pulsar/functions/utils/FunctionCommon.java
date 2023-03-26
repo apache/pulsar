@@ -38,7 +38,6 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.util.Base64;
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
