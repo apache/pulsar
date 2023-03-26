@@ -88,6 +88,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.schema.SchemaHash;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -733,22 +734,29 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback, e);
             return false;
         }
-        byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
-        if (schemaVersion != null) {
-            msgMetadataBuilder.setSchemaVersion(schemaVersion);
-            msg.setSchemaState(MessageImpl.SchemaState.Ready);
-        }
+
+        // do not use the return value to return the function call.
+        setMessageSchema(msg);
+
         return true;
     }
 
-    private boolean rePopulateMessageSchema(MessageImpl msg) {
+    private boolean setMessageSchema(MessageImpl msg) {
         byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
         if (schemaVersion == null) {
             return false;
         }
-        msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+
+        if (schemaVersion != SchemaVersion.Empty.bytes()) {
+            msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+        }
+
         msg.setSchemaState(MessageImpl.SchemaState.Ready);
         return true;
+    }
+
+    private boolean rePopulateMessageSchema(MessageImpl msg) {
+        return setMessageSchema(msg);
     }
 
     private void tryRegisterSchema(ClientCnx cnx, MessageImpl msg, SendCallback callback, long expectedCnxEpoch) {
@@ -769,12 +777,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             } else {
                 log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
-                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema. In this
-                // case, we should not cache the schema version so that the schema version of the message metadata will
-                // be null, instead of an empty array.
+                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema.
+                // In this case, we cache the schema version to `SchemaVersion.Empty.bytes()`.
+                // When we need to set the schema version of the message metadata,
+                // we should check if the cached schema version is `SchemaVersion.Empty.bytes()`
                 if (v.length != 0) {
                     schemaCache.putIfAbsent(msg.getSchemaHash(), v);
                     msg.getMessageBuilder().setSchemaVersion(v);
+                } else {
+                    schemaCache.putIfAbsent(msg.getSchemaHash(), SchemaVersion.Empty.bytes());
                 }
                 msg.setSchemaState(MessageImpl.SchemaState.Ready);
             }
@@ -1694,8 +1705,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 requestId).thenAccept(response -> {
                     String producerName = response.getProducerName();
                     long lastSequenceId = response.getLastSequenceId();
-                    schemaVersion = Optional.ofNullable(response.getSchemaVersion());
-                    schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));
+                    schemaVersion = Optional.ofNullable(response.getSchemaVersion());  // 这里记录当前这个producer的 schemaVersion
+                    schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));  // 这里记录了schemaCache到schema的缓存
 
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately
