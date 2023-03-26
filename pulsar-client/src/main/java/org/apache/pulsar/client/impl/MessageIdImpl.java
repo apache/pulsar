@@ -98,13 +98,9 @@ public class MessageIdImpl implements MessageId {
 
         MessageIdImpl messageId;
         if (idData.hasBatchIndex()) {
-            if (idData.hasBatchSize()) {
-                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex(), idData.getBatchSize(), BatchMessageAcker.newAcker(idData.getBatchSize()));
-            } else {
-                messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
-                    idData.getBatchIndex());
-            }
+            int batchSize = idData.hasBatchSize() ? idData.getBatchSize() : -1;
+            messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
+                    idData.getBatchIndex(), batchSize, BatchMessageAckerDisabled.INSTANCE);
         } else if (idData.hasFirstChunkMessageId()) {
             MessageIdData firstChunkIdData = idData.getFirstChunkMessageId();
             messageId = new ChunkMessageIdImpl(
