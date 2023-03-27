@@ -287,6 +287,7 @@ public class TopicStatsImpl implements TopicStats {
         if (this.replication.size() != stats.replication.size()) {
             for (String repl : stats.replication.keySet()) {
                 ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
+                replStats.setConnected(true);
                 this.replication.put(repl, replStats.add(stats.replication.get(repl)));
             }
         } else {
