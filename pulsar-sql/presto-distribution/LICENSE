@@ -232,7 +232,7 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.11.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.787.Final.jar
+    - netty-buffer-4.1.87.Final.jar
     - netty-codec-4.1.87.Final.jar
     - netty-codec-dns-4.1.87.Final.jar
     - netty-codec-http-4.1.87.Final.jar
