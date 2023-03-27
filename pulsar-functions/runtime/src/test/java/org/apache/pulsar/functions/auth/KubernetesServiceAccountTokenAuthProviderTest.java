@@ -26,21 +26,22 @@ import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1StatefulSetSpec;
 import io.kubernetes.client.openapi.models.V1Volume;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactoryConfig;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-public class KubernetesServiceAccountAuthProviderTest {
+public class KubernetesServiceAccountTokenAuthProviderTest {
     @Test
     public void testConfigureAuthDataStatefulSet() {
-        KubernetesRuntimeFactoryConfig config = new KubernetesRuntimeFactoryConfig();
-        config.setBrokerClientTrustCertsSecretName("my-secret");
-        config.setServiceAccountTokenExpirationSeconds(600);
-        KubernetesServiceAccountAuthProvider provider = new KubernetesServiceAccountAuthProvider();
+        HashMap<String, Object> config = new HashMap<>();
+        config.put("brokerClientTrustCertsSecretName", "my-secret");
+        config.put("serviceAccountTokenExpirationSeconds", "600");
+        config.put("serviceAccountTokenAudience", "my-audience");
+        KubernetesServiceAccountTokenAuthProvider provider = new KubernetesServiceAccountTokenAuthProvider();
         provider.initialize(null, null, (fd) -> "default", config);
 
         // Create a stateful set with a container
@@ -67,6 +68,7 @@ public class KubernetesServiceAccountAuthProviderTest {
         V1ServiceAccountTokenProjection tokenProjection =
                 volumes.get(1).getProjected().getSources().get(0).getServiceAccountToken();
         Assert.assertEquals(tokenProjection.getExpirationSeconds(), 600);
+        Assert.assertEquals(tokenProjection.getAudience(), "my-audience");
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().size(), 2);
@@ -79,9 +81,10 @@ public class KubernetesServiceAccountAuthProviderTest {
     @Test
     public void testConfigureAuthDataStatefulSetNoCa() {
 
-        KubernetesRuntimeFactoryConfig config = new KubernetesRuntimeFactoryConfig();
-        config.setServiceAccountTokenExpirationSeconds(600);
-        KubernetesServiceAccountAuthProvider provider = new KubernetesServiceAccountAuthProvider();
+        HashMap<String, Object> config = new HashMap<>();
+        config.put("serviceAccountTokenExpirationSeconds", "600");
+        config.put("serviceAccountTokenAudience", "pulsar-cluster");
+        KubernetesServiceAccountTokenAuthProvider provider = new KubernetesServiceAccountTokenAuthProvider();
         provider.initialize(null, null, (fd) -> "default", config);
 
         // Create a stateful set with a container
@@ -101,6 +104,7 @@ public class KubernetesServiceAccountAuthProviderTest {
         V1ServiceAccountTokenProjection tokenProjection =
                 volumes.get(0).getProjected().getSources().get(0).getServiceAccountToken();
         Assert.assertEquals(tokenProjection.getExpirationSeconds(), 600);
+        Assert.assertEquals(tokenProjection.getAudience(), "pulsar-cluster");
 
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().size(), 1);
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().size(), 1);
@@ -110,9 +114,9 @@ public class KubernetesServiceAccountAuthProviderTest {
 
     @Test
     public void configureAuthenticationConfig() {
-        KubernetesRuntimeFactoryConfig config = new KubernetesRuntimeFactoryConfig();
-        config.setBrokerClientTrustCertsSecretName("my-secret");
-        KubernetesServiceAccountAuthProvider provider = new KubernetesServiceAccountAuthProvider();
+        HashMap<String, Object> config = new HashMap<>();
+        config.put("brokerClientTrustCertsSecretName", "my-secret");
+        KubernetesServiceAccountTokenAuthProvider provider = new KubernetesServiceAccountTokenAuthProvider();
         provider.initialize(null, null, (fd) -> "default", config);
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
         provider.configureAuthenticationConfig(authenticationConfig, Optional.empty());

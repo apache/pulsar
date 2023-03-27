@@ -252,7 +252,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 kubernetesFunctionAuthProvider.initialize(coreClient, serverCaBytes,
                         (funcDetails) -> getRuntimeCustomizer()
                                 .map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace))
-                                .orElse(jobNamespace), factoryConfig);
+                                .orElse(jobNamespace), factoryConfig.getKubernetesFunctionAuthProviderConfig());
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {

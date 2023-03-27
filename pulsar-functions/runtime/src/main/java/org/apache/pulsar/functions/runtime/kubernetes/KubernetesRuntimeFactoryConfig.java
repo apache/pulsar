@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -170,16 +171,8 @@ public class KubernetesRuntimeFactoryConfig {
     protected int gracePeriodSeconds = 5;
 
     @FieldContext(
-            doc = "The Kubernetes secret containing the broker's trust certs. If it is not set, the function will not"
-                    + " use a custom trust store. The secret must already exist in each function's target namespace."
-                    + " The secret must contain a key named `ca.crt` with the trust certs."
+            doc = "A map of custom configurations passed to implementations of the KubernetesFunctionAuthProvider"
+                    + " interface."
     )
-    private String brokerClientTrustCertsSecretName = "";
-
-    @FieldContext(
-            doc = "The expiration for the token created by the KubernetesServiceAccountAuthProvider. "
-                    + "The default value is 3600 seconds."
-    )
-    private long serviceAccountTokenExpirationSeconds = 3600;
-
+    private Map<String, Object> kubernetesFunctionAuthProviderConfig = new HashMap<>();
 }
