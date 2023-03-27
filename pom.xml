@@ -227,9 +227,7 @@ flexible messaging model and an intuitive client API.</description>
     <kubernetesclient.version>12.0.1</kubernetesclient.version>
     <okhttp3.version>4.10.0</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>3.0.0</okio.version>
-    <!-- override kotlin-stdlib used by okio in order to support functions built with latest version of kotlin -->
-    <kotlin-stdlib.version>1.8.10</kotlin-stdlib.version>
+    <okio.version>3.3.0</okio.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
     <spring.version>5.3.20</spring.version>
@@ -1335,23 +1333,6 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.squareup.okio</groupId>
         <artifactId>okio</artifactId>
         <version>${okio.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib</artifactId>
-        <version>${kotlin-stdlib.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib-common</artifactId>
-        <version>${kotlin-stdlib.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.jetbrains.kotlin</groupId>
-        <artifactId>kotlin-stdlib-jdk8</artifactId>
-        <version>${kotlin-stdlib.version}</version>
       </dependency>
 
       <dependency>
