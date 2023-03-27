@@ -595,7 +595,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
 
             // Using the newest data, update the aggregated time-average data for the current broker.
-            brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
+            TimeAverageBrokerData timeAverageData = new TimeAverageBrokerData();
+            timeAverageData.reset(statsMap.keySet(), bundleData, defaultStats);
+            brokerData.setTimeAverageData(timeAverageData);
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
                     brokerToNamespaceToBundleRange
                             .computeIfAbsent(broker, k ->
