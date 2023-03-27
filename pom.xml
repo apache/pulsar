@@ -109,6 +109,7 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
     <testFailFast>true</testFailFast>
+    <testFailFastFile></testFailFastFile>
     <testJacocoAgentArgument/>
     <integrationtest.coverage.enabled>false</integrationtest.coverage.enabled>
     <integrationtest.coverage.dir>${project.build.directory}</integrationtest.coverage.dir>
@@ -224,10 +225,10 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
     <jna.version>5.12.1</jna.version>
     <kubernetesclient.version>12.0.1</kubernetesclient.version>
-    <okhttp3.version>4.9.3</okhttp3.version>
+    <okhttp3.version>4.10.0</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
-    <okio.version>2.8.0</okio.version>
-    <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
+    <okio.version>3.0.0</okio.version>
+    <!-- override kotlin-stdlib used by okio in order to support functions built with latest version of kotlin -->
     <kotlin-stdlib.version>1.8.10</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
@@ -1965,6 +1966,7 @@ flexible messaging model and an intuitive client API.</description>
         <test.additional.args/>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
+        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
       </properties>
     </profile>
     <profile>
