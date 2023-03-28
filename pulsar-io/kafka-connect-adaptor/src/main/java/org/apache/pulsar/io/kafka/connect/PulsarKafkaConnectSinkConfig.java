@@ -96,8 +96,7 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
 
     @FieldDoc(
             defaultValue = "false",
-            help = "Supply kafka record with topic name without -partition- suffix for partitioned topics. \n"
-                    + "Thi si sa workaround for https://github.com/apache/pulsar/issues/19922")
+            help = "Supply kafka record with topic name without -partition- suffix for partitioned topics.")
     private boolean collapsePartitionedTopics = false;
 
     public static PulsarKafkaConnectSinkConfig load(String yamlFile) throws IOException {

@@ -92,6 +92,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     protected String topicName;
 
     private boolean sanitizeTopicName = false;
+    // Thi is a workaround for https://github.com/apache/pulsar/issues/19922
     private boolean collapsePartitionedTopics = false;
 
     private final Cache<String, String> sanitizedTopicCache =
