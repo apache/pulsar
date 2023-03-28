@@ -23,6 +23,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -93,7 +94,7 @@ public class MessageIdImpl implements MessageIdAdv {
             throw new IOException(e);
         }
 
-        MessageIdImpl messageId;
+        MessageId messageId;
         if (idData.hasBatchIndex()) {
             if (idData.hasBatchSize()) {
                 messageId = new BatchMessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition(),
@@ -110,6 +111,11 @@ public class MessageIdImpl implements MessageIdAdv {
                     new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition()));
         } else {
             messageId = new MessageIdImpl(idData.getLedgerId(), idData.getEntryId(), idData.getPartition());
+        }
+
+        if (idData.hasTopicName()) {
+            String topicName = idData.getTopicName();
+            messageId = new TopicMessageIdImpl(topicName, topicName, messageId);
         }
 
         return messageId;
@@ -174,7 +180,18 @@ public class MessageIdImpl implements MessageIdAdv {
 
     // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
     protected byte[] toByteArray(int batchIndex, int batchSize) {
+        return toByteArray(batchIndex, batchSize, null);
+    }
+
+    protected byte[] toByteArray(String topic) {
+        return toByteArray(-1, 0, topic);
+    }
+
+    protected byte[] toByteArray(int batchIndex, int batchSize, String topicName) {
         MessageIdData msgId = writeMessageIdData(null, batchIndex, batchSize);
+        if (StringUtils.isNotBlank(topicName)) {
+            msgId.setTopicName(topicName);
+        }
 
         int size = msgId.getSerializedSize();
         ByteBuf serialized = Unpooled.buffer(size, size);
@@ -186,6 +203,6 @@ public class MessageIdImpl implements MessageIdAdv {
     @Override
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
-        return toByteArray(-1, 0);
+        return toByteArray(-1, 0, null);
     }
 }

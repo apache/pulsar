@@ -62,4 +62,14 @@ public class TopicMessageIdImpl extends TopicMessageId.Impl {
     public int hashCode() {
         return super.hashCode();
     }
+
+    @Override
+    public byte[] toByteArray() {
+        MessageId id = getMessageId();
+        if (id instanceof MessageIdImpl) {
+            return ((MessageIdImpl) id).toByteArray(-1, 0, getOwnerTopic());
+        } else {
+            return id.toByteArray();
+        }
+    }
 }

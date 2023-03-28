@@ -78,6 +78,11 @@ public class BatchMessageIdImpl extends MessageIdImpl {
         return toByteArray(batchIndex, batchSize);
     }
 
+    @Override
+    protected byte[] toByteArray(String topic) {
+        return toByteArray(batchIndex, batchSize, topic);
+    }
+
     @Deprecated
     public boolean ackIndividual() {
         return MessageIdAdvUtils.acknowledge(this, true);

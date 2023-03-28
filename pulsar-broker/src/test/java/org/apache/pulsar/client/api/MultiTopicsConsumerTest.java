@@ -24,10 +24,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -42,6 +45,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
+
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -350,5 +356,67 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
                     msgIds.get(partition).subList(numMessagesPerPartition / 2 + 1, numMessagesPerPartition));
         }
         consumer.close();
+    }
+
+    /**
+     * It tests acking of messageId created from byte[] and validates client acks messages successfully.
+     * @throws Exception
+     */
+    @Test
+    public void testMultiTopicAckWithByteMessageId() throws Exception {
+        String topicName = newTopicName();
+        int numPartitions = 2;
+        int numMessages = 100000;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        Producer<Long>[] producers = new Producer[numPartitions];
+
+        for (int i = 0; i < numPartitions; i++) {
+            producers[i] = pulsarClient.newProducer(Schema.INT64)
+                    // produce to each partition directly so that order can be maintained in sending
+                    .topic(topicName + "-partition-" + i).enableBatching(true).maxPendingMessages(30000)
+                    .maxPendingMessagesAcrossPartitions(60000).batchingMaxMessages(10000)
+                    .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxBytes(4 * 1024 * 1024)
+                    .blockIfQueueFull(true).create();
+        }
+
+        @Cleanup
+        Consumer<Long> consumer = pulsarClient.newConsumer(Schema.INT64)
+                // consume on the partitioned topic
+                .topic(topicName).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(numMessages).subscriptionName(methodName).subscribe();
+
+        // produce sequence numbers to each partition topic
+        long sequenceNumber = 1L;
+        for (int i = 0; i < numMessages; i++) {
+            for (Producer<Long> producer : producers) {
+                producer.newMessage().value(sequenceNumber).sendAsync();
+            }
+            sequenceNumber++;
+        }
+        for (Producer<Long> producer : producers) {
+            producer.flush();
+            producer.close();
+        }
+
+        // receive and validate sequences in the partitioned topic
+        Map<String, AtomicLong> receivedSequences = new HashMap<>();
+        int receivedCount = 0;
+        while (receivedCount < numPartitions * numMessages) {
+            Message<Long> message = consumer.receiveAsync().get(5, TimeUnit.SECONDS);
+            byte[] idByte = message.getMessageId().toByteArray();
+            MessageId id = MessageId.fromByteArray(idByte);
+            consumer.acknowledge(id);
+            receivedCount++;
+            AtomicLong receivedSequenceCounter = receivedSequences.computeIfAbsent(message.getTopicName(),
+                    k -> new AtomicLong(1L));
+            Assert.assertEquals(message.getValue().longValue(), receivedSequenceCounter.getAndIncrement());
+        }
+        Assert.assertEquals(numPartitions * numMessages, receivedCount);
+        consumer.close();
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName + "-partition-0", false).get().get();
+        Range<PositionImpl> range = topic.getManagedLedger().getCursors().iterator().next().getLastIndividualDeletedRange();
+        assertNull(range);
     }
 }
