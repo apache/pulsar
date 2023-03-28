@@ -43,7 +43,8 @@ public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
         admin.clusters()
-                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
     }
 
     @BeforeClass(alwaysRun = true)
