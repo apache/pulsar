@@ -737,13 +737,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // update code file
         switch (runtime) {
             case JAVA:
-                updateFunctionCodeFile(functionName, "test");
+                updateFunctionCodeFile(functionName, Runtime.JAVA, "test");
                 break;
             case PYTHON:
-                updateFunctionCodeFile(functionName, EXCLAMATION_PYTHON_FILE);
+                updateFunctionCodeFile(functionName, Runtime.PYTHON, EXCLAMATION_PYTHON_FILE);
                 break;
             case GO:
-                updateFunctionCodeFile(functionName, EXCLAMATION_GO_FILE);
+                updateFunctionCodeFile(functionName, Runtime.GO, EXCLAMATION_GO_FILE);
                 break;
         }
 
@@ -909,10 +909,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(result.getStdout().contains("Updated successfully"));
     }
 
-    private void updateFunctionCodeFile(String functionName, String codeFile) throws Exception {
+    private void updateFunctionCodeFile(String functionName, Runtime runtime, String codeFile) throws Exception {
 
         CommandGenerator generator = new CommandGenerator();
         generator.setFunctionName(functionName);
+        generator.setRuntime(runtime);
         String command = generator.generateUpdateFunctionCommand(codeFile);
 
         log.info("---------- Function command: {}", command);
