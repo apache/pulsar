@@ -139,7 +139,7 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>pulsar-all</name>
+                      <name>${docker.organization}/pulsar-all</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
@@ -159,8 +159,6 @@
                       </build>
                     </image>
                   </images>
-                  <tagName>latest</tagName>
-                  <repo>${docker.organization}</repo>
                 </configuration>
               </execution>
             </executions>
