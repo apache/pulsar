@@ -25,18 +25,18 @@ import javax.management.MBeanServer;
 import javax.management.MBeanServerInvocationHandler;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
+import org.testng.IExecutionListener;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
-import org.testng.ITestContext;
-import org.testng.ITestListener;
 
 /**
  * A TestNG listener that dumps Jacoco coverage data to file using the Jacoco JMX interface.
  *
  * This ensures that coverage data is dumped even if the shutdown sequence of the Test JVM gets stuck. Coverage
- * data will be dumped every 2 minutes by default and at the end of the test suite.
+ * data will be dumped every 2 minutes by default and once all test suites have been run.
+ * Each test class runs in its own suite when run with maven-surefire-plugin.
  */
-public class JacocoDumpListener implements ITestListener, ISuiteListener {
+public class JacocoDumpListener implements ISuiteListener, IExecutionListener {
     private final MBeanServer platformMBeanServer = ManagementFactory.getPlatformMBeanServer();
     private final ObjectName jacocoObjectName;
     private final JacocoProxy jacocoProxy;
@@ -60,6 +60,7 @@ public class JacocoDumpListener implements ITestListener, ISuiteListener {
         } else {
             jacocoProxy = null;
         }
+        lastDumpTime = System.currentTimeMillis();
     }
 
     private boolean checkEnabled() {
@@ -72,16 +73,16 @@ public class JacocoDumpListener implements ITestListener, ISuiteListener {
         return true;
     }
 
-    public void onFinish(ITestContext context) {
+    public void onFinish(ISuite suite) {
         // dump jacoco coverage data to file using the Jacoco JMX interface if more than DUMP_INTERVAL_MILLIS has passed
         // since the last dump
-        if (enabled && (lastDumpTime == 0L || System.currentTimeMillis() - lastDumpTime > DUMP_INTERVAL_MILLIS)) {
+        if (enabled && System.currentTimeMillis() - lastDumpTime > DUMP_INTERVAL_MILLIS) {
             // dump jacoco coverage data to file using the Jacoco JMX interface
             triggerJacocoDump();
         }
     }
     @Override
-    public void onFinish(ISuite suite) {
+    public void onExecutionFinish() {
         if (enabled) {
             // dump jacoco coverage data to file using the Jacoco JMX interface when all tests have finished
             triggerJacocoDump();
