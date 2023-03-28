@@ -153,7 +153,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         setSecondaryLoadManager();
 
         admin.clusters().createCluster(this.conf.getClusterName(),
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
                         Sets.newHashSet(this.conf.getClusterName())));

@@ -43,7 +43,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -90,7 +90,9 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                 .authentication(AuthenticationToken.class.getName(),
                         ADMIN_TOKEN);
         admin = Mockito.spy(pulsarAdminBuilder.build());
-        admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
+        admin.clusters().createCluster(testLocalCluster, ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of(testLocalCluster)
         ));

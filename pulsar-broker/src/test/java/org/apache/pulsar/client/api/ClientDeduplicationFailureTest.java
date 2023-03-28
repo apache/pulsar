@@ -109,7 +109,8 @@ public class ClientDeduplicationFailureTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(url.toString()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(url.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build();
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         if (pulsarClient != null) {

@@ -112,6 +112,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         admin.clusters().createCluster(configClusterName,
                 ClusterData.builder()
                         .serviceUrl(brokerUrl.toString())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
                         .build()
         );
     }

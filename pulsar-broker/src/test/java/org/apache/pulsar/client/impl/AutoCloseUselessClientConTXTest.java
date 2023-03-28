@@ -82,7 +82,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         try {
             if (!admin.clusters().getClusters().contains("test")){
                 admin.clusters().createCluster("test", ClusterData.builder()
-                        .serviceUrl(pulsar.getBrokerServiceUrl())
+                        .serviceUrl(pulsar.getWebServiceAddress())
                         .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             }
             if (!admin.tenants().getTenants().contains("pulsar")){

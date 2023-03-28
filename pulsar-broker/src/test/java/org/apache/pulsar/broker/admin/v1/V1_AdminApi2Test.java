@@ -658,6 +658,8 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
                 ClusterData.builder()
                         .serviceUrl(pulsar.getSafeWebServiceAddress())
                         .serviceUrlTls(pulsar.getWebServiceAddressTls())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
+                        .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
                         .build());
         // create
         FailureDomain domain = FailureDomain.builder()
