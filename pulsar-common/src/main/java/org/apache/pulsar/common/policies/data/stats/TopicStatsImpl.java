@@ -296,6 +296,7 @@ public class TopicStatsImpl implements TopicStats {
                     this.replication.get(repl).add(stats.replication.get(repl));
                 } else {
                     ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
+                    replStats.setConnected(true);
                     this.replication.put(repl, replStats.add(stats.replication.get(repl)));
                 }
             }
