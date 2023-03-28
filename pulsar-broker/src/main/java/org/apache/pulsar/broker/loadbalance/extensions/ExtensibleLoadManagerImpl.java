@@ -159,8 +159,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private final UnloadCounter unloadCounter = new UnloadCounter();
     private final SplitCounter splitCounter = new SplitCounter();
 
-    // record load metrics
-    private final AtomicReference<List<Metrics>> brokerLoadMetrics = new AtomicReference<>();
     // record unload metrics
     private final AtomicReference<List<Metrics>> unloadMetrics = new AtomicReference();
     // record split metrics
@@ -366,7 +364,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return future;
     }
 
-    private CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
+    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
@@ -627,20 +625,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
     }
 
-    void updateBrokerLoadMetrics(BrokerLoadData loadData) {
-        this.brokerLoadMetrics.set(loadData.toMetrics(pulsar.getAdvertisedAddress()));
-    }
-
-    private void updateUnloadMetrics(UnloadDecision decision) {
-        unloadCounter.update(decision);
-        this.unloadMetrics.set(unloadCounter.toMetrics(pulsar.getAdvertisedAddress()));
-    }
-
     public List<Metrics> getMetrics() {
         List<Metrics> metricsCollection = new ArrayList<>();
 
-        if (this.brokerLoadMetrics.get() != null) {
-            metricsCollection.addAll(this.brokerLoadMetrics.get());
+        if (this.brokerLoadDataReporter != null) {
+            metricsCollection.addAll(brokerLoadDataReporter.generateLoadData()
+                    .toMetrics(pulsar.getAdvertisedAddress()));
         }
         if (this.unloadMetrics.get() != null) {
             metricsCollection.addAll(this.unloadMetrics.get());

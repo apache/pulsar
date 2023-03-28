@@ -41,6 +41,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Stable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
@@ -76,8 +77,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
-import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
-import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -104,7 +103,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public static final String TOPIC = TopicName.get(
             TopicDomain.persistent.value(),
-            NamespaceName.SYSTEM_NAMESPACE,
+            SYSTEM_NAMESPACE,
             "loadbalancer-service-unit-state").toString();
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
     public static final long VERSION_ID_INIT = 1; // initial versionId
@@ -120,7 +119,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final String lookupServiceAddress;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
-    private BrokerSelectionStrategy brokerSelector;
+    private ExtensibleLoadManagerImpl brokerSelector;
     private BrokerRegistry brokerRegistry;
     private LeaderElectionService leaderElectionService;
     private TableView<ServiceUnitStateData> tableview;
@@ -148,7 +147,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public enum EventType {
         Assign,
         Split,
-        Unload
+        Unload,
+        Override
 
     }
 
@@ -329,9 +329,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     @VisibleForTesting
-    protected BrokerSelectionStrategy getBrokerSelector() {
+    protected ExtensibleLoadManagerImpl getBrokerSelector() {
         // TODO: make this selector configurable.
-        return new LeastResourceUsageWithWeight();
+        return ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get());
     }
 
     @VisibleForTesting
@@ -520,6 +520,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     }
                 });
         return getOwnerRequest;
+    }
+
+    private CompletableFuture<Void> publishOverrideEventAsync(String serviceUnit,
+                                           ServiceUnitStateData orphanData,
+                                           ServiceUnitStateData override) {
+        if (!validateChannelState(Started, true)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+        }
+        EventType eventType = EventType.Override;
+        eventCounters.get(eventType).getTotal().incrementAndGet();
+        return pubAsync(serviceUnit, override).whenComplete((__, e) -> {
+            if (e != null) {
+                eventCounters.get(eventType).getFailure().incrementAndGet();
+                log.error("Failed to override serviceUnit:{} from orphanData:{} to overrideData:{}",
+                        serviceUnit, orphanData, override, e);
+            }
+        }).thenApply(__ -> null);
     }
 
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
@@ -1022,19 +1039,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 broker, delayInSecs, cleanupJobs.size());
     }
 
-    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData, Set<String> availableBrokers) {
-
-        Optional<String> selectedBroker = brokerSelector.select(availableBrokers, null, getContext());
+    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData) {
+        Optional<String> selectedBroker = selectBroker(serviceUnit);
         if (selectedBroker.isPresent()) {
-            var override = new ServiceUnitStateData(Owned, selectedBroker.get(), true, getNextVersionId(orphanData));
+            var override =
+                    new ServiceUnitStateData(Owned, selectedBroker.get(), true, getNextVersionId(orphanData));
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
-            pubAsync(serviceUnit, override).whenComplete((__, e) -> {
-                if (e != null) {
-                    log.error("Failed to override serviceUnit:{} from orphanData:{} to overrideData:{}",
-                            serviceUnit, orphanData, override, e);
-                }
-            });
+            publishOverrideEventAsync(serviceUnit, orphanData, override);
         } else {
             log.error("Failed to override the ownership serviceUnit:{} orphanData:{}. Empty selected broker.",
                     serviceUnit, orphanData);
@@ -1042,13 +1054,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
 
-    private void doCleanup(String broker) throws ExecutionException, InterruptedException, TimeoutException {
+    private void doCleanup(String broker)  {
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
-        var availableBrokers = new HashSet<>(brokerRegistry.getAvailableBrokersAsync()
-                .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
 
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();
@@ -1056,13 +1066,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var state = state(stateData);
             if (StringUtils.equals(broker, stateData.dstBroker())) {
                 if (isActiveState(state)) {
-                    overrideOwnership(serviceUnit, stateData, availableBrokers);
+                    overrideOwnership(serviceUnit, stateData);
                     orphanServiceUnitCleanupCnt++;
                 }
 
             } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
                 if (isInFlightState(state)) {
-                    overrideOwnership(serviceUnit, stateData, availableBrokers);
+                    overrideOwnership(serviceUnit, stateData);
                     orphanServiceUnitCleanupCnt++;
                 }
             }
@@ -1097,31 +1107,45 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     }
 
-    private Optional<ServiceUnitStateData> getRollForwardStateData(
-            Set<String> availableBrokers, LoadManagerContext context, long nextVersionId) {
-        Optional<String> selectedBroker = brokerSelector.select(availableBrokers, null, context);
+    private Optional<String> selectBroker(String serviceUnit) {
+        var namespaceBundle = getNamespaceBundle(serviceUnit);
+        if (namespaceBundle.getNamespaceObject().equals(SYSTEM_NAMESPACE)) {
+            log.info("Skipping system serviceUnit:{} select", serviceUnit);
+            return Optional.empty();
+        }
+
+        try {
+            return brokerSelector.selectAsync(namespaceBundle).get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
+        } catch (Throwable e) {
+            log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
+        }
+        return Optional.empty();
+    }
+
+    private Optional<ServiceUnitStateData> getRollForwardStateData(String serviceUnit, long nextVersionId) {
+        Optional<String> selectedBroker = selectBroker(serviceUnit);
         if (selectedBroker.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(new ServiceUnitStateData(Owned, selectedBroker.get(), true, nextVersionId));
     }
 
+
     private Optional<ServiceUnitStateData> getOverrideInFlightStateData(
             String serviceUnit, ServiceUnitStateData orphanData,
-            Set<String> availableBrokers,
-            LoadManagerContext context) {
+            Set<String> availableBrokers) {
         long nextVersionId = getNextVersionId(orphanData);
         var state = orphanData.state();
         switch (state) {
             case Assigning: {
-                return getRollForwardStateData(availableBrokers, context, nextVersionId);
+                return getRollForwardStateData(serviceUnit, nextVersionId);
             }
             case Splitting, Releasing: {
                 if (availableBrokers.contains(orphanData.sourceBroker())) {
                     // rollback to the src
                     return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true, nextVersionId));
                 } else {
-                    return getRollForwardStateData(availableBrokers, context, nextVersionId);
+                    return getRollForwardStateData(serviceUnit, nextVersionId);
                 }
             }
             default: {
@@ -1202,21 +1226,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 handleBrokerDeletionEvent(inactiveBroker);
             }
         } else if (!orphanServiceUnits.isEmpty()) {
-            var context = getContext();
             for (var etr : orphanServiceUnits.entrySet()) {
                 var orphanServiceUnit = etr.getKey();
                 var orphanData = etr.getValue();
                 var overrideData = getOverrideInFlightStateData(
-                        orphanServiceUnit, orphanData, activeBrokers, context);
+                        orphanServiceUnit, orphanData, activeBrokers);
                 if (overrideData.isPresent()) {
-                    pubAsync(orphanServiceUnit, overrideData.get()).whenComplete((__, e) -> {
-                        if (e != null) {
-                            log.error("Failed cleaning the ownership orphanServiceUnit:{}, orphanData:{}, "
-                                            + "cleanupErrorCnt:{}.",
-                                    orphanServiceUnit, orphanData,
-                                    totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                        }
-                    });
+                    publishOverrideEventAsync(orphanServiceUnit, orphanData, overrideData.get())
+                            .whenComplete((__, e) -> {
+                                if (e != null) {
+                                    log.error("Failed cleaning the ownership orphanServiceUnit:{}, orphanData:{}, "
+                                                    + "cleanupErrorCnt:{}.",
+                                            orphanServiceUnit, orphanData,
+                                            totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                                }
+                            });
                     orphanServiceUnitCleanupCnt++;
                 } else {
                     log.warn("Failed get the overrideStateData from orphanServiceUnit:{}, orphanData:{}. will retry..",

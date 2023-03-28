@@ -75,11 +75,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistryImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
-import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
@@ -116,7 +116,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private BrokerRegistryImpl registry;
 
-    private BrokerSelectionStrategy brokerSelector;
+    private ExtensibleLoadManagerImpl brokerSelector;
 
     @BeforeClass
     @Override
@@ -135,7 +135,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         loadManagerContext = mock(LoadManagerContext.class);
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
-        brokerSelector = mock(BrokerSelectionStrategy.class);
+        brokerSelector = mock(ExtensibleLoadManagerImpl.class);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -496,7 +496,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, getOwnerRequests2.size());
 
         // recovered, check the monitor update state : Assigned -> Owned
-        doReturn(Optional.of(lookupServiceAddress1)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress1))).when(brokerSelector).selectAsync(any());
         FieldUtils.writeDeclaredField(channel2, "producer", producer, true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
@@ -714,7 +714,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         var owner1 = channel1.getOwnerAsync(bundle1);
         var owner2 = channel2.getOwnerAsync(bundle2);
-        doReturn(Optional.of(lookupServiceAddress2)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2))).when(brokerSelector).selectAsync(any());
 
         assertTrue(owner1.get().isEmpty());
         assertTrue(owner2.get().isEmpty());
@@ -1076,7 +1076,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
-        doReturn(Optional.of(lookupServiceAddress2)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2))).when(brokerSelector).selectAsync(any());
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress2);
         // channel1 is broken. the assign won't be complete.
         waitUntilState(channel1, bundle);
