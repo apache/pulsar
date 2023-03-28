@@ -39,7 +39,9 @@ import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -424,7 +426,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
     }
     
     @Test(dataProvider = "delayedTracker")
-    public void testClear(BucketDelayedDeliveryTracker tracker) {
+    public void testClear(BucketDelayedDeliveryTracker tracker)
+            throws ExecutionException, InterruptedException, TimeoutException {
       for (int i = 1; i <= 1001; i++) {
           tracker.addMessage(i, i, i * 10);
       }
@@ -433,7 +436,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       assertTrue(tracker.getImmutableBuckets().asMapOfRanges().size() > 0);
       assertEquals(tracker.getLastMutableBucket().size(), 1);
 
-      tracker.clear();
+      tracker.clear().get(1, TimeUnit.MINUTES);
 
       assertEquals(tracker.getNumberOfDelayedMessages(), 0);
       assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 0);

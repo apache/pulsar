@@ -23,6 +23,7 @@ import io.netty.util.Timer;
 import java.time.Clock;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -147,8 +148,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     }
 
     @Override
-    public void clear() {
+    public CompletableFuture<Void> clear() {
         this.priorityQueue.clear();
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.testng.Assert.assertTrue;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
@@ -102,5 +108,58 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
         Assert.assertEquals(bucketKeys, bucketKeys2);
+    }
+
+
+    @Test
+    public void testUnsubscribe() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testUnsubscribes");
+
+        @Cleanup
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
+
+        Map<String, String> cursorProperties =
+                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
+        List<Long> bucketIds = cursorProperties.entrySet().stream()
+                .filter(x -> x.getKey().startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).map(
+                        x -> Long.valueOf(x.getValue())).toList();
+
+        assertTrue(bucketIds.size() > 0);
+
+        c1.close();
+
+        restartBroker();
+
+        admin.topics().deleteSubscription(topic, "sub");
+
+        for (Long bucketId : bucketIds) {
+            try {
+                LedgerHandle ledgerHandle =
+                        pulsarTestContext.getBookKeeperClient()
+                                .openLedger(bucketId, BookKeeper.DigestType.CRC32C, new byte[]{});
+                Assert.fail("Should fail");
+            } catch (BKException.BKNoSuchLedgerExistsException e) {
+                // ignore it
+            }
+        }
     }
 }
