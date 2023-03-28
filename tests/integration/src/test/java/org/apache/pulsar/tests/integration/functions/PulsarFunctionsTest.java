@@ -734,6 +734,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // update parallelism
         updateFunctionParallelism(functionName, 2);
 
+        //get function status
+        getFunctionStatus(functionName, 0, true, 2);
+
         // update code file
         switch (runtime) {
             case JAVA:
@@ -746,9 +749,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 updateFunctionCodeFile(functionName, Runtime.GO, EXCLAMATION_GO_FILE);
                 break;
         }
-
-        //get function status
-        getFunctionStatus(functionName, 0, true, 2);
 
         // delete function
         deleteFunction(functionName);
