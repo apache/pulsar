@@ -161,7 +161,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
@@ -178,7 +179,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         clientSetup();
 
         // test rest by admin
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("my-property",
             new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));

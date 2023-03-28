@@ -249,7 +249,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.clusters().updateCluster("usw",
                 ClusterData.builder().serviceUrl("http://new-broker.messaging.usw.example.com:8080")
-                        .brokerServiceUrl("pulsar://new-broker.messaging.use.example.com:6650").build());
+                        .brokerServiceUrl("pulsar://new-broker.messaging.usw.example.com:6650").build());
         assertEquals(admin.clusters().getClusters(), List.of("use", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
                 ClusterData.builder().serviceUrl("http://new-broker.messaging.usw.example.com:8080")
