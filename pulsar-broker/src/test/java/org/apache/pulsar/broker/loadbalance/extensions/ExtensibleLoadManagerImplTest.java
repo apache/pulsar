@@ -37,6 +37,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -81,6 +82,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.lookup.LookupResult;
@@ -640,8 +642,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetMetrics() throws Exception {
         {
-            var brokerLoadMetrics = (AtomicReference<List<Metrics>>)
-                    FieldUtils.readDeclaredField(primaryLoadManager, "brokerLoadMetrics", true);
+            var brokerLoadDataReporter = mock(BrokerLoadDataReporter.class);
+            FieldUtils.writeDeclaredField(primaryLoadManager, "brokerLoadDataReporter", brokerLoadDataReporter, true);
             BrokerLoadData loadData = new BrokerLoadData();
             SystemResourceUsage usage = new SystemResourceUsage();
             var cpu = new ResourceUsage(1.0, 100.0);
@@ -655,7 +657,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             usage.setBandwidthIn(bandwidthIn);
             usage.setBandwidthOut(bandwidthOut);
             loadData.update(usage, 1, 2, 3, 4, 5, 6, conf);
-            brokerLoadMetrics.set(loadData.toMetrics(pulsar.getAdvertisedAddress()));
+            doReturn(loadData).when(brokerLoadDataReporter).generateLoadData();
         }
         {
             var unloadMetrics = (AtomicReference<List<Metrics>>)
