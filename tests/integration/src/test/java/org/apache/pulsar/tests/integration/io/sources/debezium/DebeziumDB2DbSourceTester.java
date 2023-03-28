@@ -24,7 +24,6 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumDB2DbContainer;
-import org.apache.pulsar.tests.integration.containers.DebeziumOracleDbContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
@@ -32,7 +31,7 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.util.Strings;
 
 /**
- * A tester for testing Debezium OracleDb source.
+ * A tester for testing Debezium DB2 source.
  */
 @Slf4j
 public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContainer> {
