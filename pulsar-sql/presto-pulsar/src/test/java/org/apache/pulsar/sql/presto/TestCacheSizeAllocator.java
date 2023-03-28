@@ -61,7 +61,8 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         // so that clients can test short names
         admin.tenants().createTenant("public",

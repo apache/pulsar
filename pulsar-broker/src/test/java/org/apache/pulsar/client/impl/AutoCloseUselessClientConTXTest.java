@@ -81,7 +81,9 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
     protected PulsarClient createNewPulsarClient(ClientBuilder clientBuilder) throws PulsarClientException {
         try {
             if (!admin.clusters().getClusters().contains("test")){
-                admin.clusters().createCluster("test", ClusterData.builder().build());
+                admin.clusters().createCluster("test", ClusterData.builder()
+                        .serviceUrl(pulsar.getBrokerServiceUrl())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             }
             if (!admin.tenants().getTenants().contains("pulsar")){
                 admin.tenants().createTenant("pulsar",

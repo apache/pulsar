@@ -65,7 +65,9 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         conf.setClusterName("c1");
         internalSetup();
 
-        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.clusters().createCluster("c1", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet(SUPER_USER_ROLE), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");

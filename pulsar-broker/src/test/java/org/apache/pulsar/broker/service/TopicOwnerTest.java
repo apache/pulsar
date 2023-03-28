@@ -106,7 +106,8 @@ public class TopicOwnerTest {
         leaderAdmin = pulsarAdmins[0];
         Thread.sleep(1000);
 
-        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress()).build());
+        pulsarAdmins[0].clusters().createCluster(testCluster, ClusterData.builder().serviceUrl(pulsarServices[0].getWebServiceAddress())
+                .brokerServiceUrl(pulsarServices[0].getBrokerServiceUrl()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
                 .allowedClusters(Sets.newHashSet(testCluster))
                 .build();

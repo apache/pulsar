@@ -106,7 +106,8 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
     protected void setup() throws Exception {
         super.internalSetup();
         // Create tenant, namespace, topic
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant(tenantName,
                 new TenantInfoImpl(Collections.singleton("a"), Collections.singleton(clusterName)));
         admin.namespaces().createNamespace(namespaceName);

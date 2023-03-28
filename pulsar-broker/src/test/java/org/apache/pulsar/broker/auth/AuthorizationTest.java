@@ -81,7 +81,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
-        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.clusters().createCluster("c1", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
@@ -277,7 +279,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         String tenant = "p1";
         String namespaceV1 = "p1/global/ns1";
         String namespaceV2 = "p1/ns2";
-        admin.clusters().createCluster("c1", ClusterData.builder().build());
+        admin.clusters().createCluster("c1", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         admin.namespaces().createNamespace(namespaceV1, Sets.newHashSet("c1"));
         admin.namespaces().grantPermissionOnNamespace(namespaceV1, "pass.pass2", EnumSet.of(AuthAction.produce));

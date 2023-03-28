@@ -99,7 +99,8 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
                         () -> AuthTokenUtils.createToken(SECRET_KEY, "client", Optional.empty()))).build();
         String namespaceName = "my-tenant/my-ns";
         admin.clusters().createCluster("proxy-authorization",
-                ClusterData.builder().serviceUrlTls(brokerUrlTls.toString()).build());
+                ClusterData.builder().serviceUrlTls(brokerUrlTls.toString())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);

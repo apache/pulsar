@@ -240,7 +240,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     private void setupClusters() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
@@ -288,30 +289,36 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void clusters() throws Exception {
         admin.clusters().createCluster("usw",
-                ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
         // failure-domain znode of this default cluster
         assertEquals(admin.clusters().getClusters(), List.of("test", "usw"));
 
         assertEquals(admin.clusters().getCluster("test"),
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.clusters().updateCluster("usw",
-                ClusterData.builder().serviceUrl("http://new-broker.messaging.usw.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://new-broker.messaging.usw.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         assertEquals(admin.clusters().getClusters(), List.of("test", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
-                ClusterData.builder().serviceUrl("http://new-broker.messaging.usw.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://new-broker.messaging.usw.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.clusters().updateCluster("usw",
                 ClusterData.builder()
                         .serviceUrl("http://new-broker.messaging.usw.example.com:8080")
                         .serviceUrlTls("https://new-broker.messaging.usw.example.com:4443")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
                         .build());
         assertEquals(admin.clusters().getClusters(), List.of("test", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
                 ClusterData.builder()
                         .serviceUrl("http://new-broker.messaging.usw.example.com:8080")
                         .serviceUrlTls("https://new-broker.messaging.usw.example.com:4443")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl())
                         .build());
 
         admin.clusters().deleteCluster("usw");
@@ -324,7 +331,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // Check name validation
         try {
-            admin.clusters().createCluster("bf!", ClusterData.builder().serviceUrl("http://dummy.messaging.example.com").build());
+            admin.clusters().createCluster("bf!", ClusterData.builder().serviceUrl("http://dummy.messaging.example.com")
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             fail("should have failed");
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
@@ -793,7 +801,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void namespaces() throws Exception {
-        admin.clusters().createCluster("usw", ClusterData.builder().build());
+        admin.clusters().createCluster("usw", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
@@ -3036,7 +3046,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTopicBundleRangeLookup() throws PulsarAdminException, PulsarServerException, Exception {
-        admin.clusters().createCluster("usw", ClusterData.builder().build());
+        admin.clusters().createCluster("usw", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);
@@ -3229,7 +3241,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCreateAndDeleteNamespaceWithBundles() throws Exception {
-        admin.clusters().createCluster("usw", ClusterData.builder().build());
+        admin.clusters().createCluster("usw", ClusterData.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"),
                 Set.of("test", "usw"));
         admin.tenants().updateTenant("prop-xyz", tenantInfo);

@@ -142,7 +142,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .authentication(authenticationInvalidRole).build();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -210,7 +211,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
 
         Authentication authentication = new ClientAuthentication(subscriptionRole);
 
-        superAdmin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        superAdmin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
@@ -396,7 +398,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(subAdminAuthentication).build());
 
         superAdmin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
@@ -493,7 +495,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(generalAdminAuthentication).build());
 
         superAdmin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
@@ -578,7 +580,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(generalAuthentication).build());
 
         superAdmin.clusters().createCluster("test",
-                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         superAdmin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet(tenantRole), Sets.newHashSet("test")));
         superAdmin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
@@ -625,7 +627,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
                 .authentication(authentication));
 
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.tenants().createTenant("prop-prefix",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
@@ -711,7 +714,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         PulsarAdmin admin =
                 PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));

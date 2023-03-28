@@ -53,7 +53,8 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
     @Test
     public void testSessionExpired() throws Exception {
         admin.clusters().createCluster("my-cluster", ClusterData.builder()
-                .serviceUrl("http://test-url").build());
+                .serviceUrl("http://test-url")
+                .brokerServiceUrl("pulsar://test-url").build());
 
         assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
@@ -66,13 +67,13 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
 
         try {
             admin.clusters().createCluster("my-cluster-2", ClusterData.builder()
-                    .serviceUrl("http://test-url").build());
+                    .serviceUrl("http://test-url").brokerServiceUrl("pulsar://test-url").build());
             fail("Should have failed, because global zk is down");
         } catch (PulsarAdminException e) {
             // Ok
         }
 
         admin.clusters().createCluster("cluster-2", ClusterData.builder()
-                .serviceUrl("http://test-url").build());
+                .serviceUrl("http://test-url").brokerServiceUrl("pulsar://test-url").build());
     }
 }

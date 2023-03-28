@@ -109,7 +109,8 @@ public class PulsarWorkerAssignmentTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        final ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        final ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build();
         admin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         final ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl());

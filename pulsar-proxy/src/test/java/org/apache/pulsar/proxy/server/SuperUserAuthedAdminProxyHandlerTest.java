@@ -134,7 +134,8 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
     @Test
     public void testAuthenticatedProxyAsAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin")) {
-            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("randoUser"),
                                                              ImmutableSet.of(configClusterName)));
@@ -152,7 +153,8 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
             } catch (PulsarAdminException.NotAuthorizedException e) {
                 // expected
             }
-            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             adminAdmin.tenants().createTenant("tenant1",
                                               new TenantInfoImpl(ImmutableSet.of("unknownUser"),
                                                              ImmutableSet.of(configClusterName)));

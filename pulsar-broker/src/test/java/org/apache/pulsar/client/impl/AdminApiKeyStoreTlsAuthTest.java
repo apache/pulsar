@@ -169,7 +169,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants().createTenant("tenant1",
                                          new TenantInfoImpl(Set.of("foobar"),
                                                         Set.of("test")));
@@ -180,7 +181,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testSuperUserCanListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants().createTenant("tenant1",
                                          new TenantInfoImpl(Set.of(""),
                                                         Set.of("test")));
@@ -192,7 +194,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
     @Test
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants().createTenant("tenant1",
                                          new TenantInfoImpl(Set.of("proxy", "user1"),
                                                         Set.of("test")));
@@ -211,7 +214,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         try (PulsarAdmin admin = buildAdminClient()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants().createTenant("tenant1",
                     new TenantInfoImpl(Set.of("foobar"),
                             Set.of("test")));
@@ -256,7 +260,8 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
                 .allowTlsInsecureConnection(false)
                 .build();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant("tenant1",
                 new TenantInfoImpl(Set.of("foobar"),
                         Set.of("test")));

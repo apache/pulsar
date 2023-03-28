@@ -881,7 +881,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     private void prepareForOps() throws PulsarAdminException {
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         this.conf.setAllowAutoTopicCreation(true);
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
     }
 
     // Set up of RG/tenant/namespaces/topic names, and checking of the test parameters.

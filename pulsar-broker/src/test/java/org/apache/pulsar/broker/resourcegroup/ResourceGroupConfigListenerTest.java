@@ -280,7 +280,8 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
     }
 
     private void prepareData() throws PulsarAdminException {
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         testAddRg.setPublishRateInBytes(10000L);
         testAddRg.setPublishRateInMsgs(100);

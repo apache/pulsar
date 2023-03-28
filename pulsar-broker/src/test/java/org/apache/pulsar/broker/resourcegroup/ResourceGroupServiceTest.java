@@ -273,6 +273,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     private static final int PUBLISH_INTERVAL_SECS = 500;
     private void prepareData() throws PulsarAdminException {
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
     }
 }

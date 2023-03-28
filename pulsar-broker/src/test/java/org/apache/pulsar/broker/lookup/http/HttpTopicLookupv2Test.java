@@ -84,9 +84,12 @@ public class HttpTopicLookupv2Test {
         clusters.add("use");
         clusters.add("usc");
         clusters.add("usw");
-        ClusterData useData = ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build();
-        ClusterData uscData = ClusterData.builder().serviceUrl("http://broker.messaging.usc.example.com:8080").build();
-        ClusterData uswData = ClusterData.builder().serviceUrl("http://broker.messaging.usw.example.com:8080").build();
+        ClusterData useData = ClusterData.builder().serviceUrl("http://broker.messaging.use.example.com:8080")
+                .brokerServiceUrl("pulsar:broker.messaging.use.example.com:6650").build();
+        ClusterData uscData = ClusterData.builder().serviceUrl("http://broker.messaging.usc.example.com:8080")
+                .brokerServiceUrl("pulsar:broker.messaging.usc.example.com:6650").build();
+        ClusterData uswData = ClusterData.builder().serviceUrl("http://broker.messaging.usw.example.com:8080")
+                .brokerServiceUrl("pulsar:broker.messaging.usw.example.com:6650").build();
         doReturn(config).when(pulsar).getConfiguration();
 
         ClusterResources clusters = mock(ClusterResources.class);

@@ -172,7 +172,8 @@ public class PulsarFunctionE2ESecurityTest {
         primaryHost = pulsar.getWebServiceAddress();
 
         // update cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(brokerWebServiceUrl.toString()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(brokerWebServiceUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build();
         superUserAdmin.clusters().updateCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(this.workerConfig.getPulsarServiceUrl())

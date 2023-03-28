@@ -275,7 +275,8 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
         this.conf.setAllowAutoTopicCreation(true);
 
         final String clusterName = "test";
-        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants().createTenant(TenantName,
                     new TenantInfoImpl(Sets.newHashSet("fakeAdminRole"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace(TenantAndNsName);

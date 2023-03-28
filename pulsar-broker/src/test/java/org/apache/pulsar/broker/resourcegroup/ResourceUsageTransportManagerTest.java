@@ -118,7 +118,8 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     private void prepareData() throws PulsarServerException, PulsarAdminException, PulsarClientException {
         this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         tManager = new ResourceUsageTopicTransportManager(pulsar);
     }
 }

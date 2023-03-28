@@ -559,7 +559,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
     private void initializeCluster(PulsarAdmin adminClient, String namespaceName) throws Exception {
         adminClient.clusters().createCluster("proxy-authorization", ClusterData.builder()
-                .serviceUrlTls(brokerUrlTls.toString()).build());
+                .serviceUrlTls(brokerUrlTls.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         adminClient.tenants().createTenant("my-tenant",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));

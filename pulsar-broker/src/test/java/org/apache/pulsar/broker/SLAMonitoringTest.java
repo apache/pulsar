@@ -100,7 +100,8 @@ public class SLAMonitoringTest {
 
         Thread.sleep(100);
 
-        createTenant(pulsarAdmins[BROKER_COUNT - 1]);
+        createTenant(pulsarAdmins[BROKER_COUNT - 1], pulsarServices[BROKER_COUNT - 1].getWebServiceAddress(),
+                pulsarServices[BROKER_COUNT - 1].getBrokerServiceUrl());
         for (int i = 0; i < BROKER_COUNT; i++) {
             String topic = String.format("%s/%s/%s:%s", NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster",
                     pulsarServices[i].getAdvertisedAddress(), brokerWebServicePorts[i]);
@@ -108,10 +109,11 @@ public class SLAMonitoringTest {
         }
     }
 
-    private void createTenant(PulsarAdmin pulsarAdmin)
+    private void createTenant(PulsarAdmin pulsarAdmin, String serviceUrl, String brokerServiceUrl)
             throws PulsarAdminException {
         ClusterData clusterData = ClusterData.builder()
-                .serviceUrl(pulsarAdmin.getServiceUrl())
+                .serviceUrl(serviceUrl)
+                .brokerServiceUrl(brokerServiceUrl)
                 .build();
         pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();

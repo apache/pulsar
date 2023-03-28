@@ -190,7 +190,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     private void setupClusters() throws PulsarAdminException {
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
@@ -337,7 +338,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         cleanup();
         setup();
         admin.clusters().updateCluster("test",
-                ClusterData.builder().serviceUrl((pulsar.getWebServiceAddress() + ",localhost:1026," + "localhost:2050")).build());
+                ClusterData.builder().serviceUrl((pulsar.getWebServiceAddress() + ",localhost:1026," + "localhost:2050"))
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz2", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz2/ns1", Set.of("test"));
@@ -751,13 +753,17 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-west2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-east1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-east2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.clusters().updatePeerClusterNames("us-west1", new LinkedHashSet<>(List.of("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Set.of("us-west2"));
@@ -796,17 +802,23 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-west2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-west3",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-west4",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-east1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("us-east2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080")
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.clusters().createCluster("global", ClusterData.builder().build());
 
         List<String> allClusters = admin.clusters().getClusters();
@@ -1983,7 +1995,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testUpdateClusterWithProxyUrl() throws Exception {
-        ClusterData cluster = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        ClusterData cluster = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build();
         String clusterName = "test2";
         admin.clusters().createCluster(clusterName, cluster);
         Assert.assertEquals(admin.clusters().getCluster(clusterName), cluster);
@@ -1991,6 +2004,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // update
         cluster = ClusterData.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl())
                 .proxyServiceUrl("pulsar://example.com")
                 .proxyProtocol(ProxyProtocol.SNI)
                 .build();

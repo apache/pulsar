@@ -172,7 +172,8 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest {
 
     private void prepareData() throws PulsarAdminException {
         admin.clusters()
-                .createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(testCluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant(
                 testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testCluster))

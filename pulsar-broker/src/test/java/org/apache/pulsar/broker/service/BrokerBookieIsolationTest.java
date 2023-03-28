@@ -173,7 +173,8 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress())
+                .brokerServiceUrl(pulsarService.getBrokerServiceUrl()).build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -326,7 +327,8 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress())
+                .brokerServiceUrl(pulsarService.getBrokerServiceUrl()).build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -470,7 +472,8 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress())
+                .brokerServiceUrl(pulsarService.getBrokerServiceUrl()).build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -625,7 +628,8 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress())
+                .brokerServiceUrl(pulsarService.getBrokerServiceUrl()).build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);
@@ -763,7 +767,8 @@ public class BrokerBookieIsolationTest {
 
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarService.getWebServiceAddress()).build();
 
-        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsarService.getWebServiceAddress())
+                .brokerServiceUrl(pulsarService.getBrokerServiceUrl()).build();
         admin.clusters().createCluster(cluster, clusterData);
         TenantInfoImpl tenantInfo = new TenantInfoImpl(null, Sets.newHashSet(cluster));
         admin.tenants().createTenant(tenant1, tenantInfo);

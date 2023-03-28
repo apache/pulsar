@@ -128,7 +128,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         /***** Broker 2 Started *****/
         try (PulsarAdmin admin = buildAdminClient("superproxy")) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants().createTenant("tenant",
                                          new TenantInfoImpl(Set.of("admin"),
                                                  Set.of("test")));

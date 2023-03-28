@@ -147,7 +147,8 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
                 .authentication(authenticationInvalidRole).build();
 
         // 1. create partition and grant permissions
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));

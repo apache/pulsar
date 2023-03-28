@@ -448,7 +448,8 @@ public class WebServiceTest {
 
         try {
             pulsarAdmin.clusters().createCluster(config.getClusterName(),
-                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                    ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                            .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         } catch (ConflictException ce) {
             // This is OK.
         } finally {

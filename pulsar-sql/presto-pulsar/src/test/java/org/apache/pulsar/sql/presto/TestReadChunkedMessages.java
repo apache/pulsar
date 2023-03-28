@@ -80,7 +80,8 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         internalSetup();
 
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
         // so that clients can test short names
         admin.tenants().createTenant("public",

@@ -90,7 +90,8 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.setup();
 
         // Setup namespaces
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
@@ -545,13 +546,17 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.west1.example.com:6650").build());
         admin.clusters().createCluster("us-west2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.west2.example.com:6650").build());
         admin.clusters().createCluster("us-east1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.east1.example.com:6650").build());
         admin.clusters().createCluster("us-east2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.east2.example.com:6650").build());
 
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(List.of("us-west2")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), List.of("us-west2"));
@@ -590,17 +595,23 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testReplicationPeerCluster() throws Exception {
         admin.clusters().createCluster("us-west1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west1.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.west1.example.com:6650").build());
         admin.clusters().createCluster("us-west2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.west2.example.com:6650").build());
         admin.clusters().createCluster("us-west3",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west3.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.west3.example.com:6650").build());
         admin.clusters().createCluster("us-west4",
-                ClusterData.builder().serviceUrl("http://broker.messaging.west2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.west4.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.west4.example.com:6650").build());
         admin.clusters().createCluster("us-east1",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east1.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.east1.example.com:6650").build());
         admin.clusters().createCluster("us-east2",
-                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
+                ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080")
+                        .brokerServiceUrl("pulsar://broker.messaging.east2.example.com:6650").build());
         admin.clusters().createCluster("global", ClusterData.builder().build());
 
         final String property = "peer-prop";

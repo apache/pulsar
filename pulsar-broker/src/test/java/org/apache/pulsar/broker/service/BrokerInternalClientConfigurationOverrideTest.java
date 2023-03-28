@@ -72,7 +72,8 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
     @Test
     public void testBrokerServicePulsarClientConfiguration() {
         // This data only needs to have the service url for this test.
-        ClusterData data = ClusterData.builder().serviceUrl("http://localhost:8080").build();
+        ClusterData data = ClusterData.builder().serviceUrl("http://localhost:8080")
+                .brokerServiceUrl("pulsar://localhost:6650").build();
 
         // Set the configs and set some configs that won't apply
         Properties config = pulsar.getConfiguration().getProperties();
@@ -94,7 +95,8 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
     @Test
     public void testNamespaceServicePulsarClientConfiguration() {
         // This data only needs to have the service url for this test.
-        ClusterDataImpl data = (ClusterDataImpl) ClusterData.builder().serviceUrl("http://localhost:8080").build();
+        ClusterDataImpl data = (ClusterDataImpl) ClusterData.builder().serviceUrl("http://localhost:8080")
+                .brokerServiceUrl("pulsar://localhost:6650").build();
 
         // Set the configs and set some configs that won't apply
         Properties config = pulsar.getConfiguration().getProperties();

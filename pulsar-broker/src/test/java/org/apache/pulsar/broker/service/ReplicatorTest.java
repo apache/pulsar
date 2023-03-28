@@ -236,7 +236,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678,localhost:5677,localhost:5676",
                 pulsar2.getWebServiceAddress());
-        ClusterData cluster2Data = ClusterData.builder().serviceUrl(cluster2ServiceUrls).build();
+        ClusterData cluster2Data = ClusterData.builder().serviceUrl(cluster2ServiceUrls)
+                .brokerServiceUrl(pulsar2.getBrokerServiceUrl()).build();
         String cluster2 = "activeCLuster2";
         admin2.clusters().createCluster(cluster2, cluster2Data);
         Awaitility.await().until(()

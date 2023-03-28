@@ -157,7 +157,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 // expected
             }
 
-            brokerAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+            brokerAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString())
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
 
             brokerAdmin.tenants().createTenant("tenant1",
                                                new TenantInfoImpl(ImmutableSet.of("user1"),

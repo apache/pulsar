@@ -78,7 +78,8 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
                 .serviceHttpUrl(adminUrl)
                 .build();
 
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().brokerServiceUrl(serviceUrl).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder()
+                .serviceUrl(adminUrl).brokerServiceUrl(serviceUrl).build());
         admin.tenants().createTenant("public",
                 TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER_NAME)).build());
         admin.namespaces().createNamespace("public/default", Collections.singleton(CLUSTER_NAME));

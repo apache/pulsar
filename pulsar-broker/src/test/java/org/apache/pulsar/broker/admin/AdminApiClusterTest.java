@@ -46,7 +46,8 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
         admin.clusters()
-                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
     }
 
     @AfterMethod(alwaysRun = true)
@@ -79,7 +80,8 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
         String cluster = "test-exist-cluster-" + UUID.randomUUID();
 
         admin.clusters()
-                .createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                .createCluster(cluster, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.clusters().getCluster(cluster)));
 
         admin.clusters().deleteCluster(cluster);
@@ -124,18 +126,6 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
                 .serviceUrlTls("https://pulsar.app:8443")
                 .brokerServiceUrl("")
                 .brokerServiceUrlTls("pulsar+ssl://pulsar.app:6651")
-                .build());
-        clusterDataList.add(ClusterData.builder()
-                .serviceUrl("")
-                .serviceUrlTls("")
-                .brokerServiceUrl("")
-                .brokerServiceUrlTls("")
-                .build());
-        clusterDataList.add(ClusterData.builder()
-                .serviceUrl(null)
-                .serviceUrlTls(null)
-                .brokerServiceUrl(null)
-                .brokerServiceUrlTls(null)
                 .build());
         for (int i = 0; i < clusterDataList.size(); i++) {
             admin.clusters().createCluster("cluster-test-" + i, clusterDataList.get(i));

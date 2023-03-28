@@ -163,8 +163,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         doReturn(spy(new TopicResources(pulsar.getLocalMetadataStore()))).when(resources).getTopicResources();
         doReturn(resources).when(pulsar).getPulsarResources();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
-        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
+        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl("http://broker-use.com:8080")
+                .brokerServiceUrl("pulsar://broker-use.com:6650").build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl("http://broker-use.com:8080")
+                .brokerServiceUrl("pulsar://broker-use.com:6650").build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Set.of("role1", "role2"), Set.of(testLocalCluster, "test")));
         admin.tenants().createTenant("pulsar",

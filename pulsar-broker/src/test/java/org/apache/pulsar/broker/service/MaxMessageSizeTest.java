@@ -78,7 +78,8 @@ public class MaxMessageSizeTest {
 
             String url = "http://127.0.0.1:" + pulsar.getListenPortHTTP().get();
             admin = PulsarAdmin.builder().serviceHttpUrl(url).build();
-            admin.clusters().createCluster("max_message_test", ClusterData.builder().serviceUrl(url).build());
+            admin.clusters().createCluster("max_message_test", ClusterData.builder().serviceUrl(url)
+                    .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
             admin.tenants()
                     .createTenant("test",
                             new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("max_message_test")));

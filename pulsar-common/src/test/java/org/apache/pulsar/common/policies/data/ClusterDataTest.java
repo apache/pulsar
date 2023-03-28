@@ -254,28 +254,6 @@ public class ClusterDataTest {
                                 .build(),
                         true,
                         IllegalArgumentException.class
-                },
-                {
-                        "invalid ServiceURL and ServiceUrlTls as null.",
-                        ClusterDataImpl.builder()
-                                .serviceUrl("broker.messaging.c2.example.com:8080")
-                                .serviceUrlTls(null)
-                                .brokerServiceUrl(pulsarProtocolUrl)
-                                .proxyServiceUrl(pulsarProtocolUrl)
-                                .build(),
-                        true,
-                        IllegalArgumentException.class
-                },
-                {
-                        "ServiceURL as null and invalid ServiceUrlTls.",
-                        ClusterDataImpl.builder()
-                                .serviceUrl(null)
-                                .serviceUrlTls("broker.messaging.c2.example.com:8080")
-                                .brokerServiceUrl(pulsarProtocolUrl)
-                                .proxyServiceUrl(pulsarProtocolUrl)
-                                .build(),
-                        true,
-                        IllegalArgumentException.class
                 }
         };
     }
@@ -290,9 +268,9 @@ public class ClusterDataTest {
         log.debug("Test : testServiceUrl where " + testDetail);
 
         if (isExceptionExpected) {
-            Assert.assertThrows(expectedException, () -> clusterDataImpl.checkPropertiesIfPresent());
+            Assert.assertThrows(expectedException, () -> clusterDataImpl.checkNeededUrlExist());
         } else {
-            clusterDataImpl.checkPropertiesIfPresent();
+            clusterDataImpl.checkNeededUrlExist();
         }
     }
 
@@ -348,28 +326,6 @@ public class ClusterDataTest {
                                 .build(),
                         true,
                         IllegalArgumentException.class
-                },
-                {
-                        "invalid BrokerServiceURL and BrokerServiceUrlTls as null.",
-                        ClusterDataImpl.builder()
-                                .brokerServiceUrl("broker.messaging.c2.example.com:8080")
-                                .brokerServiceUrlTls(null)
-                                .serviceUrlTls(httpsProtocolUrl)
-                                .proxyServiceUrl(pulsarProtocolUrl)
-                                .build(),
-                        true,
-                        IllegalArgumentException.class
-                },
-                {
-                        "BrokerServiceURL as null and invalid BrokerServiceUrlTls.",
-                        ClusterDataImpl.builder()
-                                .brokerServiceUrl(null)
-                                .brokerServiceUrlTls("broker.messaging.c2.example.com:8080")
-                                .serviceUrlTls(httpsProtocolUrl)
-                                .proxyServiceUrl(pulsarProtocolUrl)
-                                .build(),
-                        true,
-                        IllegalArgumentException.class
                 }
         };
     }
@@ -384,9 +340,9 @@ public class ClusterDataTest {
         log.debug("Test : testBrokerServiceUrl where " + testDetail);
 
         if (isExceptionExpected) {
-            Assert.assertThrows(expectedException, () -> clusterDataImpl.checkPropertiesIfPresent());
+            Assert.assertThrows(expectedException, () -> clusterDataImpl.checkNeededUrlExist());
         } else {
-            clusterDataImpl.checkPropertiesIfPresent();
+            clusterDataImpl.checkNeededUrlExist();
         }
     }
 }

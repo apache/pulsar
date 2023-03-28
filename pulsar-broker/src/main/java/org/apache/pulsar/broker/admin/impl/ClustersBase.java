@@ -164,6 +164,9 @@ public class ClustersBase extends AdminResource {
                     NamedEntity.checkName(cluster);
                     try {
                         clusterData.checkPropertiesIfPresent();
+                        if (!cluster.equals("global")) {
+                            clusterData.checkNeededUrlExist();
+                        }
                     } catch (IllegalArgumentException ex) {
                         throw new RestException(Status.BAD_REQUEST, ex.getMessage());
                     }
@@ -225,6 +228,9 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> {
                     try {
                         clusterData.checkPropertiesIfPresent();
+                        if (cluster != "global") {
+                            clusterData.checkNeededUrlExist();
+                        }
                     } catch (IllegalArgumentException ex) {
                         throw new RestException(Status.BAD_REQUEST, ex.getMessage());
                     }
