@@ -97,6 +97,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     // A cache used to store the results of getting the JWKS from the jwks_uri for an issuer.
     private JwksCache jwksCache;
 
+    private volatile AsyncHttpClient httpClient;
+
     // A list of supported algorithms. This is the "alg" field on the JWT.
     // Source for strings: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
     private static final String ALG_RS256 = "RS256";
@@ -147,7 +149,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .setConnectTimeout(connectionTimeout)
                 .setReadTimeout(readTimeout)
                 .build();
-        AsyncHttpClient httpClient = new DefaultAsyncHttpClient(clientConfig);
+        httpClient = new DefaultAsyncHttpClient(clientConfig);
 
         this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient);
         this.jwksCache = new JwksCache(config, httpClient);
@@ -312,6 +314,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     @Override
     public void close() throws IOException {
+        httpClient.close();
     }
 
     /**
