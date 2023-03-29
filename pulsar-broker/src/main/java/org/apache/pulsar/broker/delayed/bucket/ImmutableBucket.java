@@ -100,7 +100,6 @@ class ImmutableBucket extends Bucket {
                         List<Long> firstScheduleTimestamps = metadataList.stream().map(
                                         SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
-                        this.asyncUpdateSnapshotLength();
 
                         return nextSnapshotEntryIndex + 1;
                     });
@@ -132,6 +131,9 @@ class ImmutableBucket extends Bucket {
                         List<DelayedMessageIndexBucketSnapshotFormat.DelayedIndex> indexList =
                                 snapshotSegment.getIndexesList();
                         this.setCurrentSegmentEntryId(nextSegmentEntryId);
+                        if (isRecover) {
+                            this.asyncUpdateSnapshotLength();
+                        }
                         return indexList;
                     });
         });
@@ -205,9 +207,9 @@ class ImmutableBucket extends Bucket {
                 .thenCompose(__ -> asyncDeleteBucketSnapshot(stats));
     }
 
-    protected void asyncUpdateSnapshotLength() {
+    protected CompletableFuture<Long> asyncUpdateSnapshotLength() {
         long bucketId = getAndUpdateBucketId();
-        bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
+        return bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
             if (ex != null) {
                 log.error("[{}] Failed to get snapshot length, bucketId: {}, bucketKey: {}",
                         dispatcherName, bucketId, bucketKey(), ex);
