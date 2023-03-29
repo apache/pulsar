@@ -38,6 +38,9 @@ import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import java.io.File;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.PublicKey;
@@ -116,6 +119,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private String roleClaim;
 
     static final String ALLOWED_TOKEN_ISSUERS = "openIDAllowedTokenIssuers";
+    static final String ISSUER_TRUST_CERTS_FILE_PATH = "openIDTokenIssuerTrustCertsFilePath";
     static final String USE_K8S_API_SERVER_AS_FALLBACK_ISSUER = "useKubernetesApiServerAsFallbackIssuer";
     static final String ALLOWED_AUDIENCES = "openIDAllowedAudiences";
     static final String ROLE_CLAIM = "openIDRoleClaim";
@@ -148,10 +152,18 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         int connectionTimeout = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
                 HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
         int readTimeout = getConfigValueAsInt(config, HTTP_READ_TIMEOUT_MILLIS, HTTP_READ_TIMEOUT_MILLIS_DEFAULT);
-        // TODO do we want to easily support custom TLS configuration? It'd be available via the JVM's args.
+        String trustCertsFilePath = getConfigValueAsString(config, ISSUER_TRUST_CERTS_FILE_PATH, null);
+        SslContext sslContext = null;
+        if (trustCertsFilePath != null) {
+            // Use default settings for everything but the trust store.
+            sslContext = SslContextBuilder.forClient()
+                    .trustManager(new File(trustCertsFilePath))
+                    .build();
+        }
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
                 .setConnectTimeout(connectionTimeout)
                 .setReadTimeout(readTimeout)
+                .setSslContext(sslContext)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
         useK8sApiServerAsFallbackIssuer = getConfigValueAsBoolean(config, USE_K8S_API_SERVER_AS_FALLBACK_ISSUER,
