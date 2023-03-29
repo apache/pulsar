@@ -462,7 +462,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                     lastMutableBucket.createImmutableBucketAndAsyncPersistent(
                                             timeStepPerBucketSnapshotSegmentInMillis,
                                             maxIndexesPerBucketSnapshotSegment,
-                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue, buckets.get(0).startLedgerId,
+                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue,
+                                            buckets.get(0).startLedgerId,
                                             buckets.get(buckets.size() - 1).endLedgerId);
 
                             // Merge bit map to new bucket
@@ -487,7 +488,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
                                     .orElse(NULL_LONG_PROMISE).thenCompose(___ -> {
                                         List<CompletableFuture<Void>> removeFutures =
-                                                buckets.stream().map(ImmutableBucket::asyncDeleteBucketSnapshot)
+                                                buckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
                                                         .toList();
                                         return FutureUtil.waitForAll(removeFutures);
                                     });
