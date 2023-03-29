@@ -716,6 +716,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
 
         {
+            FieldUtils.writeDeclaredField(channel1, "lastOwnedServiceUnitCountAt", System.currentTimeMillis(), true);
             FieldUtils.writeDeclaredField(channel1, "totalOwnedServiceUnitCnt", 10, true);
             FieldUtils.writeDeclaredField(channel1, "totalInactiveBrokerCleanupCnt", 1, true);
             FieldUtils.writeDeclaredField(channel1, "totalServiceUnitTombstoneCleanupCnt", 2, true);

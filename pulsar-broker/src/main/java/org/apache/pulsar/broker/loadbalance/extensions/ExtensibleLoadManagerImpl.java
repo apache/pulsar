@@ -360,7 +360,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             }));
         });
         future.whenComplete((r, t) -> {
-                    if (t == null) {
+                    if (t != null) {
                         assignCounter.incrementFailure();
                     }
                     lookupRequests.remove(bundle);

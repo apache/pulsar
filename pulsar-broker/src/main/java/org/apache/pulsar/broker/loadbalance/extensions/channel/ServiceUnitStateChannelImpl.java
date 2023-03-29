@@ -113,6 +113,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
     private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
+    private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
@@ -1062,8 +1063,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     serviceUnit, orphanData, override);
             publishOverrideEventAsync(serviceUnit, orphanData, override);
         } else {
-            log.error("Failed to override the ownership serviceUnit:{} orphanData:{}. Empty selected broker.",
-                    serviceUnit, orphanData);
+            log.error("Failed to override the ownership serviceUnit:{} orphanData:{}. Empty selected broker. "
+                            + "totalCleanupErrorCnt:{}",
+                    serviceUnit, orphanData, totalCleanupErrorCnt.incrementAndGet());
         }
     }
 
@@ -1318,14 +1320,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private int getTotalOwnedServiceUnitCnt() {
-        if (lastOwnEventHandledAt > lastOwnedServiceUnitCountAt) {
+        long now = System.currentTimeMillis();
+        if (lastOwnEventHandledAt > lastOwnedServiceUnitCountAt
+                || now - lastOwnedServiceUnitCountAt > MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS) {
             int cnt = 0;
             for (var data : tableview.values()) {
                 if (data.state() == Owned && isTargetBroker(data.dstBroker())) {
                     cnt++;
                 }
             }
-            lastOwnedServiceUnitCountAt = System.currentTimeMillis();
+            lastOwnedServiceUnitCountAt = now;
             totalOwnedServiceUnitCnt = cnt;
         }
         return totalOwnedServiceUnitCnt;
