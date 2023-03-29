@@ -66,6 +66,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -143,6 +144,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalInactiveBrokerCleanupIgnoredCnt = 0;
     private long totalInactiveBrokerCleanupCancelledCnt = 0;
     private volatile ChannelState channelState;
+    private volatile long lastOwnEventHandledAt = 0;
+    private long lastOwnedServiceUnitCountAt = 0;
+    private int totalOwnedServiceUnitCnt = 0;
 
     public enum EventType {
         Assign,
@@ -164,7 +168,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     // operation metrics
-    final Map<ServiceUnitState, AtomicLong> ownerLookUpCounters;
+    final Map<ServiceUnitState, Counters> ownerLookUpCounters;
     final Map<EventType, Counters> eventCounters;
     final Map<ServiceUnitState, Counters> handlerCounters;
 
@@ -207,11 +211,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
 
-        Map<ServiceUnitState, AtomicLong> tmpOwnerLookUpCounters = new HashMap<>();
+        Map<ServiceUnitState, Counters> tmpOwnerLookUpCounters = new HashMap<>();
         Map<ServiceUnitState, Counters> tmpHandlerCounters = new HashMap<>();
         Map<EventType, Counters> tmpEventCounters = new HashMap<>();
         for (var state : ServiceUnitState.values()) {
-            tmpOwnerLookUpCounters.put(state, new AtomicLong());
+            tmpOwnerLookUpCounters.put(state, new Counters());
             tmpHandlerCounters.put(state, new Counters());
         }
         for (var event : EventType.values()) {
@@ -275,6 +279,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     log.info("Closed the channel producer.");
                 }
             }
+            PulsarClusterMetadataSetup.createNamespaceIfAbsent
+                    (pulsar.getPulsarResources(), NamespaceName.SYSTEM_NAMESPACE, config.getClusterName());
+
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
                     .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
@@ -465,7 +472,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         ServiceUnitStateData data = tableview.get(serviceUnit);
         ServiceUnitState state = state(data);
-        ownerLookUpCounters.get(state).incrementAndGet();
+        ownerLookUpCounters.get(state).total.incrementAndGet();
         switch (state) {
             case Owned -> {
                 return CompletableFuture.completedFuture(Optional.of(data.dstBroker()));
@@ -474,16 +481,22 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return CompletableFuture.completedFuture(Optional.of(data.sourceBroker()));
             }
             case Assigning, Releasing -> {
-                return deferGetOwnerRequest(serviceUnit).thenApply(
+                return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
+                    if (e != null) {
+                        ownerLookUpCounters.get(state).failure.incrementAndGet();
+                    }
+                }).thenApply(
                         broker -> broker == null ? Optional.empty() : Optional.of(broker));
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             case Deleted -> {
+                ownerLookUpCounters.get(state).failure.incrementAndGet();
                 return CompletableFuture.failedFuture(new IllegalArgumentException(serviceUnit + " is deleted."));
             }
             default -> {
+                ownerLookUpCounters.get(state).failure.incrementAndGet();
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
                 return CompletableFuture.failedFuture(new IllegalStateException(errorMsg));
@@ -675,6 +688,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         stateChangeListeners.notify(serviceUnit, data, null);
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
+            lastOwnEventHandledAt = System.currentTimeMillis();
         }
     }
 
@@ -1303,6 +1317,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         );
     }
 
+    private int getTotalOwnedServiceUnitCnt() {
+        if (lastOwnEventHandledAt > lastOwnedServiceUnitCountAt) {
+            int cnt = 0;
+            for (var data : tableview.values()) {
+                if (data.state() == Owned && isTargetBroker(data.dstBroker())) {
+                    cnt++;
+                }
+            }
+            lastOwnedServiceUnitCountAt = System.currentTimeMillis();
+            totalOwnedServiceUnitCnt = cnt;
+        }
+        return totalOwnedServiceUnitCnt;
+    }
+
 
     @Override
     public List<Metrics> getMetrics() {
@@ -1312,11 +1340,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         dimensions.put("broker", pulsar.getAdvertisedAddress());
 
         for (var etr : ownerLookUpCounters.entrySet()) {
-            var dim = new HashMap<>(dimensions);
-            dim.put("state", etr.getKey().toString());
-            var metric = Metrics.create(dim);
-            metric.put("brk_sunit_state_chn_owner_lookup_total", etr.getValue());
-            metrics.add(metric);
+            {
+                var dim = new HashMap<>(dimensions);
+                dim.put("state", etr.getKey().toString());
+                dim.put("result", "Total");
+                var metric = Metrics.create(dim);
+                metric.put("brk_sunit_state_chn_owner_lookup_total",
+                        etr.getValue().getTotal().get());
+                metrics.add(metric);
+            }
+
+            {
+                var dim = new HashMap<>(dimensions);
+                dim.put("state", etr.getKey().toString());
+                dim.put("result", "Failure");
+                var metric = Metrics.create(dim);
+                metric.put("brk_sunit_state_chn_owner_lookup_total",
+                        etr.getValue().getFailure().get());
+                metrics.add(metric);
+            }
         }
 
         for (var etr : eventCounters.entrySet()) {
@@ -1395,10 +1437,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             metrics.add(metric);
         }
 
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Success");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_inactive_broker_cleanup_ops_total", totalInactiveBrokerCleanupCnt);
+            metrics.add(metric);
+        }
+
         var metric = Metrics.create(dimensions);
-        metric.put("brk_sunit_state_chn_inactive_broker_cleanup_ops_total", totalInactiveBrokerCleanupCnt);
+
         metric.put("brk_sunit_state_chn_orphan_su_cleanup_ops_total", totalOrphanServiceUnitCleanupCnt);
         metric.put("brk_sunit_state_chn_su_tombstone_cleanup_ops_total", totalServiceUnitTombstoneCleanupCnt);
+        metric.put("brk_sunit_state_chn_owned_su_total", getTotalOwnedServiceUnitCnt());
         metrics.add(metric);
 
         return metrics;

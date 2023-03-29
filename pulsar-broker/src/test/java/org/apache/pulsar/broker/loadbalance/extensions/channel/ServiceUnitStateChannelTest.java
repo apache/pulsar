@@ -1418,11 +1418,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
 
         var ownerLookUpCounters =
-                (Map<ServiceUnitStateChannelImpl.EventType, AtomicLong>)
+                (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
                         FieldUtils.readDeclaredField(channel, "ownerLookUpCounters", true);
 
         for(var val : ownerLookUpCounters.values()){
-            val.set(0);
+            val.getFailure().set(0);
+            val.getTotal().set(0);
         }
     }
 
@@ -1518,20 +1519,20 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                                                     )
             throws IllegalAccessException {
         var ownerLookUpCounters =
-                (Map<ServiceUnitState, AtomicLong>)
+                (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
                         FieldUtils.readDeclaredField(channel, "ownerLookUpCounters", true);
 
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> { // wait until true
-                    assertEquals(assigned, ownerLookUpCounters.get(Assigning).get());
-                    assertEquals(owned, ownerLookUpCounters.get(Owned).get());
-                    assertEquals(released, ownerLookUpCounters.get(Releasing).get());
-                    assertEquals(splitting, ownerLookUpCounters.get(Splitting).get());
-                    assertEquals(free, ownerLookUpCounters.get(Free).get());
-                    assertEquals(deleted, ownerLookUpCounters.get(Deleted).get());
-                    assertEquals(init, ownerLookUpCounters.get(Init).get());
+                    assertEquals(assigned, ownerLookUpCounters.get(Assigning).getTotal().get());
+                    assertEquals(owned, ownerLookUpCounters.get(Owned).getTotal().get());
+                    assertEquals(released, ownerLookUpCounters.get(Releasing).getTotal().get());
+                    assertEquals(splitting, ownerLookUpCounters.get(Splitting).getTotal().get());
+                    assertEquals(free, ownerLookUpCounters.get(Free).getTotal().get());
+                    assertEquals(deleted, ownerLookUpCounters.get(Deleted).getTotal().get());
+                    assertEquals(init, ownerLookUpCounters.get(Init).getTotal().get());
                 });
     }
 

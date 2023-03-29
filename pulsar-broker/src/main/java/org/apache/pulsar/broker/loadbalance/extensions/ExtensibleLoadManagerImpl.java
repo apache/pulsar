@@ -330,7 +330,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                                 return serviceUnitStateChannel.publishAssignEventAsync(bundle, brokerOpt.get())
                                         .thenApply(Optional::of);
                             } else {
-                                assignCounter.incrementEmpty();
                                 throw new IllegalStateException(
                                         "Failed to select the new owner broker for bundle: " + bundle);
                             }
@@ -360,7 +359,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 return CompletableFuture.completedFuture(brokerLookupData);
             }));
         });
-        future.whenComplete((r, t) -> lookupRequests.remove(bundle));
+        future.whenComplete((r, t) -> {
+                    if (t == null) {
+                        assignCounter.incrementFailure();
+                    }
+                    lookupRequests.remove(bundle);
+                }
+        );
         return future;
     }
 
