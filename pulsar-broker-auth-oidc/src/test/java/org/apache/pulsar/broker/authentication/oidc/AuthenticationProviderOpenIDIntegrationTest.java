@@ -63,6 +63,9 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     // The valid issuer
     String issuer;
     String issuerWithTrailingSlash;
+    // This issuer is configured to return an issuer in the openid-configuration
+    // that does not match the issuer on the token
+    String issuerThatFails;
     WireMockServer server;
 
     @BeforeClass
@@ -72,6 +75,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         server.start();
         issuer = server.baseUrl();
         issuerWithTrailingSlash = issuer + "/trailing-slash/";
+        issuerThatFails = issuer + "/fail";
 
         // Set up a correct openid-configuration
         server.stubFor(
@@ -111,7 +115,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                           "issuer": "https://wrong-issuer.com",
                                           "jwks_uri": "%s/keys"
                                         }
-                                        """.replace("%s", server.baseUrl()))));
+                                        """.formatted(server.baseUrl()))));
 
         // Create the token key pair
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -152,7 +156,8 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer + "," + issuerWithTrailingSlash);
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer + "," + issuerWithTrailingSlash
+                + "," + issuerThatFails);
         provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
     }
@@ -189,11 +194,8 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     @Test
     public void testAuthorizationServerReturnsIncorrectIssuerInOpenidConnectConfiguration() throws Exception {
-        // This issuer is configured to return an issuer in the openid-configuration
-        // that does not match the issuer on the token
-        String failIssuer = server.baseUrl() + "/fail";
         String role = "superuser";
-        String token = generateToken(validJwk, failIssuer, role, "allowed-audience", 0L, 0L, 10000L);
+        String token = generateToken(validJwk, issuerThatFails, role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
         } catch (ExecutionException e) {
@@ -205,6 +207,17 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     public void testTokenWithInvalidAudience() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "invalid-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+        }
+    }
+
+    @Test
+    public void testTokenWithInvalidIssuer() throws Exception {
+        String role = "superuser";
+        String token = generateToken(validJwk, "https://not-an-allowed-issuer.com", role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
         } catch (ExecutionException e) {
