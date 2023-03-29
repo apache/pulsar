@@ -835,11 +835,11 @@ flexible messaging model and an intuitive client API.</description>
         <scope>import</scope>
       </dependency>
 
-<!--      <dependency>-->
-<!--        <groupId>org.codehaus.jettison</groupId>-->
-<!--        <artifactId>jettison</artifactId>-->
-<!--        <version>${jettison.version}</version>-->
-<!--      </dependency>-->
+      <dependency>
+        <groupId>org.codehaus.jettison</groupId>
+        <artifactId>jettison</artifactId>
+        <version>${jettison.version}</version>
+      </dependency>
 
       <dependency>
         <groupId>com.fasterxml.woodstox</groupId>
