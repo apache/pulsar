@@ -202,6 +202,17 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     }
 
     @Test
+    public void testTokenWithInvalidAudience() throws Exception {
+        String role = "superuser";
+        String token = generateToken(validJwk, issuer, role, "invalid-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+        }
+    }
+
+    @Test
     public void testAuthenticationStateOpenIDForValidToken() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
