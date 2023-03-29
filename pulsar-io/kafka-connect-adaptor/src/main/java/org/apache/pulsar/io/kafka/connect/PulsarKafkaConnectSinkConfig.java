@@ -100,6 +100,12 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             help = "Supply kafka record with topic name without -partition- suffix for partitioned topics.")
     private boolean collapsePartitionedTopics = false;
 
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Pulsar schema does not contain information whether the Schema is optional, Kafka's does. \n"
+                    + "This provides a way to force all primitive schemas to be optional for Kafka. \n")
+    private boolean useOptionalPrimitives = false;
+
     public static PulsarKafkaConnectSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), PulsarKafkaConnectSinkConfig.class);

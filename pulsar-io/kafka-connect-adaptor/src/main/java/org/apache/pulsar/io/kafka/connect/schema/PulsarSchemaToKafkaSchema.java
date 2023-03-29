@@ -116,10 +116,14 @@ public class PulsarSchemaToKafkaSchema {
     }
 
     private static final ImmutableMap<SchemaType, Schema> pulsarSchemaTypeToKafkaSchema;
+    private static final ImmutableMap<SchemaType, Schema> pulsarSchemaTypeToOptionalKafkaSchema;
     private static final ImmutableSet<String> kafkaLogicalSchemas;
     private static final AvroData avroData = new AvroData(1000);
     private static final Cache<byte[], Schema> schemaCache =
             CacheBuilder.newBuilder().maximumSize(10000)
+                    .expireAfterAccess(30, TimeUnit.MINUTES).build();
+    private static final Cache<Schema, Schema> optionalSchemaCache =
+            CacheBuilder.newBuilder().maximumSize(1000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
 
     static {
@@ -134,6 +138,17 @@ public class PulsarSchemaToKafkaSchema {
                 .put(SchemaType.STRING, Schema.STRING_SCHEMA)
                 .put(SchemaType.BYTES, Schema.BYTES_SCHEMA)
                 .put(SchemaType.DATE, Date.SCHEMA)
+                .build();
+        pulsarSchemaTypeToOptionalKafkaSchema = ImmutableMap.<SchemaType, Schema>builder()
+                .put(SchemaType.BOOLEAN, Schema.OPTIONAL_BOOLEAN_SCHEMA)
+                .put(SchemaType.INT8, Schema.OPTIONAL_INT8_SCHEMA)
+                .put(SchemaType.INT16, Schema.OPTIONAL_INT16_SCHEMA)
+                .put(SchemaType.INT32, Schema.OPTIONAL_INT32_SCHEMA)
+                .put(SchemaType.INT64, Schema.OPTIONAL_INT64_SCHEMA)
+                .put(SchemaType.FLOAT, Schema.OPTIONAL_FLOAT32_SCHEMA)
+                .put(SchemaType.DOUBLE, Schema.OPTIONAL_FLOAT64_SCHEMA)
+                .put(SchemaType.STRING, Schema.OPTIONAL_STRING_SCHEMA)
+                .put(SchemaType.BYTES, Schema.OPTIONAL_BYTES_SCHEMA)
                 .build();
         kafkaLogicalSchemas = ImmutableSet.<String>builder()
                 .add(Timestamp.LOGICAL_NAME)
@@ -155,12 +170,33 @@ public class PulsarSchemaToKafkaSchema {
         return parser.parse(schemaJson);
     }
 
-    public static Schema getOptionalKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema) {
-        Schema s = getKafkaConnectSchema(pulsarSchema);
-        return new OptionalForcingSchema(s);
+    public static Schema makeOptional(Schema s) {
+        if (s == null || s.isOptional()) {
+            return s;
+        }
+
+        String logicalSchemaName = s.name();
+        if (kafkaLogicalSchemas.contains(logicalSchemaName)) {
+            return s;
+        }
+
+        try {
+            return optionalSchemaCache.get(s, () -> new OptionalForcingSchema(s));
+        } catch (ExecutionException | UncheckedExecutionException | ExecutionError ee) {
+            String msg = "Failed to create optional schema for " + s;
+            log.error(msg);
+            throw new IllegalStateException(msg, ee);
+        }
     }
 
-    public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema) {
+    public static Schema getOptionalKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
+                                               boolean useOptionalPrimitives) {
+        return makeOptional(getKafkaConnectSchema(pulsarSchema, useOptionalPrimitives));
+
+    }
+
+    public static Schema getKafkaConnectSchema(org.apache.pulsar.client.api.Schema pulsarSchema,
+                                               boolean useOptionalPrimitives) {
         if (pulsarSchema == null || pulsarSchema.getSchemaInfo() == null) {
             throw logAndThrowOnUnsupportedSchema(pulsarSchema, "Schema is required.", null);
         }
@@ -193,6 +229,11 @@ public class PulsarSchemaToKafkaSchema {
             throw new IllegalStateException("Unsupported Kafka Logical Schema " + logicalSchemaName);
         }
 
+        if (useOptionalPrimitives
+                && pulsarSchemaTypeToOptionalKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
+            return pulsarSchemaTypeToOptionalKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
+        }
+
         if (pulsarSchemaTypeToKafkaSchema.containsKey(pulsarSchema.getSchemaInfo().getType())) {
             return pulsarSchemaTypeToKafkaSchema.get(pulsarSchema.getSchemaInfo().getType());
         }
@@ -201,8 +242,10 @@ public class PulsarSchemaToKafkaSchema {
             return schemaCache.get(pulsarSchema.getSchemaInfo().getSchema(), () -> {
                 if (pulsarSchema.getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
                     KeyValueSchema kvSchema = (KeyValueSchema) pulsarSchema;
-                    return SchemaBuilder.map(getKafkaConnectSchema(kvSchema.getKeySchema()),
-                                    getOptionalKafkaConnectSchema(kvSchema.getValueSchema()))
+                    return SchemaBuilder.map(
+                            makeOptional(getKafkaConnectSchema(kvSchema.getKeySchema(), useOptionalPrimitives)),
+                            makeOptional(getKafkaConnectSchema(kvSchema.getValueSchema(), useOptionalPrimitives)))
+                                .optional()
                                 .build();
                 }
                 org.apache.pulsar.kafka.shade.avro.Schema avroSchema =
