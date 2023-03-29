@@ -266,6 +266,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 CompletableFuture<Long> future = createFuture.handle((bucketId, ex) -> {
                     if (ex == null) {
                         immutableBucket.setSnapshotSegments(null);
+                        immutableBucket.asyncUpdateSnapshotLength();
                         log.info("[{}] Creat bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
                                 immutableBucket.bucketKey());
 

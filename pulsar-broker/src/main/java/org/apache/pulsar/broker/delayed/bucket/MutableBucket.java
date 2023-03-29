@@ -155,9 +155,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
         Pair<ImmutableBucket, DelayedIndex> result = Pair.of(bucket, lastDelayedIndex);
 
         CompletableFuture<Long> future = asyncSaveBucketSnapshot(bucket,
-                bucketSnapshotMetadata, bucketSnapshotSegments).thenCompose(__ ->
-                bucket.asyncUpdateSnapshotLength().exceptionally(ex -> null)
-        );
+                bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
 
         return result;
