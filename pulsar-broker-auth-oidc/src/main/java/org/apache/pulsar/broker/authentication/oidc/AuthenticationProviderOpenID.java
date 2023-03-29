@@ -134,7 +134,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     static final int HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT = 10_000;
     static final String HTTP_READ_TIMEOUT_MILLIS = "openIDHttpReadTimeoutMillis";
     static final int HTTP_READ_TIMEOUT_MILLIS_DEFAULT = 10_000;
-    static final String REQUIRE_HTTPS = "openIDRequireHttps";
+    static final String REQUIRE_HTTPS = "openIDRequireIssuersUseHttps";
     static final boolean REQUIRE_HTTPS_DEFAULT = true;
 
     // The list of audiences that are allowed to connect to this broker. A valid JWT must contain one of the audiences.
