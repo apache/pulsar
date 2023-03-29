@@ -120,7 +120,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -226,7 +226,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -330,7 +330,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -413,7 +413,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -528,7 +528,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -644,7 +644,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -764,7 +764,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -900,7 +900,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -1011,7 +1011,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -1112,7 +1112,7 @@ jobs:
 
       - name: Cache local Maven repository
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -1239,7 +1239,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
@@ -1285,7 +1285,7 @@ jobs:
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
-        timeout-minutes: 5
+        timeout-minutes: 10
         with:
           path: |
             ~/.m2/repository/*/*/*
