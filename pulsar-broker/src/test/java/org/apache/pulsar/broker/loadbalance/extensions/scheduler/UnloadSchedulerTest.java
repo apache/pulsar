@@ -54,8 +54,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Test(groups = "broker")
 public class UnloadSchedulerTest {
-
-   private ScheduledExecutorService loadManagerExecutor;
+    private PulsarService pulsar;
+    private ScheduledExecutorService loadManagerExecutor;
 
     public LoadManagerContext setupContext(){
         var ctx = getContext();
@@ -65,8 +65,12 @@ public class UnloadSchedulerTest {
 
     @BeforeMethod
     public void setUp() {
-        this.loadManagerExecutor = Executors
-                .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
+        this.pulsar = mock(PulsarService.class);
+        loadManagerExecutor = Executors
+                .newSingleThreadScheduledExecutor(new
+                        ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
+        doReturn(loadManagerExecutor)
+                .when(pulsar).getLoadManagerExecutor();
     }
 
     @AfterMethod

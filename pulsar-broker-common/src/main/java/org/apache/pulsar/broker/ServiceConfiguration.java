@@ -2509,6 +2509,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
+            doc = "Threshold to the consecutive count of fulfilled shedding(unload) conditions. "
+                    + "If the unload scheduler consecutively finds bundles that meet unload conditions "
+                    + "many times bigger than this threshold, the scheduler will shed the bundles. "
+                    + "The bigger value will incur less bundle unloading/transfers. "
+                    + "(only used in load balancer extension TransferSheddeer)"
+    )
+    private int loadBalancerSheddingConditionHitCountThreshold = 3;
+
+    @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            dynamic = true,
             doc = "Option to enable the bundle transfer mode when distributing bundle loads. "
                     + "On: transfer bundles from overloaded brokers to underloaded "
                     + "-- pre-assigns the destination broker upon unloading). "
@@ -2521,11 +2532,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             dynamic = true,
-            doc = "Maximum number of brokers to transfer bundle load for each unloading cycle. "
+            doc = "Maximum number of brokers to unload bundle load for each unloading cycle. "
                     + "The bigger value will incur more unloading/transfers for each unloading cycle. "
                     + "(only used in load balancer extension TransferSheddeer)"
     )
-    private int loadBalancerMaxNumberOfBrokerTransfersPerCycle = 3;
+    private int loadBalancerMaxNumberOfBrokerSheddingPerCycle = 3;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2535,7 +2546,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "The bigger value will delay the next unloading cycle longer. "
                     + "(only used in load balancer extension TransferSheddeer)"
     )
-    private long loadBalanceUnloadDelayInSeconds = 600;
+    private long loadBalanceSheddingDelayInSeconds = 180;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2552,13 +2563,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "Percentage of bundles to compute topK bundle load data from each broker. "
+            doc = "Max number of bundles in bundle load report from each broker. "
                     + "The load balancer distributes bundles across brokers, "
                     + "based on topK bundle load data and other broker load data."
                     + "The bigger value will increase the overhead of reporting many bundles in load data. "
                     + "(only used in load balancer extension logics)"
     )
-    private double loadBalancerBundleLoadReportPercentage = 10;
+    private int loadBalancerMaxNumberOfBundlesInBundleLoadReport = 10;
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
             doc = "Service units'(bundles) split interval. Broker periodically checks whether "
@@ -2582,7 +2593,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "(if the number of bundles is less than loadBalancerNamespaceMaximumBundles). "
                     + "(only used in load balancer extension logics)"
     )
-    private int loadBalancerNamespaceBundleSplitConditionThreshold = 5;
+    private int loadBalancerNamespaceBundleSplitConditionHitCountThreshold = 3;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,

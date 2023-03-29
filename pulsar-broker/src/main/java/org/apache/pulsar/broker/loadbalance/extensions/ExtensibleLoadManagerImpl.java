@@ -85,6 +85,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
+import org.slf4j.Logger;
 
 @Slf4j
 public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
@@ -101,6 +102,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private static final long MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS = 200;
 
+    private static final long MONITOR_INTERVAL_IN_MILLIS = 120_000;
+
     private PulsarService pulsar;
 
     private ServiceConfiguration conf;
@@ -108,10 +111,12 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     @Getter
     private BrokerRegistry brokerRegistry;
 
+    @Getter
     private ServiceUnitStateChannel serviceUnitStateChannel;
 
     private AntiAffinityGroupPolicyFilter antiAffinityGroupPolicyFilter;
 
+    @Getter
     private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
@@ -139,6 +144,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     private ScheduledFuture brokerLoadDataReportTask;
     private ScheduledFuture topBundlesLoadDataReportTask;
+
+    private ScheduledFuture monitorTask;
     private SplitScheduler splitScheduler;
 
     private UnloadManager unloadManager;
@@ -148,6 +155,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private boolean started = false;
 
     private final AssignCounter assignCounter = new AssignCounter();
+    @Getter
     private final UnloadCounter unloadCounter = new UnloadCounter();
     private final SplitCounter splitCounter = new SplitCounter();
 
@@ -162,14 +170,14 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             lookupRequests = ConcurrentOpenHashMap.<String,
                     CompletableFuture<Optional<BrokerLookupData>>>newBuilder()
             .build();
-    private final CountDownLatch loadStoreInitWaiter = new CountDownLatch(1);
+    private final CountDownLatch initWaiter = new CountDownLatch(1);
 
     public enum Role {
         Leader,
         Follower
     }
 
-    private Role role;
+    private volatile Role role;
 
     /**
      * Life cycle: Constructor -> initialize -> start -> close.
@@ -192,6 +200,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             throw new IllegalArgumentException("The load manager should be 'ExtensibleLoadManagerWrapper'.");
         }
         return loadManagerWrapper.get();
+    }
+
+    public static boolean debug(ServiceConfiguration config, Logger log) {
+        return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
 
     @Override
@@ -231,7 +243,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             this.brokerLoadDataStore.startTableView();
             this.topBundlesLoadDataStore = LoadDataStoreFactory
                     .create(pulsar.getClient(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
-            this.loadStoreInitWaiter.countDown();
         } catch (LoadDataStoreException e) {
             throw new PulsarServerException(e);
         }
@@ -247,7 +258,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         this.topBundleLoadDataReporter =
                 new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
-
+        this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
+        this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
         var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
         this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
                 .scheduleAtFixedRate(() -> {
@@ -273,13 +285,21 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         interval,
                         interval, TimeUnit.MILLISECONDS);
 
+        this.monitorTask = this.pulsar.getLoadManagerExecutor()
+                .scheduleAtFixedRate(() -> {
+                            monitor();
+                        },
+                        MONITOR_INTERVAL_IN_MILLIS,
+                        MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
+
         this.unloadScheduler = new UnloadScheduler(
-                pulsar, pulsar.getLoadManagerExecutor(), unloadManager,
-                context, serviceUnitStateChannel, antiAffinityGroupPolicyHelper, unloadCounter, unloadMetrics);
+                pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel,
+                unloadCounter, unloadMetrics);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
                 pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
         this.splitScheduler.start();
+        this.initWaiter.countDown();
         this.started = true;
     }
 
@@ -327,7 +347,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             return owner.thenCompose(broker -> {
                 if (broker.isEmpty()) {
                     String errorMsg = String.format(
-                            "Failed to look up a broker registry:%s for bundle:%s", broker, bundle);
+                            "Failed to get or assign the owner for bundle:%s", bundle);
                     log.error(errorMsg);
                     throw new IllegalStateException(errorMsg);
                 }
@@ -498,6 +518,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 topBundlesLoadDataReportTask.cancel(true);
             }
 
+            if (monitorTask != null) {
+                monitorTask.cancel(true);
+            }
+
             this.brokerLoadDataStore.close();
             this.topBundlesLoadDataStore.close();
             this.unloadScheduler.close();
@@ -539,8 +563,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             int retry = 0;
             while (true) {
                 try {
+                    initWaiter.await();
                     serviceUnitStateChannel.scheduleOwnershipMonitor();
-                    loadStoreInitWaiter.await();
                     topBundlesLoadDataStore.startTableView();
                     unloadScheduler.start();
                     break;
@@ -575,8 +599,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             int retry = 0;
             while (true) {
                 try {
+                    initWaiter.await();
                     serviceUnitStateChannel.cancelOwnershipMonitor();
-                    loadStoreInitWaiter.await();
                     topBundlesLoadDataStore.closeTableView();
                     unloadScheduler.close();
                     break;
@@ -630,5 +654,30 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         metricsCollection.addAll(this.serviceUnitStateChannel.getMetrics());
 
         return metricsCollection;
+    }
+
+    private void monitor() {
+        try {
+            initWaiter.await();
+
+            // Monitor role
+            // Periodically check the role in case ZK watcher fails.
+            var isChannelOwner = serviceUnitStateChannel.isChannelOwner();
+            if (isChannelOwner) {
+                if (role != Leader) {
+                    log.warn("Current role:{} does not match with the channel ownership:{}. "
+                            + "Playing the leader role.", role, isChannelOwner);
+                    playLeader();
+                }
+            } else {
+                if (role != Follower) {
+                    log.warn("Current role:{} does not match with the channel ownership:{}. "
+                            + "Playing the follower role.", role, isChannelOwner);
+                    playFollower();
+                }
+            }
+        } catch (Throwable e) {
+            log.error("Failed to get the channel ownership.", e);
+        }
     }
 }
