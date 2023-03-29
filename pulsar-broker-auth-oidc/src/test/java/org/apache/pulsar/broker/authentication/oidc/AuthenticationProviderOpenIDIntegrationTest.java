@@ -108,7 +108,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                           "issuer": "%s",
                                           "jwks_uri": "%s/no/keys/hosted/here"
                                         }
-                                        """.formatted(issuerK8s, issuer))));
+                                        """.formatted(issuer, issuer))));
 
         // Set up a correct openid-configuration that has a trailing slash in the issuers URL. This is a
         // behavior observed by Auth0. In this case, the token's iss claim also has a trailing slash.
@@ -248,35 +248,79 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     }
 
     @Test
-    public void testKubernetesApiServerAsFallbackIssuerSuccess() throws Exception {
+    public void testKubernetesApiServerAsDiscoverTrustedIssuerSuccess() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.USE_K8S_API_SERVER_AS_FALLBACK_ISSUER, "true");
+        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_TRUSTED_ISSUER");
         // Test requires that k8sIssuer is not in the allowed token issuers
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
         String role = "superuser";
-        String token = generateToken(validJwk, issuerK8s, role, "allowed-audience", 0L, 0L, 10000L);
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
     }
 
     @Test
-    public void testKubernetesApiServerAsFallbackIssuerFailsDueToMismatchedIssuerClaim() throws Exception {
+    public void testKubernetesApiServerAsDiscoverTrustedIssuerFailsDueToMismatchedIssuerClaim() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.USE_K8S_API_SERVER_AS_FALLBACK_ISSUER, "true");
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_TRUSTED_ISSUER");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
+
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        provider.initialize(conf);
+
+        String role = "superuser";
+        String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+        }
+    }
+
+
+    @Test
+    public void testKubernetesApiServerAsDiscoverPublicKeySuccess() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_PUBLIC_KEYS");
+        // Test requires that k8sIssuer is not in the allowed token issuers
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
+
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        provider.initialize(conf);
+
+        String role = "superuser";
+        String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
+    public void testKubernetesApiServerAsDiscoverPublicKeyFailsDueToMismatchedIssuerClaim() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_PUBLIC_KEYS");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);

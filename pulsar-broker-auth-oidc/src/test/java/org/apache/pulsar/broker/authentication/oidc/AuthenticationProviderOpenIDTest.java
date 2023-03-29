@@ -229,6 +229,30 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
+    public void ensureEmptyIssuersWithK8sTrustedIssuerEnabledPassesInitialization() throws Exception {
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        Properties props = new Properties();
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "my-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
+        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_TRUSTED_ISSUER");
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setProperties(props);
+        provider.initialize(config);
+    }
+
+    @Test
+    public void ensureEmptyIssuersWithK8sPublicKeyEnabledPassesInitialization() throws Exception {
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        Properties props = new Properties();
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "my-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
+        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_PUBLIC_KEYS");
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setProperties(props);
+        provider.initialize(config);
+    }
+
+    @Test
     public void ensureNullIssuersFailsInitialization() {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         ServiceConfiguration config = new ServiceConfiguration();
