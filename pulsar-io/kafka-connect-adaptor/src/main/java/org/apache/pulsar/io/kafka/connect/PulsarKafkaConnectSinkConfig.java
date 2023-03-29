@@ -95,6 +95,11 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
                     + "In some cases it may result in topic name collisions (topic_a and topic.a will become the same)")
     private boolean sanitizeTopicName = false;
 
+    @FieldDoc(
+            defaultValue = "false",
+            help = "Supply kafka record with topic name without -partition- suffix for partitioned topics.")
+    private boolean collapsePartitionedTopics = false;
+
     public static PulsarKafkaConnectSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), PulsarKafkaConnectSinkConfig.class);

@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
@@ -92,6 +93,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     protected String topicName;
 
     private boolean sanitizeTopicName = false;
+    // Thi is a workaround for https://github.com/apache/pulsar/issues/19922
+    private boolean collapsePartitionedTopics = false;
+
     private final Cache<String, String> sanitizedTopicCache =
             CacheBuilder.newBuilder().maximumSize(1000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
@@ -160,6 +164,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
         sanitizeTopicName = kafkaSinkConfig.isSanitizeTopicName();
+        collapsePartitionedTopics = kafkaSinkConfig.isCollapsePartitionedTopics();
 
         useIndexAsOffset = kafkaSinkConfig.isUseIndexAsOffset();
         maxBatchBitsForOffset = kafkaSinkConfig.getMaxBatchBitsForOffset();
@@ -418,8 +423,19 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     @SuppressWarnings("rawtypes")
     protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
-        final int partition = sourceRecord.getPartitionIndex().orElse(0);
-        final String topic = sanitizeNameIfNeeded(sourceRecord.getTopicName().orElse(topicName), sanitizeTopicName);
+        final int partition;
+        final String topic;
+
+        if (collapsePartitionedTopics
+                && sourceRecord.getTopicName().isPresent()
+                && TopicName.get(sourceRecord.getTopicName().get()).isPartitioned()) {
+            TopicName tn = TopicName.get(sourceRecord.getTopicName().get());
+            partition = tn.getPartitionIndex();
+            topic = sanitizeNameIfNeeded(tn.getPartitionedTopicName(), sanitizeTopicName);
+        } else {
+            partition = sourceRecord.getPartitionIndex().orElse(0);
+            topic = sanitizeNameIfNeeded(sourceRecord.getTopicName().orElse(topicName), sanitizeTopicName);
+        }
         final Object key;
         final Object value;
         final Schema keySchema;
