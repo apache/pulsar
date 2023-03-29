@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -50,10 +51,11 @@ class OpenIDProviderMetadataCache {
      */
     private AsyncCacheLoader<String, OpenIDProviderMetadata> getLoader(AsyncHttpClient client) {
         return (issuer, executor) ->
-                // TODO OIDC spec https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
-                // calls for normalization according to RFC3986. Is that important to verify here?
+                // TODO URI's normalization follows RFC2396, whereas the spec
+                //  https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
+                //  calls for normalization according to RFC3986, which is supposed to obsolete RFC2396
                 client
-                    .prepareGet(issuer + "/.well-known/openid-configuration")
+                    .prepareGet(URI.create(issuer + "/.well-known/openid-configuration").normalize().toString())
                     .execute()
                     .toCompletableFuture()
                     .thenCompose(result -> {

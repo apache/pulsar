@@ -45,7 +45,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -62,14 +62,16 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     // The valid issuer
     String issuer;
+    String issuerWithTrailingSlash;
     WireMockServer server;
 
-    @BeforeTest
+    @BeforeClass
     void beforeClass() throws IOException {
 
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
         issuer = server.baseUrl();
+        issuerWithTrailingSlash = issuer + "/trailing-slash/";
 
         // Set up a correct openid-configuration
         server.stubFor(
@@ -82,6 +84,22 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                           "jwks_uri": "%s/keys"
                                         }
                                         """.replace("%s", server.baseUrl()))));
+
+        // Set up a correct openid-configuration that has a trailing slash in the issuers URL. This is a
+        // behavior observed by Auth0. In this case, the token's iss claim also has a trailing slash.
+        // The server should normalize the URL and call the Authorization Server without the double slash.
+        // NOTE: the spec does not indicate that the jwks_uri must have the same prefix as the issuer, and that
+        // is used here to simplify the testing.
+        server.stubFor(
+                get(urlEqualTo("/trailing-slash/.well-known/openid-configuration"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("""
+                                        {
+                                          "issuer": "%s",
+                                          "jwks_uri": "%s/keys"
+                                        }
+                                        """.formatted(issuerWithTrailingSlash, issuer))));
 
         // Set up an incorrect openid-configuration where issuer does not match
         server.stubFor(
@@ -134,7 +152,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer + "," + issuerWithTrailingSlash);
         provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
     }
@@ -148,6 +166,13 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     public void testTokenWithValidJWK() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
+    public void testTokenWithTrailingSlashAndValidJWK() throws Exception {
+        String role = "superuser";
+        String token = generateToken(validJwk, issuer + "/trailing-slash/", role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
     }
 
@@ -223,7 +248,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
         // Use the leeway to allow the token to pass validation and then fail expiration
         props.setProperty(AuthenticationProviderOpenID.ACCEPTED_TIME_LEEWAY_SECONDS, "10");
-        provider = new AuthenticationProviderOpenID();
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
 
         String role = "superuser";
