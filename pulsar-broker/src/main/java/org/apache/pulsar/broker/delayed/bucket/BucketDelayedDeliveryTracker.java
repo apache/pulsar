@@ -70,6 +70,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     static final int AsyncOperationTimeoutSeconds = 60;
 
+    private static final Long INVALID_BUCKET_ID = -1L;
+
+    private static final int MAX_MERGE_NUM = 4;
+
     private final long minIndexCountPerBucket;
 
     private final long timeStepPerBucketSnapshotSegmentInMillis;
@@ -93,10 +97,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private final RangeMap<Long, ImmutableBucket> immutableBuckets;
 
     private final Table<Long, Long, ImmutableBucket> snapshotSegmentLastIndexTable;
-
-    private static final Long INVALID_BUCKET_ID = -1L;
-
-    private static final int MAX_MERGE_NUM = 4;
 
     private final BucketDelayedMessageIndexStats stats;
 
@@ -165,8 +165,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         try {
-            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            log.error("[{}] Failed to recover delayed message index bucket snapshot.", dispatcher.getName(), e);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
@@ -271,7 +272,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
                                 System.currentTimeMillis() - startTime);
 
-                        immutableBucket.updateSnapshotLength();
+                        immutableBucket.asyncUpdateSnapshotLength();
                         return bucketId;
                     }
 

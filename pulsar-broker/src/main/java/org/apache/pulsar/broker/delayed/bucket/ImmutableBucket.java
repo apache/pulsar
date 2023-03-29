@@ -100,6 +100,7 @@ class ImmutableBucket extends Bucket {
                         List<Long> firstScheduleTimestamps = metadataList.stream().map(
                                         SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
+                        this.asyncUpdateSnapshotLength();
 
                         return nextSnapshotEntryIndex + 1;
                     });
@@ -204,7 +205,7 @@ class ImmutableBucket extends Bucket {
                 .thenCompose(__ -> asyncDeleteBucketSnapshot(stats));
     }
 
-    protected void updateSnapshotLength() {
+    protected void asyncUpdateSnapshotLength() {
         long bucketId = getAndUpdateBucketId();
         bucketSnapshotStorage.getBucketSnapshotLength(bucketId).whenComplete((length, ex) -> {
             if (ex != null) {
