@@ -363,8 +363,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 name, copy, lastCursorLedgerStat, new MetaStoreCallback<>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
-                        log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),
-                                name, cursorProperties);
+                        log.info("[{}] Updated ledger cursor: {}", ledger.getName(), name);
                         ManagedCursorImpl.this.cursorProperties = Collections.unmodifiableMap(newProperties);
                         updateCursorLedgerStat(copy, stat);
                         updateCursorPropertiesResult.complete(result);
@@ -373,7 +372,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     @Override
                     public void operationFailed(MetaStoreException e) {
                         log.error("[{}] Error while updating ledger cursor: {} properties {}", ledger.getName(),
-                                name, cursorProperties, e);
+                                name, newProperties, e);
                         updateCursorPropertiesResult.completeExceptionally(e);
                     }
                 });

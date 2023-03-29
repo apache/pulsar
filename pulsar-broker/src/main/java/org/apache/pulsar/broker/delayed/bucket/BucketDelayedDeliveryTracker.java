@@ -32,6 +32,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -43,6 +44,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +94,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private final Table<Long, Long, ImmutableBucket> snapshotSegmentLastIndexTable;
 
     private static final Long INVALID_BUCKET_ID = -1L;
+
+    private static final int MAX_MERGE_NUM = 4;
 
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
@@ -341,115 +345,136 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return true;
     }
 
-    private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot() {
-        List<ImmutableBucket> values = immutableBuckets.asMapOfRanges().values().stream().toList();
+    private synchronized List<ImmutableBucket> selectMergedBuckets(final List<ImmutableBucket> values, int mergeNum) {
+        checkArgument(mergeNum < values.size());
         long minNumberMessages = Long.MAX_VALUE;
         long minScheduleTimestamp = Long.MAX_VALUE;
         int minIndex = -1;
-        for (int i = 0; i + 1 < values.size(); i++) {
-            ImmutableBucket bucketL = values.get(i);
-            ImmutableBucket bucketR = values.get(i + 1);
-            // We should skip the bucket which last segment already been load to memory, avoid record replicated index.
-            if (bucketL.lastSegmentEntryId > bucketL.getCurrentSegmentEntryId()
-                    && bucketR.lastSegmentEntryId > bucketR.getCurrentSegmentEntryId()
-                    // Skip the bucket that is merging
-                    && !bucketL.merging && !bucketR.merging){
-                long scheduleTimestamp =
-                        Math.min(bucketL.firstScheduleTimestamps.get(bucketL.currentSegmentEntryId + 1),
-                                bucketR.firstScheduleTimestamps.get(bucketR.currentSegmentEntryId + 1));
-                long numberMessages = bucketL.numberBucketDelayedMessages + bucketR.numberBucketDelayedMessages;
-                if (scheduleTimestamp <= minScheduleTimestamp) {
-                    minScheduleTimestamp = scheduleTimestamp;
-                    if (numberMessages < minNumberMessages) {
-                        minNumberMessages = numberMessages;
+        for (int i = 0; i + (mergeNum - 1) < values.size(); i++) {
+            List<ImmutableBucket> immutableBuckets = values.subList(i, i + mergeNum);
+            if (immutableBuckets.stream().allMatch(bucket -> {
+                // We should skip the bucket which last segment already been load to memory,
+                // avoid record replicated index.
+                return bucket.lastSegmentEntryId > bucket.currentSegmentEntryId && !bucket.merging;
+            })) {
+                long numberMessages = immutableBuckets.stream()
+                        .mapToLong(bucket -> bucket.numberBucketDelayedMessages)
+                        .sum();
+                if (numberMessages <= minNumberMessages) {
+                    minNumberMessages = numberMessages;
+                    long scheduleTimestamp = immutableBuckets.stream()
+                            .mapToLong(bucket -> bucket.firstScheduleTimestamps.get(bucket.currentSegmentEntryId + 1))
+                            .min().getAsLong();
+                    if (scheduleTimestamp < minScheduleTimestamp) {
+                        minScheduleTimestamp = scheduleTimestamp;
                         minIndex = i;
                     }
                 }
             }
         }
 
-        if (minIndex == -1) {
-            log.warn("[{}] Can't find able merged bucket", dispatcher.getName());
+        if (minIndex >= 0) {
+            return values.subList(minIndex, minIndex + MAX_MERGE_NUM);
+        } else if (mergeNum > 2){
+            return selectMergedBuckets(values, mergeNum - 1);
+        } else {
+            return Collections.emptyList();
+        }
+    }
+
+    private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot() {
+        List<ImmutableBucket> immutableBucketList = immutableBuckets.asMapOfRanges().values().stream().toList();
+        List<ImmutableBucket> toBeMergeImmutableBuckets = selectMergedBuckets(immutableBucketList, MAX_MERGE_NUM);
+
+        if (toBeMergeImmutableBuckets.isEmpty()) {
+            log.warn("[{}] Can't find able merged buckets", dispatcher.getName());
             return CompletableFuture.completedFuture(null);
         }
 
-        ImmutableBucket immutableBucketA = values.get(minIndex);
-        ImmutableBucket immutableBucketB = values.get(minIndex + 1);
-
+        final String bucketsStr = toBeMergeImmutableBuckets.stream().map(Bucket::bucketKey).collect(
+                Collectors.joining(",")).replaceAll(DELAYED_BUCKET_KEY_PREFIX + "_", "");
         if (log.isDebugEnabled()) {
-            log.info("[{}] Merging bucket snapshot, bucketAKey: {}, bucketBKey: {}", dispatcher.getName(),
-                    immutableBucketA.bucketKey(), immutableBucketB.bucketKey());
+            log.info("[{}] Merging bucket snapshot, bucketKeys: {}", dispatcher.getName(), bucketsStr);
         }
 
-        immutableBucketA.merging = true;
-        immutableBucketB.merging = true;
-        return asyncMergeBucketSnapshot(immutableBucketA, immutableBucketB).whenComplete((__, ex) -> {
+        for (ImmutableBucket immutableBucket : toBeMergeImmutableBuckets) {
+            immutableBucket.merging = true;
+        }
+        return asyncMergeBucketSnapshot(toBeMergeImmutableBuckets).whenComplete((__, ex) -> {
             synchronized (this) {
-                immutableBucketA.merging = false;
-                immutableBucketB.merging = false;
+                for (ImmutableBucket immutableBucket : toBeMergeImmutableBuckets) {
+                    immutableBucket.merging = false;
+                }
             }
             if (ex != null) {
-                log.error("[{}] Failed to merge bucket snapshot, bucketAKey: {}, bucketBKey: {}",
-                        dispatcher.getName(), immutableBucketA.bucketKey(), immutableBucketB.bucketKey(), ex);
+                log.error("[{}] Failed to merge bucket snapshot, bucketKeys: {}",
+                        dispatcher.getName(), bucketsStr, ex);
             } else {
-                log.info("[{}] Merge bucket snapshot finish, bucketAKey: {}, bucketBKey: {}",
-                        dispatcher.getName(), immutableBucketA.bucketKey(), immutableBucketB.bucketKey());
+                log.info("[{}] Merge bucket snapshot finish, bucketKeys: {}, bucketNum: {}",
+                        dispatcher.getName(), bucketsStr, immutableBuckets.asMapOfRanges().size());
             }
         });
     }
 
-    private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot(ImmutableBucket bucketA,
-                                                                          ImmutableBucket bucketB) {
-        CompletableFuture<Long> createAFuture = bucketA.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE);
-        CompletableFuture<Long> createBFuture = bucketB.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE);
+    private synchronized CompletableFuture<Void> asyncMergeBucketSnapshot(List<ImmutableBucket> buckets) {
+        List<CompletableFuture<Long>> createFutures =
+                buckets.stream().map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE))
+                        .toList();
 
-        return CompletableFuture.allOf(createAFuture, createBFuture).thenCompose(bucketId -> {
-            if (INVALID_BUCKET_ID.equals(createAFuture.join()) || INVALID_BUCKET_ID.equals(createBFuture.join())) {
+        return FutureUtil.waitForAll(createFutures).thenCompose(bucketId -> {
+            if (createFutures.stream().anyMatch(future -> INVALID_BUCKET_ID.equals(future.join()))) {
                 return FutureUtil.failedFuture(new RuntimeException("Can't merge buckets due to bucket create failed"));
             }
 
-            CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> futureA =
-                    bucketA.getRemainSnapshotSegment();
-            CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> futureB =
-                    bucketB.getRemainSnapshotSegment();
-            return futureA.thenCombine(futureB, CombinedSegmentDelayedIndexQueue::wrap)
+            List<CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>>> getRemainFutures =
+                    buckets.stream().map(ImmutableBucket::getRemainSnapshotSegment).toList();
+
+            return FutureUtil.waitForAll(getRemainFutures)
+                    .thenApply(__ -> {
+                        return CombinedSegmentDelayedIndexQueue.wrap(
+                                getRemainFutures.stream().map(CompletableFuture::join).toList());
+                    })
                     .thenAccept(combinedDelayedIndexQueue -> {
                         synchronized (BucketDelayedDeliveryTracker.this) {
                             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
                                     lastMutableBucket.createImmutableBucketAndAsyncPersistent(
                                             timeStepPerBucketSnapshotSegmentInMillis,
                                             maxIndexesPerBucketSnapshotSegment,
-                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue, bucketA.startLedgerId,
-                                            bucketB.endLedgerId);
+                                            sharedBucketPriorityQueue, combinedDelayedIndexQueue,
+                                            buckets.get(0).startLedgerId,
+                                            buckets.get(buckets.size() - 1).endLedgerId);
 
                             // Merge bit map to new bucket
-                            Map<Long, RoaringBitmap> delayedIndexBitMapA = bucketA.getDelayedIndexBitMap();
-                            Map<Long, RoaringBitmap> delayedIndexBitMapB = bucketB.getDelayedIndexBitMap();
-                            Map<Long, RoaringBitmap> delayedIndexBitMap = new HashMap<>(delayedIndexBitMapA);
-                            delayedIndexBitMapB.forEach((ledgerId, bitMapB) -> {
-                                delayedIndexBitMap.compute(ledgerId, (k, bitMapA) -> {
-                                    if (bitMapA == null) {
-                                        return bitMapB;
-                                    }
+                            Map<Long, RoaringBitmap> delayedIndexBitMap =
+                                    new HashMap<>(buckets.get(0).getDelayedIndexBitMap());
+                            for (int i = 1; i < buckets.size(); i++) {
+                                buckets.get(i).delayedIndexBitMap.forEach((ledgerId, bitMapB) -> {
+                                    delayedIndexBitMap.compute(ledgerId, (k, bitMap) -> {
+                                        if (bitMap == null) {
+                                            return bitMapB;
+                                        }
 
-                                    bitMapA.or(bitMapB);
-                                    return bitMapA;
+                                        bitMap.or(bitMapB);
+                                        return bitMap;
+                                    });
                                 });
-                            });
+                            }
                             immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
 
                             afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
 
                             immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
                                     .orElse(NULL_LONG_PROMISE).thenCompose(___ -> {
-                                        CompletableFuture<Void> removeAFuture = bucketA.asyncDeleteBucketSnapshot();
-                                        CompletableFuture<Void> removeBFuture = bucketB.asyncDeleteBucketSnapshot();
-                                        return CompletableFuture.allOf(removeAFuture, removeBFuture);
+                                        List<CompletableFuture<Void>> removeFutures =
+                                                buckets.stream().map(ImmutableBucket::asyncDeleteBucketSnapshot)
+                                                        .toList();
+                                        return FutureUtil.waitForAll(removeFutures);
                                     });
 
-                            Map<Range<Long>, ImmutableBucket> immutableBucketMap = immutableBuckets.asMapOfRanges();
-                            immutableBucketMap.remove(Range.closed(bucketA.startLedgerId, bucketA.endLedgerId));
-                            immutableBucketMap.remove(Range.closed(bucketB.startLedgerId, bucketB.endLedgerId));
+                            for (ImmutableBucket bucket : buckets) {
+                                immutableBuckets.asMapOfRanges()
+                                        .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
+                            }
                         }
                     });
         });
@@ -593,14 +618,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized CompletableFuture<Void> clear() {
-        return cleanImmutableBuckets(true).thenRun(() -> {
-            synchronized (this) {
-                sharedBucketPriorityQueue.clear();
-                lastMutableBucket.clear();
-                snapshotSegmentLastIndexTable.clear();
-                numberDelayedMessages = 0;
-            }
-        });
+        CompletableFuture<Void> future = cleanImmutableBuckets();
+        sharedBucketPriorityQueue.clear();
+        lastMutableBucket.clear();
+        snapshotSegmentLastIndexTable.clear();
+        numberDelayedMessages = 0;
+        return future;
     }
 
     @Override
@@ -609,30 +632,24 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         lastMutableBucket.close();
         sharedBucketPriorityQueue.close();
         try {
-            cleanImmutableBuckets(false).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            List<CompletableFuture<Long>> completableFutures = immutableBuckets.asMapOfRanges().values().stream()
+                    .map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)).toList();
+            FutureUtil.waitForAll(completableFutures).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.warn("[{}] Failed wait to snapshot generate", dispatcher.getName(), e);
         }
     }
 
-    private CompletableFuture<Void> cleanImmutableBuckets(boolean delete) {
-        if (immutableBuckets != null) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            Iterator<ImmutableBucket> iterator = immutableBuckets.asMapOfRanges().values().iterator();
-            while (iterator.hasNext()) {
-                ImmutableBucket bucket = iterator.next();
-                if (delete) {
-                    futures.add(bucket.clear());
-                } else {
-                    bucket.getSnapshotCreateFuture().ifPresent(future -> futures.add(future.thenApply(x -> null)));
-                }
-                numberDelayedMessages -= bucket.getNumberBucketDelayedMessages();
-                iterator.remove();
-            }
-            return FutureUtil.waitForAll(futures);
-        } else {
-            return CompletableFuture.completedFuture(null);
+    private CompletableFuture<Void> cleanImmutableBuckets() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        Iterator<ImmutableBucket> iterator = immutableBuckets.asMapOfRanges().values().iterator();
+        while (iterator.hasNext()) {
+            ImmutableBucket bucket = iterator.next();
+            futures.add(bucket.clear());
+            numberDelayedMessages -= bucket.getNumberBucketDelayedMessages();
+            iterator.remove();
         }
+        return FutureUtil.waitForAll(futures);
     }
 
     private boolean removeIndexBit(long ledgerId, long entryId) {
