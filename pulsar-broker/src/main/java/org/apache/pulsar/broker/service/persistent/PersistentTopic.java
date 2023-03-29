@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import javax.ws.rs.core.Response;
 import lombok.Getter;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -118,6 +119,7 @@ import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
+import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -428,6 +430,25 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @VisibleForTesting
     public AtomicLong getPendingWriteOps() {
         return pendingWriteOps;
+    }
+
+    public CompletableFuture<Void> unloadSubscription(String subName) {
+        final PersistentSubscription sub = subscriptions.get(subName);
+        if (sub == null) {
+            return CompletableFuture.failedFuture(new RestException(Response.Status.NOT_FOUND,
+                    String.format("Subscription %s not found", subName)));
+        }
+        if (Compactor.COMPACTION_SUBSCRIPTION.equals(sub.getName())){
+            return CompletableFuture.failedFuture(new RestException(Response.Status.BAD_REQUEST,
+                    "Could not reload the compaction subscription"));
+        }
+        // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
+        return sub.disconnect().thenAccept(ignore -> {
+            sub.getCursor().rewind();
+            PersistentSubscription subNew = PersistentTopic.this.createPersistentSubscription(sub.getName(),
+                    sub.getCursor(), sub.isReplicated(), sub.getSubscriptionProperties());
+            subscriptions.put(subName, subNew);
+        });
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
@@ -1009,17 +1030,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 Position startPosition = new PositionImpl(ledgerId, entryId);
-                ManagedCursor cursor = null;
                 try {
-                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition,
-                            isReadCompacted);
+                    final ManagedCursor cursor = ledger.newNonDurableCursor(startPosition, subscriptionName,
+                            initialPosition, isReadCompacted);
+                    subscriptions.computeIfAbsent(subscriptionName, k ->
+                            new PersistentSubscription(this, subscriptionName, cursor, false,
+                            subscriptionProperties));
                 } catch (ManagedLedgerException e) {
                     return FutureUtil.failedFuture(e);
                 }
-
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false,
-                        subscriptionProperties);
-                subscriptions.put(subscriptionName, subscription);
             } else {
                 // if subscription exists, check if it's a durable subscription
                 if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
