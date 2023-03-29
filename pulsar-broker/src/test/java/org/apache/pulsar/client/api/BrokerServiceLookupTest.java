@@ -791,7 +791,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final int totalPartitions = 10;
         final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
-                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress())
+                        .brokerServiceUrl(pulsar.getBrokerServiceUrl()).build());
         admin.tenants().createTenant(property,
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
