@@ -1571,6 +1571,94 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(ref.getBatchIdx(), batchIdx);
     }
 
+    @Test
+    public void collapsePartitionedTopicEnabledTest() throws Exception {
+        testCollapsePartitionedTopic(true,
+                "persistent://a/b/fake-topic-partition-0",
+                "persistent://a/b/fake-topic",
+                0);
+
+        testCollapsePartitionedTopic(true,
+                "persistent://a/b/fake-topic-partition-1",
+                "persistent://a/b/fake-topic",
+                1);
+
+        testCollapsePartitionedTopic(true,
+                "persistent://a/b/fake-topic",
+                "persistent://a/b/fake-topic",
+                0);
+
+        testCollapsePartitionedTopic(true,
+                "fake-topic-partition-5",
+                "persistent://public/default/fake-topic",
+                5);
+    }
+
+    @Test
+    public void collapsePartitionedTopicDisabledTest() throws Exception {
+        testCollapsePartitionedTopic(false,
+                "persistent://a/b/fake-topic-partition-0",
+                "persistent://a/b/fake-topic-partition-0",
+                0);
+
+        testCollapsePartitionedTopic(false,
+                "persistent://a/b/fake-topic-partition-1",
+                "persistent://a/b/fake-topic-partition-1",
+                0);
+
+        testCollapsePartitionedTopic(false,
+                "persistent://a/b/fake-topic",
+                "persistent://a/b/fake-topic",
+                0);
+
+        testCollapsePartitionedTopic(false,
+                "fake-topic-partition-5",
+                "fake-topic-partition-5",
+                0);
+    }
+
+    private void testCollapsePartitionedTopic(boolean isEnabled,
+                                              String pulsarTopic,
+                                              String expectedKafkaTopic,
+                                              int expectedPartition) throws Exception {
+        props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
+        props.put("collapsePartitionedTopics", Boolean.toString(isEnabled));
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+            sink.open(props, context);
+
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
+                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+
+        final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
+        obj.put("field1", (byte) 10);
+        obj.put("field2", "test");
+        obj.put("field3", (short) 100);
+
+        final GenericRecord rec = getGenericRecord(obj, pulsarAvroSchema);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        when(msg.getKey()).thenReturn("key");
+        when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName(pulsarTopic)
+                .message(msg)
+                .schema(pulsarAvroSchema)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .build();
+
+        SinkRecord sinkRecord = sink.toSinkRecord(record);
+
+        Assert.assertEquals(sinkRecord.topic(), expectedKafkaTopic);
+        Assert.assertEquals(sinkRecord.kafkaPartition(), expectedPartition);
+
+        sink.close();
+    }
+
     @SneakyThrows
     private java.util.Date getDateFromString(String dateInString) {
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss");
