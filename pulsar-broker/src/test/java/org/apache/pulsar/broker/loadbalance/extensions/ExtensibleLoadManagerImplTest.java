@@ -134,6 +134,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     public void setup() throws Exception {
+        conf.setForceDeleteNamespaceAllowed(true);
         conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
@@ -142,6 +143,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         pulsar1 = pulsar;
         ServiceConfiguration defaultConf = getDefaultConf();
         defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
@@ -432,6 +434,54 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         assertTrue(bundlesData.getBoundaries().contains(lowBundle));
         assertTrue(bundlesData.getBoundaries().contains(midBundle));
         assertTrue(bundlesData.getBoundaries().contains(highBundle));
+    }
+    @Test(timeOut = 30 * 1000)
+    public void testDeleteNamespaceBundle() throws Exception {
+        TopicName topicName = TopicName.get("test-delete-namespace-bundle");
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+
+        String broker = admin.lookups().lookupTopic(topicName.toString());
+        log.info("Assign the bundle {} to {}", bundle, broker);
+
+        checkOwnershipState(broker, bundle);
+
+        admin.namespaces().deleteNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange());
+        assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testDeleteNamespace() throws Exception {
+        String namespace = "public/test-delete-namespace";
+        TopicName topicName = TopicName.get(namespace + "/test-delete-namespace-topic");
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(this.conf.getClusterName()));
+        assertTrue(admin.namespaces().getNamespaces("public").contains(namespace));
+        admin.topics().createPartitionedTopic(topicName.toString(), 2);
+        admin.lookups().lookupTopic(topicName.toString());
+        NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+        try {
+            admin.namespaces().deleteNamespaceBundle(namespace, bundle.getBundleRange());
+            fail();
+        } catch (Exception ex) {
+            assertTrue(ex.getMessage().contains("Cannot delete non empty bundle"));
+        }
+        admin.namespaces().deleteNamespaceBundle(namespace, bundle.getBundleRange(), true);
+        admin.lookups().lookupTopic(topicName.toString());
+
+        admin.namespaces().deleteNamespace(namespace, true);
+        assertFalse(admin.namespaces().getNamespaces("public").contains(namespace));
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testCheckOwnershipPresentWithSystemNamespace() throws Exception {
+        NamespaceBundle namespaceBundle =
+                getBundleAsync(pulsar1, TopicName.get(NamespaceName.SYSTEM_NAMESPACE + "/test")).get();
+        try {
+            pulsar1.getNamespaceService().checkOwnershipPresent(namespaceBundle);
+        } catch (Exception ex) {
+            log.info("Got exception", ex);
+            assertTrue(ex.getCause() instanceof UnsupportedOperationException);
+        }
     }
 
     @Test

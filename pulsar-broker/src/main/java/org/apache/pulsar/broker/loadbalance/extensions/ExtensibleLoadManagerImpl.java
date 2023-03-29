@@ -383,7 +383,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 .thenApply(broker -> brokerRegistry.getBrokerId().equals(broker.orElse(null)));
     }
 
-    private CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
+    public CompletableFuture<Optional<String>> getOwnershipAsync(Optional<ServiceUnitId> topic,
                                                                  ServiceUnitId bundleUnit) {
         final String bundle = bundleUnit.toString();
         CompletableFuture<Optional<String>> owner;
@@ -393,6 +393,15 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             owner = serviceUnitStateChannel.getOwnerAsync(bundle);
         }
         return owner;
+    }
+
+    public CompletableFuture<Optional<BrokerLookupData>> getOwnershipWithLookupDataAsync(ServiceUnitId bundleUnit) {
+        return getOwnershipAsync(Optional.empty(), bundleUnit).thenCompose(broker -> {
+            if (broker.isEmpty()) {
+                return CompletableFuture.completedFuture(Optional.empty());
+            }
+            return getBrokerRegistry().lookupAsync(broker.get());
+        });
     }
 
     public CompletableFuture<Void> unloadNamespaceBundleAsync(ServiceUnitId bundle,
