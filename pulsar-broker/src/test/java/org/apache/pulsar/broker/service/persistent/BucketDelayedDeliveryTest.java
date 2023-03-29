@@ -174,6 +174,9 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
     @Test
     public void testBucketDelayedIndexMetrics() throws Exception {
+        cleanup();
+        setup();
+
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testBucketDelayedIndexMetrics");
 
         @Cleanup
@@ -205,7 +208,7 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         }
         producer.flush();
 
-        Thread.sleep(1000);
+        Thread.sleep(2000);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, true, true, output);
