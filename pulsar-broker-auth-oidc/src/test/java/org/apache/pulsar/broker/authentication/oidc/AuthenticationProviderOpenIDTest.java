@@ -229,12 +229,23 @@ public class AuthenticationProviderOpenIDTest {
     }
 
     @Test
+    public void ensureEmptyIssuersFailsInitializationWithDisabledDiscoveryMode() {
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        Properties props = new Properties();
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "DISABLED");
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setProperties(props);
+        Assert.assertThrows(IllegalArgumentException.class, () -> provider.initialize(config));
+    }
+
+    @Test
     public void ensureEmptyIssuersWithK8sTrustedIssuerEnabledPassesInitialization() throws Exception {
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "my-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
-        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_TRUSTED_ISSUER");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
         provider.initialize(config);
@@ -246,7 +257,7 @@ public class AuthenticationProviderOpenIDTest {
         Properties props = new Properties();
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "my-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
-        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_PUBLIC_KEYS");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         ServiceConfiguration config = new ServiceConfiguration();
         config.setProperties(props);
         provider.initialize(config);

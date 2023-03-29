@@ -114,12 +114,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private static final String ALG_ES512 = "ES512";
 
     private long acceptedTimeLeewaySeconds;
-    private KubernetesDiscoveryMode kubernetesDiscoveryMode;
+    private FallbackDiscoveryMode fallbackDiscoveryMode;
     private String roleClaim;
 
     static final String ALLOWED_TOKEN_ISSUERS = "openIDAllowedTokenIssuers";
     static final String ISSUER_TRUST_CERTS_FILE_PATH = "openIDTokenIssuerTrustCertsFilePath";
-    static final String KUBERNETES_DISCOVERY_MODE = "openIDKubernetesDiscoveryMode";
+    static final String FALLBACK_DISCOVERY_MODE = "openIDFallbackDiscoveryMode";
     static final String ALLOWED_AUDIENCES = "openIDAllowedAudiences";
     static final String ROLE_CLAIM = "openIDRoleClaim";
     static final String ROLE_CLAIM_DEFAULT = "sub";
@@ -146,10 +146,10 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         this.acceptedTimeLeewaySeconds = getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS,
                 ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT);
         boolean requireHttps = getConfigValueAsBoolean(config, REQUIRE_HTTPS, REQUIRE_HTTPS_DEFAULT);
-        this.kubernetesDiscoveryMode = KubernetesDiscoveryMode.valueOf(getConfigValueAsString(config,
-                KUBERNETES_DISCOVERY_MODE, KubernetesDiscoveryMode.DISABLED.name()));
+        this.fallbackDiscoveryMode = FallbackDiscoveryMode.valueOf(getConfigValueAsString(config,
+                FALLBACK_DISCOVERY_MODE, FallbackDiscoveryMode.DISABLED.name()));
         this.issuers = validateIssuers(getConfigValueAsSet(config, ALLOWED_TOKEN_ISSUERS), requireHttps,
-                kubernetesDiscoveryMode != KubernetesDiscoveryMode.DISABLED);
+                fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED);
 
         int connectionTimeout = getConfigValueAsInt(config, HTTP_CONNECTION_TIMEOUT_MILLIS,
                 HTTP_CONNECTION_TIMEOUT_MILLIS_DEFAULT);
@@ -169,7 +169,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
         ApiClient k8sApiClient =
-                kubernetesDiscoveryMode != KubernetesDiscoveryMode.DISABLED ? Config.defaultClient() : null;
+                fallbackDiscoveryMode != FallbackDiscoveryMode.DISABLED ? Config.defaultClient() : null;
         this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient, k8sApiClient);
         this.jwksCache = new JwksCache(config, httpClient, k8sApiClient);
     }
@@ -315,7 +315,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     /**
      * Verify the JWT's issuer (iss) claim is one of the allowed issuers and then retrieve the JWK from the issuer. If
-     * not, see {@link KubernetesDiscoveryMode} for the fallback behavior.
+     * not, see {@link FallbackDiscoveryMode} for the fallback behavior.
      * @param jwt - the token to use to discover the issuer's JWKS URI, which is then used to retrieve the issuer's
      *            current public keys.
      * @return a JWK that can be used to verify the JWT's signature
@@ -328,12 +328,12 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
             // Retrieve the metadata: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
             return openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(jwt.getIssuer())
                     .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
-        } else if (kubernetesDiscoveryMode == KubernetesDiscoveryMode.DISCOVER_TRUSTED_ISSUER) {
+        } else if (fallbackDiscoveryMode == FallbackDiscoveryMode.KUBERNETES_DISCOVER_TRUSTED_ISSUER) {
             return openIDProviderMetadataCache.getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
                     .thenCompose(metadata ->
                             openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(metadata.getIssuer()))
                     .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
-        } else if (kubernetesDiscoveryMode == KubernetesDiscoveryMode.DISCOVER_PUBLIC_KEYS) {
+        } else if (fallbackDiscoveryMode == FallbackDiscoveryMode.KUBERNETES_DISCOVER_PUBLIC_KEYS) {
             return openIDProviderMetadataCache.getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
                     .thenCompose(__ -> jwksCache.getJwkFromKubernetesApiServer(jwt.getKeyId()));
         } else {

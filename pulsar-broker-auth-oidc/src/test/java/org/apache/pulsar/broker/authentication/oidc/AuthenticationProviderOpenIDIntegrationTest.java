@@ -255,7 +255,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_TRUSTED_ISSUER");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         // Test requires that k8sIssuer is not in the allowed token issuers
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
@@ -275,7 +275,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_TRUSTED_ISSUER");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_TRUSTED_ISSUER");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
@@ -299,7 +299,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_PUBLIC_KEYS");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         // Test requires that k8sIssuer is not in the allowed token issuers
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
@@ -319,7 +319,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         Properties props = conf.getProperties();
         props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
-        props.setProperty(AuthenticationProviderOpenID.KUBERNETES_DISCOVERY_MODE, "DISCOVER_PUBLIC_KEYS");
+        props.setProperty(AuthenticationProviderOpenID.FALLBACK_DISCOVERY_MODE, "KUBERNETES_DISCOVER_PUBLIC_KEYS");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, "");
 
         AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();

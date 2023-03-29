@@ -21,18 +21,20 @@ package org.apache.pulsar.broker.authentication.oidc;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * These are the modes available for configuring how the Open ID Connect Authentication Provider should integrate with
- * the Kubernetes Api Server's Open ID Connect features. See the Kubernetes documentation for more information on how
- * Service Accounts can integrate with Open ID Connect.
+ * These are the modes available for configuring how the Open ID Connect Authentication Provider should handle a JWT
+ * that has an issuer that is not explicitly in the allowed issuers set configured by
+ * {@link AuthenticationProviderOpenID#ALLOWED_TOKEN_ISSUERS}. The current implementations rely on using the Kubernetes
+ * Api Server's Open ID Connect features to discover an additional issuer or additional public keys to trust. See the
+ * Kubernetes documentation for more information on how Service Accounts can integrate with Open ID Connect.
  * https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#service-account-issuer-discovery
  */
 @InterfaceStability.Evolving
-public enum KubernetesDiscoveryMode {
+public enum FallbackDiscoveryMode {
     /**
-     * The Kubernetes Api Server will not be used to discover any additional trusted issuers or public keys. This
-     * setting requires that operators explicitly allow the issuer for the Kubernetes Service Account Token Projections
-     * if service account tokens will be used for authentication. This is the default setting because it is the only
-     * mode that explicitly follows the OIDC spec for verification of discovered provider configuration.
+     * There will be no discovery of additional trusted issuers or public keys. This setting requires that operators
+     * explicitly allow all issuers that will be trusted. For the Kubernetes Service Account Token Projections to work,
+     * the operator must explicitly trust the issuer on the token's "iss" claim. This is the default setting because it
+     * is the only mode that explicitly follows the OIDC spec for verification of discovered provider configuration.
      */
     DISABLED,
 
@@ -45,7 +47,7 @@ public enum KubernetesDiscoveryMode {
      * jwks_uri. It fails to be OIDC compliant because the URL used to discover the provider configuration is not the
      * same as the issuer claim on the token.
      */
-    DISCOVER_TRUSTED_ISSUER,
+    KUBERNETES_DISCOVER_TRUSTED_ISSUER,
 
     /**
      * The Kubernetes Api Server will be used to discover an additional set of valid public keys by getting the issuer
@@ -55,5 +57,5 @@ public enum KubernetesDiscoveryMode {
      * and authentication, and the kubernetes client automatically handles those. It fails to be OIDC compliant because
      * the URL used to discover the provider configuration is not the same as the issuer claim on the token.
      */
-    DISCOVER_PUBLIC_KEYS,
+    KUBERNETES_DISCOVER_PUBLIC_KEYS,
 }
