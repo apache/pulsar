@@ -26,10 +26,16 @@ import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProvide
 import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfigValueAsInt;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.kubernetes.client.openapi.ApiCallback;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.WellKnownApi;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -43,52 +49,28 @@ import org.asynchttpclient.AsyncHttpClient;
 class OpenIDProviderMetadataCache {
 
     private final ObjectReader reader = new ObjectMapper().readerFor(OpenIDProviderMetadata.class);
+    private final AsyncHttpClient httpClient;
+    private final WellKnownApi wellKnownApi;
+    private final AsyncCache<Optional<String>, OpenIDProviderMetadata> cache;
+
+    OpenIDProviderMetadataCache(ServiceConfiguration config, AsyncHttpClient httpClient, ApiClient apiClient) {
+        int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
+        int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
+                CACHE_EXPIRATION_SECONDS_DEFAULT);
+        this.httpClient = httpClient;
+        this.wellKnownApi = apiClient != null ? new WellKnownApi(apiClient) : null;
+        this.cache = Caffeine.newBuilder()
+                .maximumSize(maxSize)
+                .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
+                .buildAsync();
+    }
+
 
     /**
      * A loader for the cache that retrieves the metadata from the issuer's /.well-known/openid-configuration endpoint.
      * @return a connection to the issuer's /.well-known/openid-configuration endpoint
      * @throws AuthenticationException if the URL is malformed or there is an exception while opening the connection
      */
-    private AsyncCacheLoader<String, OpenIDProviderMetadata> getLoader(AsyncHttpClient client) {
-        return (issuer, executor) ->
-                // TODO URI's normalization follows RFC2396, whereas the spec
-                //  https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
-                //  calls for normalization according to RFC3986, which is supposed to obsolete RFC2396
-                client
-                    .prepareGet(URI.create(issuer + "/.well-known/openid-configuration").normalize().toString())
-                    .execute()
-                    .toCompletableFuture()
-                    .thenCompose(result -> {
-                        CompletableFuture<OpenIDProviderMetadata> future = new CompletableFuture<>();
-                        try {
-                            OpenIDProviderMetadata openIDProviderMetadata =
-                                    reader.readValue(result.getResponseBodyAsBytes());
-                            verifyIssuer(issuer, openIDProviderMetadata);
-                            future.complete(openIDProviderMetadata);
-                        } catch (AuthenticationException e) {
-                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
-                            future.completeExceptionally(e);
-                        } catch (Exception e) {
-                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
-                            future.completeExceptionally(new AuthenticationException(
-                                    "Error retrieving OpenID Provider Metadata at " + issuer + ": " + e.getMessage()));
-                        }
-                        return future;
-                    });
-    }
-
-    private final AsyncLoadingCache<String, OpenIDProviderMetadata> cache;
-
-    OpenIDProviderMetadataCache(ServiceConfiguration config, AsyncHttpClient httpClient) {
-        int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
-        int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
-                CACHE_EXPIRATION_SECONDS_DEFAULT);
-        this.cache = Caffeine.newBuilder()
-                .maximumSize(maxSize)
-                .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
-                .buildAsync(getLoader(httpClient));
-    }
-
     /**
      * Retrieve the OpenID Provider Metadata for the provided issuer.
      * <p>
@@ -101,7 +83,90 @@ class OpenIDProviderMetadataCache {
      * @throws AuthenticationException if any exceptions occur while retrieving the metadata.
      */
     CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForIssuer(@Nonnull String issuer) {
-        return cache.get(issuer);
+        return cache.get(Optional.of(issuer), (__, executor) -> {
+            // TODO URI's normalization follows RFC2396, whereas the spec
+            //  https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
+            //  calls for normalization according to RFC3986, which is supposed to obsolete RFC2396
+            return httpClient
+                    .prepareGet(URI.create(issuer + "/.well-known/openid-configuration").normalize().toString())
+                    .execute()
+                    .toCompletableFuture()
+                    .thenCompose(result -> {
+                        CompletableFuture<OpenIDProviderMetadata> future = new CompletableFuture<>();
+                        try {
+                            OpenIDProviderMetadata openIDProviderMetadata =
+                                    reader.readValue(result.getResponseBodyAsBytes());
+                            verifyIssuer(issuer, openIDProviderMetadata, false);
+                            future.complete(openIDProviderMetadata);
+                        } catch (AuthenticationException e) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                            future.completeExceptionally(e);
+                        } catch (Exception e) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                            future.completeExceptionally(new AuthenticationException(
+                                    "Error retrieving OpenID Provider Metadata at " + issuer + ": " + e.getMessage()));
+                        }
+                        return future;
+                    });
+        });
+    }
+
+    /**
+     * Retrieve the OpenID Provider Metadata for the Kubernetes API server. This method is used instead of
+     * {@link #getOpenIDProviderMetadataForIssuer(String)} because different validations are done. The Kubernetes
+     * API server does not technically implement the complete OIDC spec for discovery, but it does implement some of
+     * it, so this method validates what it can. Specifically, it skips validation that the Discovery Document
+     * provider's URI matches the issuer. It verifies that the issuer on the discovery document matches the issuer
+     * claim
+     * @return
+     */
+    CompletableFuture<OpenIDProviderMetadata> getOpenIDProviderMetadataForKubernetesApiServer(String issClaim) {
+        return cache.get(Optional.empty(), (__, executor) -> {
+            CompletableFuture<OpenIDProviderMetadata> future = new CompletableFuture<>();
+            try {
+                wellKnownApi.getServiceAccountIssuerOpenIDConfigurationAsync(new ApiCallback<>() {
+                    @Override
+                    public void onFailure(ApiException e, int statusCode, Map<String, List<String>> responseHeaders) {
+                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                        future.completeExceptionally(new AuthenticationException(
+                                "Error retrieving OpenID Provider Metadata from Kubernetes API server: "
+                                        + e.getMessage()));
+                    }
+
+                    @Override
+                    public void onSuccess(String result, int statusCode, Map<String, List<String>> responseHeaders) {
+                        try {
+                            OpenIDProviderMetadata openIDProviderMetadata = reader.readValue(result);
+                            verifyIssuer(issClaim, openIDProviderMetadata, true);
+                            future.complete(openIDProviderMetadata);
+                        } catch (AuthenticationException e) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                            future.completeExceptionally(e);
+                        } catch (Exception e) {
+                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                            future.completeExceptionally(new AuthenticationException(
+                                    "Error retrieving OpenID Provider Metadata from Kubernetes API Server: "
+                                            + e.getMessage()));
+                        }
+                    }
+
+                    @Override
+                    public void onUploadProgress(long bytesWritten, long contentLength, boolean done) {
+
+                    }
+
+                    @Override
+                    public void onDownloadProgress(long bytesRead, long contentLength, boolean done) {
+
+                    }
+                });
+            } catch (ApiException e) {
+                incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
+                future.completeExceptionally(new AuthenticationException(
+                        "Error retrieving OpenID Provider Metadata from Kubernetes API server: " + e.getMessage()));
+            }
+            return future;
+        });
     }
 
     /**
@@ -114,13 +179,20 @@ class OpenIDProviderMetadataCache {
      *
      * @param issuer - the issuer used to retrieve the metadata
      * @param metadata - the OpenID Provider Metadata
+     * @param isK8s - whether the issuer is represented by the Kubernetes API server. This affects error reporting.
      * @throws AuthenticationException if the issuer does not exactly match the metadata issuer
      */
-    private void verifyIssuer(@Nonnull String issuer, OpenIDProviderMetadata metadata) throws AuthenticationException {
+    private void verifyIssuer(@Nonnull String issuer, OpenIDProviderMetadata metadata,
+                              boolean isK8s) throws AuthenticationException {
         if (!issuer.equals(metadata.getIssuer())) {
-            incrementFailureMetric(AuthenticationExceptionCode.ISSUER_MISMATCH);
-            throw new AuthenticationException(String.format("Issuer URL mismatch: [%s] should match [%s]",
-                    issuer, metadata.getIssuer()));
+            if (isK8s) {
+                incrementFailureMetric(AuthenticationExceptionCode.UNSUPPORTED_ISSUER);
+                throw new AuthenticationException("Issuer not allowed: " + issuer);
+            } else {
+                incrementFailureMetric(AuthenticationExceptionCode.ISSUER_MISMATCH);
+                throw new AuthenticationException(String.format("Issuer URL mismatch: [%s] should match [%s]",
+                        issuer, metadata.getIssuer()));
+            }
         }
     }
 }

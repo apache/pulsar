@@ -74,6 +74,12 @@
     </dependency>
 
     <dependency>
+      <groupId>io.kubernetes</groupId>
+      <artifactId>client-java</artifactId>
+      <version>${kubernetesclient.version}</version>
+    </dependency>
+
+    <dependency>
       <groupId>io.jsonwebtoken</groupId>
       <artifactId>jjwt-api</artifactId>
       <version>${jsonwebtoken.version}</version>
@@ -150,6 +156,15 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <environmentVariables>
+            <KUBECONFIG>src/test/java/resources/fakeKubeConfig.yaml</KUBECONFIG>
+          </environmentVariables>
+        </configuration>
       </plugin>
     </plugins>
   </build>

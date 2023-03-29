@@ -36,6 +36,8 @@ import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.util.Config;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.PublicKey;
@@ -110,9 +112,11 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     private long acceptedTimeLeewaySeconds;
     private boolean requireHttps;
+    private boolean useK8sApiServerAsFallbackIssuer;
     private String roleClaim;
 
     static final String ALLOWED_TOKEN_ISSUERS = "openIDAllowedTokenIssuers";
+    static final String USE_K8S_API_SERVER_AS_FALLBACK_ISSUER = "useKubernetesApiServerAsFallbackIssuer";
     static final String ALLOWED_AUDIENCES = "openIDAllowedAudiences";
     static final String ROLE_CLAIM = "openIDRoleClaim";
     static final String ROLE_CLAIM_DEFAULT = "sub";
@@ -150,9 +154,11 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 .setReadTimeout(readTimeout)
                 .build();
         httpClient = new DefaultAsyncHttpClient(clientConfig);
-
-        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient);
-        this.jwksCache = new JwksCache(config, httpClient);
+        useK8sApiServerAsFallbackIssuer = getConfigValueAsBoolean(config, USE_K8S_API_SERVER_AS_FALLBACK_ISSUER,
+                false);
+        ApiClient k8sApiClient = useK8sApiServerAsFallbackIssuer ? Config.defaultClient() : null;
+        this.openIDProviderMetadataCache = new OpenIDProviderMetadataCache(config, httpClient, k8sApiClient);
+        this.jwksCache = new JwksCache(config, httpClient, k8sApiClient);
     }
 
     @Override
@@ -294,16 +300,34 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
                 });
     }
 
+    /**
+     * Verify the JWT's issuer (iss) claim is one of the allowed issuers and then retrieve the JWK from the issuer.
+     * <p>
+     * If the JWT's issuer is not in the allowed issuers list and {@link #useK8sApiServerAsFallbackIssuer} is true,
+     * fallback to Kubernetes API Server as the issuer. In this case, we first verify that the OIDC
+     * discovery document has an issuer field that matches the token's issuer (iss) claim exactly.
+     * Then, we retrieve the JWK from the Kubernetes API Server. In both cases, the cache classes rely
+     * on the Kubernetes ApiClient to discover the API Server's URL, TLS certificate, and authentication.
+     * The Kubernetes API Server does not exactly match OIDC spec, as documented here
+     * https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#service-account-issuer-discovery.
+     * @param jwt - the token to use to discover the issuer's JWKS URI, which is then used to retrieve the issuer's
+     *            current public keys.
+     * @return a JWK that can be used to verify the JWT's signature
+     */
     private CompletableFuture<Jwk> verifyIssuerAndGetJwk(DecodedJWT jwt) {
         // Verify that the issuer claim is nonnull and allowed.
-        if (jwt.getIssuer() == null || !this.issuers.contains(jwt.getIssuer())) {
+        if (this.issuers.contains(jwt.getIssuer())) {
+            // Retrieve the metadata: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
+            return openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(jwt.getIssuer())
+                    .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
+        } else if (jwt.getIssuer() == null || !useK8sApiServerAsFallbackIssuer) {
             incrementFailureMetric(AuthenticationExceptionCode.UNSUPPORTED_ISSUER);
             return CompletableFuture
                     .failedFuture(new AuthenticationException("Issuer not allowed: " + jwt.getIssuer()));
+        } else {
+            return openIDProviderMetadataCache.getOpenIDProviderMetadataForKubernetesApiServer(jwt.getIssuer())
+                    .thenCompose(__ -> jwksCache.getJwkFromKubernetesApiServer(jwt.getKeyId()));
         }
-        // Retrieve the metadata: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
-        return openIDProviderMetadataCache.getOpenIDProviderMetadataForIssuer(jwt.getIssuer())
-                .thenCompose(metadata -> jwksCache.getJwk(metadata.getJwksUri(), jwt.getKeyId()));
     }
 
     @Override

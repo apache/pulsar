@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.authentication.oidc;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -66,16 +67,20 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     // This issuer is configured to return an issuer in the openid-configuration
     // that does not match the issuer on the token
     String issuerThatFails;
+    String issuerK8s;
     WireMockServer server;
 
     @BeforeClass
     void beforeClass() throws IOException {
 
-        server = new WireMockServer(wireMockConfig().dynamicPort());
+        // Port matches the port supplied in the fakeKubeConfig.yaml resource, which makes the k8s integration
+        // tests work correctly.
+        server = new WireMockServer(wireMockConfig().port(12345));
         server.start();
         issuer = server.baseUrl();
         issuerWithTrailingSlash = issuer + "/trailing-slash/";
         issuerThatFails = issuer + "/fail";
+        issuerK8s = issuer + "/k8s";
 
         // Set up a correct openid-configuration
         server.stubFor(
@@ -88,6 +93,22 @@ public class AuthenticationProviderOpenIDIntegrationTest {
                                           "jwks_uri": "%s/keys"
                                         }
                                         """.replace("%s", server.baseUrl()))));
+
+        // Set up a correct openid-configuration that the k8s integration test can use
+        // NOTE: integration tests revealed that the k8s client adds a trailing slash to the openid-configuration
+        // endpoint.
+        // NOTE: the jwks_uri is ignored, so we supply one that would fail here to ensure that we are not implicitly
+        // relying on the jwks_uri.
+        server.stubFor(
+                get(urlEqualTo("/k8s/.well-known/openid-configuration/"))
+                        .willReturn(aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("""
+                                        {
+                                          "issuer": "%s",
+                                          "jwks_uri": "%s/no/keys/hosted/here"
+                                        }
+                                        """.formatted(issuerK8s, issuer))));
 
         // Set up a correct openid-configuration that has a trailing slash in the issuers URL. This is a
         // behavior observed by Auth0. In this case, the token's iss claim also has a trailing slash.
@@ -125,8 +146,9 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String e = Base64.getUrlEncoder().encodeToString(rsaPublicKey.getPublicExponent().toByteArray());
 
         // Set up JWKS endpoint with a valid and an invalid public key
+        // The url matches are for both the normal and the k8s endpoints
         server.stubFor(
-                get(urlEqualTo( "/keys"))
+                get(urlMatching( "/keys|/k8s/openid/v1/jwks/"))
                         .willReturn(aResponse()
                                 .withHeader("Content-Type", "application/json")
                                 .withBody(
@@ -218,6 +240,49 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     public void testTokenWithInvalidIssuer() throws Exception {
         String role = "superuser";
         String token = generateToken(validJwk, "https://not-an-allowed-issuer.com", role, "allowed-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+        }
+    }
+
+    @Test
+    public void testKubernetesApiServerAsFallbackIssuerSuccess() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.USE_K8S_API_SERVER_AS_FALLBACK_ISSUER, "true");
+        // Test requires that k8sIssuer is not in the allowed token issuers
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        provider.initialize(conf);
+
+        String role = "superuser";
+        String token = generateToken(validJwk, issuerK8s, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+    }
+
+    @Test
+    public void testKubernetesApiServerAsFallbackIssuerFailsDueToMismatchedIssuerClaim() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.USE_K8S_API_SERVER_AS_FALLBACK_ISSUER, "true");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        provider.initialize(conf);
+
+        String role = "superuser";
+        String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
         } catch (ExecutionException e) {
