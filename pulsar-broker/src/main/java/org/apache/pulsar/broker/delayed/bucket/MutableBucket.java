@@ -62,8 +62,10 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long timeStepPerBucketSnapshotSegment, final int maxIndexesPerBucketSnapshotSegment,
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
-        log.info("[{}] Creating bucket snapshot, startLedgerId: {}, endLedgerId: {}", dispatcherName,
-                startLedgerId, endLedgerId);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Creating bucket snapshot, startLedgerId: {}, endLedgerId: {}", dispatcherName,
+                    startLedgerId, endLedgerId);
+        }
 
         if (delayedIndexQueue.isEmpty()) {
             return null;

@@ -22,8 +22,8 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Skip;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Label.Success;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Admin;
-import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Balanced;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.CoolDown;
+import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.HitCount;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBrokers;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoBundles;
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.NoLoadData;
@@ -68,7 +68,7 @@ public class UnloadCounter {
                         Underloaded, new AtomicLong(),
                         Admin, new AtomicLong()),
                 Skip, Map.of(
-                        Balanced, new AtomicLong(),
+                        HitCount, new AtomicLong(),
                         NoBundles, new AtomicLong(),
                         CoolDown, new AtomicLong(),
                         OutDatedData, new AtomicLong(),
