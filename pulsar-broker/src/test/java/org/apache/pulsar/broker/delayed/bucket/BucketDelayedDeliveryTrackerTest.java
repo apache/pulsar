@@ -190,6 +190,12 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(1 * 10);
 
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(
+                    tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging ||
+                            !x.getSnapshotCreateFuture().get().isDone()));
+        });
+
         assertTrue(tracker.hasMessageAvailable());
         Set<PositionImpl> scheduledMessages = tracker.getScheduledMessages(100);
 
@@ -201,16 +207,16 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(30 * 10);
 
-        tracker = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
-                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1,50);
+        BucketDelayedDeliveryTracker tracker2 = new BucketDelayedDeliveryTracker(dispatcher, timer, 1000, clock,
+                true, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
 
-        assertFalse(tracker.containsMessage(101, 101));
-        assertEquals(tracker.getNumberOfDelayedMessages(), 70);
+        assertFalse(tracker2.containsMessage(101, 101));
+        assertEquals(tracker2.getNumberOfDelayedMessages(), 70);
 
         clockTime.set(100 * 10);
 
-        assertTrue(tracker.hasMessageAvailable());
-        scheduledMessages = tracker.getScheduledMessages(70);
+        assertTrue(tracker2.hasMessageAvailable());
+        scheduledMessages = tracker2.getScheduledMessages(70);
 
         assertEquals(scheduledMessages.size(), 70);
 
@@ -220,7 +226,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             i++;
         }
 
-        tracker.close();
+        tracker2.close();
     }
 
     @Test

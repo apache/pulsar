@@ -387,7 +387,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         if (minIndex >= 0) {
-            return values.subList(minIndex, minIndex + MAX_MERGE_NUM);
+            return values.subList(minIndex, minIndex + mergeNum);
         } else if (mergeNum > 2){
             return selectMergedBuckets(values, mergeNum - 1);
         } else {
