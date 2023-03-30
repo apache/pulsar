@@ -139,6 +139,9 @@ public class TopicStatsImpl implements TopicStats {
     /** The size of InMemoryDelayedDeliveryTracer memory usage. */
     public long delayedMessageIndexSizeInBytes;
 
+    /** Map of bucket delayed index statistics. */
+    public Map<String, TopicMetricBean> bucketDelayedIndexStats;
+
     /** The compaction stats. */
     public CompactionStatsImpl compaction;
 
@@ -182,6 +185,7 @@ public class TopicStatsImpl implements TopicStats {
         this.subscriptions = new HashMap<>();
         this.replication = new TreeMap<>();
         this.compaction = new CompactionStatsImpl();
+        this.bucketDelayedIndexStats = new HashMap<>();
     }
 
     public void reset() {
@@ -214,6 +218,7 @@ public class TopicStatsImpl implements TopicStats {
         this.delayedMessageIndexSizeInBytes = 0;
         this.compaction.reset();
         this.ownerBroker = null;
+        this.bucketDelayedIndexStats.clear();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -243,6 +248,14 @@ public class TopicStatsImpl implements TopicStats {
         this.ongoingTxnCount = stats.ongoingTxnCount;
         this.abortedTxnCount = stats.abortedTxnCount;
         this.committedTxnCount = stats.committedTxnCount;
+
+        stats.bucketDelayedIndexStats.forEach((k, v) -> {
+            TopicMetricBean topicMetricBean =
+                    this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            topicMetricBean.name = v.name;
+            topicMetricBean.labelsAndValues = v.labelsAndValues;
+            topicMetricBean.value += v.value;
+        });
 
         for (int index = 0; index < stats.getPublishers().size(); index++) {
            PublisherStats s = stats.getPublishers().get(index);

@@ -366,7 +366,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
-            The max number of delayed message index in per bucket snapshot segment, -1 means no limitation\
+            The max number of delayed message index in per bucket snapshot segment, -1 means no limitation, \
             after reaching the max number limitation, the snapshot segment will be cut off.""")
     private int delayedDeliveryMaxIndexesPerBucketSnapshotSegment = 5000;
 

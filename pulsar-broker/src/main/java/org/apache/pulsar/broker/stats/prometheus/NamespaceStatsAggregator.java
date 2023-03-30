@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -155,6 +156,7 @@ public class NamespaceStatsAggregator {
         subsStats.filterRejectedMsgCount = subscriptionStats.filterRejectedMsgCount;
         subsStats.filterRescheduledMsgCount = subscriptionStats.filterRescheduledMsgCount;
         subsStats.delayedMessageIndexSizeInBytes = subscriptionStats.delayedMessageIndexSizeInBytes;
+        subsStats.bucketDelayedIndexStats = subscriptionStats.bucketDelayedIndexStats;
     }
 
     private static void getTopicStats(Topic topic, TopicStats stats, boolean includeConsumerMetrics,
@@ -197,6 +199,7 @@ public class NamespaceStatsAggregator {
         stats.averageMsgSize = tStatus.averageMsgSize;
         stats.publishRateLimitedTimes = tStatus.publishRateLimitedTimes;
         stats.delayedMessageIndexSizeInBytes = tStatus.delayedMessageIndexSizeInBytes;
+        stats.bucketDelayedIndexStats = tStatus.bucketDelayedIndexStats;
         stats.abortedTxnCount = tStatus.abortedTxnCount;
         stats.ongoingTxnCount = tStatus.ongoingTxnCount;
         stats.committedTxnCount = tStatus.committedTxnCount;
@@ -379,6 +382,10 @@ public class NamespaceStatsAggregator {
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes, cluster,
                 namespace);
 
+        stats.bucketDelayedIndexStats.forEach((k, metric) -> {
+            writeMetric(stream, metric.name, metric.value, cluster, namespace, metric.labelsAndValues);
+        });
+
         writePulsarMsgBacklog(stream, stats.msgBacklog, cluster, namespace);
 
         stats.managedLedgerStats.storageWriteLatencyBuckets.refresh();
@@ -472,8 +479,10 @@ public class NamespaceStatsAggregator {
     }
 
     private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
-                                    String namespace) {
-        stream.writeSample(metricName, value, "cluster", cluster, "namespace", namespace);
+                                    String namespace, String... extraLabelsAndValues) {
+        String[] labelsAndValues = new String[]{"cluster", cluster, "namespace", namespace};
+        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
+        stream.writeSample(metricName, value, labels);
     }
 
     private static void writeReplicationStat(PrometheusMetricStreams stream, String metricName,

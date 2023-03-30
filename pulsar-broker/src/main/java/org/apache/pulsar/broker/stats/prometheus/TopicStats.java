@@ -25,6 +25,7 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
@@ -70,6 +71,8 @@ class TopicStats {
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
     public long delayedMessageIndexSizeInBytes;
 
+    Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
+
     public void reset() {
         subscriptionsCount = 0;
         producersCount = 0;
@@ -107,6 +110,7 @@ class TopicStats {
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
         delayedMessageIndexSizeInBytes = 0;
+        bucketDelayedIndexStats.clear();
     }
 
     public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
@@ -161,6 +165,11 @@ class TopicStats {
 
         writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+
+        for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
+            writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                    topic, splitTopicAndPartitionIndexLabel, topicMetricBean.labelsAndValues);
+        }
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5",
@@ -310,6 +319,13 @@ class TopicStats {
                     subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
 
+            final String[] subscriptionLabel = {"subscription", sub};
+            for (TopicMetricBean topicMetricBean : subsStats.bucketDelayedIndexStats.values()) {
+                String[] labelsAndValues = ArrayUtils.addAll(subscriptionLabel, topicMetricBean.labelsAndValues);
+                writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                        topic, splitTopicAndPartitionIndexLabel, labelsAndValues);
+            }
+
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 writeConsumerMetric(stream, "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,
                         cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
@@ -409,6 +425,12 @@ class TopicStats {
             writeMetric(stream, "pulsar_compaction_latency_count",
                     stats.compactionLatencyBuckets.getCount(), cluster, namespace, topic,
                     splitTopicAndPartitionIndexLabel);
+
+            for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
+                String[] labelsAndValues = topicMetricBean.labelsAndValues;
+                writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                        topic, splitTopicAndPartitionIndexLabel, labelsAndValues);
+            }
         }
     }
 
