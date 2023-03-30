@@ -41,6 +41,7 @@ import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -106,8 +107,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         if (StringUtils.isNotBlank(saslJaasServerRoleTokenSignerSecretPath)) {
             secret = readSecretFromUrl(saslJaasServerRoleTokenSignerSecretPath);
         } else {
-            String msg = "saslJaasServerRoleTokenSignerSecretPath parameter is empty";
-            throw new IllegalArgumentException(msg);
+            secret = Long.toString(new Random().nextLong()).getBytes();
+            log.info("JAAS authentication provider using random secret.");
         }
         this.signer = new SaslRoleTokenSigner(secret);
     }
