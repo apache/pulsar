@@ -1124,14 +1124,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private Optional<String> selectBroker(String serviceUnit) {
-        var namespaceBundle = getNamespaceBundle(serviceUnit);
-        if (namespaceBundle.getNamespaceObject().equals(SYSTEM_NAMESPACE)) {
-            log.info("Skipping system serviceUnit:{} select", serviceUnit);
-            return Optional.empty();
-        }
-
         try {
-            return brokerSelector.selectAsync(namespaceBundle).get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
+            return brokerSelector.selectAsync(getNamespaceBundle(serviceUnit))
+                    .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
         }
@@ -1259,8 +1254,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             });
                     orphanServiceUnitCleanupCnt++;
                 } else {
-                    log.warn("Failed get the overrideStateData from orphanServiceUnit:{}, orphanData:{}. will retry..",
-                            orphanServiceUnit, orphanData);
+                    log.warn("Failed get the overrideStateData from orphanServiceUnit:{}, orphanData:{},"
+                                    + " cleanupErrorCnt:{}. will retry..",
+                            orphanServiceUnit, orphanData,
+                            totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart);
                 }
             }
         }
