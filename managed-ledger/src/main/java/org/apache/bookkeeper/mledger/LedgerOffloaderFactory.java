@@ -50,12 +50,10 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
      * @return the offloader instance
      * @throws IOException when fail to create an offloader
      */
-    default T create(OffloadPoliciesImpl offloadPolicies,
+    T create(OffloadPoliciesImpl offloadPolicies,
              Map<String, String> userMetadata,
              OrderedScheduler scheduler)
-            throws IOException {
-        return create(offloadPolicies, userMetadata, scheduler, null);
-    }
+            throws IOException;
 
 
     /**
@@ -90,7 +88,7 @@ public interface LedgerOffloaderFactory<T extends LedgerOffloader> {
                      SchemaStorage schemaStorage,
                      OrderedScheduler scheduler)
             throws IOException {
-        return create(offloadPolicies, userMetadata, schemaStorage, scheduler, null);
+        return create(offloadPolicies, userMetadata, scheduler);
     }
 
     /**
