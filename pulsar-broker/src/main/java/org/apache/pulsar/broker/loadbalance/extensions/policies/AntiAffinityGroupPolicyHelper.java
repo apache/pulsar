@@ -87,6 +87,16 @@ public class AntiAffinityGroupPolicyHelper {
         }
     }
 
+    public boolean hasAntiAffinityGroupPolicy(String bundle) {
+        try {
+            return LoadManagerShared.getNamespaceAntiAffinityGroup(
+                    pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle)).isPresent();
+        } catch (MetadataStoreException e) {
+            log.error("Failed to check unload candidates. Assumes that bundle:{} cannot unload ", bundle, e);
+            return false;
+        }
+    }
+
     public void listenFailureDomainUpdate() {
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes

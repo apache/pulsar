@@ -64,6 +64,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
+import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.reporter.TopBundleLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.LoadManagerScheduler;
@@ -75,6 +76,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreFactor
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -118,6 +120,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
     @Getter
     private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
+
+    @Getter
+    private IsolationPoliciesHelper isolationPoliciesHelper;
 
     private LoadDataStore<BrokerLoadData> brokerLoadDataStore;
     private LoadDataStore<TopBundlesLoadData> topBundlesLoadDataStore;
@@ -185,7 +190,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
-        this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         // TODO: Make brokerSelectionStrategy configurable.
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
@@ -236,6 +240,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
         this.antiAffinityGroupPolicyFilter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
         this.brokerFilterPipeline.add(antiAffinityGroupPolicyFilter);
+        SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
+        this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
+        this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
 
         try {
             this.brokerLoadDataStore = LoadDataStoreFactory
@@ -293,8 +300,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
 
         this.unloadScheduler = new UnloadScheduler(
-                pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context, serviceUnitStateChannel,
-                unloadCounter, unloadMetrics);
+                pulsar, pulsar.getLoadManagerExecutor(), unloadManager, context,
+                serviceUnitStateChannel, unloadCounter, unloadMetrics);
         this.unloadScheduler.start();
         this.splitScheduler = new SplitScheduler(
                 pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
@@ -307,7 +314,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public void initialize(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
-        this.brokerFilterPipeline.forEach(brokerFilter -> brokerFilter.initialize(pulsar));
     }
 
     @Override
