@@ -29,7 +29,7 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
     static final Integer[] PORTS = { 50000 };
 
     //
-    private static final String IMAGE_NAME = "devingbost/debezium-db2:0.0.1";
+    private static final String IMAGE_NAME = "apachepulsar/debezium-db2-test-image:latest";
 
     public DebeziumDB2DbContainer(String clusterName) {
         super(clusterName, IMAGE_NAME);

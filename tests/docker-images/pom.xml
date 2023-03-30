@@ -51,6 +51,7 @@
         <module>java-test-plugins</module>
         <module>latest-version-image</module>
         <module>java-test-image</module>
+        <module>debezium-db2-test-image</module>
       </modules>
     </profile>
   </profiles>
