@@ -102,6 +102,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+        if (IS_CLOSED_UPDATER.get(this) == TRUE) {
+            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
+            consumer.disconnect();
+            return;
+        }
         super.addConsumer(consumer);
         try {
             selector.addConsumer(consumer);

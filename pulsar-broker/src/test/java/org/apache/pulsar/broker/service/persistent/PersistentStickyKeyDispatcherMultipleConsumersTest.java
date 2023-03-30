@@ -159,6 +159,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
     }
 
+    @Test(timeOut = 10000)
+    public void testAddConsumerWhenClosed() throws Exception {
+        persistentDispatcher.close().get();
+        Consumer consumer = mock(Consumer.class);
+        persistentDispatcher.addConsumer(consumer);
+        verify(consumer, times(1)).disconnect();
+        assertEquals(0, persistentDispatcher.getConsumers().size());
+    }
+
     @Test
     public void testSendMarkerMessage() {
         try {

@@ -95,6 +95,15 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(timeOut = 10000)
+    public void testAddConsumerWhenClosed() throws Exception {
+        nonpersistentDispatcher.close().get();
+        Consumer consumer = mock(Consumer.class);
+        nonpersistentDispatcher.addConsumer(consumer);
+        verify(consumer, times(1)).disconnect();
+        assertEquals(0, nonpersistentDispatcher.getConsumers().size());
+    }
+
+    @Test(timeOut = 10000)
     public void testSendMessage() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         when(consumerMock.getAvailablePermits()).thenReturn(1000);
