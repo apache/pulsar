@@ -40,7 +40,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
@@ -549,16 +548,15 @@ public class TransferShedderTest {
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testBundlesWithIsolationPolicies() throws IllegalAccessException {
+    public void testBundlesWithIsolationPolicies() {
         List<BrokerFilter> filters = new ArrayList<>();
         var allocationPoliciesSpy = mock(SimpleResourceAllocationPolicies.class);
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPoliciesSpy);
         BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
         filters.add(filter);
         UnloadCounter counter = new UnloadCounter();
-        TransferShedder transferShedder = spy(new TransferShedder(pulsar, counter, null,
+        TransferShedder transferShedder = spy(new TransferShedder(pulsar, counter, filters,
                 isolationPoliciesHelper, antiAffinityGroupPolicyHelper));
-        FieldUtils.writeDeclaredField(transferShedder, "allocationPolicies", allocationPoliciesSpy, true);
 
         setIsolationPolicies(allocationPoliciesSpy, "my-tenant/my-namespaceE",
                 Set.of("broker5"), Set.of(), Set.of(), 1);
@@ -710,13 +708,27 @@ public class TransferShedderTest {
 
         var ctx = setupContext();
 
-        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
         NamespaceBundle namespaceBundle = mock(NamespaceBundle.class);
         doReturn("bundle").when(namespaceBundle).toString();
-        assertFalse(transferShedder.isLoadBalancerSheddingBundlesWithPoliciesEnabled(ctx, namespaceBundle));
 
+        boolean[][] expects = {
+                {true, true, true, true},
+                {true, true, false, false},
+                {true, false, true, true},
+                {true, false, false, false},
+                {false, true, true, true},
+                {false, true, false, false},
+                {false, false, true, true},
+                {false, false, false, true}
+        };
 
-
+        for (boolean[] expect : expects) {
+            doReturn(expect[0]).when(isolationPoliciesHelper).hasIsolationPolicy(any());
+            doReturn(expect[1]).when(antiAffinityGroupPolicyHelper).hasAntiAffinityGroupPolicy(any());
+            ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(expect[2]);
+            assertEquals(transferShedder.isLoadBalancerSheddingBundlesWithPoliciesEnabled(ctx, namespaceBundle),
+                    expect[3]);
+        }
     }
 
     @Test

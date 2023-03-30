@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.policies;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
@@ -47,44 +46,6 @@ public class AntiAffinityGroupPolicyHelper {
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, bundle,
                 brokers.keySet(),
                 channel.getOwnershipEntrySet(), brokerToFailureDomainMap);
-    }
-
-    public boolean canUnload(
-            Map<String, BrokerLookupData> brokers,
-            String bundle,
-            String srcBroker,
-            Optional<String> dstBroker) {
-
-        try {
-            var antiAffinityGroupOptional = LoadManagerShared.getNamespaceAntiAffinityGroup(
-                    pulsar, LoadManagerShared.getNamespaceNameFromBundleName(bundle));
-            if (antiAffinityGroupOptional.isEmpty()) {
-                return true;
-            }
-
-            // bundle has anti-affinityGroup
-            if (!pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled()) {
-                return false;
-            }
-
-            // copy to retain the input brokers
-            Map<String, BrokerLookupData> candidates = new HashMap<>(brokers);
-
-            filter(candidates, bundle);
-
-            candidates.remove(srcBroker);
-
-            // unload case
-            if (dstBroker.isEmpty()) {
-                return !candidates.isEmpty();
-            }
-
-            // transfer case
-            return candidates.containsKey(dstBroker.get());
-        } catch (MetadataStoreException e) {
-            log.error("Failed to check unload candidates. Assumes that bundle:{} cannot unload ", bundle, e);
-            return false;
-        }
     }
 
     public boolean hasAntiAffinityGroupPolicy(String bundle) {

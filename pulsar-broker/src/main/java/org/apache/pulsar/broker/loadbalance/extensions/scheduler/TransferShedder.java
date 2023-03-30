@@ -723,7 +723,6 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
         }
 
-        String bundle = namespaceBundle.toString();
         if (antiAffinityGroupPolicyHelper != null
                 && antiAffinityGroupPolicyHelper.hasAntiAffinityGroupPolicy(namespaceBundle.toString())) {
             return context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
