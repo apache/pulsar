@@ -102,7 +102,7 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
                 }
                 return;
             }
-            Thread.sleep(1000);
+            Thread.sleep(20000);
         }
         throw new IllegalStateException("DB2 did not startup properly");
     }
