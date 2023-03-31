@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 FROM ubuntu:20.04
 
 RUN groupadd -g 10001 pulsar
