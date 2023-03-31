@@ -930,7 +930,7 @@ jobs:
     name: CI - System - ${{ matrix.name }}
     runs-on: ubuntu-20.04
     timeout-minutes: 60
-    needs: ['preconditions', 'pulsar-test-latest-version-image']
+    needs: ['preconditions', 'pulsar-test-latest-version-image', 'pulsar-debezium-db2-test-image']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       JOB_NAME: CI - System - ${{ matrix.name }}
@@ -1013,6 +1013,10 @@ jobs:
       - name: Load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
         run: |
           $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-test-latest-version-image
+
+      - name: Load docker image apachepulsar/debezium-db2-test-image:latest from Github artifact cache
+        run: |
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-debezium-db2-test-image
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
