@@ -691,13 +691,15 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         }
 
         Map<String, BrokerLookupData> candidates = new HashMap<>(availableBrokers);
-        brokerFilterPipeline.forEach(filter -> {
+        for (var filter : brokerFilterPipeline) {
             try {
                 filter.filter(candidates, namespaceBundle, context);
             } catch (BrokerFilterException e) {
                 log.error("Failed to filter brokers with filter: {}", filter.getClass().getName(), e);
+                return false;
             }
-        });
+        }
+
         if (dstBroker.isPresent()) {
             if (!candidates.containsKey(dstBroker.get())) {
                 return false;

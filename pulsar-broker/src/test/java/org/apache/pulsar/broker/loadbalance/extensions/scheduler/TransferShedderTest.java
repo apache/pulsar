@@ -62,6 +62,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
@@ -91,6 +92,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -696,6 +698,37 @@ public class TransferShedderTest {
         expected2.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
                 Success, Overloaded));
         assertEquals(res2, expected2);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+    }
+
+    @Test
+    public void testFilterHasException() throws MetadataStoreException {
+        var filters = new ArrayList<BrokerFilter>();
+        BrokerFilter filter = new BrokerFilter() {
+            @Override
+            public String name() {
+                return "Test-Filter";
+            }
+
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                throw new BrokerFilterException("test");
+            }
+        };
+        filters.add(filter);
+        var counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(pulsar, counter, filters,
+                isolationPoliciesHelper, antiAffinityGroupPolicyHelper);
+
+        var ctx = setupContext();
+        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
     }
