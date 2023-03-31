@@ -735,13 +735,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return false;
         }
 
-        // do not use the return value to return the function call.
-        setMessageSchema(msg);
+        byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
+        if (schemaVersion != null) {
+            if (schemaVersion != SchemaVersion.Empty.bytes()) {
+                msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+            }
+
+            msg.setSchemaState(MessageImpl.SchemaState.Ready);
+        }
 
         return true;
     }
 
-    private boolean setMessageSchema(MessageImpl msg) {
+    private boolean rePopulateMessageSchema(MessageImpl msg) {
         byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
         if (schemaVersion == null) {
             return false;
@@ -753,10 +759,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         msg.setSchemaState(MessageImpl.SchemaState.Ready);
         return true;
-    }
-
-    private boolean rePopulateMessageSchema(MessageImpl msg) {
-        return setMessageSchema(msg);
     }
 
     private void tryRegisterSchema(ClientCnx cnx, MessageImpl msg, SendCallback callback, long expectedCnxEpoch) {
