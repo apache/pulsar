@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -49,11 +50,13 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
 
     private final PulsarAdmin pulsarAdmin;
 
-    private final LoadingCache<BytesSchemaVersion, CompletableFuture<SchemaInfo>> cache = CacheBuilder
-            .newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<>() {
+    private final LoadingCache<BytesSchemaVersion, CompletableFuture<SchemaInfo>> cache = CacheBuilder.newBuilder()
+            .maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES)
+            .build(new CacheLoader<>() {
+                @Nonnull
                 @Override
-                public CompletableFuture<SchemaInfo> load(BytesSchemaVersion schemaVersion) throws Exception {
+                public CompletableFuture<SchemaInfo> load(@Nonnull BytesSchemaVersion schemaVersion) {
                     return loadSchema(schemaVersion);
                 }
             });
@@ -99,7 +102,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     }
 
 
-    public static SchemaInfo defaultSchema(){
+    public static SchemaInfo defaultSchema() {
         return Schema.BYTES.getSchemaInfo();
     }
 
