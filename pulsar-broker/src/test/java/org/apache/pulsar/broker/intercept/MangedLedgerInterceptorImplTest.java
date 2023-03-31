@@ -200,7 +200,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         final String ledgerAndCursorName = "testAddEntryFailed";
 
         ManagedLedgerInterceptor interceptor =
-                new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
+                new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors());
 
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
