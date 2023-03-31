@@ -1860,6 +1860,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // inherit super users
         workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+        workerConfig.setProxyRoles(brokerConfig.getProxyRoles());
         workerConfig.setFunctionsWorkerEnablePackageManagement(brokerConfig.isFunctionsWorkerEnablePackageManagement());
 
         // inherit the nar package locations

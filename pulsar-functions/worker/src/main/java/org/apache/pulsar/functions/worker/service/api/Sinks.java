@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker.service.api;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
@@ -37,6 +38,15 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sinks<W extends WorkerService> extends Component<W> {
 
+    void registerSink(String tenant,
+                      String namespace,
+                      String sinkName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sinkPkgUrl,
+                      SinkConfig sinkConfig,
+                      Authentication authentication);
+
     /**
      * Update a function.
      * @param tenant The tenant of a Pulsar Sink
@@ -49,7 +59,8 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param clientRole Client role for running the Pulsar Sink
      * @param clientAuthenticationDataHttps Authentication status of the http client
      */
-    void registerSink(String tenant,
+    @Deprecated
+    default void registerSink(String tenant,
                       String namespace,
                       String sinkName,
                       InputStream uploadedInputStream,
@@ -57,7 +68,14 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                       String sinkPkgUrl,
                       SinkConfig sinkConfig,
                       String clientRole,
-                      AuthenticationDataSource clientAuthenticationDataHttps);
+                      AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder()
+                .clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
+                .build();
+        registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail, sinkPkgUrl, sinkConfig,
+                authentication);
+    }
 
     /**
      * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
@@ -95,9 +113,8 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param sinkPkgUrl URL path of the Pulsar Sink package
      * @param sinkConfig Configuration of Pulsar Sink
-     * @param clientRole Client role for running the Pulsar Sink
-     * @param clientAuthenticationDataHttps Authentication status of the http client
      * @param updateOptions Options while updating the sink
+     * @param authentication auth data for http request
      */
     void updateSink(String tenant,
                     String namespace,
@@ -106,9 +123,40 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     FormDataContentDisposition fileDetail,
                     String sinkPkgUrl,
                     SinkConfig sinkConfig,
+                    UpdateOptionsImpl updateOptions,
+                    Authentication authentication);
+
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Sink
+     * @param namespace The namespace of a Pulsar Sink
+     * @param sinkName The name of a Pulsar Sink
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sinkPkgUrl URL path of the Pulsar Sink package
+     * @param sinkConfig Configuration of Pulsar Sink
+     * @param clientRole Client role for running the Pulsar Sink
+     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param updateOptions Options while updating the sink
+     */
+    @Deprecated
+    default void updateSink(String tenant,
+                    String namespace,
+                    String sinkName,
+                    InputStream uploadedInputStream,
+                    FormDataContentDisposition fileDetail,
+                    String sinkPkgUrl,
+                    SinkConfig sinkConfig,
                     String clientRole,
                     AuthenticationDataSource clientAuthenticationDataHttps,
-                    UpdateOptionsImpl updateOptions);
+                    UpdateOptionsImpl updateOptions) {
+        Authentication authentication = Authentication.builder()
+                .clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
+                .build();
+        updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail, sinkPkgUrl, sinkConfig, updateOptions,
+                authentication);
+    }
 
     /**
      * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
@@ -144,19 +192,54 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                                                  String sinkName,
                                                  String instanceId,
                                                  URI uri,
-                                                 String clientRole,
-                                                 AuthenticationDataSource clientAuthenticationDataHttps);
+                                                 Authentication authentication);
+
+    @Deprecated
+    default SinkInstanceStatusData getSinkInstanceStatus(String tenant,
+                                                         String namespace,
+                                                         String sinkName,
+                                                         String instanceId,
+                                                         URI uri,
+                                                         String clientRole,
+                                                         AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder()
+                .clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
+                .build();
+        return getSinkInstanceStatus(tenant, namespace, sinkName, instanceId, uri, authentication);
+    }
 
     SinkStatus getSinkStatus(String tenant,
                              String namespace,
                              String componentName,
                              URI uri,
+                             Authentication authentication);
+
+    @Deprecated
+    default SinkStatus getSinkStatus(String tenant,
+                             String namespace,
+                             String componentName,
+                             URI uri,
                              String clientRole,
-                             AuthenticationDataSource clientAuthenticationDataHttps);
+                             AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder()
+                .clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
+                .build();
+        return getSinkStatus(tenant, namespace, componentName, uri, authentication);
+    }
 
     SinkConfig getSinkInfo(String tenant,
                            String namespace,
-                           String componentName);
+                           String componentName,
+                           Authentication authentication);
+
+    @Deprecated
+    default SinkConfig getSinkInfo(String tenant,
+                                   String namespace,
+                                   String componentName) {
+        return getSinkInfo(tenant, namespace, componentName, Authentication.builder().build());
+    }
 
     List<ConnectorDefinition> getSinkList();
 

@@ -49,6 +49,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -1707,7 +1708,8 @@ public class FunctionApiV3ResourceTest {
         when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
         when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, false);
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                Authentication.builder().build(), false);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1740,7 +1742,8 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
         when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, false);
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                Authentication.builder().build(), false);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1774,7 +1777,8 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
         when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null, true);
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                Authentication.builder().build(), true);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);

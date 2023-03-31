@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -35,25 +36,85 @@ import org.apache.pulsar.functions.worker.WorkerService;
  */
 public interface Workers<W extends WorkerService> {
 
-    List<WorkerInfo> getCluster(String clientRole);
+    List<WorkerInfo> getCluster(Authentication authentication);
 
-    WorkerInfo getClusterLeader(String clientRole);
+    @Deprecated
+    default List<WorkerInfo> getCluster(String clientRole) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getCluster(authentication);
+    }
 
-    Map<String, Collection<String>> getAssignments(String clientRole);
+    WorkerInfo getClusterLeader(Authentication authentication);
 
-    List<Metrics> getWorkerMetrics(String clientRole);
+    @Deprecated
+    default WorkerInfo getClusterLeader(String clientRole) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getClusterLeader(authentication);
+    }
 
-    List<WorkerFunctionInstanceStats> getFunctionsMetrics(String clientRole) throws IOException;
+    Map<String, Collection<String>> getAssignments(Authentication authentication);
 
-    List<ConnectorDefinition> getListOfConnectors(String clientRole);
+    @Deprecated
+    default Map<String, Collection<String>> getAssignments(String clientRole) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getAssignments(authentication);
+    }
 
-    void rebalance(URI uri, String clientRole);
+    List<Metrics> getWorkerMetrics(Authentication authentication);
 
-    void drain(URI uri, String workerId, String clientRole, boolean leaderUri);
+    @Deprecated
+    default List<Metrics> getWorkerMetrics(String clientRole) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getWorkerMetrics(authentication);
+    }
 
-    LongRunningProcessStatus getDrainStatus(URI uri, String workerId, String clientRole,
+    List<WorkerFunctionInstanceStats> getFunctionsMetrics(Authentication authentication) throws IOException;
+
+    @Deprecated
+    default List<WorkerFunctionInstanceStats> getFunctionsMetrics(String clientRole) throws IOException {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getFunctionsMetrics(authentication);
+    }
+
+    List<ConnectorDefinition> getListOfConnectors(Authentication authentication);
+
+    @Deprecated
+    default List<ConnectorDefinition> getListOfConnectors(String clientRole) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getListOfConnectors(authentication);
+    }
+
+    void rebalance(URI uri, Authentication authentication);
+
+    @Deprecated
+    default void rebalance(URI uri, String clientRole) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        rebalance(uri, authentication);
+    }
+
+    void drain(URI uri, String workerId, Authentication authentication, boolean leaderUri);
+
+    @Deprecated
+    default void drain(URI uri, String workerId, String clientRole, boolean leaderUri) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        drain(uri, workerId, authentication, leaderUri);
+    }
+
+    LongRunningProcessStatus getDrainStatus(URI uri, String workerId, Authentication authentication,
                                             boolean leaderUri);
 
-    Boolean isLeaderReady(String clientRole);
+    @Deprecated
+    default LongRunningProcessStatus getDrainStatus(URI uri, String workerId, String clientRole,
+                                            boolean leaderUri) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole).build();
+        return getDrainStatus(uri, workerId, authentication, leaderUri);
+    }
+
+    boolean isLeaderReady();
+
+    @Deprecated
+    default Boolean isLeaderReady(String clientRole) {
+        return isLeaderReady();
+    }
 
 }

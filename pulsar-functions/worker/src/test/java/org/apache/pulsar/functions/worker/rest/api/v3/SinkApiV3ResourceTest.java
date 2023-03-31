@@ -52,6 +52,7 @@ import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -1532,7 +1533,8 @@ public class SinkApiV3ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                sink, null, null
+                sink,
+                Authentication.builder().build()
         );
 
     }
@@ -1541,7 +1543,8 @@ public class SinkApiV3ResourceTest {
         return resource.getSinkInfo(
                 tenant,
                 namespace,
-                sink
+                sink,
+                Authentication.builder().build()
         );
     }
 
@@ -1634,7 +1637,8 @@ public class SinkApiV3ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                Authentication.builder().build()
         );
 
     }
@@ -1642,7 +1646,8 @@ public class SinkApiV3ResourceTest {
     private List<String> listDefaultSinks() {
         return resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                Authentication.builder().build()
         );
     }
 

@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -59,11 +60,11 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response getFunctionInfo(final String tenant, final String namespace,
-                                    final String functionName, String clientRole)
+                                    final String functionName, Authentication authentication)
             throws IOException {
 
         // run just for parameter checks
-        delegate.getFunctionInfo(tenant, namespace, functionName, clientRole, null);
+        delegate.getFunctionInfo(tenant, namespace, functionName, authentication);
 
         FunctionMetaDataManager functionMetaDataManager = delegate.worker().getFunctionMetaDataManager();
 
@@ -75,11 +76,12 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response getFunctionInstanceStatus(final String tenant, final String namespace, final String functionName,
-                                              final String instanceId, URI uri, String clientRole) throws IOException {
+                                              final String instanceId, URI uri,
+                                              Authentication authentication) throws IOException {
 
         org.apache.pulsar.common.policies.data.FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData
                 functionInstanceStatus = delegate.getFunctionInstanceStatus(tenant, namespace,
-                functionName, instanceId, uri, clientRole, null);
+                functionName, instanceId, uri, authentication);
 
         String jsonResponse = FunctionCommon.printJson(toProto(functionInstanceStatus, instanceId));
         return Response.status(Response.Status.OK).entity(jsonResponse).build();
@@ -87,10 +89,10 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response getFunctionStatusV2(String tenant, String namespace, String functionName,
-                                        URI requestUri, String clientRole) throws
+                                        URI requestUri, Authentication authentication) throws
             IOException {
         FunctionStatus functionStatus = delegate.getFunctionStatus(tenant, namespace,
-                functionName, requestUri, clientRole, null);
+                functionName, requestUri, authentication);
         InstanceCommunication.FunctionStatusList.Builder functionStatusList =
                 InstanceCommunication.FunctionStatusList.newBuilder();
         functionStatus.instances.forEach(functionInstanceStatus -> functionStatusList.addFunctionStatusList(
@@ -103,7 +105,7 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
     @Override
     public Response registerFunction(String tenant, String namespace, String functionName, InputStream
             uploadedInputStream, FormDataContentDisposition fileDetail, String functionPkgUrl, String
-                                             functionDetailsJson, String clientRole) {
+                                             functionDetailsJson, Authentication authentication) {
 
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         try {
@@ -114,14 +116,15 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
         FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
 
         delegate.registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfig, clientRole, null);
+                functionPkgUrl, functionConfig, authentication);
         return Response.ok().build();
     }
 
     @Override
     public Response updateFunction(String tenant, String namespace, String functionName,
                                    InputStream uploadedInputStream, FormDataContentDisposition fileDetail,
-                                   String functionPkgUrl, String functionDetailsJson, String clientRole) {
+                                   String functionPkgUrl, String functionDetailsJson,
+                                   Authentication authentication) {
 
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         try {
@@ -132,35 +135,36 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
         FunctionConfig functionConfig = FunctionConfigUtils.convertFromDetails(functionDetailsBuilder.build());
 
         delegate.updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfig, clientRole, null, null);
+                functionPkgUrl, functionConfig, authentication, null);
         return Response.ok().build();
     }
 
     @Override
-    public Response deregisterFunction(String tenant, String namespace, String functionName, String clientAppId) {
-        delegate.deregisterFunction(tenant, namespace, functionName, clientAppId, null);
+    public Response deregisterFunction(String tenant, String namespace, String functionName,
+                                       Authentication authentication) {
+        delegate.deregisterFunction(tenant, namespace, functionName,  authentication);
         return Response.ok().build();
     }
 
     @Override
-    public Response listFunctions(String tenant, String namespace, String clientRole) {
-        Collection<String> functionStateList = delegate.listFunctions(tenant, namespace, clientRole, null);
+    public Response listFunctions(String tenant, String namespace, Authentication authentication) {
+        Collection<String> functionStateList = delegate.listFunctions(tenant, namespace, authentication);
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
 
     @Override
     public Response triggerFunction(String tenant, String namespace, String functionName, String triggerValue,
-                                    InputStream triggerStream, String topic, String clientRole) {
+                                    InputStream triggerStream, String topic, Authentication authentication) {
         String result = delegate.triggerFunction(tenant, namespace, functionName,
-                triggerValue, triggerStream, topic, clientRole, null);
+                triggerValue, triggerStream, topic, authentication);
         return Response.status(Response.Status.OK).entity(result).build();
     }
 
     @Override
     public Response getFunctionState(String tenant, String namespace, String functionName,
-                                     String key, String clientRole) {
+                                     String key, Authentication authentication) {
         FunctionState functionState = delegate.getFunctionState(
-                tenant, namespace, functionName, key, clientRole, null);
+                tenant, namespace, functionName, key, authentication);
 
         String value;
         if (functionState.getNumberValue() != null) {
@@ -175,39 +179,41 @@ public class FunctionsImplV2 implements FunctionsV2<PulsarWorkerService> {
 
     @Override
     public Response restartFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
-            uri, String clientRole) {
-        delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole, null);
+            uri, Authentication authentication) {
+        delegate.restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, authentication);
         return Response.ok().build();
     }
 
     @Override
-    public Response restartFunctionInstances(String tenant, String namespace, String functionName, String clientRole) {
-        delegate.restartFunctionInstances(tenant, namespace, functionName, clientRole, null);
+    public Response restartFunctionInstances(String tenant, String namespace, String functionName,
+                                             Authentication authentication) {
+        delegate.restartFunctionInstances(tenant, namespace, functionName, authentication);
         return Response.ok().build();
     }
 
     @Override
     public Response stopFunctionInstance(String tenant, String namespace, String functionName, String instanceId, URI
-            uri, String clientRole) {
-        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, clientRole, null);
+            uri, Authentication authentication) {
+        delegate.stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, authentication);
         return Response.ok().build();
     }
 
     @Override
-    public Response stopFunctionInstances(String tenant, String namespace, String functionName, String clientRole) {
-        delegate.stopFunctionInstances(tenant, namespace, functionName, clientRole, null);
+    public Response stopFunctionInstances(String tenant, String namespace, String functionName,
+                                          Authentication authentication) {
+        delegate.stopFunctionInstances(tenant, namespace, functionName, authentication);
         return Response.ok().build();
     }
 
     @Override
-    public Response uploadFunction(InputStream uploadedInputStream, String path, String clientRole) {
-        delegate.uploadFunction(uploadedInputStream, path, clientRole, null);
+    public Response uploadFunction(InputStream uploadedInputStream, String path, Authentication authentication) {
+        delegate.uploadFunction(uploadedInputStream, path, authentication);
         return Response.ok().build();
     }
 
     @Override
-    public Response downloadFunction(String path, String clientRole) {
-        return Response.status(Response.Status.OK).entity(delegate.downloadFunction(path, clientRole, null)).build();
+    public Response downloadFunction(String path, Authentication authentication) {
+        return Response.status(Response.Status.OK).entity(delegate.downloadFunction(path, authentication)).build();
     }
 
     @Override

@@ -51,6 +51,7 @@ import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -1385,7 +1386,8 @@ public class SourceApiV3ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                source, null, null
+                source,
+                Authentication.builder().build()
         );
     }
 
@@ -1393,7 +1395,8 @@ public class SourceApiV3ResourceTest {
         return resource.getSourceInfo(
                 tenant,
                 namespace,
-                source
+                source,
+                Authentication.builder().build()
         );
     }
 
@@ -1476,14 +1479,17 @@ public class SourceApiV3ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                Authentication.builder().build()
         );
     }
 
     private List<String> listDefaultSources() {
         return resource.listFunctions(
                 tenant,
-                namespace, null, null);
+                namespace,
+                Authentication.builder().build()
+        );
     }
 
     @Test

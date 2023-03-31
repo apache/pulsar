@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -37,6 +38,16 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Functions<W extends WorkerService> extends Component<W> {
 
+
+    void registerFunction(String tenant,
+                          String namespace,
+                          String functionName,
+                          InputStream uploadedInputStream,
+                          FormDataContentDisposition fileDetail,
+                          String functionPkgUrl,
+                          FunctionConfig functionConfig,
+                          Authentication authentication);
+
     /**
      * Register a new function.
      * @param tenant The tenant of a Pulsar Function
@@ -49,7 +60,8 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param clientRole Client role for running the pulsar function
      * @param clientAuthenticationDataHttps Authentication status of the http client
      */
-    void registerFunction(String tenant,
+    @Deprecated
+    default void registerFunction(String tenant,
                           String namespace,
                           String functionName,
                           InputStream uploadedInputStream,
@@ -57,7 +69,21 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                           String functionPkgUrl,
                           FunctionConfig functionConfig,
                           String clientRole,
-                          AuthenticationDataSource clientAuthenticationDataHttps);
+                          AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder()
+                .clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
+                .build();
+        registerFunction(
+                tenant,
+                namespace,
+                functionName,
+                uploadedInputStream,
+                fileDetail,
+                functionPkgUrl,
+                functionConfig,
+                authentication);
+    }
 
     /**
      * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
@@ -86,6 +112,16 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                 (AuthenticationDataSource) clientAuthenticationDataHttps);
     }
 
+    void updateFunction(String tenant,
+                        String namespace,
+                        String functionName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String functionPkgUrl,
+                        FunctionConfig functionConfig,
+                        Authentication authentication,
+                        UpdateOptionsImpl updateOptions);
+
     /**
      * Update a function.
      * @param tenant The tenant of a Pulsar Function
@@ -99,7 +135,8 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param clientAuthenticationDataHttps Authentication status of the http client
      * @param updateOptions Options while updating the function
      */
-    void updateFunction(String tenant,
+    @Deprecated
+    default void updateFunction(String tenant,
                         String namespace,
                         String functionName,
                         InputStream uploadedInputStream,
@@ -108,7 +145,22 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                         FunctionConfig functionConfig,
                         String clientRole,
                         AuthenticationDataSource clientAuthenticationDataHttps,
-                        UpdateOptionsImpl updateOptions);
+                        UpdateOptionsImpl updateOptions) {
+        Authentication authentication = Authentication.builder()
+                .clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
+                .build();
+        updateFunction(
+                tenant,
+                namespace,
+                functionName,
+                uploadedInputStream,
+                fileDetail,
+                functionPkgUrl,
+                functionConfig,
+                authentication,
+                updateOptions);
+    }
 
     /**
      * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
@@ -145,27 +197,78 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                       InputStream uploadedInputStream,
                                       boolean delete,
                                       URI uri,
-                                      String clientRole,
-                                      AuthenticationDataSource clientAuthenticationDataHttps);
+                                      Authentication authentication);
 
+    @Deprecated
+    default void updateFunctionOnWorkerLeader(String tenant,
+                                              String namespace,
+                                              String functionName,
+                                              InputStream uploadedInputStream,
+                                              boolean delete,
+                                              URI uri,
+                                              String clientRole,
+                                              AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
+        updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream, delete, uri,
+                authentication);
+    }
     FunctionStatus getFunctionStatus(String tenant,
                                      String namespace,
                                      String componentName,
                                      URI uri,
-                                     String clientRole,
-                                     AuthenticationDataSource clientAuthenticationDataHttps);
+                                     Authentication authentication);
+
+    @Deprecated
+    default FunctionStatus getFunctionStatus(String tenant,
+                                             String namespace,
+                                             String componentName,
+                                             URI uri,
+                                             String clientRole,
+                                             AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
+        return getFunctionStatus(tenant, namespace, componentName, uri, authentication);
+    }
 
     FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
                                                          String namespace,
                                                          String componentName,
                                                          String instanceId,
                                                          URI uri,
+                                                         Authentication authentication);
+
+    @Deprecated
+    default FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
+                                                         String namespace,
+                                                         String componentName,
+                                                         String instanceId,
+                                                         URI uri,
                                                          String clientRole,
-                                                         AuthenticationDataSource clientAuthenticationDataHttps);
+                                                         AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
+        return getFunctionInstanceStatus(tenant, namespace, componentName, instanceId, uri, authentication);
+    }
 
-    void reloadBuiltinFunctions(String clientRole, AuthenticationDataSource clientAuthenticationDataHttps)
-        throws IOException;
+    void reloadBuiltinFunctions(Authentication authentication) throws IOException;
 
-    List<FunctionDefinition> getBuiltinFunctions(String clientRole,
-                                                 AuthenticationDataSource clientAuthenticationDataHttps);
+    @Deprecated
+    default void reloadBuiltinFunctions(String clientRole,
+                                AuthenticationDataSource clientAuthenticationDataHttps) throws IOException {
+        Authentication authentication = Authentication.builder().clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
+        reloadBuiltinFunctions(authentication);
+    }
+
+    List<FunctionDefinition> getBuiltinFunctions(Authentication authentication);
+
+
+    @Deprecated
+    default List<FunctionDefinition> getBuiltinFunctions(String clientRole,
+                                                         AuthenticationDataSource clientAuthenticationDataHttps) {
+        Authentication authentication = Authentication.builder().clientRole(clientRole)
+                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
+        return getBuiltinFunctions(authentication);
+    }
 }

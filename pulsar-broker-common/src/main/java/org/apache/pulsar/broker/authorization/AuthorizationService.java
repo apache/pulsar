@@ -23,9 +23,11 @@ import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -49,6 +51,7 @@ import org.slf4j.LoggerFactory;
 public class AuthorizationService {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
 
+    private final PulsarResources resources;
     private final AuthorizationProvider provider;
     private final ServiceConfiguration conf;
 
@@ -61,6 +64,7 @@ public class AuthorizationService {
                 provider = (AuthorizationProvider) Class.forName(providerClassname)
                         .getDeclaredConstructor().newInstance();
                 provider.initialize(conf, pulsarResources);
+                this.resources = pulsarResources;
                 log.info("{} has been loaded.", providerClassname);
             } else {
                 throw new PulsarServerException("No authorization providers are present.");
@@ -69,6 +73,23 @@ public class AuthorizationService {
             throw e;
         } catch (Throwable e) {
             throw new PulsarServerException("Failed to load an authorization provider.", e);
+        }
+    }
+
+    public CompletableFuture<Boolean> isSuperUser(Authentication authentication) {
+        if (!isValidOriginalPrincipal(authentication)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(authentication.getClientRole())) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = isSuperUser(authentication.getClientRole(),
+                    authentication.getClientAuthenticationDataSource());
+            // No authentication data for original principal
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = isSuperUser(authentication.getOriginalPrincipal(),
+                    null);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return isSuperUser(authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
         }
     }
 
@@ -279,17 +300,118 @@ public class AuthorizationService {
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                             AuthenticationDataSource authenticationData) {
-        return provider.allowFunctionOpsAsync(namespaceName, role, authenticationData);
+        return isSuperUserOrAdmin(namespaceName, role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> isSuperUserOrAdmin
+                        ? CompletableFuture.completedFuture(true)
+                        : provider.allowFunctionOpsAsync(namespaceName, role, authenticationData)
+                );
+    }
+
+    public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName,
+                                                            Authentication authentication) {
+        if (!isValidOriginalPrincipal(authentication)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(authentication.getClientRole())) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowFunctionOpsAsync(namespaceName,
+                    authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+            // No authentication data for original principal
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowFunctionOpsAsync(
+                    namespaceName, authentication.getOriginalPrincipal(), null);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowFunctionOpsAsync(namespaceName, authentication.getClientRole(),
+                    authentication.getClientAuthenticationDataSource());
+        }
     }
 
     public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
                                                           AuthenticationDataSource authenticationData) {
-        return provider.allowSourceOpsAsync(namespaceName, role, authenticationData);
+        return isSuperUserOrAdmin(namespaceName, role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> isSuperUserOrAdmin
+                        ? CompletableFuture.completedFuture(true)
+                        : provider.allowSourceOpsAsync(namespaceName, role, authenticationData)
+                );
+    }
+
+    public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName,
+                                                          Authentication authentication) {
+        if (!isValidOriginalPrincipal(authentication)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(authentication.getClientRole())) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowSourceOpsAsync(namespaceName,
+                    authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+            // No authentication data for original principal
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowSourceOpsAsync(
+                    namespaceName, authentication.getOriginalPrincipal(), null);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowSourceOpsAsync(namespaceName, authentication.getClientRole(),
+                    authentication.getClientAuthenticationDataSource());
+        }
     }
 
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
                                                         AuthenticationDataSource authenticationData) {
-        return provider.allowSinkOpsAsync(namespaceName, role, authenticationData);
+        return isSuperUserOrAdmin(namespaceName, role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> isSuperUserOrAdmin
+                        ? CompletableFuture.completedFuture(true)
+                        : provider.allowSinkOpsAsync(namespaceName, role, authenticationData)
+                );
+    }
+
+    public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName,
+                                                        Authentication authentication) {
+        if (!isValidOriginalPrincipal(authentication)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(authentication.getClientRole())) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowSinkOpsAsync(namespaceName,
+                    authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+            // No authentication data for original principal
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowSinkOpsAsync(
+                    namespaceName, authentication.getOriginalPrincipal(), null);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowSinkOpsAsync(namespaceName, authentication.getClientRole(),
+                    authentication.getClientAuthenticationDataSource());
+        }
+    }
+
+    /**
+     * Functions, sources, and sinks each have their own method in this class. This method first checks for
+     * tenant admin access, then for namespace level permission.
+     */
+    private CompletableFuture<Boolean> isSuperUserOrAdmin(NamespaceName namespaceName,
+                                                          String role,
+                                                          AuthenticationDataSource authenticationData) {
+        return isSuperUser(role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> isSuperUserOrAdmin
+                        ? CompletableFuture.completedFuture(true)
+                        : isTenantAdmin(namespaceName.getTenant(), role, authenticationData));
+    }
+
+    private CompletableFuture<Boolean> isTenantAdmin(String tenant, String role,
+                                                    AuthenticationDataSource authData) {
+        return resources.getTenantResources()
+                .getTenantAsync(tenant)
+                .thenCompose(op -> {
+                    if (op.isPresent()) {
+                        return isTenantAdmin(tenant, role, op.get(), authData);
+                    } else {
+                        return CompletableFuture.failedFuture(new RestException(Response.Status.NOT_FOUND,
+                                "Tenant does not exist"));
+                    }
+                });
+    }
+
+    private boolean isValidOriginalPrincipal(Authentication authentication) {
+        return isValidOriginalPrincipal(authentication.getClientRole(),
+                authentication.getOriginalPrincipal(), authentication.getClientAuthenticationDataSource());
     }
 
     /**
@@ -323,7 +445,7 @@ public class AuthorizationService {
                                             SocketAddress remoteAddress,
                                             boolean allowNonProxyPrincipalsToBeEqual) {
         String errorMsg = null;
-        if (conf.getProxyRoles().contains(authenticatedPrincipal)) {
+        if (authenticatedPrincipal != null && conf.getProxyRoles().contains(authenticatedPrincipal)) {
             if (StringUtils.isBlank(originalPrincipal)) {
                 errorMsg = "originalPrincipal must be provided when connecting with a proxy role.";
             } else if (conf.getProxyRoles().contains(originalPrincipal)) {
