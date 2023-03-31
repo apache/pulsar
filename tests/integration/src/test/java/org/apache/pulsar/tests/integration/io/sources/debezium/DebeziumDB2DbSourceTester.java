@@ -93,7 +93,11 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
             ContainerExecResult response = runDb2Cmd(cmd);
             if ((response.getStderr() != null && response.getStderr().contains(status))
                     || (response.getStdout() != null && response.getStdout().contains(status))) {
-                log.info("Result of \"{}\":\n{}", cmd, response.getStdout());
+                if (Strings.isNullOrEmpty(response.getStderr())) {
+                    log.info("Result of \"{}\":\n{}", cmd, response.getStdout());
+                } else {
+                    log.warn("Result of \"{}\":\n{}\n{}", cmd, response.getStdout(), response.getStderr());
+                }
                 return;
             }
             Thread.sleep(1000);
