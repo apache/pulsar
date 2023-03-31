@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 FROM ibmcom/db2:11.5.0.0a
 
 MAINTAINER  Devin Bost
