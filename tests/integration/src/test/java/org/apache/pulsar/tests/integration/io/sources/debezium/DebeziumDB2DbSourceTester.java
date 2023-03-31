@@ -77,6 +77,8 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     @SneakyThrows
     @Override
     public void prepareSource() {
+        Thread.sleep(300 * 1000); // Startup takes at least 300 seconds.
+        waitForDB2Startup("active");
         runDb2Cmd("/opt/ibm/db2/V11.5/bin/db2 connect to mydb2 user 'db2inst1' using 'admin';");
         runDb2Cmd("/opt/ibm/db2/V11.5/bin/db2 bind db2schema.bnd blocking all grant public sqlerror continue");
 
@@ -86,6 +88,17 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         runSqlCmd("INSERT INTO DB2INST1.STORES(store_name, state_id, zip_code) VALUES ('mystore', 12, '11111');");
         runSqlCmd("CALL ASNCDC.ADDTABLE('DB2INST1','STORES')");
     };
+    private void waitForDB2Startup(String status) throws Exception {
+        for (int i = 0; i < 1000; i++) {
+            ContainerExecResult response = runDb2Cmd("/opt/ibm/db2/V11.5/adm/db2start");
+            if ((response.getStderr() != null && response.getStderr().contains(status))
+                    || (response.getStdout() != null && response.getStdout().contains(status))) {
+                return;
+            }
+            Thread.sleep(1000);
+        }
+        throw new IllegalStateException("DB2 did not startup properly");
+    }
     private ContainerExecResult runDb2Cmd(String cmd) throws Exception {
         ContainerExecResult response = this.debeziumDB2DbContainer
                 .execCmdAsUser("root",

@@ -53,3 +53,5 @@ RUN chmod -R  777 /var/custom
 RUN cd /var/custom && curl -sSLO "https://raw.githubusercontent.com/debezium/debezium-connector-db2/main/src/test/docker/db2-cdc-docker/cdcsetup.sh"
 
 RUN chmod 777 /var/custom/cdcsetup.sh
+
+RUN chmod 554 /opt/ibm/db2/V11.5/adm/db2start
