@@ -174,7 +174,7 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             long length = 0;
             List<ByteBuf> bufList = this.bucketSnapshots.get(bucketId);
             for (ByteBuf byteBuf : bufList) {
-                length += byteBuf.array().length;
+                length += byteBuf.readableBytes();
             }
             return length;
         }, executorService);

@@ -40,7 +40,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
-import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.Reflections;
@@ -81,11 +80,10 @@ public class UnloadScheduler implements LoadManagerScheduler {
                            UnloadManager unloadManager,
                            LoadManagerContext context,
                            ServiceUnitStateChannel channel,
-                           AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper,
                            UnloadCounter counter,
                            AtomicReference<List<Metrics>> unloadMetrics) {
         this(pulsar, loadManagerExecutor, unloadManager, context, channel,
-                createNamespaceUnloadStrategy(pulsar, antiAffinityGroupPolicyHelper, counter), counter, unloadMetrics);
+                createNamespaceUnloadStrategy(pulsar), counter, unloadMetrics);
     }
 
     @VisibleForTesting
@@ -212,19 +210,22 @@ public class UnloadScheduler implements LoadManagerScheduler {
         this.recentlyUnloadedBrokers.clear();
     }
 
-    private static NamespaceUnloadStrategy createNamespaceUnloadStrategy(PulsarService pulsar,
-                                                                         AntiAffinityGroupPolicyHelper helper,
-                                                                         UnloadCounter counter) {
+    private static NamespaceUnloadStrategy createNamespaceUnloadStrategy(PulsarService pulsar) {
         ServiceConfiguration conf = pulsar.getConfiguration();
+        NamespaceUnloadStrategy unloadStrategy;
         try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), NamespaceUnloadStrategy.class,
+            unloadStrategy = Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(),
+                    NamespaceUnloadStrategy.class,
                     Thread.currentThread().getContextClassLoader());
+            log.info("Created namespace unload strategy:{}", unloadStrategy.getClass().getCanonicalName());
         } catch (Exception e) {
             log.error("Error when trying to create namespace unload strategy: {}",
                     conf.getLoadBalancerLoadPlacementStrategy(), e);
+            log.error("create namespace unload strategy failed. using TransferShedder instead.");
+            unloadStrategy = new TransferShedder();
         }
-        log.error("create namespace unload strategy failed. using TransferShedder instead.");
-        return new TransferShedder(pulsar, counter, helper);
+        unloadStrategy.initialize(pulsar);
+        return unloadStrategy;
     }
 
     private boolean isLoadBalancerSheddingEnabled() {

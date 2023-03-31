@@ -68,12 +68,6 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     boolean shouldPauseAllDeliveries();
 
     /**
-     * Tells whether this DelayedDeliveryTracker contains this message index,
-     * if the tracker is not supported it or disabled this feature also will return false.
-     */
-    boolean containsMessage(long ledgerId, long entryId);
-
-    /**
      *  Reset tick time use zk policies cache.
      * @param tickTime
      *          The tick time for when retrying on delayed delivery messages

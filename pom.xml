@@ -180,8 +180,8 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.3.2-patch11</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
-    <json-smart.version>2.4.7</json-smart.version>
+    <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
+    <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
     <trino.version>363</trino.version>
@@ -257,7 +257,7 @@ flexible messaging model and an intuitive client API.</description>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.2.0</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
-    <jettison.version>1.5.3</jettison.version>
+    <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
 
