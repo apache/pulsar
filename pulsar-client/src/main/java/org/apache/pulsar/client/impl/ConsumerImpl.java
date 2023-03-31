@@ -665,7 +665,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             result.completeExceptionally(ex);
                             return null;
                         });
-                    }).exceptionally(ex -> {
+                    }, internalPinnedExecutor).exceptionally(ex -> {
                         result.completeExceptionally(ex);
                         deadLetterProducer = null;
                         return null;
@@ -2057,7 +2057,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 return null;
                     });
                 }
-            }).exceptionally(ex -> {
+            }, internalPinnedExecutor).exceptionally(ex -> {
                 log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
                 deadLetterProducer = null;
                 result.complete(false);
