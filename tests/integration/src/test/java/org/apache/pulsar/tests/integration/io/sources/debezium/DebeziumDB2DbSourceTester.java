@@ -77,9 +77,11 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     @SneakyThrows
     @Override
     public void prepareSource() {
-        Thread.sleep(300 * 1000); // Startup takes at least 300 seconds.
+        log.info("Starting DB2");
         waitForDB2Startup("/opt/ibm/db2/V11.5/adm/db2start","active");
+        log.info("DB2 Started. Establishing connection.");
         waitForDB2Startup("/opt/ibm/db2/V11.5/bin/db2 connect to mydb2 user 'db2inst1' using 'admin'","authorization");
+        log.info("DB2 Connection established. Preparing CDC.");
         runDb2Cmd("/opt/ibm/db2/V11.5/bin/db2 bind db2schema.bnd blocking all grant public sqlerror continue");
 
         runSqlCmd("VALUES ASNCDC.ASNCDCSERVICES('start','asncdc')");
