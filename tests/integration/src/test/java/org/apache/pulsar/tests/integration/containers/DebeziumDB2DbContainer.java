@@ -58,7 +58,7 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
             .withEnv("PERSISTENT_HOME", "true")
             .withEnv("HADR_ENABLED", "false")
             .withPrivilegedMode(true)
-            .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
+            .withStartupTimeout(Duration.of(600, ChronoUnit.SECONDS))
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
