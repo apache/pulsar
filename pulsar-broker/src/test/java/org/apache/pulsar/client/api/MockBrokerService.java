@@ -96,7 +96,8 @@ public class MockBrokerService {
         private final Pattern multiPartPattern = Pattern.compile(".*/multi-part-.*");
 
         @Override
-        public void handle(String s, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        public void handle(String s, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
+                throws IOException, ServletException {
             String responseString;
             log.info("Received HTTP request {}", baseRequest.getRequestURI());
             if (baseRequest.getRequestURI().startsWith(lookupURI)) {
@@ -165,7 +166,8 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newLookupResponse(getBrokerAddress(), null, true, LookupType.Connect, lookup.getRequestId(), false));
+            ctx.writeAndFlush(Commands.newLookupResponse(getBrokerAddress(), null, true,
+                    LookupType.Connect, lookup.getRequestId(), false));
         }
 
         @Override
@@ -305,7 +307,8 @@ public class MockBrokerService {
             startMockBrokerService();
             log.info("Started mock Pulsar service on {}", getBrokerAddress());
 
-            lookupData = new LookupData(getBrokerAddress(), null, getHttpAddress(), null);
+            lookupData = new LookupData(getBrokerAddress(), null,
+                    getHttpAddress(), null);
         } catch (Exception e) {
             log.error("Error starting mock service", e);
         }
