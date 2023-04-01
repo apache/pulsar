@@ -2709,8 +2709,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            doDeleteLedgers(ledgersToDelete);
-
             for (LedgerInfo ls : offloadedLedgersToDelete) {
                 LedgerInfo.Builder newInfoBuilder = ls.toBuilder();
                 newInfoBuilder.getOffloadContextBuilder().setBookkeeperDeleted(true);
@@ -2726,36 +2724,56 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.debug("[{}] Updating of ledgers list after trimming", name);
             }
 
-            store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
-                @Override
-                public void operationComplete(Void result, Stat stat) {
-                    log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name, ledgers.size(),
-                            TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
-                    ledgersStat = stat;
-                    metadataMutex.unlock();
-                    trimmerMutex.unlock();
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (LedgerInfo ls : ledgersToDelete) {
+                log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
+                futures.add(asyncDeleteLedger(ls.getLedgerId(), ls));
+            }
+            for (LedgerInfo ls : offloadedLedgersToDelete) {
+                log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
+                        ls.getSize());
+                futures.add(asyncDeleteLedger(ls.getLedgerId(), DEFAULT_LEDGER_DELETE_RETRIES, null));
+            }
+            if (futures.isEmpty()) {
+                metadataMutex.unlock();
+                trimmerMutex.unlock();
+                return;
+            }
+            FutureUtil.waitForAll(futures).thenAccept((res) ->
+                    store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat,
+                            new MetaStoreCallback<>() {
+                                @Override
+                                public void operationComplete(Void result, Stat stat) {
+                                    log.info("[{}] End TrimConsumedLedgers. ledgers={} totalSize={}", name,
+                                            ledgers.size(),
+                                            TOTAL_SIZE_UPDATER.get(ManagedLedgerImpl.this));
+                                    try {
+                                        doDeleteLedgers(ledgersToDelete);
+                                        advanceCursorsIfNecessary(ledgersToDelete);
+                                        ledgersStat = stat;
+                                        promise.complete(null);
+                                    } catch (Exception e) {
+                                        promise.completeExceptionally(e);
+                                    } finally {
+                                        metadataMutex.unlock();
+                                        trimmerMutex.unlock();
+                                    }
+                                }
 
-                    for (LedgerInfo ls : ledgersToDelete) {
-                        log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
-                        asyncDeleteLedger(ls.getLedgerId(), ls);
-                    }
-                    for (LedgerInfo ls : offloadedLedgersToDelete) {
-                        log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name, ls.getLedgerId(),
-                                ls.getSize());
-                        asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
-                    }
-                    promise.complete(null);
-                }
-
-                @Override
-                public void operationFailed(MetaStoreException e) {
-                    log.warn("[{}] Failed to update the list of ledgers after trimming", name, e);
-                    metadataMutex.unlock();
-                    trimmerMutex.unlock();
-                    handleBadVersion(e);
-
-                    promise.completeExceptionally(e);
-                }
+                                @Override
+                                public void operationFailed(MetaStoreException e) {
+                                    log.warn("[{}] Failed to update the list of ledgers after trimming",
+                                            name, e);
+                                    metadataMutex.unlock();
+                                    trimmerMutex.unlock();
+                                    handleBadVersion(e);
+                                    promise.completeExceptionally(e);
+                                }})
+            ).exceptionally((e) -> {
+                metadataMutex.unlock();
+                trimmerMutex.unlock();
+                promise.completeExceptionally(e);
+                return null;
             });
         }
     }
@@ -2931,39 +2949,53 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
         asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
     }
-
-    private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
+    public CompletableFuture<Void> asyncDeleteLedger(long ledgerId, LedgerInfo info) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
         if (!info.getOffloadContext().getBookkeeperDeleted()) {
             // only delete if it hasn't been previously deleted for offload
-            asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+            futures.add(asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES, null));
         }
-
         if (info.getOffloadContext().hasUidMsb()) {
             UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
-            OffloadUtils.cleanupOffloaded(ledgerId, uuid, config,
+            futures.add(OffloadUtils.cleanupOffloaded(ledgerId, uuid, config,
                     OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
-                    "Trimming", name, scheduledExecutor);
+                    "Trimming", name, scheduledExecutor));
         }
+        if (!futures.isEmpty()) {
+            return FutureUtil.waitForAll(futures);
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     private void asyncDeleteLedger(long ledgerId, long retry) {
-        if (retry <= 0) {
-            log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
-            return;
-        }
+        asyncDeleteLedger(ledgerId, retry, null);
+    }
+    @VisibleForTesting
+    public CompletableFuture<Void> asyncDeleteLedger(long ledgerId, long retry,
+                                                      CompletableFuture<Void> callbackFuture) {
+        CompletableFuture<Void> future = callbackFuture == null ? new CompletableFuture<>() : callbackFuture;
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
+            if (rc != BKException.Code.OK) {
+                log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
+                if (retry - 1 <= 0) {
+                    log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
+                    future.completeExceptionally(new ManagedLedgerException(BKException.getMessage(rc)));
+                } else {
+                    scheduledExecutor.schedule(safeRun(() -> asyncDeleteLedger(ledgerId, retry - 1, future)),
+                            DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
+                }
+                return;
+            }
             if (isNoSuchLedgerExistsException(rc)) {
                 log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
-            } else if (rc != BKException.Code.OK) {
-                log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
-                scheduledExecutor.schedule(safeRun(() -> asyncDeleteLedger(ledgerId, retry - 1)),
-                        DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Deleted ledger {}", name, ledgerId);
                 }
             }
+            future.complete(null);
         }, null);
+        return future;
     }
 
     @SuppressWarnings("checkstyle:fallthrough")

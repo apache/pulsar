@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -128,6 +129,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -2271,6 +2273,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(ml.getTotalSize() <= "shortmessage".getBytes().length);
         ml.close();
     }
+    @Test
+    public void testMetaDataNotDeleteWhenLedgerDeleteFailed() throws Exception {
+        BookKeeper spyBookKeeper = spy(bkc);
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, spyBookKeeper);
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(0);
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(1, TimeUnit.SECONDS);
+        ManagedLedgerImpl ml = spy((ManagedLedgerImpl) factory.open("metaDataNotDelete", config));
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ml.openCursor("c1noretention");
+        doReturn(FutureUtil.failedFuture(new ManagedLedgerException("12345"))).when(ml).asyncDeleteLedger(anyLong(), any(LedgerInfo.class));
+        ml.addEntry("testEntry".getBytes());
+        c1.skipEntries(1, IndividualDeletedEntries.Include);
+        ml.addEntry("testEntry2".getBytes());
+        c1.skipEntries(1, IndividualDeletedEntries.Include);
+        assertTrue(ml.getLedgersInfoAsList().size() > 1);
+
+        //delete ledger failed, metadata  should not be delete
+        ml.internalTrimConsumedLedgers(new CompletableFuture<>());
+        assertTrue(ml.getLedgersInfoAsList().size() > 1);
+
+        // let it success
+        doReturn(CompletableFuture.completedFuture(null)).when(ml).asyncDeleteLedger(anyLong(), any(LedgerInfo.class));
+        // make sure reach the retention time, the interval is 1s
+        Thread.sleep(1000);
+        ml.internalTrimConsumedLedgers(new CompletableFuture<>());
+        Awaitility.await().untilAsserted(() -> assertTrue(ml.getLedgersInfoAsList().size() <= 1));
+        c1.close();
+        ml.close();
+        factory.shutdown();
+    }
 
     @Test
     public void testDeletionAfterLedgerClosedAndRetention() throws Exception {
@@ -2355,8 +2388,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.internalTrimConsumedLedgers(CompletableFuture.completedFuture(null));
 
         assertTrue(ml.getFirstPosition().ledgerId <= ml.lastConfirmedEntry.ledgerId);
-        assertFalse(ml.getLedgersInfo().containsKey(ml.lastConfirmedEntry.ledgerId),
-                "the ledger at lastConfirmedEntry has not been trimmed!");
+        ManagedLedgerImpl finalMl = ml;
+        Awaitility.await().untilAsserted(() -> assertFalse(finalMl.getLedgersInfo().containsKey(finalMl.lastConfirmedEntry.ledgerId),
+                "the ledger at lastConfirmedEntry has not been trimmed!"));
         ml.close();
     }
 
