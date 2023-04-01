@@ -1060,7 +1060,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     new ServiceUnitStateData(Owned, selectedBroker.get(), true, getNextVersionId(orphanData));
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
-            publishOverrideEventAsync(serviceUnit, orphanData, override);
+            publishOverrideEventAsync(serviceUnit, orphanData, override)
+                    .exceptionally(e -> {
+                        log.error(
+                                "Failed to override the ownership serviceUnit:{} orphanData:{}. "
+                                        + "Failed to publish override event. totalCleanupErrorCnt:{}",
+                                serviceUnit, orphanData, totalCleanupErrorCnt.incrementAndGet());
+                        return null;
+                    });
         } else {
             log.error("Failed to override the ownership serviceUnit:{} orphanData:{}. Empty selected broker. "
                             + "totalCleanupErrorCnt:{}",
