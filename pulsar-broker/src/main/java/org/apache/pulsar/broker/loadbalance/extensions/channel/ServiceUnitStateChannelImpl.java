@@ -121,7 +121,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private final String lookupServiceAddress;
     private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
-    private ExtensibleLoadManagerImpl brokerSelector;
+    private ExtensibleLoadManagerImpl loadManager;
     private BrokerRegistry brokerRegistry;
     private LeaderElectionService leaderElectionService;
     private TableView<ServiceUnitStateData> tableview;
@@ -272,7 +272,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.warn("Failed to find the channel leader.");
             }
             this.channelState = LeaderElectionServiceStarted;
-            brokerSelector = getBrokerSelector();
+            loadManager = getLoadManager();
 
             if (producer != null) {
                 producer.close();
@@ -337,8 +337,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     @VisibleForTesting
-    protected ExtensibleLoadManagerImpl getBrokerSelector() {
-        // TODO: make this selector configurable.
+    protected ExtensibleLoadManagerImpl getLoadManager() {
         return ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get());
     }
 
@@ -1125,7 +1124,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private Optional<String> selectBroker(String serviceUnit) {
         try {
-            return brokerSelector.selectAsync(getNamespaceBundle(serviceUnit))
+            return loadManager.selectAsync(getNamespaceBundle(serviceUnit))
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
