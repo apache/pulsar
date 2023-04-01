@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import javax.ws.rs.core.Response;
 import lombok.Getter;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -183,6 +184,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
+    private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> unloadSubscriptionFutures;
 
     private final ConcurrentOpenHashMap<String/*RemoteCluster*/, Replicator> replicators;
     private final ConcurrentOpenHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
@@ -279,6 +281,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : null;
         this.ledger = ledger;
         this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
+                        .expectedItems(16)
+                        .concurrencyLevel(1)
+                        .build();
+        this.unloadSubscriptionFutures = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder()
                         .expectedItems(16)
                         .concurrencyLevel(1)
                         .build();
@@ -396,6 +402,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
+        this.unloadSubscriptionFutures = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder()
+                .expectedItems(16)
+                .concurrencyLevel(1)
+                .build();
         this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
                 .expectedItems(16)
                 .concurrencyLevel(1)
@@ -432,7 +442,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return pendingWriteOps;
     }
 
-    public CompletableFuture<Void> unloadSubscription(String subName) {
+    /**
+     * Unload a subscriber.
+     * @throws RestException If subscription not founded, the code of EX will be NOT_FOUND.
+     *     If the subscription is typed compaction , the code of EX will be BAD_REQUEST.
+     */
+    public CompletableFuture<Void> unloadSubscription(@Nonnull String subName) {
         final PersistentSubscription sub = subscriptions.get(subName);
         if (sub == null) {
             return CompletableFuture.failedFuture(new RestException(Response.Status.NOT_FOUND,
@@ -443,12 +458,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     "Could not reload the compaction subscription"));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
-        return sub.disconnect().thenAccept(ignore -> {
-            sub.getCursor().rewind();
-            PersistentSubscription subNew = PersistentTopic.this.createPersistentSubscription(sub.getName(),
-                    sub.getCursor(), sub.isReplicated(), sub.getSubscriptionProperties());
-            subscriptions.put(subName, subNew);
-        });
+        CompletableFuture<Void> result = unloadSubscriptionFutures.computeIfAbsent(subName,
+                k -> sub.disconnect().thenAccept(ignore -> {
+                    lock.writeLock().lock();
+                    try {
+                        if (isFenced) {
+                            return;
+                        }
+                        sub.getCursor().rewind();
+                        PersistentSubscription subNew = PersistentTopic.this.createPersistentSubscription(sub.getName(),
+                                sub.getCursor(), sub.isReplicated(), sub.getSubscriptionProperties());
+                        subscriptions.put(subName, subNew);
+                    } finally {
+                        lock.writeLock().unlock();
+                    }
+                }));
+        result.whenComplete((ignore, ex) -> unloadSubscriptionFutures.remove(subName, result));
+        return result;
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
