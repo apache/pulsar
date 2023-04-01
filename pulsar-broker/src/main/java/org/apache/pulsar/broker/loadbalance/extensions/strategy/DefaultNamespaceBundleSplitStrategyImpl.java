@@ -58,12 +58,14 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
     private final Set<SplitDecision> decisionCache;
     private final Map<String, Integer> namespaceBundleCount;
     private final Map<String, Integer> splitConditionHitCounts;
+    private final Map<String, String> splittingBundles;
     private final SplitCounter counter;
 
     public DefaultNamespaceBundleSplitStrategyImpl(SplitCounter counter) {
         decisionCache = new HashSet<>();
         namespaceBundleCount = new HashMap<>();
         splitConditionHitCounts = new HashMap<>();
+        splittingBundles = new HashMap<>();
         this.counter = counter;
 
     }
@@ -72,6 +74,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
     public Set<SplitDecision> findBundlesToSplit(LoadManagerContext context, PulsarService pulsar) {
         decisionCache.clear();
         namespaceBundleCount.clear();
+        splittingBundles.clear();
         final ServiceConfiguration conf = pulsar.getConfiguration();
         int maxBundleCount = conf.getLoadBalancerNamespaceMaximumBundles();
         long maxBundleTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
@@ -82,6 +85,15 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
         long splitConditionHitCountThreshold = conf.getLoadBalancerNamespaceBundleSplitConditionHitCountThreshold();
         boolean debug = log.isDebugEnabled() || conf.isLoadBalancerDebugModeEnabled();
         var channel = ServiceUnitStateChannelImpl.get(pulsar);
+
+        for (var etr : channel.getOwnershipEntrySet()) {
+            var eData = etr.getValue();
+            if (eData.state() == ServiceUnitState.Splitting) {
+                String bundle = etr.getKey();
+                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                splittingBundles.put(bundle, bundleRange);
+            }
+        }
 
         Map<String, NamespaceBundleStats> bundleStatsMap = pulsar.getBrokerService().getBundleStats();
         NamespaceBundleFactory namespaceBundleFactory =
@@ -184,15 +196,15 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
 
             var ranges = bundleRange.split("_");
             var foundSplittingBundle = false;
-            for (var etr : channel.getOwnershipEntrySet()) {
-                var eBundle = etr.getKey();
-                var eData = etr.getValue();
-                if (eData.state() == ServiceUnitState.Splitting && eBundle.startsWith(namespace)) {
-                    final String eRange = LoadManagerShared.getBundleRangeFromBundleName(eBundle);
-                    if (eRange.startsWith(ranges[0]) || eRange.endsWith(ranges[1])) {
+            for (var etr : splittingBundles.entrySet()) {
+                var splittingBundle = etr.getKey();
+                if (splittingBundle.startsWith(namespace)) {
+                    var splittingBundleRange = etr.getValue();
+                    if (splittingBundleRange.startsWith(ranges[0])
+                            || splittingBundleRange.endsWith(ranges[1])) {
                         if (debug) {
                             log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG
-                                    + " (parent) bundle:%s is in Splitting state.", bundle, eBundle));
+                                    + " (parent) bundle:%s is in Splitting state.", bundle, splittingBundle));
                         }
                         foundSplittingBundle = true;
                         break;
