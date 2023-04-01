@@ -26,18 +26,23 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision.Reason.Unknown;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
@@ -177,6 +182,27 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                 continue;
             }
 
+            var ranges = bundleRange.split("_");
+            var foundSplittingBundle = false;
+            for (var etr : channel.getOwnershipEntrySet()) {
+                var eBundle = etr.getKey();
+                var eData = etr.getValue();
+                if (eData.state() == ServiceUnitState.Splitting && eBundle.startsWith(namespace)) {
+                    final String eRange = LoadManagerShared.getBundleRangeFromBundleName(eBundle);
+                    if (eRange.startsWith(ranges[0]) || eRange.endsWith(ranges[1])) {
+                        if (debug) {
+                            log.info(String.format(CANNOT_SPLIT_BUNDLE_MSG
+                                    + " (parent) bundle:%s is in Splitting state.", bundle, eBundle));
+                        }
+                        foundSplittingBundle = true;
+                        break;
+                    }
+                }
+            }
+            if (foundSplittingBundle) {
+                continue;
+            }
+
             if (debug) {
                 log.info(String.format(
                         "Splitting bundle: %s. "
@@ -193,7 +219,43 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
                 ));
             }
             var decision = new SplitDecision();
-            decision.setSplit(new Split(bundle, context.brokerRegistry().getBrokerId()));
+            var namespaceService = pulsar.getNamespaceService();
+            var namespaceBundle = namespaceService.getNamespaceBundleFactory()
+                    .getBundle(namespaceName, bundleRange);
+            NamespaceBundleSplitAlgorithm algorithm =
+                    namespaceService.getNamespaceBundleSplitAlgorithmByName(
+                            conf.getDefaultNamespaceBundleSplitAlgorithm());
+            List<Long> splitBoundary = null;
+            try {
+                splitBoundary = namespaceService
+                        .getSplitBoundary(namespaceBundle,  null, algorithm)
+                        .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+            } catch (Throwable e) {
+                counter.update(Failure, Unknown);
+                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Failed to get split boundaries.", bundle, e));
+                continue;
+            }
+            if (splitBoundary == null) {
+                counter.update(Failure, Unknown);
+                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " The split boundaries is null.", bundle));
+                continue;
+            }
+            if (splitBoundary.size() != 1) {
+                counter.update(Failure, Unknown);
+                log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " The size of split boundaries is not 1. "
+                        + "splitBoundary:%s", bundle, splitBoundary));
+                continue;
+            }
+
+            var parentRange = namespaceBundle.getKeyRange();
+            var leftChildBundle = namespaceBundleFactory.getBundle(namespaceBundle.getNamespaceObject(),
+                    NamespaceBundleFactory.getRange(parentRange.lowerEndpoint(), splitBoundary.get(0)));
+            var rightChildBundle = namespaceBundleFactory.getBundle(namespaceBundle.getNamespaceObject(),
+                    NamespaceBundleFactory.getRange(splitBoundary.get(0), parentRange.upperEndpoint()));
+            Map<String, Optional<String>> splitServiceUnitToDestBroker = Map.of(
+                    leftChildBundle.getBundleRange(), Optional.empty(),
+                    rightChildBundle.getBundleRange(), Optional.empty());
+            decision.setSplit(new Split(bundle, context.brokerRegistry().getBrokerId(), splitServiceUnitToDestBroker));
             decision.succeed(reason);
             decisionCache.add(decision);
             int bundleNum = namespaceBundleCount.getOrDefault(namespace, 0);

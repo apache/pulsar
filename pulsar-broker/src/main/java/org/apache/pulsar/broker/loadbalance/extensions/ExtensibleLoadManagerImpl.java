@@ -449,7 +449,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                         log.warn(msg);
                         throw new IllegalArgumentException(msg);
                     }
-                    Unload unload = new Unload(sourceBroker, bundle.toString(), destinationBroker);
+                    Unload unload = new Unload(sourceBroker, bundle.toString(), destinationBroker, true);
                     UnloadDecision unloadDecision =
                             new UnloadDecision(unload, UnloadDecision.Label.Success, UnloadDecision.Reason.Admin);
                     return unloadAsync(unloadDecision,
