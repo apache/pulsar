@@ -160,6 +160,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class UnsupportedSubscriptionException extends BrokerServiceException {
+        public UnsupportedSubscriptionException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionBusyException extends BrokerServiceException {
         public SubscriptionBusyException(String msg) {
             super(msg);

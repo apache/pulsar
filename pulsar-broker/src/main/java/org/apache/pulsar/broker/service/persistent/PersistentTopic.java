@@ -103,6 +103,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
+import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedSubscriptionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Producer;
@@ -450,12 +451,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public CompletableFuture<Void> unloadSubscription(@Nonnull String subName) {
         final PersistentSubscription sub = subscriptions.get(subName);
         if (sub == null) {
-            return CompletableFuture.failedFuture(new RestException(Response.Status.NOT_FOUND,
-                    String.format("Subscription %s not found", subName)));
+            return CompletableFuture.failedFuture(
+                    new SubscriptionNotFoundException(String.format("Subscription %s not found", subName)));
         }
         if (Compactor.COMPACTION_SUBSCRIPTION.equals(sub.getName())){
-            return CompletableFuture.failedFuture(new RestException(Response.Status.BAD_REQUEST,
-                    "Could not reload the compaction subscription"));
+            return CompletableFuture.failedFuture(
+                    new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
         CompletableFuture<Void> result = unloadSubscriptionFutures.computeIfAbsent(subName,
