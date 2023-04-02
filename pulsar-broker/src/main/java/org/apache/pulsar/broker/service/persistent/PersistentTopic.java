@@ -1710,6 +1710,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .thenCompose(__ -> checkReplicationCluster(remoteCluster))
                 .thenCompose(clusterExists -> {
                     if (!clusterExists) {
+                        log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
                         return removeReplicator(remoteCluster).thenApply(__ -> null);
                     }
                     return brokerService.pulsar().getPulsarResources().getClusterResources()
