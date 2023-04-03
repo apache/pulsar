@@ -42,7 +42,7 @@ public class CmdSchemas extends CmdBase {
         jcommander.addCommand("delete", new DeleteSchema());
         jcommander.addCommand("upload", new UploadSchema());
         jcommander.addCommand("extract", new ExtractSchema());
-        jcommander.addCommand("test-compatibility", new TestCompatibility());
+        jcommander.addCommand("compatibility", new TestCompatibility());
     }
 
     @Parameters(commandDescription = "Get the schema for a topic")
