@@ -43,6 +43,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -83,6 +84,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -511,6 +513,39 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         Optional<BrokerLookupData> brokerLookupData = primaryLoadManager.assign(Optional.empty(), bundle).get();
         assertTrue(brokerLookupData.isPresent());
         assertEquals(brokerLookupData.get().getWebServiceUrl(), pulsar2.getWebServiceAddress());
+    }
+
+    @Test
+    public void testStartOldLoadManager() throws Exception {
+        try {
+            ServiceConfiguration defaultConf = getDefaultConf();
+            defaultConf.setAllowAutoTopicCreation(true);
+            defaultConf.setForceDeleteNamespaceAllowed(true);
+            defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            defaultConf.setLoadBalancerSheddingEnabled(false);
+            additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
+
+            // start pulsar3 with old load manager
+            var pulsar3 = additionalPulsarTestContext.getPulsarService();
+
+            var availableBrokers = pulsar3.getLoadManager().get().getAvailableBrokers();
+            assertEquals(availableBrokers.size(), 1);
+            assertEquals(availableBrokers.iterator().next(), pulsar3.getLookupServiceAddress());
+            assertNotEquals(availableBrokers.iterator().next(), pulsar1.getLookupServiceAddress());
+            assertNotEquals(availableBrokers.iterator().next(), pulsar2.getLookupServiceAddress());
+
+            availableBrokers = pulsar1.getLoadManager().get().getAvailableBrokers();
+            assertEquals(availableBrokers.size(), 2);
+            assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
+            assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
+
+            availableBrokers = pulsar2.getLoadManager().get().getAvailableBrokers();
+            assertEquals(availableBrokers.size(), 2);
+            assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
+            assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
+        } finally {
+            additionalPulsarTestContext.close();
+        }
     }
 
     @Test
