@@ -2975,7 +2975,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                       CompletableFuture<Void> callbackFuture) {
         CompletableFuture<Void> future = callbackFuture == null ? new CompletableFuture<>() : callbackFuture;
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
-            if (rc != BKException.Code.OK) {
+            if (isNoSuchLedgerExistsException(rc)) {
+                log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
+            } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error deleting ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
                 if (retry - 1 <= 0) {
                     log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
@@ -2985,9 +2987,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                 }
                 return;
-            }
-            if (isNoSuchLedgerExistsException(rc)) {
-                log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Deleted ledger {}", name, ledgerId);
