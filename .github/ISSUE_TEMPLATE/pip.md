@@ -27,7 +27,7 @@ DON'T
 * Do not include links *instead* explanation. Do provide links for further explanation.
 
 EXAMPLES
-* See PIP-248, Background section to get an understanding on how you add the background knowledge needed.
+* See [PIP-248](https://github.com/apache/pulsar/issues/19601), Background section to get an understanding on how you add the background knowledge needed.
   (They also included the motivation there, but ignore it as we place that in Motivation section explicitly)
 -->
 
@@ -126,12 +126,18 @@ An important aspect to consider is also multi-tenancy: Does the feature I'm addi
 If there is uncertainty for this section, please submit the PIP and request for feedback on the mailing list.
 -->
 
-# Backward Compatability
+# Backward & Forward Compatability
 
 ## Revert
 
 <!--
 Describe a cookbook detailing the steps required to revert pulsar to previous version *without* this feature.
+-->
+
+## Upgrade
+
+<!--
+Specify the list of instructions, if there are such, needed to perform before/after upgrading to Pulsar version containing this feature
 -->
 
 # Alternatives
