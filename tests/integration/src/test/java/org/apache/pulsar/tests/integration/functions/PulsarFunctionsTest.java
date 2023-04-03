@@ -662,9 +662,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     protected void testExclamationFunction(Runtime runtime,
                                            boolean isTopicPattern,
                                            boolean pyZip,
+                                           boolean multipleInput,
                                            boolean withExtraDeps) throws Exception {
-        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
-            // python can only run on process mode
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && (runtime == Runtime.PYTHON || runtime == Runtime.GO)) {
+            // python&go can only run on process mode
             return;
         }
 
@@ -682,7 +683,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
-        if (isTopicPattern) {
+        if (isTopicPattern || multipleInput) {
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
@@ -698,7 +699,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     .subscriptionType(SubscriptionType.Exclusive)
                     .subscriptionName("test-sub")
                     .subscribe();
-            inputTopicName = inputTopicName + ".*";
+            if (isTopicPattern) {
+                inputTopicName = inputTopicName + ".*";
+            } else {
+                inputTopicName = inputTopicName + "1," + inputTopicName + "2";
+            }
         }
         String functionName = "test-exclamation-fn-" + randomName(8);
         final int numMessages = 10;
@@ -786,6 +791,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 file = EXCLAMATION_WITH_DEPS_PYTHON_FILE;
             } else {
                 file = EXCLAMATION_PYTHON_FILE;
+            }
+        } else if (Runtime.GO == runtime) {
+            if (isPublishFunction) {
+                file = PUBLISH_FUNCTION_GO_FILE;
+            } else {
+                file = EXCLAMATION_GO_FILE;
             }
         }
 
@@ -1232,6 +1243,23 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
             @Cleanup Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
                     .topic(inputTopic.substring(0, inputTopic.length() - 2) + "2")
+                    .create();
+
+            for (int i = 0; i < numMessages / 2; i++) {
+                producer1.send(("message-" + i).getBytes(UTF_8));
+            }
+
+            for (int i = numMessages / 2; i < numMessages; i++) {
+                producer2.send(("message-" + i).getBytes(UTF_8));
+            }
+        } else if (inputTopic.contains(",")) {
+            String[] topics = inputTopic.split(",");
+            @Cleanup Producer<byte[]> producer1 = client.newProducer(Schema.BYTES)
+                    .topic(topics[0])
+                    .create();
+
+            @Cleanup Producer<byte[]> producer2 = client.newProducer(Schema.BYTES)
+                    .topic(topics[1])
                     .create();
 
             for (int i = 0; i < numMessages / 2; i++) {

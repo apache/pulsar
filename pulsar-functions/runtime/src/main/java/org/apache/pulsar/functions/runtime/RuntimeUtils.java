@@ -38,6 +38,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -204,9 +205,13 @@ public class RuntimeUtils {
                 instanceConfig.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
-            for (String inputTopic : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().keySet()) {
-                goInstanceConfig.setSourceSpecsTopic(inputTopic);
+            Map<String, String> sourceInputSpecs = new HashMap<>();
+            for (Map.Entry<String, Function.ConsumerSpec> entry : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
+                String topic = entry.getKey();
+                Function.ConsumerSpec spec = entry.getValue();
+                sourceInputSpecs.put(topic, JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
             }
+            goInstanceConfig.setSourceInputSpecs(sourceInputSpecs);
         }
 
         if (instanceConfig.getFunctionDetails().getSource().getTimeoutMs() != 0) {

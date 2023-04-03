@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.instance.go;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.functions.proto.Function;
@@ -53,10 +54,8 @@ public class GoInstanceConfig {
     private boolean cleanupSubscription;
     private int subscriptionPosition = Function.SubscriptionPosition.LATEST.getNumber();
 
-    private String sourceSpecsTopic = "";
-    private String sourceSchemaType = "";
-    private boolean isRegexPatternSubscription;
-    private int receiverQueueSize;
+    // value is the json string of ConsumerSpec
+    private Map<String, String> sourceInputSpecs;
 
     private String sinkSpecsTopic = "";
     private String sinkSchemaType = "";
