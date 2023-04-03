@@ -445,8 +445,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     /**
      * Unload a subscriber.
-     * @throws RestException If subscription not founded, the code of EX will be NOT_FOUND.
-     *     If the subscription is typed compaction , the code of EX will be BAD_REQUEST.
+     * @throws SubscriptionNotFoundException If subscription not founded.
+     * @throws UnsupportedSubscriptionException If the subscription is typed compaction.
      */
     public CompletableFuture<Void> unloadSubscription(@Nonnull String subName) {
         final PersistentSubscription sub = subscriptions.get(subName);
