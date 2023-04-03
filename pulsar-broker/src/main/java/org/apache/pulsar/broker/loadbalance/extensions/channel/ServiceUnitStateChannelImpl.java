@@ -1099,11 +1099,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 broker, delayInSecs, cleanupJobs.size());
     }
 
+
+    private ServiceUnitStateData getOverrideInactiveBrokerStateData(ServiceUnitStateData orphanData,
+                                                                    String selectedBroker) {
+        if (orphanData.state() == Splitting) {
+            return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
+                    Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
+                    true, getNextVersionId(orphanData));
+        } else {
+            return new ServiceUnitStateData(Owned, selectedBroker, true, getNextVersionId(orphanData));
+        }
+    }
+
     private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData) {
+
         Optional<String> selectedBroker = selectBroker(serviceUnit);
         if (selectedBroker.isPresent()) {
-            var override =
-                    new ServiceUnitStateData(Owned, selectedBroker.get(), true, getNextVersionId(orphanData));
+            var override = getOverrideInactiveBrokerStateData(orphanData, selectedBroker.get());
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
             publishOverrideEventAsync(serviceUnit, orphanData, override)
@@ -1205,7 +1217,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             case Splitting: {
                 return Optional.of(new ServiceUnitStateData(Splitting,
-                        orphanData.sourceBroker(), orphanData.dstBroker(),
+                        orphanData.dstBroker(), orphanData.sourceBroker(),
                         Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
                         true, nextVersionId));
             }
@@ -1271,7 +1283,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     inactiveBrokers.add(dstBroker);
                 } else if (isInFlightState(state)
                         && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
-                    log.warn("Found orphan serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                     orphanServiceUnits.put(serviceUnit, stateData);
                 }
             } else if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
@@ -1301,6 +1312,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 var overrideData = getOverrideInFlightStateData(
                         orphanServiceUnit, orphanData, activeBrokers);
                 if (overrideData.isPresent()) {
+                    log.info("Overriding in-flight state ownership serviceUnit:{} "
+                                    + "from orphanData:{} to overrideData:{}",
+                            orphanServiceUnit, orphanData, overrideData);
                     publishOverrideEventAsync(orphanServiceUnit, orphanData, overrideData.get())
                             .whenComplete((__, e) -> {
                                 if (e != null) {
