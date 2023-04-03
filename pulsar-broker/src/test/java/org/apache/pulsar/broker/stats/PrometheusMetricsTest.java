@@ -645,6 +645,17 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(brokerMetric2.get(0).tags.get("cluster"), "test");
         assertNull(brokerMetric2.get(0).tags.get("namespace"));
         assertNull(brokerMetric2.get(0).tags.get("topic"));
+
+        // test ManagedLedgerMetrics
+        List<Metric> mlMetric = ((List<Metric>) metrics.get("pulsar_ml_ReadEntriesOpsCacheMissesRate"));
+        assertEquals(mlMetric.size(), 1);
+        if (cacheEnable) {
+            assertEquals(mlMetric.get(0).value, 1.0);
+        } else {
+            assertEquals(mlMetric.get(0).value, 2.0);
+        }
+        assertEquals(mlMetric.get(0).tags.get("cluster"), "test");
+        assertEquals(mlMetric.get(0).tags.get("namespace"), ns + "/persistent");
     }
 
     @Test
