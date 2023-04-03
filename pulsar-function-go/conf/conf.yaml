@@ -43,10 +43,8 @@ subscriptionName: ""
 cleanupSubscription: false
 subscriptionPosition: 1
 # source input specs
-sourceSpecsTopic: persistent://public/default/topic-01
-sourceSchemaType: ""
-isRegexPatternSubscription: false
-receiverQueueSize: 10
+sourceInputSpecs:
+  persistent://public/default/topic-01: "{\"schemaType\": \"\", \"isRegexPattern\": false, \"receiverQueueSize\": {\"value\": 10}}"
 # sink specs config
 sinkSpecsTopic: persistent://public/default/topic-02
 sinkSchemaType: ""
