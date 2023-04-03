@@ -107,6 +107,7 @@ public class AggregatedNamespaceStats {
 
         managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
+        managedLedgerStats.storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
 
         msgBacklog += stats.msgBacklog;
 
