@@ -517,14 +517,12 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testStartOldLoadManager() throws Exception {
-        try {
-            ServiceConfiguration defaultConf = getDefaultConf();
-            defaultConf.setAllowAutoTopicCreation(true);
-            defaultConf.setForceDeleteNamespaceAllowed(true);
-            defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-            defaultConf.setLoadBalancerSheddingEnabled(false);
-            additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf);
-
+        ServiceConfiguration defaultConf = getDefaultConf();
+        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.setForceDeleteNamespaceAllowed(true);
+        defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerSheddingEnabled(false);
+        try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             // start pulsar3 with old load manager
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
 
@@ -543,8 +541,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             assertEquals(availableBrokers.size(), 2);
             assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
             assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
-        } finally {
-            additionalPulsarTestContext.close();
         }
     }
 
