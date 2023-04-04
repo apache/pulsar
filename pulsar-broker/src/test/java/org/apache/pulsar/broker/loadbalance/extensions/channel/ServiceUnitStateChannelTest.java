@@ -1316,7 +1316,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
                     .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
             return future;
-        }).when(namespaceService).updateNamespaceBundles(any(), any());
+        }).when(namespaceService).updateNamespaceBundlesForPolicies(any(), any());
         doReturn(namespaceService).when(pulsar1).getNamespaceService();
         doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
                 .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());

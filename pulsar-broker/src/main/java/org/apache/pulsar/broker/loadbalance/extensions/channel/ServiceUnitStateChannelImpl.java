@@ -89,6 +89,7 @@ import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -883,8 +884,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                                 long startTime,
                                                 CompletableFuture<Void> completionFuture) {
         ownChildBundles(childBundles, parentData)
-                .thenCompose(__ -> updateSplitNamespaceBundlesAsync(
+                .thenCompose(__ -> getSplitNamespaceBundles(
                         namespaceService, bundleFactory, algorithm, parentBundle, childBundles, boundaries))
+                .thenCompose(namespaceBundles -> updateSplitNamespaceBundlesAsync(
+                        namespaceService, bundleFactory, parentBundle, namespaceBundles))
                 .thenAccept(__ -> // Update bundled_topic cache for load-report-generation
                         pulsar.getBrokerService().refreshTopicToStatsMaps(parentBundle))
                 .thenAccept(__ -> pubAsync(parentBundle.toString(), new ServiceUnitStateData(
@@ -944,18 +947,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private CompletableFuture<Void> updateSplitNamespaceBundlesAsync(
-            NamespaceService namespaceService,
-            NamespaceBundleFactory bundleFactory,
-            NamespaceBundleSplitAlgorithm algorithm,
-            NamespaceBundle parentBundle,
-            List<NamespaceBundle> childBundles,
-            List<Long> boundaries) {
-        CompletableFuture<Void> updateSplitNamespaceBundlesFuture = new CompletableFuture<>();
-        var namespaceName = parentBundle.getNamespaceObject();
+    private CompletableFuture<NamespaceBundles> getSplitNamespaceBundles(NamespaceService namespaceService,
+                                                                         NamespaceBundleFactory bundleFactory,
+                                                                         NamespaceBundleSplitAlgorithm algorithm,
+                                                                         NamespaceBundle parentBundle,
+                                                                         List<NamespaceBundle> childBundles,
+                                                                         List<Long> boundaries) {
+        CompletableFuture future = new CompletableFuture();
         final var debug = debug();
         var targetNsBundle = bundleFactory.getBundles(parentBundle.getNamespaceObject());
-        boolean updated = false;
+        boolean found = false;
         try {
             targetNsBundle.validateBundle(parentBundle);
         } catch (IllegalArgumentException e) {
@@ -963,7 +964,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.info("Namespace bundles do not contain the parent bundle:{}",
                         parentBundle);
             }
-            for (var childBundle : childBundles){
+            for (var childBundle : childBundles) {
                 try {
                     targetNsBundle.validateBundle(childBundle);
                     if (debug) {
@@ -971,42 +972,44 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 childBundle);
                     }
                 } catch (Exception ex) {
-                    updateSplitNamespaceBundlesFuture.completeExceptionally(
+                    future.completeExceptionally(
                             new BrokerServiceException.ServiceUnitNotReadyException(
                                     "Namespace bundles do not contain the child bundle:" + childBundle, e));
-                    return updateSplitNamespaceBundlesFuture;
+                    return future;
                 }
             }
-            updated = true;
+            found = true;
         } catch (Exception e) {
-            updateSplitNamespaceBundlesFuture.completeExceptionally(
+            future.completeExceptionally(
                     new BrokerServiceException.ServiceUnitNotReadyException(
                             "Failed to validate the parent bundle in the namespace bundles.", e));
-            return updateSplitNamespaceBundlesFuture;
+            return future;
         }
-        if (updated) {
-            updateSplitNamespaceBundlesFuture.complete(null);
+        if (found) {
+            future.complete(targetNsBundle);
+            return future;
         } else {
-            namespaceService.getSplitBoundary(parentBundle, algorithm, boundaries)
-                    .thenApply(splitBundlesPair -> splitBundlesPair.getLeft())
-                    .thenCompose(splitNamespaceBundles ->
-                            namespaceService.updateNamespaceBundles(
-                                            namespaceName, splitNamespaceBundles)
-                                    .thenCompose(__ -> namespaceService.updateNamespaceBundlesForPolicies(
-                                            namespaceName, splitNamespaceBundles)))
-                    .thenAccept(__ -> {
-                        bundleFactory.invalidateBundleCache(parentBundle.getNamespaceObject());
-                        if (debug) {
-                            log.info("Successfully updated split namespace bundles and namespace bundle cache.");
-                        }
-                        updateSplitNamespaceBundlesFuture.complete(null);
-                    })
-                    .exceptionally(ex -> {
-                        updateSplitNamespaceBundlesFuture.completeExceptionally(ex);
-                        return null;
-                    });
+            return namespaceService.getSplitBoundary(parentBundle, algorithm, boundaries)
+                    .thenApply(splitBundlesPair -> splitBundlesPair.getLeft());
         }
-        return updateSplitNamespaceBundlesFuture;
+    }
+
+    private CompletableFuture<Void> updateSplitNamespaceBundlesAsync(
+            NamespaceService namespaceService,
+            NamespaceBundleFactory bundleFactory,
+            NamespaceBundle parentBundle,
+            NamespaceBundles splitNamespaceBundles) {
+        var namespaceName = parentBundle.getNamespaceObject();
+        return namespaceService.updateNamespaceBundles(
+                        namespaceName, splitNamespaceBundles)
+                .thenCompose(__ -> namespaceService.updateNamespaceBundlesForPolicies(
+                        namespaceName, splitNamespaceBundles))
+                .thenAccept(__ -> {
+                    bundleFactory.invalidateBundleCache(parentBundle.getNamespaceObject());
+                    if (debug()) {
+                        log.info("Successfully updated split namespace bundles and namespace bundle cache.");
+                    }
+                });
     }
 
     public void handleMetadataSessionEvent(SessionEvent e) {
