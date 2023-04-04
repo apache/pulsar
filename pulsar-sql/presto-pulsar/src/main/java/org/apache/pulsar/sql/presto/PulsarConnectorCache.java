@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Getter;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -35,6 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
@@ -68,14 +70,17 @@ public class PulsarConnectorCache {
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
 
+    @Getter
+    private final BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperFactory;
+
     private static final String OFFLOADERS_DIRECTOR = "offloadersDirectory";
     private static final String MANAGED_LEDGER_OFFLOAD_DRIVER = "managedLedgerOffloadDriver";
     private static final String MANAGED_LEDGER_OFFLOAD_MAX_THREADS = "managedLedgerOffloadMaxThreads";
 
-
     private PulsarConnectorCache(PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
         this.metadataStore = MetadataStoreExtended.create(pulsarConnectorConfig.getMetadataUrl(),
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
+        this.bookKeeperFactory = initBookKeeperFactory(pulsarConnectorConfig);
         this.managedLedgerFactory = initManagedLedgerFactory(pulsarConnectorConfig);
         this.statsProvider = PulsarConnectorUtils.createInstance(pulsarConnectorConfig.getStatsProvider(),
                 StatsProvider.class, getClass().getClassLoader());
@@ -108,27 +113,32 @@ public class PulsarConnectorCache {
         return instance;
     }
 
-    private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
-        throws Exception {
+    private BookkeeperFactoryForCustomEnsemblePlacementPolicy initBookKeeperFactory(
+            PulsarConnectorConfig pulsarConnectorConfig) throws Exception {
         PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkClientConfiguration = new ClientConfiguration()
-            .setMetadataServiceUri("metadata-store:" + pulsarConnectorConfig.getMetadataUrl())
-            .setClientTcpNoDelay(false)
-            .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
-            .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())
-            .setStickyReadsEnabled(false)
-            .setReadEntryTimeout(60)
-            .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
-            .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
-            .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads())
-            .setNettyMaxFrameSizeBytes(pulsarConnectorConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
+                .setMetadataServiceUri("metadata-store:" + pulsarConnectorConfig.getMetadataUrl())
+                .setClientTcpNoDelay(false)
+                .setUseV2WireProtocol(pulsarConnectorConfig.getBookkeeperUseV2Protocol())
+                .setExplictLacInterval(pulsarConnectorConfig.getBookkeeperExplicitInterval())
+                .setStickyReadsEnabled(false)
+                .setReadEntryTimeout(60)
+                .setThrottleValue(pulsarConnectorConfig.getBookkeeperThrottleValue())
+                .setNumIOThreads(pulsarConnectorConfig.getBookkeeperNumIOThreads())
+                .setNumWorkerThreads(pulsarConnectorConfig.getBookkeeperNumWorkerThreads())
+                .setNettyMaxFrameSizeBytes(
+                        pulsarConnectorConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
+        return new ManagedLedgerFactoryImpl.DefaultBkFactory(bkClientConfiguration);
+    }
 
+    private ManagedLedgerFactory initManagedLedgerFactory(PulsarConnectorConfig pulsarConnectorConfig)
+        throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(pulsarConnectorConfig.getManagedLedgerCacheSizeMB());
         managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(
                 pulsarConnectorConfig.getManagedLedgerNumSchedulerThreads());
-        return new ManagedLedgerFactoryImpl(metadataStore, bkClientConfiguration, managedLedgerFactoryConfig);
+        return new ManagedLedgerFactoryImpl(metadataStore, bookKeeperFactory, managedLedgerFactoryConfig);
     }
 
     public ManagedLedgerConfig getManagedLedgerConfig(NamespaceName namespaceName, OffloadPoliciesImpl offloadPolicies,
@@ -206,6 +216,7 @@ public class PulsarConnectorCache {
             if (instance != null) {
                 instance.statsProvider.stop();
                 instance.managedLedgerFactory.shutdown();
+                instance.bookKeeperFactory.get().close();
                 instance.metadataStore.close();
                 instance.offloaderScheduler.shutdown();
                 instance.offloadersCache.close();

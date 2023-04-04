@@ -107,7 +107,7 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         connectorConfig.setWebServiceUrl(pulsar.getWebServiceAddress());
         PulsarSplitManager pulsarSplitManager = new PulsarSplitManager(new PulsarConnectorId("1"), connectorConfig);
         Collection<PulsarSplit> splits = pulsarSplitManager.getSplitsForTopic(
-                topicName.getPersistenceNamingEncoding(),
+                topicName,
                 pulsar.getManagedLedgerFactory(),
                 new ManagedLedgerConfig(),
                 3,
@@ -115,7 +115,8 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
                 schemaInfo,
                 topic,
                 TupleDomain.all(),
-                null);
+                null,
+                false);
 
         List<PulsarColumnHandle> columnHandleList = TestPulsarConnector.getColumnColumnHandles(
                 topicName, schemaInfo, PulsarColumnHandle.HandleKeyValueType.NONE, true);

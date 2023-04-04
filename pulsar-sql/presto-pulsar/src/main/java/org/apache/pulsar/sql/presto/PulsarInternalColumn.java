@@ -24,6 +24,7 @@ import static java.util.Objects.requireNonNull;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
@@ -62,8 +63,11 @@ public class PulsarInternalColumn {
     public static final PulsarInternalColumn PROPERTIES = new PulsarInternalColumn("__properties__",
             VarcharType.VARCHAR, "User defined properties");
 
+    public static final PulsarInternalColumn COMPACTED_QUERY = new PulsarInternalColumn("__compacted_query__",
+            BooleanType.BOOLEAN, "Compacted query flag");
+
     private static Set<PulsarInternalColumn> internalFields = ImmutableSet.of(PARTITION, EVENT_TIME, PUBLISH_TIME,
-            MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES);
+            MESSAGE_ID, SEQUENCE_ID, PRODUCER_NAME, KEY, PROPERTIES, COMPACTED_QUERY);
 
 
     private final String name;

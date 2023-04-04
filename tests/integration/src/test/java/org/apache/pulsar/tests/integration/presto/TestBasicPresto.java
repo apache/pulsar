@@ -19,13 +19,25 @@
 package org.apache.pulsar.tests.integration.presto;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -34,12 +46,14 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.tests.integration.docker.ContainerExecException;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -359,8 +373,112 @@ public class TestBasicPresto extends TestPulsarSQLBase {
             producer.newMessage().value(data).send();
         }
 
-        int count = selectCount("public/default", tableName);
+        int count = selectCount("public/default", tableName, null);
         Assert.assertEquals(count, messageCnt);
+    }
+
+    @DataProvider(name = "compactedQueryProvider")
+    public Object[][] compactedQueryProvider() {
+        return new Object[][] {
+                {0, 0},
+                {0, 100},
+                {100, 0},
+                {100, 100}
+        };
+    }
+
+    @Test(timeOut = 1000 * 30, dataProvider = "compactedQueryProvider")
+    public void testCompactedQueryForNoBatchData(int compactedCount, int noCompactedCount) throws Exception {
+        testCompactedQuery(false, compactedCount, noCompactedCount);
+    }
+
+    @Test(timeOut = 1000 * 30, dataProvider = "compactedQueryProvider")
+    public void testCompactedQueryForBatchData(int compactedCount, int noCompactedCount) throws Exception {
+        testCompactedQuery(true, compactedCount, noCompactedCount);
+    }
+
+    private void testCompactedQuery(boolean enableBatch, int compactedCount, int noCompactedCount) throws Exception {
+        String tableName = "compacted-topic-" + randomName(5);
+        String topic = "public/default/" + tableName;
+
+        @Cleanup
+        Producer<Stock> producer = pulsarClient.newProducer(Schema.AVRO(Stock.class))
+                .topic(topic)
+                .enableBatching(enableBatch)
+                .batchingMaxMessages(10)
+                .create();
+
+        int divisor = 8;
+        String removeKey = "4";
+        Map<String, Stock> latestStocks = new HashMap<>();
+        prepareDataForCompactedQuery(producer, latestStocks, compactedCount, divisor, removeKey);
+        if (compactedCount > 0) {
+            pulsarAdmin.topics().triggerCompaction(topic);
+            Awaitility.await().until(() -> {
+                LongRunningProcessStatus status = pulsarAdmin.topics().compactionStatus(topic);
+                return Objects.equals(LongRunningProcessStatus.Status.SUCCESS, status.status);
+            });
+        }
+        prepareDataForCompactedQuery(producer, latestStocks, noCompactedCount, divisor, removeKey);
+        assertEquals(latestStocks.size(), (compactedCount > 0 || noCompactedCount > 0 ? divisor : 0));
+
+        PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topic);
+        log.info("check internal stats for topic {}", topic);
+        log.info(new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(internalStats));
+
+        Awaitility.await()
+                .pollInterval(1, TimeUnit.SECONDS)
+                .atMost(5, TimeUnit.SECONDS)
+                .until(() -> {
+                    int count = selectCount("public/default", tableName, "__compacted_query__=true");
+                    log.info("select count result for table {} is {}.", tableName, count);
+                    return count == (compactedCount > 0 || noCompactedCount > 0 ? divisor - 1 : 0);
+                });
+        ContainerExecResult result = execQuery(
+                "select __key__,symbol,sharePrice from pulsar.\"public/default\".\"" + tableName
+                        + "\" where __compacted_query__=true");
+        assertThat(result.getExitCode()).isEqualTo(0);
+        log.info("select sql query output \n{}", result.getStdout());
+        if (compactedCount == 0 && noCompactedCount == 0) {
+            assertTrue(latestStocks.isEmpty());
+            assertTrue(result.getStdout().trim().isEmpty());
+            return;
+        }
+        String[] dataArray = result.getStdout().split("\n");
+        for (String data : dataArray) {
+            String[] columns = data.split(",");
+            Stock expectedStock = latestStocks.remove(columns[0].replace("\"", ""));
+            assertNotNull(expectedStock);
+            assertEquals(columns[1].replace("\"", ""), expectedStock.getSymbol());
+            assertEquals(columns[2].replace("\"", ""), "" + expectedStock.getSharePrice());
+        }
+        assertEquals(1, latestStocks.size());
+        assertNotNull(latestStocks.remove(removeKey));
+    }
+
+    private void prepareDataForCompactedQuery(Producer<Stock> producer, Map<String, Stock> latestStocks,
+                                              int messageCount, int divisor, String removeKey)
+            throws PulsarClientException {
+
+        AtomicInteger sendCount = new AtomicInteger();
+        for (int i = 0; i < messageCount; i++) {
+            int entryId = i % divisor;
+            String key = "" + entryId;
+            Stock stock = new Stock(entryId, "stock-" + entryId, RandomUtils.nextDouble(50, 90));
+            CompletableFuture<MessageId> future = producer.newMessage().key(key).value(stock).sendAsync();
+            future.thenApply(messageId -> {
+                latestStocks.put(key, stock);
+                sendCount.incrementAndGet();
+                return null;
+            });
+        }
+        if (messageCount > 0) {
+            producer.newMessage().key(removeKey).send();
+        }
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> sendCount.get() == messageCount);
     }
 
 }

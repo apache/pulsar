@@ -63,6 +63,7 @@ public class PulsarSplit implements ConnectorSplit {
     private final String schemaInfoProperties;
 
     private final OffloadPoliciesImpl offloadPolicies;
+    private final Boolean compactedQuery;
 
     @JsonCreator
     public PulsarSplit(
@@ -80,7 +81,8 @@ public class PulsarSplit implements ConnectorSplit {
             @JsonProperty("endPositionLedgerId") long endPositionLedgerId,
             @JsonProperty("tupleDomain") TupleDomain<ColumnHandle> tupleDomain,
             @JsonProperty("schemaInfoProperties") String schemaInfoProperties,
-            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies) throws IOException {
+            @JsonProperty("offloadPolicies") OffloadPoliciesImpl offloadPolicies,
+            @JsonProperty("compactedQuery") Boolean compactedQuery) throws IOException {
         this.splitId = splitId;
         requireNonNull(schemaName, "schema name is null");
         this.originSchemaName = originSchemaName;
@@ -107,6 +109,8 @@ public class PulsarSplit implements ConnectorSplit {
                 .schema(schema.getBytes("ISO8859-1"))
                 .properties(objectMapper.readValue(schemaInfoProperties, Map.class))
                 .build();
+
+        this.compactedQuery = compactedQuery;
     }
 
     @JsonProperty
@@ -192,6 +196,11 @@ public class PulsarSplit implements ConnectorSplit {
         return offloadPolicies;
     }
 
+    @JsonProperty
+    public Boolean isCompactedQuery() {
+        return compactedQuery;
+    }
+
     @Override
     public boolean isRemotelyAccessible() {
         return true;
@@ -223,6 +232,7 @@ public class PulsarSplit implements ConnectorSplit {
             + ", startPositionLedgerId=" + startPositionLedgerId
             + ", endPositionLedgerId=" + endPositionLedgerId
             + ", schemaInfoProperties=" + schemaInfoProperties
+            + ", compactedQuery=" + compactedQuery
             + (offloadPolicies == null ? "" : offloadPolicies.toString())
             + '}';
     }

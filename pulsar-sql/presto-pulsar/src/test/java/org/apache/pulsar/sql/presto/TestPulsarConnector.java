@@ -296,7 +296,7 @@ public abstract class TestPulsarConnector {
                         0, topicsToNumEntries.get(topicName.getSchemaName()),
                         0, 0, TupleDomain.all(),
                             objectMapper.writeValueAsString(
-                                    topicsToSchemas.get(topicName.getSchemaName()).getProperties()), null));
+                                    topicsToSchemas.get(topicName.getSchemaName()).getProperties()), null, null));
                 }
             }
 

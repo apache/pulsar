@@ -114,7 +114,8 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
                 lastPosition.getLedgerId(),
                 TupleDomain.all(),
                 objectMapper.writeValueAsString(new HashMap<>()),
-                null);
+                null,
+                false);
 
         List<PulsarColumnHandle> pulsarColumnHandles = TestPulsarConnector.getColumnColumnHandles(
                 topicName, Schema.BYTES.getSchemaInfo(), PulsarColumnHandle.HandleKeyValueType.NONE, true);
