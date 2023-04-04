@@ -77,12 +77,12 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     public void prepareSource() {
         log.info("Starting DB2");
 
-        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.enableCdcStatement())
-                .execute();
+        //debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.enableCdcStatement())
+        //        .execute();
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.createTableStatement())
                 .execute();
-        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
-                .execute();
+        //debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
+        //        .execute();
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.insertStatement())
                 .execute();
         var result = debeziumDB2DbContainer.getStoreNameResult();
