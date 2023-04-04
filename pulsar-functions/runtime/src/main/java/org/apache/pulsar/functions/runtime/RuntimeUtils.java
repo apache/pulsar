@@ -206,10 +206,12 @@ public class RuntimeUtils {
 
         if (instanceConfig.getFunctionDetails().getSource().getInputSpecsMap() != null) {
             Map<String, String> sourceInputSpecs = new HashMap<>();
-            for (Map.Entry<String, Function.ConsumerSpec> entry : instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
+            for (Map.Entry<String, Function.ConsumerSpec> entry :
+                    instanceConfig.getFunctionDetails().getSource().getInputSpecsMap().entrySet()) {
                 String topic = entry.getKey();
                 Function.ConsumerSpec spec = entry.getValue();
                 sourceInputSpecs.put(topic, JsonFormat.printer().omittingInsignificantWhitespace().print(spec));
+                goInstanceConfig.setSourceSpecsTopic(topic);
             }
             goInstanceConfig.setSourceInputSpecs(sourceInputSpecs);
         }
@@ -309,7 +311,7 @@ public class RuntimeUtils {
             }
 
             if (StringUtils.isNotEmpty(functionInstanceClassPath)) {
-               args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
+                args.add(String.format("-D%s=%s", FUNCTIONS_INSTANCE_CLASSPATH, functionInstanceClassPath));
             } else {
                 // add complete classpath for broker/worker so that the function instance can load
                 // the functions instance dependencies separately from user code dependencies

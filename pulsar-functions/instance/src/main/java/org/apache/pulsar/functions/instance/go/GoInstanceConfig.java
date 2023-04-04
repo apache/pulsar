@@ -57,6 +57,12 @@ public class GoInstanceConfig {
     // value is the json string of ConsumerSpec
     private Map<String, String> sourceInputSpecs;
 
+    // for backward compatibility
+    private String sourceSpecsTopic = "";
+    private String sourceSchemaType = "";
+    private boolean isRegexPatternSubscription;
+    private int receiverQueueSize;
+
     private String sinkSpecsTopic = "";
     private String sinkSchemaType = "";
 

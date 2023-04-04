@@ -60,6 +60,11 @@ type Conf struct {
 	SubscriptionPosition int32  `json:"subscriptionPosition" yaml:"subscriptionPosition"`
 	//source input specs
 	SourceInputSpecs map[string]string `json:"sourceInputSpecs" yaml:"sourceInputSpecs"`
+	// for backward compatibility
+	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
+	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
+	IsRegexPatternSubscription bool   `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
+	ReceiverQueueSize          int32  `json:"receiverQueueSize" yaml:"receiverQueueSize"`
 	//sink spec config
 	SinkSpecTopic  string `json:"sinkSpecsTopic" yaml:"sinkSpecsTopic"`
 	SinkSchemaType string `json:"sinkSchemaType" yaml:"sinkSchemaType"`
