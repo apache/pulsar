@@ -26,6 +26,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
 
 @Slf4j
 public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContainer> {
@@ -80,7 +81,8 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
-            });
+            }).waitingFor((new LogMessageWaitStrategy()).withRegEx(".*Setup has completed\\..*")
+                        .withStartupTimeout(Duration.of(10L, ChronoUnit.MINUTES));
     }
     public String getDriverClassName() {
         return "com.ibm.db2.jcc.DB2Driver";
