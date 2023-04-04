@@ -70,7 +70,7 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     @Deprecated
     public MessageId getInnerMessageId() {
-        return MessageIdImpl.convertToMessageIdImpl(messageId);
+        return messageId.getInnerMessageId();
     }
 
     @Override

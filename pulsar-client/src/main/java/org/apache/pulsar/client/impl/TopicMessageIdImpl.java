@@ -21,16 +21,12 @@ package org.apache.pulsar.client.impl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.TopicMessageId;
 
-public class TopicMessageIdImpl implements TopicMessageId {
+public class TopicMessageIdImpl extends TopicMessageId.Impl {
 
-    /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
-    private final String topicPartitionName;
     private final String topicName;
-    private final MessageId messageId;
 
     public TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
-        this.messageId = messageId;
-        this.topicPartitionName = topicPartitionName;
+        super(topicPartitionName, messageId);
         this.topicName = topicName;
     }
 
@@ -49,40 +45,21 @@ public class TopicMessageIdImpl implements TopicMessageId {
      */
     @Deprecated
     public String getTopicPartitionName() {
-        return this.topicPartitionName;
+        return getOwnerTopic();
     }
 
+    @Deprecated
     public MessageId getInnerMessageId() {
-        return messageId;
-    }
-
-    @Override
-    public String toString() {
-        return messageId.toString();
-    }
-
-    @Override
-    public byte[] toByteArray() {
-        return messageId.toByteArray();
-    }
-
-    @Override
-    public int hashCode() {
-        return messageId.hashCode();
+        return new MessageIdImpl(getLedgerId(), getEntryId(), getPartitionIndex());
     }
 
     @Override
     public boolean equals(Object obj) {
-        return messageId.equals(obj);
+        return super.equals(obj);
     }
 
     @Override
-    public int compareTo(MessageId o) {
-        return messageId.compareTo(o);
-    }
-
-    @Override
-    public String getOwnerTopic() {
-        return topicPartitionName;
+    public int hashCode() {
+        return super.hashCode();
     }
 }
