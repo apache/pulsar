@@ -47,12 +47,14 @@ type instanceConf struct {
 func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 	inputSpecs := make(map[string]*pb.ConsumerSpec)
 	// for backward compatibility
-	inputSpecs[cfg.SourceSpecTopic] = &pb.ConsumerSpec{
-		SchemaType:     cfg.SourceSchemaType,
-		IsRegexPattern: cfg.IsRegexPatternSubscription,
-		ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-			Value: cfg.ReceiverQueueSize,
-		},
+	if cfg.SourceSpecTopic != "" {
+		inputSpecs[cfg.SourceSpecTopic] = &pb.ConsumerSpec{
+			SchemaType:     cfg.SourceSchemaType,
+			IsRegexPattern: cfg.IsRegexPatternSubscription,
+			ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
+				Value: cfg.ReceiverQueueSize,
+			},
+		}
 	}
 	for topic, value := range cfg.SourceInputSpecs {
 		spec := &pb.ConsumerSpec{}

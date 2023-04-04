@@ -956,8 +956,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         try (PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .build()) {
+            String[] topics = new String[]{inputTopicName};
+            if (inputTopicName.contains(",")) {
+                topics = inputTopicName.split(",");
+            }
             try (Consumer<T> ignored = client.newConsumer(inputTopicSchema)
-                    .topic(inputTopicName)
+                    .topic(topics)
                     .subscriptionType(SubscriptionType.Shared)
                     .subscriptionName(subscriptionName)
                     .subscribe()) {
