@@ -77,27 +77,28 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     @SneakyThrows
     @Override
     public void prepareSource() {
-        log.info("Starting DB2");
-
-        ContainerExecResult response = this.debeziumDB2DbContainer
-                .execCmdAsUser("root",
-                        "/bin/bash", "-c",
-                        "/var/custom/cdcsetup.sh"
-                );
-        if (Strings.isNullOrEmpty(response.getStderr())) {
-            log.info("Result of \"{}\":\n{}", "/var/custom/cdcsetup.sh", response.getStdout());
-        } else {
-            log.warn("Result of \"{}\":\n{}\n{}", "/var/custom/cdcsetup.sh", response.getStdout(), response.getStderr());
-        }
-
+        log.info("Starting DB2. Running cdcsetup.sh next");
+        var lsResult = debeziumDB2DbContainer.execInContainer("/bin/bash", "-c", "/var/custom/cdcsetup.sh");
+        String stdout = lsResult.getStdout();
+        log.info(String.format("Output of running cdcsetup.sh is: %s", stdout));
+        int exitCode = lsResult.getExitCode();
+        log.info(String.format("Running : %s", debeziumDB2DbContainer.enableCdcStatement()));
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.enableCdcStatement())
                 .execute();
+
+        log.info(String.format("Running : %s", debeziumDB2DbContainer.createTableStatement()));
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.createTableStatement())
                 .execute();
+
+        log.info(String.format("Running : %s", debeziumDB2DbContainer.addCdcTableStatement()));
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
                 .execute();
+
+        log.info(String.format("Running : %s", debeziumDB2DbContainer.insertStatement()));
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.insertStatement())
                 .execute();
+
+        log.info(String.format("Running : %s", debeziumDB2DbContainer.selectStatement()));
         var result = debeziumDB2DbContainer.getStoreNameResult();
         log.info("debeziumDB2DbContainer.getStoreNameResult() returned: %s", result);
     }
