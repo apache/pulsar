@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -42,7 +43,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -75,6 +78,7 @@ import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -1097,6 +1101,11 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.topics().createPartitionedTopic(topicName2, 2);
         admin.topics().createPartitionedTopic(topicName3, 3);
 
+        final Set<String> topics = new HashSet<>();
+        topics.add(topicName1);
+        IntStream.range(0, 2).forEach(i -> topics.add(topicName2 + TopicName.PARTITIONED_TOPIC_SUFFIX + i));
+        IntStream.range(0, 3).forEach(i -> topics.add(topicName3 + TopicName.PARTITIONED_TOPIC_SUFFIX + i));
+
         // 1. producer connect
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .enableBatching(false)
@@ -1128,23 +1137,20 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
 
-        MessageId messageId = consumer.getLastMessageId();
-        assertTrue(messageId instanceof MultiMessageIdImpl);
-        MultiMessageIdImpl multiMessageId = (MultiMessageIdImpl) messageId;
-        Map<String, MessageId> map = multiMessageId.getMap();
-        assertEquals(map.size(), 6);
-        map.forEach((k, v) -> {
-            log.info("topic: {}, messageId:{} ", k, v.toString());
-            assertTrue(v instanceof MessageIdImpl);
-            MessageIdImpl messageId1 = (MessageIdImpl) v;
-            if (k.contains(topicName1)) {
-                assertEquals(messageId1.entryId,  totalMessages  - 1);
-            } else if (k.contains(topicName2)) {
-                assertEquals(messageId1.entryId,  totalMessages / 2  - 1);
+        assertThrows(PulsarClientException.class, consumer::getLastMessageId);
+        List<TopicMessageId> msgIds = consumer.getLastMessageIds();
+        assertEquals(msgIds.size(), 6);
+        assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);
+        for (TopicMessageId msgId : msgIds) {
+            int numMessages = (int) ((MessageIdAdv) msgId).getEntryId() + 1;
+            if (msgId.getOwnerTopic().equals(topicName1)) {
+                assertEquals(numMessages, totalMessages);
+            } else if (msgId.getOwnerTopic().startsWith(topicName2)) {
+                assertEquals(numMessages, totalMessages / 2);
             } else {
-                assertEquals(messageId1.entryId,  totalMessages / 3  - 1);
+                assertEquals(numMessages, totalMessages / 3);
             }
-        });
+        }
 
         for (int i = 0; i < totalMessages; i++) {
             producer1.send((messagePredicate + "producer1-" + i).getBytes());
@@ -1152,23 +1158,20 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
 
-        messageId = consumer.getLastMessageId();
-        assertTrue(messageId instanceof MultiMessageIdImpl);
-        MultiMessageIdImpl multiMessageId2 = (MultiMessageIdImpl) messageId;
-        Map<String, MessageId> map2 = multiMessageId2.getMap();
-        assertEquals(map2.size(), 6);
-        map2.forEach((k, v) -> {
-            log.info("topic: {}, messageId:{} ", k, v.toString());
-            assertTrue(v instanceof MessageIdImpl);
-            MessageIdImpl messageId1 = (MessageIdImpl) v;
-            if (k.contains(topicName1)) {
-                assertEquals(messageId1.entryId,  totalMessages * 2  - 1);
-            } else if (k.contains(topicName2)) {
-                assertEquals(messageId1.entryId,  totalMessages - 1);
+        assertThrows(PulsarClientException.class, consumer::getLastMessageId);
+        msgIds = consumer.getLastMessageIds();
+        assertEquals(msgIds.size(), 6);
+        assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);
+        for (TopicMessageId msgId : msgIds) {
+            int numMessages = (int) ((MessageIdAdv) msgId).getEntryId() + 1;
+            if (msgId.getOwnerTopic().equals(topicName1)) {
+                assertEquals(numMessages, totalMessages * 2);
+            } else if (msgId.getOwnerTopic().startsWith(topicName2)) {
+                assertEquals(numMessages, totalMessages / 2 * 2);
             } else {
-                assertEquals(messageId1.entryId,  totalMessages * 2 / 3  - 1);
+                assertEquals(numMessages, totalMessages / 3 * 2);
             }
-        });
+        }
 
         consumer.unsubscribe();
         consumer.close();

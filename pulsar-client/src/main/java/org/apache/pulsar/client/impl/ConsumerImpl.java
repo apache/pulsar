@@ -2341,6 +2341,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         return internalGetLastMessageIdAsync().thenApply(r -> r.lastMessageId);
     }
 
+    @Override
+    public CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync() {
+        return getLastMessageIdAsync()
+                .thenApply(msgId -> Collections.singletonList(TopicMessageId.create(topic, msgId)));
+    }
+
     public CompletableFuture<GetLastMessageIdResponse> internalGetLastMessageIdAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil

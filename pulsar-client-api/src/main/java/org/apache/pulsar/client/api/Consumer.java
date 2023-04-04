@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -536,18 +537,37 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     CompletableFuture<Void> seekAsync(long timestamp);
 
     /**
-     * Get the last message id available for consume.
+     * Get the last message id of the topic subscribed.
      *
-     * @return the last message id.
+     * @return the last message id of the topic subscribed
+     * @throws PulsarClientException if multiple topics or partitioned topics are subscribed or failed because of a
+     *   network issue
+     * NOTE: Use {@link Consumer#getLastMessageIds()} instead.
      */
+    @Deprecated
     MessageId getLastMessageId() throws PulsarClientException;
 
     /**
-     * Get the last message id available for consume.
-     *
-     * @return a future that can be used to track the completion of the operation.
+     * The asynchronous version of {@link Consumer#getLastMessageId()}.
+     * NOTE: Use {@link Consumer#getLastMessageIdsAsync()} instead.
      */
+    @Deprecated
     CompletableFuture<MessageId> getLastMessageIdAsync();
+
+    /**
+     * Get all the last message id of the topics the consumer subscribed.
+     *
+     * @return the list of TopicMessageId instances of all the topics that the consumer subscribed
+     * @throws PulsarClientException if failed to get last message id.
+     * @apiNote It's guaranteed that the owner topic of each TopicMessageId in the returned list is different from owner
+     *   topics of other TopicMessageId instances
+     */
+    List<TopicMessageId> getLastMessageIds() throws PulsarClientException;
+
+    /**
+     * The asynchronous version of {@link Consumer#getLastMessageIds()}.
+     */
+    CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync();
 
     /**
      * @return Whether the consumer is connected to the broker
