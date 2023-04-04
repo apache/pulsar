@@ -60,7 +60,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,9 +86,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
@@ -99,11 +95,8 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
@@ -123,8 +116,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     private PulsarService pulsar2;
 
     private PulsarTestContext additionalPulsarTestContext;
-
-    private PulsarResources resources;
 
     private ExtensibleLoadManagerImpl primaryLoadManager;
 
@@ -164,37 +155,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("public/default");
         admin.namespaces().setNamespaceReplicationClusters("public/default",
                 Sets.newHashSet(this.conf.getClusterName()));
-    }
-
-    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
-        if (resources == null) {
-            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null);
-            MetadataStoreExtended configStore = (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null);
-            resources = new PulsarResources(localStore, configStore);
-        }
-        this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                NamespaceName.SYSTEM_NAMESPACE);
-    }
-
-    protected void createNamespaceIfNotExists(PulsarResources resources,
-                                              String publicTenant,
-                                              NamespaceName ns) throws Exception {
-        TenantResources tr = resources.getTenantResources();
-        NamespaceResources nsr = resources.getNamespaceResources();
-
-        if (!tr.tenantExists(publicTenant)) {
-            tr.createTenant(publicTenant,
-                    TenantInfo.builder()
-                            .adminRoles(Sets.newHashSet(conf.getSuperUserRoles()))
-                            .allowedClusters(Sets.newHashSet(conf.getClusterName()))
-                            .build());
-        }
-
-        if (!nsr.namespaceExists(ns)) {
-            Policies nsp = new Policies();
-            nsp.replication_clusters = Collections.singleton(conf.getClusterName());
-            nsr.createPolicies(ns, nsp);
-        }
     }
 
     @Override
