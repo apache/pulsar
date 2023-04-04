@@ -47,7 +47,7 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
     (https://www.ibm.com/support/customer/csol/terms/?id=L-GMET-8KJN5X&lc=en#detail-document)
      */
     private static final String DBNAME = "mydb2";
-    private static final String USERNAME = "DB2INST1";
+    private static final String USERNAME = "db2inst1";
     private static final String PASS = "admin";
 
     public DebeziumDB2DbContainer(String clusterName) {
