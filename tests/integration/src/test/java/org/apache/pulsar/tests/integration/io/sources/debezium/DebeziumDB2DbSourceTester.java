@@ -25,8 +25,10 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumDB2DbContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.util.Strings;
 
 /**
  * A tester for testing Debezium DB2 source.
@@ -77,12 +79,23 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     public void prepareSource() {
         log.info("Starting DB2");
 
-        //debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.enableCdcStatement())
-        //        .execute();
+        ContainerExecResult response = this.debeziumDB2DbContainer
+                .execCmdAsUser("root",
+                        "/bin/bash", "-c",
+                        "/var/custom/cdcsetup.sh"
+                );
+        if (Strings.isNullOrEmpty(response.getStderr())) {
+            log.info("Result of \"{}\":\n{}", "/var/custom/cdcsetup.sh", response.getStdout());
+        } else {
+            log.warn("Result of \"{}\":\n{}\n{}", "/var/custom/cdcsetup.sh", response.getStdout(), response.getStderr());
+        }
+
+        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.enableCdcStatement())
+                .execute();
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.createTableStatement())
                 .execute();
-        //debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
-        //        .execute();
+        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
+                .execute();
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.insertStatement())
                 .execute();
         var result = debeziumDB2DbContainer.getStoreNameResult();
