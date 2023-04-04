@@ -82,7 +82,7 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
             }).waitingFor((new LogMessageWaitStrategy()).withRegEx(".*Setup has completed\\..*")
-                        .withStartupTimeout(Duration.of(10L, ChronoUnit.MINUTES));
+                        .withStartupTimeout(Duration.of(10L, ChronoUnit.MINUTES)));
     }
     public String getDriverClassName() {
         return "com.ibm.db2.jcc.DB2Driver";
