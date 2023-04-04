@@ -1696,14 +1696,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
+    private CompletableFuture<Boolean> checkReplicationCluster(String remoteCluster) {
+        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenApply(optPolicies -> optPolicies.map(policies -> policies.replication_clusters)
+                        .orElse(Collections.emptySet()).contains(remoteCluster)
+                        || topicPolicies.getReplicationClusters().get().contains(remoteCluster));
+    }
+
     protected CompletableFuture<Void> addReplicationCluster(String remoteCluster, ManagedCursor cursor,
             String localCluster) {
         return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
-                .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
-                        .getClusterAsync(remoteCluster)
-                        .thenApply(clusterData ->
-                                brokerService.getReplicationClient(remoteCluster, clusterData)))
+                .thenCompose(__ -> checkReplicationCluster(remoteCluster))
+                .thenCompose(clusterExists -> {
+                    if (!clusterExists) {
+                        log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
+                        return removeReplicator(remoteCluster).thenApply(__ -> null);
+                    }
+                    return brokerService.pulsar().getPulsarResources().getClusterResources()
+                            .getClusterAsync(remoteCluster)
+                            .thenApply(clusterData ->
+                                    brokerService.getReplicationClient(remoteCluster, clusterData));
+                })
                 .thenAccept(replicationClient -> {
+                    if (replicationClient == null) {
+                        return;
+                    }
                     Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
                             return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
@@ -1727,8 +1745,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
-        replicators.get(remoteCluster).disconnect().thenRun(() -> {
-
+        Optional.ofNullable(replicators.get(remoteCluster)).map(Replicator::disconnect)
+                .orElse(CompletableFuture.completedFuture(null)).thenRun(() -> {
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
