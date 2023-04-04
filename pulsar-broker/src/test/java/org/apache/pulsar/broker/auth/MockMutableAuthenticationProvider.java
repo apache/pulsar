@@ -16,24 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
+package org.apache.pulsar.broker.auth;
 
-import java.util.Set;
-import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
-import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.common.api.AuthData;
+import javax.net.ssl.SSLSession;
+import java.net.SocketAddress;
 
-/**
- * Determines which bundles should be split based on various thresholds.
- *
- * Migrate from {@link org.apache.pulsar.broker.loadbalance.BundleSplitStrategy}
- */
-public interface NamespaceBundleSplitStrategy {
-
-    /**
-     * Determines which bundles, if any, should be split.
-     *
-     * @param context The context used for decisions.
-     * @return A set of the bundles that should be split.
-     */
-    Set<Split> findBundlesToSplit(LoadManagerContext context);
+public class MockMutableAuthenticationProvider extends MockAuthenticationProvider {
+    public AuthenticationState newAuthState(AuthData authData,
+                                            SocketAddress remoteAddress,
+                                            SSLSession sslSession) {
+        return new MockMutableAuthenticationState(this);
+    }
 }

@@ -87,6 +87,7 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -255,7 +256,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                 option.isDurable(), option.getStartMessageId(), option.getMetadata(),
                 option.isReadCompacted(),
                 option.getStartMessageRollbackDurationSec(), option.isReplicatedSubscriptionStateArg(),
-                option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null));
+                option.getKeySharedMeta(), option.getSubscriptionProperties().orElse(null),
+                option.getSchemaType());
     }
 
     @Override
@@ -268,7 +270,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, resetStartMessageBackInSec,
-                replicateSubscriptionState, keySharedMeta, null);
+                replicateSubscriptionState, keySharedMeta, null, null);
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -279,7 +281,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                                                           long resetStartMessageBackInSec,
                                                           boolean replicateSubscriptionState,
                                                           KeySharedMeta keySharedMeta,
-                                                          Map<String, String> subscriptionProperties) {
+                                                          Map<String, String> subscriptionProperties,
+                                                          SchemaType schemaType) {
 
         return brokerService.checkTopicNsOwnership(getName()).thenCompose(__ -> {
             final CompletableFuture<Consumer> future = new CompletableFuture<>();
@@ -321,8 +324,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                     name -> new NonPersistentSubscription(this, subscriptionName, isDurable, subscriptionProperties));
 
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta,
-                    MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                    false, cnx, cnx.getAuthRole(), metadata, readCompacted, keySharedMeta, MessageId.latest,
+                    DEFAULT_CONSUMER_EPOCH, schemaType);
             if (isMigrated()) {
                 consumer.topicMigrated(getClusterMigrationUrl());
             }
@@ -1162,12 +1165,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
         return hasSchema().thenCompose((hasSchema) -> {
-            int numActiveConsumers = subscriptions.values().stream()
-                    .mapToInt(subscription -> subscription.getConsumers().size())
+            int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
+                    .mapToInt(subscription -> subscription.getConsumers().stream()
+                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
+                            .toList().size())
                     .sum();
             if (hasSchema
                     || (!producers.isEmpty())
-                    || (numActiveConsumers != 0)
+                    || (numActiveConsumersWithoutAutoSchema != 0)
                     || ENTRIES_ADDED_COUNTER_UPDATER.get(this) != 0) {
                 return checkSchemaCompatibleForConsumer(schema);
             } else {

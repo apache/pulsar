@@ -19,7 +19,6 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -45,7 +44,6 @@ import java.util.function.Supplier;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import lombok.Getter;
-import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
@@ -99,6 +97,7 @@ public class ProxyConnection extends PulsarHandler {
     String clientAuthRole;
     AuthData clientAuthData;
     String clientAuthMethod;
+    String clientVersion;
 
     private String authMethod = "none";
     AuthenticationProvider authenticationProvider;
@@ -209,7 +208,6 @@ public class ProxyConnection extends PulsarHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        super.exceptionCaught(ctx, cause);
         LOG.warn("[{}] Got exception {} : Message: {} State: {}", remoteAddress, cause.getClass().getSimpleName(),
                 cause.getMessage(), state,
                 ClientCnx.isKnownException(cause) ? null : cause);
@@ -380,7 +378,7 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     private void handleBrokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
-        checkState(ctx.executor().inEventLoop(), "This method should be called in the event loop");
+        assert ctx.executor().inEventLoop();
         if (state == State.ProxyConnectingToBroker && ctx.channel().isOpen() && this.directProxyHandler == null) {
             this.directProxyHandler = directProxyHandler;
             state = State.ProxyConnectionToBroker;
@@ -401,7 +399,7 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     private void connectToBroker(InetSocketAddress brokerAddress) {
-        checkState(ctx.executor().inEventLoop(), "This method should be called in the event loop");
+        assert ctx.executor().inEventLoop();
         DirectProxyHandler directProxyHandler = new DirectProxyHandler(service, this);
         directProxyHandler.connect(proxyToBrokerUrl, brokerAddress, protocolVersionToAdvertise);
     }
@@ -409,9 +407,12 @@ public class ProxyConnection extends PulsarHandler {
     public void brokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
         try {
             final CommandConnected finalConnected = new CommandConnected().copyFrom(connected);
-            ctx.executor().execute(() -> handleBrokerConnected(directProxyHandler, finalConnected));
+            handleBrokerConnected(directProxyHandler, finalConnected);
         } catch (RejectedExecutionException e) {
             LOG.error("Event loop was already closed. Closing broker connection.", e);
+            directProxyHandler.close();
+        } catch (AssertionError e) {
+            LOG.error("Failed assertion, closing direct proxy handler.", e);
             directProxyHandler.close();
         }
     }
@@ -475,6 +476,7 @@ public class ProxyConnection extends PulsarHandler {
         this.hasProxyToBrokerUrl = connect.hasProxyToBrokerUrl();
         this.protocolVersionToAdvertise = getProtocolVersionToAdvertise(connect);
         this.proxyToBrokerUrl = connect.hasProxyToBrokerUrl() ? connect.getProxyToBrokerUrl() : "null";
+        this.clientVersion = connect.getClientVersion();
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Received CONNECT from {} proxyToBroker={}", remoteAddress, proxyToBrokerUrl);
@@ -568,7 +570,7 @@ public class ProxyConnection extends PulsarHandler {
                     if (authResponse.hasClientVersion()) {
                         clientVersion = authResponse.getClientVersion();
                     } else {
-                        clientVersion = PulsarVersion.getVersion();
+                        clientVersion = this.clientVersion;
                     }
                     int protocolVersion;
                     if (authResponse.hasProtocolVersion()) {

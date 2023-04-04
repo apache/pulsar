@@ -46,6 +46,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
@@ -208,6 +209,23 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @DataProvider(name = "isV1")
     public Object[][] isV1() {
         return new Object[][] { { true }, { false } };
+    }
+
+
+    /**
+     * It verifies http error code when updating partitions to ensure compatibility.
+     */
+    @Test
+    public void testUpdatePartitionsErrorCode() {
+        final String nonPartitionedTopicName = "non-partitioned-topic-name" + UUID.randomUUID();
+        try {
+            // Update a non-partitioned topic
+            admin.topics().updatePartitionedTopic(nonPartitionedTopicName, 2);
+            Assert.fail("Expect conflict exception.");
+        } catch (PulsarAdminException ex) {
+            Assert.assertEquals(ex.getStatusCode(), 409 /*Conflict*/);
+            Assert.assertTrue(ex instanceof PulsarAdminException.ConflictException);
+        }
     }
 
     /**
@@ -659,6 +677,22 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         cleanup();
         setup();
+    }
+
+    @Test
+    public void shouldNotSupportResetOnPartitionedTopic() throws PulsarAdminException, PulsarClientException {
+        final String partitionedTopicName = "persistent://prop-xyz/ns1/" + BrokerTestUtil.newUniqueName("parttopic");
+        admin.topics().createPartitionedTopic(partitionedTopicName, 4);
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        try {
+            admin.topics().resetCursor(partitionedTopicName, "my-sub", MessageId.earliest);
+            fail();
+        } catch (PulsarAdminException.NotAllowedException e) {
+            assertTrue(e.getMessage().contains("Reset-cursor at position is not allowed for partitioned-topic"),
+                    "Condition doesn't match. Actual message:" + e.getMessage());
+        }
     }
 
     private void publishMessagesOnPersistentTopic(String topicName, int messages, int startIdx) throws Exception {
@@ -1665,6 +1699,11 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // verify namespace can be deleted even without topic policy events
         admin.namespaces().deleteNamespace(namespace, true);
 
+        Awaitility.await().untilAsserted(() -> {
+            final CompletableFuture<Optional<Topic>> eventTopicFuture =
+                    pulsar.getBrokerService().getTopics().get("persistent://test-tenant/test-ns2/__change_events");
+            assertNull(eventTopicFuture);
+        });
         admin.namespaces().createNamespace(namespace, Set.of("test"));
         // create topic
         String topic = namespace + "/test-topic2";

@@ -31,19 +31,30 @@ keytool -genkeypair -keystore broker.keystore.jks $COMMON_PARAMS -keyalg RSA -ke
   -dname 'CN=localhost,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
 keytool -genkeypair -keystore client.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias client -validity $DAYS \
   -dname 'CN=clientuser,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
+keytool -genkeypair -keystore proxy.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias proxy -validity $DAYS \
+  -dname 'CN=proxy,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
 
 # export certificate
 keytool -exportcert -keystore broker.keystore.jks $COMMON_PARAMS -file broker.cer -alias broker
 keytool -exportcert -keystore client.keystore.jks $COMMON_PARAMS -file client.cer -alias client
+keytool -exportcert -keystore proxy.keystore.jks $COMMON_PARAMS -file proxy.cer -alias proxy
 
 # generate truststore
 keytool -importcert -keystore client.truststore.jks $COMMON_PARAMS -file client.cer -alias truststore
 keytool -importcert -keystore broker.truststore.jks $COMMON_PARAMS -file broker.cer -alias truststore
+keytool -importcert -keystore proxy.truststore.jks $COMMON_PARAMS -file proxy.cer -file client.cer -alias truststore
+
+# generate trust store with proxy and client public certs
+keytool -importcert -keystore proxy-and-client.truststore.jks $COMMON_PARAMS -file proxy.cer -alias proxy
+keytool -importcert -keystore proxy-and-client.truststore.jks $COMMON_PARAMS -file client.cer -alias client
 
 # generate a truststore without password
 java ../RemoveJksPassword.java client.truststore.jks 111111 client.truststore.nopassword.jks
 java ../RemoveJksPassword.java broker.truststore.jks 111111 broker.truststore.nopassword.jks
+java ../RemoveJksPassword.java proxy.truststore.jks 111111 proxy.truststore.nopassword.jks
+java ../RemoveJksPassword.java proxy-and-client.truststore.jks 111111 proxy-and-client.truststore.nopassword.jks
 
 # cleanup
 rm broker.cer
 rm client.cer
+rm proxy.cer

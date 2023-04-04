@@ -420,7 +420,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(partitionedTopicMetadata -> {
                 int currentMetadataPartitions = partitionedTopicMetadata.partitions;
                 if (currentMetadataPartitions <= 0) {
-                    throw new RestException(422 /* Unprocessable entity*/,
+                    throw new RestException(Status.CONFLICT /* Unprocessable entity*/,
                             String.format("Topic %s is not the partitioned topic.", topicName));
                 }
                 if (expectPartitions < currentMetadataPartitions) {
@@ -2672,7 +2672,7 @@ public class PersistentTopicsBase extends AdminResource {
                         if (topicMetadata.partitions > 0) {
                             log.warn("[{}] Not supported operation on partitioned-topic {} {}",
                                     clientAppId(), topicName, subName);
-                            asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
+                            throw new CompletionException(new RestException(Status.METHOD_NOT_ALLOWED,
                                     "Reset-cursor at position is not allowed for partitioned-topic"));
                         }
                         return CompletableFuture.completedFuture(null);
@@ -4317,7 +4317,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
             PulsarService pulsar, String clientAppId, String originalPrincipal,
             AuthenticationDataSource authenticationData, TopicName topicName) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();

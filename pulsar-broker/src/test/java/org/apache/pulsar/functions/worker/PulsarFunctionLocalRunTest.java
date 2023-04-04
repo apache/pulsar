@@ -670,7 +670,7 @@ public class PulsarFunctionLocalRunTest {
         }, 50, 150);
 
         int totalMsgs = 5;
-        Method setBaseValueMethod = avroTestObjectClass.getMethod("setBaseValue", new Class[]{int.class});
+        Method setBaseValueMethod = avroTestObjectClass.getMethod("setBaseValue", new Class[]{Integer.class});
         for (int i = 0; i < totalMsgs; i++) {
             Object avroTestObject = avroTestObjectClass.getDeclaredConstructor().newInstance();
             setBaseValueMethod.invoke(avroTestObject, i);

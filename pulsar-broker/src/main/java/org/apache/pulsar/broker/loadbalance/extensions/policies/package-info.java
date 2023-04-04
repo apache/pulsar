@@ -16,35 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
-
-import java.util.BitSet;
-
-class BatchMessageAckerDisabled extends BatchMessageAcker {
-
-    static final BatchMessageAckerDisabled INSTANCE = new BatchMessageAckerDisabled();
-
-    private BatchMessageAckerDisabled() {
-        super(new BitSet(), 0);
-    }
-
-    @Override
-    public synchronized int getBatchSize() {
-        return 0;
-    }
-
-    @Override
-    public boolean ackIndividual(int batchIndex) {
-        return true;
-    }
-
-    @Override
-    public boolean ackCumulative(int batchIndex) {
-        return true;
-    }
-
-    @Override
-    public int getOutstandingAcks() {
-        return 0;
-    }
-}
+package org.apache.pulsar.broker.loadbalance.extensions.policies;

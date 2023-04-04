@@ -261,6 +261,8 @@ public class BrokerService implements Closeable {
     private final ConcurrentOpenHashSet<PersistentDispatcherMultipleConsumers> blockedDispatchers;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    @Getter
+    @VisibleForTesting
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
     private final ServerBootstrap defaultServerBootstrap;
     private final List<EventLoopGroup> protocolHandlersWorkerGroups = new ArrayList<>();
@@ -1307,7 +1309,8 @@ public class BrokerService implements Closeable {
                             data.getBrokerClientTlsKeyStorePassword(),
                             data.getBrokerClientTrustCertsFilePath(),
                             data.getBrokerClientKeyFilePath(),
-                            data.getBrokerClientCertificateFilePath()
+                            data.getBrokerClientCertificateFilePath(),
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
                     );
                 } else if (pulsar.getConfiguration().isBrokerClientTlsEnabled()) {
                     configTlsSettings(clientBuilder, serviceUrlTls,
@@ -1321,7 +1324,8 @@ public class BrokerService implements Closeable {
                             pulsar.getConfiguration().getBrokerClientTlsKeyStorePassword(),
                             pulsar.getConfiguration().getBrokerClientTrustCertsFilePath(),
                             pulsar.getConfiguration().getBrokerClientKeyFilePath(),
-                            pulsar.getConfiguration().getBrokerClientCertificateFilePath()
+                            pulsar.getConfiguration().getBrokerClientCertificateFilePath(),
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
                     );
                 } else {
                     clientBuilder.serviceUrl(
@@ -1351,10 +1355,12 @@ public class BrokerService implements Closeable {
                                    String brokerClientTlsTrustStorePassword, String brokerClientTlsKeyStoreType,
                                    String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
                                    String brokerClientTrustCertsFilePath,
-                                   String brokerClientKeyFilePath, String brokerClientCertificateFilePath) {
+                                   String brokerClientKeyFilePath, String brokerClientCertificateFilePath,
+                                   boolean isTlsHostnameVerificationEnabled) {
         clientBuilder
                 .serviceUrl(serviceUrl)
-                .allowTlsInsecureConnection(isTlsAllowInsecureConnection);
+                .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1370,6 +1376,31 @@ public class BrokerService implements Closeable {
         }
     }
 
+    private void configAdminTlsSettings(PulsarAdminBuilder adminBuilder, boolean brokerClientTlsEnabledWithKeyStore,
+                                        boolean isTlsAllowInsecureConnection,
+                                        String brokerClientTlsTrustStoreType, String brokerClientTlsTrustStore,
+                                        String brokerClientTlsTrustStorePassword, String brokerClientTlsKeyStoreType,
+                                        String brokerClientTlsKeyStore, String brokerClientTlsKeyStorePassword,
+                                        String brokerClientTrustCertsFilePath,
+                                        String brokerClientKeyFilePath, String brokerClientCertificateFilePath,
+                                        boolean isTlsHostnameVerificationEnabled) {
+        if (brokerClientTlsEnabledWithKeyStore) {
+            adminBuilder.useKeyStoreTls(true)
+                    .tlsTrustStoreType(brokerClientTlsTrustStoreType)
+                    .tlsTrustStorePath(brokerClientTlsTrustStore)
+                    .tlsTrustStorePassword(brokerClientTlsTrustStorePassword)
+                    .tlsKeyStoreType(brokerClientTlsKeyStoreType)
+                    .tlsKeyStorePath(brokerClientTlsKeyStore)
+                    .tlsKeyStorePassword(brokerClientTlsKeyStorePassword);
+        } else {
+            adminBuilder.tlsTrustCertsFilePath(brokerClientTrustCertsFilePath)
+                    .tlsKeyFilePath(brokerClientKeyFilePath)
+                    .tlsCertificateFilePath(brokerClientCertificateFilePath);
+        }
+        adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection)
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+    }
+
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarAdmin admin = clusterAdmins.get(cluster);
         if (admin != null) {
@@ -1379,37 +1410,60 @@ public class BrokerService implements Closeable {
             try {
                 ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
+                PulsarAdminBuilder builder = PulsarAdmin.builder();
 
                 ServiceConfiguration conf = pulsar.getConfig();
-
-                boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
-                String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl);
-
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
                 builder.loadConf(PropertiesUtils.filterAndMapProperties(conf.getProperties(), "brokerClient_"));
 
-                builder.authentication(
-                        conf.getBrokerClientAuthenticationPlugin(),
-                        conf.getBrokerClientAuthenticationParameters());
+                if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
+                    builder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
+                } else {
+                    builder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
+                            pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
+                }
 
-                if (isTlsUrl) {
-                    builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
-                    if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
-                        builder.useKeyStoreTls(true)
-                                .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
-                                .tlsTrustStorePath(conf.getBrokerClientTlsTrustStore())
-                                .tlsTrustStorePassword(conf.getBrokerClientTlsTrustStorePassword())
-                                .tlsKeyStoreType(conf.getBrokerClientTlsKeyStoreType())
-                                .tlsKeyStorePath(conf.getBrokerClientTlsKeyStore())
-                                .tlsKeyStorePassword(conf.getBrokerClientTlsKeyStorePassword());
-                    } else {
-                        builder.tlsTrustCertsFilePath(conf.getBrokerClientTrustCertsFilePath())
-                                .tlsKeyFilePath(conf.getBrokerClientKeyFilePath())
-                                .tlsCertificateFilePath(conf.getBrokerClientCertificateFilePath());
-                    }
+                boolean isTlsEnabled = data.isBrokerClientTlsEnabled() || conf.isBrokerClientTlsEnabled();
+                if (isTlsEnabled && StringUtils.isEmpty(data.getServiceUrlTls())) {
+                    throw new IllegalArgumentException("serviceUrlTls is empty, brokerClientTlsEnabled: "
+                            + isTlsEnabled);
+                } else if (StringUtils.isEmpty(data.getServiceUrl())) {
+                    throw new IllegalArgumentException("serviceUrl is empty, brokerClientTlsEnabled: " + isTlsEnabled);
+                }
+                String adminApiUrl = isTlsEnabled ? data.getServiceUrlTls() : data.getServiceUrl();
+                builder.serviceHttpUrl(adminApiUrl);
+                if (data.isBrokerClientTlsEnabled()) {
+                    configAdminTlsSettings(builder,
+                            data.isBrokerClientTlsEnabledWithKeyStore(),
+                            data.isTlsAllowInsecureConnection(),
+                            data.getBrokerClientTlsTrustStoreType(),
+                            data.getBrokerClientTlsTrustStore(),
+                            data.getBrokerClientTlsTrustStorePassword(),
+                            data.getBrokerClientTlsKeyStoreType(),
+                            data.getBrokerClientTlsKeyStore(),
+                            data.getBrokerClientTlsKeyStorePassword(),
+                            data.getBrokerClientTrustCertsFilePath(),
+                            data.getBrokerClientKeyFilePath(),
+                            data.getBrokerClientCertificateFilePath(),
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                    );
+                } else if (conf.isBrokerClientTlsEnabled()) {
+                    configAdminTlsSettings(builder,
+                            conf.isBrokerClientTlsEnabledWithKeyStore(),
+                            conf.isTlsAllowInsecureConnection(),
+                            conf.getBrokerClientTlsTrustStoreType(),
+                            conf.getBrokerClientTlsTrustStore(),
+                            conf.getBrokerClientTlsTrustStorePassword(),
+                            conf.getBrokerClientTlsKeyStoreType(),
+                            conf.getBrokerClientTlsKeyStore(),
+                            conf.getBrokerClientTlsKeyStorePassword(),
+                            conf.getBrokerClientTrustCertsFilePath(),
+                            conf.getBrokerClientKeyFilePath(),
+                            conf.getBrokerClientCertificateFilePath(),
+                            pulsar.getConfiguration().isTlsHostnameVerificationEnabled()
+                    );
                 }
 
                 // most of the admin request requires to make zk-call so, keep the max read-timeout based on
@@ -1625,8 +1679,15 @@ public class BrokerService implements Closeable {
                                                                         - topicCreateTimeMs;
                                             pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
                                             if (topicFuture.isCompletedExceptionally()) {
+                                                // Check create persistent topic timeout.
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
+                                                persistentTopic.getTransactionBuffer()
+                                                        .closeAsync()
+                                                        .exceptionally(t -> {
+                                                            log.error("[{}] Close transactionBuffer failed", topic, t);
+                                                            return null;
+                                                        });
                                                 persistentTopic.stopReplProducers()
                                                         .whenCompleteAsync((v, exception) -> {
                                                             topics.remove(topic, topicFuture);

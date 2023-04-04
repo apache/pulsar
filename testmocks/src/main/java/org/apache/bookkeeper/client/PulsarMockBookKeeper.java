@@ -90,6 +90,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
     final List<CompletableFuture<Void>> failures = new ArrayList<>();
+    final List<CompletableFuture<Void>> addEntryFailures = new ArrayList<>();
 
     public PulsarMockBookKeeper(OrderedExecutor orderedExecutor) throws Exception {
         this.orderedExecutor = orderedExecutor;
@@ -317,6 +318,13 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return shouldFailNow;
     }
 
+    synchronized CompletableFuture<Void> getAddEntryFailure() {
+        if (!addEntryFailures.isEmpty()){
+            return addEntryFailures.remove(0);
+        }
+        return failures.isEmpty() ? defaultResponse : failures.remove(0);
+    }
+
     synchronized CompletableFuture<Void> getProgrammedFailure() {
         return failures.isEmpty() ? defaultResponse : failures.remove(0);
     }
@@ -326,7 +334,11 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     public void failAfter(int steps, int rc) {
-        promiseAfter(steps).completeExceptionally(BKException.create(rc));
+        promiseAfter(steps, failures).completeExceptionally(BKException.create(rc));
+    }
+
+    public void addEntryFailAfter(int steps, int rc) {
+        promiseAfter(steps, addEntryFailures).completeExceptionally(BKException.create(rc));
     }
 
     private int emptyLedgerAfter = -1;
@@ -339,6 +351,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
     }
 
     public synchronized CompletableFuture<Void> promiseAfter(int steps) {
+        return promiseAfter(steps, failures);
+    }
+
+    public synchronized CompletableFuture<Void> promiseAfter(int steps, List<CompletableFuture<Void>> failures) {
         while (failures.size() <= steps) {
             failures.add(defaultResponse);
         }

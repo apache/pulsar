@@ -34,6 +34,7 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -150,25 +151,30 @@ public class KeyStoreSSLContext {
         }
 
         // trust store
-        TrustManagerFactory trustManagerFactory;
+        TrustManagerFactory trustManagerFactory = null;
         if (this.allowInsecureConnection) {
             trustManagerFactory = InsecureTrustManagerFactory.INSTANCE;
         } else {
-            trustManagerFactory = provider != null
-                    ? TrustManagerFactory.getInstance(tmfAlgorithm, provider)
-                    : TrustManagerFactory.getInstance(tmfAlgorithm);
-            KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
-            char[] passwordChars = trustStorePassword.toCharArray();
-            try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
-                trustStore.load(inputStream, passwordChars);
+            if (!Strings.isNullOrEmpty(trustStorePath)) {
+                trustManagerFactory = provider != null
+                        ? TrustManagerFactory.getInstance(tmfAlgorithm, provider)
+                        : TrustManagerFactory.getInstance(tmfAlgorithm);
+                KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
+                char[] passwordChars = trustStorePassword.toCharArray();
+                try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
+                    trustStore.load(inputStream, passwordChars);
+                }
+                trustManagerFactory.init(trustStore);
             }
-            trustManagerFactory.init(trustStore);
+        }
+
+        TrustManager[] trustManagers = null;
+        if (trustManagerFactory != null) {
+            trustManagers = SecurityUtility.processConscryptTrustManagers(trustManagerFactory.getTrustManagers());
         }
 
         // init
-        sslContext.init(keyManagers, SecurityUtility
-                        .processConscryptTrustManagers(trustManagerFactory.getTrustManagers()),
-                new SecureRandom());
+        sslContext.init(keyManagers, trustManagers, new SecureRandom());
         this.sslContext = sslContext;
         return sslContext;
     }

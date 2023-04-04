@@ -60,6 +60,8 @@ public class CommandGenerator {
     private Integer slidingIntervalCount;
     private Long slidingIntervalDurationMs;
     private String customSchemaInputs;
+    private String inputTypeClassName;
+    private String outputTypeClassName;
     private String schemaType;
     private SubscriptionInitialPosition subscriptionInitialPosition;
 
@@ -110,6 +112,12 @@ public class CommandGenerator {
         }
         if (customSchemaInputs != null) {
             commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (inputTypeClassName != null) {
+            commandBuilder.append(" --input-type-class-name " + inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            commandBuilder.append(" --output-type-class-name " + outputTypeClassName);
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
@@ -206,6 +214,12 @@ public class CommandGenerator {
         }
         if (customSchemaInputs != null) {
             commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (inputTypeClassName != null) {
+            commandBuilder.append(" --input-type-class-name " + inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            commandBuilder.append(" --output-type-class-name " + outputTypeClassName);
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
@@ -304,6 +318,12 @@ public class CommandGenerator {
         }
         if (customSchemaInputs != null) {
             commandBuilder.append(" --custom-schema-inputs \'" + customSchemaInputs + "\'");
+        }
+        if (inputTypeClassName != null) {
+            commandBuilder.append(" --input-type-class-name " + inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            commandBuilder.append(" --output-type-class-name " + outputTypeClassName);
         }
         if (schemaType != null) {
             commandBuilder.append(" --schema-type " + schemaType);
