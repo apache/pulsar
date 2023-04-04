@@ -255,7 +255,7 @@ public class ClientCnx extends PulsarHandler {
         this.protocolVersion = protocolVersion;
         this.idleState = new ClientCnxIdleState(this);
         this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
-                + (conf.getDescription() == null ? "" : conf.getDescription());
+                + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
     }
 
     @Override

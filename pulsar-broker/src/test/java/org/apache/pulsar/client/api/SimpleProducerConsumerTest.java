@@ -4607,7 +4607,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(stats.getPublishers().size(), 2);
 
         assertEquals(stats.getPublishers().stream().map(PublisherStats::getClientVersion).collect(Collectors.toSet()),
-                Sets.newHashSet(defaultClientVersion, defaultClientVersion + "my-java-client"));
+                Sets.newHashSet(defaultClientVersion, defaultClientVersion + "-my-java-client"));
 
         producer1.close();
         producer2.close();
