@@ -1323,6 +1323,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private int getTotalOwnedServiceUnitCnt() {
+        if (tableview == null) {
+            return 0;
+        }
         long now = System.currentTimeMillis();
         if (lastOwnEventHandledAt > lastOwnedServiceUnitCountAt
                 || now - lastOwnedServiceUnitCountAt > MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS) {
