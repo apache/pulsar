@@ -70,6 +70,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
@@ -87,6 +88,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -232,7 +234,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                     log.info("Failed to monitor the ownerships. will retry..", e);
                                 }
                             },
-                            ownershipMonitorDelayTimeInSecs, ownershipMonitorDelayTimeInSecs, SECONDS);
+                            0, ownershipMonitorDelayTimeInSecs, SECONDS);
             log.info("This leader broker:{} started the ownership monitor.",
                     lookupServiceAddress);
         }
@@ -389,7 +391,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private boolean debug() {
-        return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
+        return ExtensibleLoadManagerImpl.debug(config, log);
     }
 
     public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
@@ -425,7 +427,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         });
     }
 
-    private boolean isChannelOwner() {
+    public boolean isChannelOwner() {
         try {
             return isChannelOwnerAsync().get(
                     MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
@@ -434,6 +436,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error(msg, e);
             throw new RuntimeException(msg, e);
         }
+    }
+
+    public boolean isOwner(String serviceUnit, String targetBroker) {
+        if (!validateChannelState(Started, true)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+        }
+        var ownerFuture = getOwnerAsync(serviceUnit);
+        if (!ownerFuture.isDone() || ownerFuture.isCompletedExceptionally() || ownerFuture.isCancelled()) {
+            return false;
+        }
+        var owner = ownerFuture.join();
+        if (owner.isPresent() && StringUtils.equals(targetBroker, owner.get())) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isOwner(String serviceUnit) {
+        return isOwner(serviceUnit, lookupServiceAddress);
     }
 
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
@@ -533,7 +554,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         eventCounters.get(eventType).getTotal().incrementAndGet();
         String serviceUnit = split.serviceUnit();
         ServiceUnitStateData next =
-                new ServiceUnitStateData(Splitting, null, split.sourceBroker(), getNextVersionId(serviceUnit));
+                new ServiceUnitStateData(Splitting, null, split.sourceBroker(),
+                        split.splitServiceUnitToDestBroker(), getNextVersionId(serviceUnit));
         return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
             if (ex != null) {
                 eventCounters.get(eventType).getFailure().incrementAndGet();
@@ -784,22 +806,40 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private CompletableFuture<Void> splitServiceUnit(String serviceUnit, ServiceUnitStateData data) {
-        // Write the child ownerships to BSC.
+        // Write the child ownerships to channel.
         long startTime = System.nanoTime();
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceBundleFactory bundleFactory = namespaceService.getNamespaceBundleFactory();
         NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+        Map<String, Optional<String>> bundleToDestBroker = data.splitServiceUnitToDestBroker();
+        List<Long> boundaries = null;
+        NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
+                namespaceService.getNamespaceBundleSplitAlgorithmByName(
+                        config.getDefaultNamespaceBundleSplitAlgorithm());
+        if (bundleToDestBroker != null && bundleToDestBroker.size() == 2) {
+            Set<Long> boundariesSet = new HashSet<>();
+            String namespace = bundle.getNamespaceObject().toString();
+            bundleToDestBroker.forEach((bundleRange, destBroker) -> {
+                NamespaceBundle subBundle = bundleFactory.getBundle(namespace, bundleRange);
+                boundariesSet.add(subBundle.getKeyRange().lowerEndpoint());
+                boundariesSet.add(subBundle.getKeyRange().upperEndpoint());
+            });
+            boundaries = new ArrayList<>(boundariesSet);
+            nsBundleSplitAlgorithm = NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE_ALGO;
+        }
         final AtomicInteger counter = new AtomicInteger(0);
-        this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, bundle, serviceUnit, data,
-                counter, startTime, completionFuture);
+        this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, nsBundleSplitAlgorithm,
+                bundle, boundaries, serviceUnit, data, counter, startTime, completionFuture);
         return completionFuture;
     }
 
     @VisibleForTesting
     protected void splitServiceUnitOnceAndRetry(NamespaceService namespaceService,
                                                 NamespaceBundleFactory bundleFactory,
+                                                NamespaceBundleSplitAlgorithm algorithm,
                                                 NamespaceBundle bundle,
+                                                List<Long> boundaries,
                                                 String serviceUnit,
                                                 ServiceUnitStateData data,
                                                 AtomicInteger counter,
@@ -807,7 +847,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                                 CompletableFuture<Void> completionFuture) {
         CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
 
-        pulsar.getNamespaceService().getSplitBoundary(bundle, null).thenAccept(splitBundlesPair -> {
+        namespaceService.getSplitBoundary(bundle, algorithm, boundaries)
+                .thenAccept(splitBundlesPair -> {
             // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
             if (splitBundlesPair == null) {
                 String msg = format("Bundle %s not found under namespace", serviceUnit);
@@ -877,7 +918,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.warn("Failed to update bundle range in metadata store. Retrying {} th / {} limit",
                         counter.get(), NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, ex);
                 pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory,
-                                bundle, serviceUnit, data, counter, startTime, completionFuture), 100, MILLISECONDS);
+                        algorithm, bundle, boundaries, serviceUnit, data, counter, startTime, completionFuture),
+                        100, MILLISECONDS);
             } else if (throwable instanceof IllegalArgumentException) {
                 completionFuture.completeExceptionally(throwable);
             } else {
@@ -929,9 +971,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             + " Active cleanup job count:{}",
                     broker, cleanupJobs.size());
         } else {
-            log.info("Failed to cancel the ownership cleanup for broker:{}."
-                            + " There was no scheduled cleanup job. Active cleanup job count:{}",
-                    broker, cleanupJobs.size());
+            if (debug()) {
+                log.info("No needs to cancel the ownership cleanup for broker:{}."
+                                + " There was no scheduled cleanup job. Active cleanup job count:{}",
+                        broker, cleanupJobs.size());
+            }
         }
     }
 
@@ -967,6 +1011,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                     log.error("Failed to run the cleanup job for the broker {}, "
                                                     + "totalCleanupErrorCnt:{}.",
                                             broker, totalCleanupErrorCnt.incrementAndGet(), e);
+                                } finally {
+                                    cleanupJobs.remove(broker);
                                 }
                             }
                             , delayed);
@@ -1035,7 +1081,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         double cleanupTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));
-        // TODO: clean load data stores
+
+        // clean load data stores
+        getContext().topBundleLoadDataStore().removeAsync(broker);
+        getContext().brokerLoadDataStore().removeAsync(broker);
+
         log.info("Completed a cleanup for the inactive broker:{} in {} ms. "
                         + "Cleaned up orphan service units: orphanServiceUnitCleanupCnt:{}, "
                         + "approximate cleanupErrorCnt:{}, metrics:{} ",
@@ -1044,7 +1094,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 orphanServiceUnitCleanupCnt,
                 totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
                 printCleanupMetrics());
-        cleanupJobs.remove(broker);
+
     }
 
     private Optional<ServiceUnitStateData> getRollForwardStateData(
@@ -1101,7 +1151,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return;
         }
 
-        log.info("Started the ownership monitor run for activeBrokerCount:{}", brokers.size());
+        var debug = debug();
+        if (debug) {
+            log.info("Started the ownership monitor run for activeBrokerCount:{}", brokers.size());
+        }
+
         long startTime = System.nanoTime();
         Set<String> inactiveBrokers = new HashSet<>();
         Set<String> activeBrokers = new HashSet<>(brokers);
@@ -1177,27 +1231,32 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error("Failed to flush the in-flight messages.", e);
         }
 
+        boolean cleaned = false;
         if (serviceUnitTombstoneCleanupCnt > 0) {
             this.totalServiceUnitTombstoneCleanupCnt += serviceUnitTombstoneCleanupCnt;
+            cleaned = true;
         }
 
         if (orphanServiceUnitCleanupCnt > 0) {
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
+            cleaned = true;
         }
 
-        double monitorTime = TimeUnit.NANOSECONDS
-                .toMillis((System.nanoTime() - startTime));
-        log.info("Completed the ownership monitor run in {} ms. "
-                        + "Scheduled cleanups for inactive brokers:{}. inactiveBrokerCount:{}. "
-                        + "Published cleanups for orphan service units, orphanServiceUnitCleanupCnt:{}. "
-                        + "Tombstoned semi-terminal state service units, serviceUnitTombstoneCleanupCnt:{}. "
-                        + "Approximate cleanupErrorCnt:{}, metrics:{}. ",
-                monitorTime,
-                inactiveBrokers, inactiveBrokers.size(),
-                orphanServiceUnitCleanupCnt,
-                serviceUnitTombstoneCleanupCnt,
-                totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
-                printCleanupMetrics());
+        if (debug || cleaned) {
+            double monitorTime = TimeUnit.NANOSECONDS
+                    .toMillis((System.nanoTime() - startTime));
+            log.info("Completed the ownership monitor run in {} ms. "
+                            + "Scheduled cleanups for inactive brokers:{}. inactiveBrokerCount:{}. "
+                            + "Published cleanups for orphan service units, orphanServiceUnitCleanupCnt:{}. "
+                            + "Tombstoned semi-terminal state service units, serviceUnitTombstoneCleanupCnt:{}. "
+                            + "Approximate cleanupErrorCnt:{}, metrics:{}. ",
+                    monitorTime,
+                    inactiveBrokers, inactiveBrokers.size(),
+                    orphanServiceUnitCleanupCnt,
+                    serviceUnitTombstoneCleanupCnt,
+                    totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
+                    printCleanupMetrics());
+        }
 
     }
 
@@ -1330,5 +1389,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     @Override
     public Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet() {
         return tableview.entrySet();
+    }
+
+    public static ServiceUnitStateChannel get(PulsarService pulsar) {
+        return ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get()).getServiceUnitStateChannel();
     }
 }

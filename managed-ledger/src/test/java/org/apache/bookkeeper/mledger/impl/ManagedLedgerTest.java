@@ -4003,4 +4003,29 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(ledger.getEstimatedBacklogSize(((PositionImpl) positions.get(9)).getNext()), 0);
         ledger.close();
     }
+
+    @Test
+    public void testDeleteCursorTwice() throws Exception {
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("ml");
+        String cursorName = "cursor_1";
+        ml.openCursor(cursorName);
+        syncRemoveCursor(ml, cursorName);
+        syncRemoveCursor(ml, cursorName);
+    }
+
+    private void syncRemoveCursor(ManagedLedgerImpl ml, String cursorName){
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ml.getStore().asyncRemoveCursor(ml.name, cursorName, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat stat) {
+                future.complete(null);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+            }
+        });
+        future.join();
+    }
 }

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel.models;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -32,6 +33,7 @@ public class SplitTest {
     public void testConstructor() {
         Map<String, Optional<String>> map = new HashMap<>();
         map.put("C", Optional.of("test"));
+        map.put("D", Optional.of("test"));
 
         Split split = new Split("A", "B", map);
         assertEquals(split.serviceUnit(), "A");
@@ -42,6 +44,24 @@ public class SplitTest {
     @Test(expectedExceptions = NullPointerException.class)
     public void testNullBundle() {
         new Split(null, "A", Map.of());
+    }
+
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testInvalidSplitServiceUnitToDestBroker() {
+        Map<String, Optional<String>> map = new HashMap<>();
+        map.put("C", Optional.of("test"));
+        map.put("D", Optional.of("test"));
+        map.put("E", Optional.of("test"));
+        new Split("A", "B", map);
+    }
+
+    @Test
+    public void testNullSplitServiceUnitToDestBroker() {
+        var split = new Split("A", "B");
+        assertEquals(split.serviceUnit(), "A");
+        assertEquals(split.sourceBroker(), "B");
+        assertNull(split.splitServiceUnitToDestBroker());
     }
 
 }

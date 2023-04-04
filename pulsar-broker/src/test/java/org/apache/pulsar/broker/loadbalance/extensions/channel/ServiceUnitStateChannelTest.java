@@ -54,7 +54,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertNotNull;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -79,6 +78,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistryImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -133,6 +133,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         pulsar1 = pulsar;
         registry = new BrokerRegistryImpl(pulsar);
         loadManagerContext = mock(LoadManagerContext.class);
+        doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
+        doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
         brokerSelector = mock(BrokerSelectionStrategy.class);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
         pulsar2 = additionalPulsarTestContext.getPulsarService();
@@ -297,7 +299,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             }
         }
         try {
-            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1, Map.of()))
+            channel.publishSplitEventAsync(new Split(bundle, lookupServiceAddress1))
                     .get(2, TimeUnit.SECONDS);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof IllegalStateException) {
@@ -554,11 +556,15 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             }
             // Call the real method
             reset(namespaceService);
+            doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
+                    .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
             return future;
         }).when(namespaceService).updateNamespaceBundles(any(), any());
         doReturn(namespaceService).when(pulsar1).getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
+                .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
 
-        Split split = new Split(bundle, ownerAddr1.get(), new HashMap<>());
+        Split split = new Split(bundle, ownerAddr1.get());
         channel1.publishSplitEventAsync(split);
 
         waitUntilState(channel1, bundle, Deleted);
@@ -570,7 +576,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
         // Verify the retry count
         verify(((ServiceUnitStateChannelImpl) channel1), times(badVersionExceptionCount + 1))
-                .splitServiceUnitOnceAndRetry(any(), any(), any(), any(), any(), any(), anyLong(), any());
+                .splitServiceUnitOnceAndRetry(any(), any(), any(), any(), any(), any(), any(), any(), anyLong(), any());
 
         // Assert child bundle ownerships in the channels.
         String childBundle1 = "public/default/0x7fffffff_0xffffffff";
@@ -1204,6 +1210,69 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
 
     }
+
+    @Test(priority = 15)
+    public void testIsOwner() throws IllegalAccessException {
+
+        var owner1 = channel1.isOwner(bundle);
+        var owner2 = channel2.isOwner(bundle);
+
+        assertFalse(owner1);
+        assertFalse(owner2);
+
+        owner1 = channel1.isOwner(bundle, lookupServiceAddress2);
+        owner2 = channel2.isOwner(bundle, lookupServiceAddress1);
+
+        assertFalse(owner1);
+        assertFalse(owner2);
+
+        channel1.publishAssignEventAsync(bundle, lookupServiceAddress1);
+        owner2 = channel2.isOwner(bundle);
+        assertFalse(owner2);
+
+        waitUntilOwnerChanges(channel1, bundle, null);
+        waitUntilOwnerChanges(channel2, bundle, null);
+
+        owner1 = channel1.isOwner(bundle);
+        owner2 = channel2.isOwner(bundle);
+
+        assertTrue(owner1);
+        assertFalse(owner2);
+
+        owner1 = channel1.isOwner(bundle, lookupServiceAddress1);
+        owner2 = channel2.isOwner(bundle, lookupServiceAddress2);
+
+        assertTrue(owner1);
+        assertFalse(owner2);
+
+        owner1 = channel2.isOwner(bundle, lookupServiceAddress1);
+        owner2 = channel1.isOwner(bundle, lookupServiceAddress2);
+
+        assertTrue(owner1);
+        assertFalse(owner2);
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Assigning, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Owned, lookupServiceAddress1, 1));
+        assertTrue(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Releasing, null, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Splitting, null, lookupServiceAddress1, 1));
+        assertTrue(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Free, null, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, new ServiceUnitStateData(Deleted, null, lookupServiceAddress1, 1));
+        assertFalse(channel1.isOwner(bundle));
+
+        overrideTableView(channel1, bundle, null);
+        assertFalse(channel1.isOwner(bundle));
+    }
+
 
     private static ConcurrentOpenHashMap<String, CompletableFuture<Optional<String>>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
