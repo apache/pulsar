@@ -483,7 +483,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Assigning, Releasing -> {
                 return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
-                        ownerLookUpCounters.get(state).getTotal().incrementAndGet();
+                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                     }
                 }).thenApply(
                         broker -> broker == null ? Optional.empty() : Optional.of(broker));
@@ -492,11 +492,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             case Deleted -> {
-                ownerLookUpCounters.get(state).getTotal().incrementAndGet();
+                ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                 return CompletableFuture.failedFuture(new IllegalArgumentException(serviceUnit + " is deleted."));
             }
             default -> {
-                ownerLookUpCounters.get(state).getTotal().incrementAndGet();
+                ownerLookUpCounters.get(state).getFailure().incrementAndGet();
                 String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
                 return CompletableFuture.failedFuture(new IllegalStateException(errorMsg));
