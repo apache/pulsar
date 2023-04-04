@@ -77,33 +77,34 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
     public void prepareSource() {
         log.info("Starting DB2");
 
-        debeziumDB2DbContainer.executePreparedStatement(debeziumDB2DbContainer.enableCdcStatement());
-        debeziumDB2DbContainer.executePreparedStatement(debeziumDB2DbContainer.createTableStatement());
-        debeziumDB2DbContainer.executePreparedStatement(debeziumDB2DbContainer.addCdcTableStatement());
-
-        debeziumDB2DbContainer.executePreparedStatement(debeziumDB2DbContainer.insertStatement());
-
-        var stmt = debeziumDB2DbContainer.executePreparedStatement(debeziumDB2DbContainer.selectStatement());
-        var result = debeziumDB2DbContainer.getStoreNameResult(stmt);
-
+        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.enableCdcStatement())
+                .execute();
+        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.createTableStatement())
+                .execute();
+        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
+                .execute();
+        debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.insertStatement())
+                .execute();
+        var result = debeziumDB2DbContainer.getStoreNameResult();
+        log.info("debeziumDB2DbContainer.getStoreNameResult() returned: %s", result);
     }
 
     @Override
     public void prepareInsertEvent() throws Exception {
-        debeziumDB2DbContainer.executePreparedStatement("INSERT INTO DB2INST1.STORES(store_name, state_id, zip_code) VALUES ('mystore2', 2, '22222')");
-        debeziumDB2DbContainer.executePreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("INSERT INTO DB2INST1.STORES(store_name, state_id, zip_code) VALUES ('mystore2', 2, '22222')");
+        debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
     }
 
     @Override
     public void prepareDeleteEvent() throws Exception {
-        debeziumDB2DbContainer.executePreparedStatement("DELETE FROM DB2INST1.STORES WHERE store_name='mystore2'");
-        debeziumDB2DbContainer.executePreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("DELETE FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
-        debeziumDB2DbContainer.executePreparedStatement("UPDATE DB2INST1.STORES SET zip_code='33333' WHERE store_name='mystore2'");
-        debeziumDB2DbContainer.executePreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("UPDATE DB2INST1.STORES SET zip_code='33333' WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
     }
 
     @Override

@@ -126,12 +126,13 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
     public String addCdcTableStatement(){
         return String.format("CALL ASNCDC.ADDTABLE('%s','STORES')", getUsername());
     }
-    public PreparedStatement executePreparedStatement(String sqlQuery) throws SQLException, ClassNotFoundException {
+    public PreparedStatement getPreparedStatement(String sqlQuery) throws SQLException, ClassNotFoundException {
         var myConnection = this.getConnection();
         return myConnection.prepareStatement(sqlQuery);
     }
 
-    public String getStoreNameResult(PreparedStatement statement) throws SQLException {
+    public String getStoreNameResult() throws SQLException, ClassNotFoundException {
+        var statement = this.getPreparedStatement(this.selectStatement());
         var result = statement.execute();
         if(result == true)
         {
