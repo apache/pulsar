@@ -285,11 +285,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             }
 
             @Override
-            public void initialize(PulsarService pulsar) {
-                // No-op
-            }
-
-            @Override
             public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
                                                         ServiceUnitId serviceUnit,
                                                         LoadManagerContext context) throws BrokerFilterException {
@@ -819,11 +814,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         @Override
         public String name() {
             return "Mock-broker-filter";
-        }
-
-        @Override
-        public void initialize(PulsarService pulsar) {
-            // No-op
         }
 
     }
