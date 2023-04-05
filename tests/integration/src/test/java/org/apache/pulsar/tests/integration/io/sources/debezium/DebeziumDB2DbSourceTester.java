@@ -94,7 +94,7 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         int exitCode = lsResult.getExitCode();
 
         log.info("Running schema bind next");
-        var lsResult2 = debeziumDB2DbContainer.execInContainer("/bin/bash", "-c", "/opt/ibm/db2/V11.5/bin/db2", "bind", "db2schema.bnd", "blocking", "all", "grant", "public", "sqlerror", "continue");
+        var lsResult2 = debeziumDB2DbContainer.execInContainer("/bin/bash", "-c", "/opt/ibm/db2/V11.5/bin/db2 bind db2schema.bnd blocking all grant public sqlerror continue");
         String stdout2 = lsResult2.getStdout();
         log.info(String.format("Output of running schema bind is: %s", stdout2));
         int exitCode2 = lsResult2.getExitCode();
