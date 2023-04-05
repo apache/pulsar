@@ -94,8 +94,9 @@ public class PulsarIODebeziumSourceRunner extends PulsarIOSourceRunner {
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        log.info("[debezium mysql test] create consumer finish. converterName: {}", converterClassName);
+        log.info("[debezium test] create consumer finish. converterName: {}", converterClassName);
 
+        log.info("sourceTester.getNumEntriesExpectAfterStart() is {}", sourceTester.getNumEntriesExpectAfterStart());
         // validate the source result
         sourceTester.validateSourceResult(consumer, sourceTester.getNumEntriesExpectAfterStart(), null, converterClassName);
 

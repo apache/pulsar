@@ -118,24 +118,28 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         log.info(String.format("Running : %s", debeziumDB2DbContainer.selectStatement()));
         var result = debeziumDB2DbContainer.getStoreNameResult();
         log.info("debeziumDB2DbContainer.getStoreNameResult() returned: %s", result);
+        // Could add an assertion here that result == "store_name"
     }
 
     @Override
     public void prepareInsertEvent() throws Exception {
-        debeziumDB2DbContainer.getPreparedStatement("INSERT INTO DB2INST1.STORES(store_name, state_id, zip_code) VALUES ('mystore2', 2, '22222')");
-        debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("INSERT INTO DB2INST1.STORES(store_name, state_id, zip_code) VALUES ('mystore2', 2, '22222')")
+                .execute();
+        //debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
     }
 
     @Override
     public void prepareDeleteEvent() throws Exception {
-        debeziumDB2DbContainer.getPreparedStatement("DELETE FROM DB2INST1.STORES WHERE store_name='mystore2'");
-        debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("DELETE FROM DB2INST1.STORES WHERE store_name='mystore2'")
+                .execute();
+        //debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
     }
 
     @Override
     public void prepareUpdateEvent() throws Exception {
-        debeziumDB2DbContainer.getPreparedStatement("UPDATE DB2INST1.STORES SET zip_code='33333' WHERE store_name='mystore2'");
-        debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
+        debeziumDB2DbContainer.getPreparedStatement("UPDATE DB2INST1.STORES SET zip_code='33333' WHERE store_name='mystore2'")
+                .execute();
+        //debeziumDB2DbContainer.getPreparedStatement("SELECT * FROM DB2INST1.STORES WHERE store_name='mystore2'");
     }
 
     @Override
