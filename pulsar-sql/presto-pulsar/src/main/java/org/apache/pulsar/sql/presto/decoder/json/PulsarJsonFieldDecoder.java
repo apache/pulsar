@@ -29,6 +29,7 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.DecimalNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
@@ -45,8 +46,8 @@ import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.Decimals;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RealType;
@@ -59,7 +60,6 @@ import io.trino.spi.type.TinyintType;
 import io.trino.spi.type.Type;
 import io.trino.spi.type.VarbinaryType;
 import io.trino.spi.type.VarcharType;
-import java.math.BigInteger;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -221,7 +221,7 @@ public class PulsarJsonFieldDecoder
                 }
 
                 // If it is decimalType, need to eliminate the decimal point,
-                // and give it to presto to set the decimal point
+                // and give it to trino to set the decimal point
                 if (type instanceof DecimalType) {
                     String decimalLong = value.asText().replace(".", "");
                     return Long.parseLong(decimalLong);
@@ -273,15 +273,6 @@ public class PulsarJsonFieldDecoder
         private static Slice getSlice(JsonNode value, Type type, String columnName) {
             String textValue = value.isValueNode() ? value.asText() : value.toString();
 
-            // If it is decimalType, need to eliminate the decimal point,
-            // and give it to presto to set the decimal point
-            if (type instanceof DecimalType) {
-                textValue = textValue.replace(".", "");
-                BigInteger bigInteger = new BigInteger(textValue);
-//                return Decimals.encodeUnscaledValue(bigInteger);
-                return null;
-            }
-
             Slice slice = utf8Slice(textValue);
             if (type instanceof VarcharType) {
                 slice = truncateToLength(slice, type);
@@ -298,6 +289,9 @@ public class PulsarJsonFieldDecoder
             }
             if (type instanceof RowType) {
                 return serializeRow(builder, value, type, columnName);
+            }
+            if (type instanceof DecimalType && !((DecimalType) type).isShort()) {
+                return serializeLongDecimal(builder, value, type, columnName);
             }
             serializePrimitive(builder, value, type, columnName);
             return null;
@@ -329,6 +323,26 @@ public class PulsarJsonFieldDecoder
                 return null;
             }
             return blockBuilder.build();
+        }
+
+        private static Block serializeLongDecimal(BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
+            final BlockBuilder blockBuilder;
+            if (parentBlockBuilder != null) {
+                blockBuilder = parentBlockBuilder;
+            } else {
+                blockBuilder = type.createBlockBuilder(null, 1);
+            }
+
+            assert value instanceof DecimalNode;
+            final DecimalNode node = (DecimalNode) value;
+            // For decimalType, need to eliminate the decimal point,
+            // and give it to trino to set the decimal point
+            type.writeObject(blockBuilder, Int128.valueOf(node.asText().replace(".", "")));
+
+            if (parentBlockBuilder == null) {
+                return blockBuilder.getSingleValueBlock(0);
+            }
+            return null;
         }
 
         private void serializePrimitive(BlockBuilder blockBuilder, Object node, Type type, String columnName) {
