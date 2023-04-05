@@ -182,7 +182,7 @@ public abstract class PulsarWebResource {
      *             if not authorized
      */
     public void validateSuperUserAccess() {
-        if (config().isAuthenticationEnabled()) {
+        if (config().isAuthenticationEnabled() && config().isAuthorizationEnabled()) {
             String appId = clientAppId();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
@@ -218,7 +218,7 @@ public abstract class PulsarWebResource {
                 log.debug("Successfully authorized {} (proxied by {}) as super-user",
                           originalPrincipal, appId);
             } else {
-                if (config().isAuthorizationEnabled() && !pulsar.getBrokerService()
+                if (!pulsar.getBrokerService()
                         .getAuthorizationService()
                         .isSuperUser(appId, clientAuthData())
                         .join()) {
