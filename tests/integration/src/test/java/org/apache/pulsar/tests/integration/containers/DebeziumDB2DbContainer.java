@@ -114,7 +114,7 @@ public class DebeziumDB2DbContainer extends ChaosContainer<DebeziumDB2DbContaine
     public Connection getConnection() throws SQLException, ClassNotFoundException {
         log.info(String.format("JDBC Connection URL is: %s", this.getJdbcUrl()));
         if(connection == null){
-            Class.forName("com.ibm.db2.jcc.DB2Driver");
+            Class.forName(this.getDriverClassName());
             var conn = DriverManager.getConnection(this.getJdbcUrl(), getUsername(), getPassword());
             this.connection = conn;
         }

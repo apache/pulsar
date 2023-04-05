@@ -51,17 +51,29 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         this.numEntriesExpectAfterStart = 0;
 
         pulsarServiceUrl = "pulsar://pulsar-proxy:" + PulsarContainer.BROKER_PORT;
-        sourceConfig.put("connector.class", "io.debezium.connector.db2.Db2Connector");
+        //sourceConfig.put("connector.class", "io.debezium.connector.db2.Db2Connector");
         sourceConfig.put("database.hostname", DebeziumDB2DbContainer.NAME);
         sourceConfig.put("database.port", "50000");
         sourceConfig.put("database.user", "db2inst1");
         sourceConfig.put("database.password", "admin");
         sourceConfig.put("database.dbname", "mydb2");
+        sourceConfig.put("database.server.name", "db2inst1");
         sourceConfig.put("topic.prefix", "stores");
         sourceConfig.put("table.include.list", "DB2INST1.STORES");
-
+        sourceConfig.put("database.history","org.apache.pulsar.io.debezium.PulsarDatabaseHistory");
+        sourceConfig.put("database.history.pulsar.topic", "debezium-db2-source-history-topic");
         sourceConfig.put("database.history.pulsar.service.url", pulsarServiceUrl);
         sourceConfig.put("topic.namespace", "debezium/db2");
+        sourceConfig.put("key.converter", "org.apache.kafka.connect.json.JsonConverter");
+        sourceConfig.put("value.converter", "org.apache.kafka.connect.json.JsonConverter");
+        sourceConfig.put("typeClassName", "org.apache.pulsar.common.schema.KeyValue");
+        sourceConfig.put("task.class", "io.debezium.connector.db2.Db2ConnectorTask");
+
+        sourceConfig.put("offset.storage.topic", "offset-topic");
+        sourceConfig.put("snapshot.mode", "initial");
+        sourceConfig.put("database.tcpKeepAlive", "true");
+        sourceConfig.put("decimal.handling.mode", "double");
+
     }
 
     @Override
