@@ -222,7 +222,6 @@ The Apache Software License, Version 2.0
     - jackson-module-jsonSchema-2.13.4.jar
  * Guava
     - guava-31.0.1-jre.jar
-    - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
     - failureaccess-1.0.1.jar
  * Google Guice
     - guice-5.1.0.jar
@@ -255,6 +254,7 @@ The Apache Software License, Version 2.0
     - netty-tcnative-classes-2.0.56.Final.jar
     - netty-transport-4.1.89.Final.jar
     - netty-transport-classes-epoll-4.1.89.Final.jar
+    - netty-transport-native-epoll-4.1.89.Final.jar
     - netty-transport-native-epoll-4.1.89.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.89.Final.jar
     - netty-transport-native-unix-common-4.1.89.Final-linux-x86_64.jar
@@ -277,7 +277,6 @@ The Apache Software License, Version 2.0
 
  * Joda Time
     - joda-time-2.10.10.jar
-    - failsafe-2.4.4.jar
   * Jetty
     - http2-client-9.4.48.v20220622.jar
     - http2-common-9.4.48.v20220622.jar
@@ -322,7 +321,7 @@ The Apache Software License, Version 2.0
     - node-208.jar
     - parameternames-1.4.jar
     - security-208.jar
-    - slice-0.39.jar
+    - slice-0.41.jar
     - stats-208.jar
     - trace-token-208.jar
     - units-1.6.jar
@@ -340,7 +339,9 @@ The Apache Software License, Version 2.0
   * J2ObjC Annotations
     - j2objc-annotations-1.3.jar
   * JSON Web Token Support For The JVM
-    - jjwt-0.9.0.jar
+    - jjwt-api-0.11.1.jar
+    - jjwt-impl-0.11.1.jar
+    - jjwt-jackson-0.11.1.jar
   * Jmxutils
     - jmxutils-1.21.jar
   * LevelDB
@@ -384,18 +385,18 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.17.2.jar
   * Trino
-    - trino-array-363.jar
-    - trino-cli-363.jar
-    - trino-client-363.jar
-    - trino-geospatial-toolkit-363.jar
-    - trino-main-363.jar
-    - trino-matching-363.jar
-    - trino-memory-context-363.jar
-    - trino-parser-363.jar
-    - trino-plugin-toolkit-363.jar
-    - trino-server-main-363.jar
-    - trino-spi-363.jar
-    - trino-record-decoder-363.jar
+    - trino-array-368.jar
+    - trino-cli-368.jar
+    - trino-client-368.jar
+    - trino-geospatial-toolkit-368.jar
+    - trino-main-368.jar
+    - trino-matching-368.jar
+    - trino-memory-context-368.jar
+    - trino-parser-368.jar
+    - trino-plugin-toolkit-368.jar
+    - trino-server-main-368.jar
+    - trino-spi-368.jar
+    - trino-record-decoder-368.jar
   * RocksDB JNI
     - rocksdbjni-6.29.4.1.jar
   * SnakeYAML
@@ -456,6 +457,7 @@ The Apache Software License, Version 2.0
     - javassist-3.25.0-GA.jar
   * Java Native Access
     - jna-5.12.1.jar
+    - jna-platform-5.10.0.jar
   * Java Object Layout: Core
     - jol-core-0.2.jar
   * Yahoo Datasketches
@@ -493,7 +495,7 @@ BSD License
  * ANTLR 4 Runtime
     - antlr4-runtime-4.9.2.jar
  * ASM, a very small and fast Java bytecode manipulation framework
-    - asm-6.2.1.jar
+    - asm-9.1.jar
     - asm-analysis-6.2.1.jar
     - asm-tree-6.2.1.jar
     - asm-util-6.2.1.jar
@@ -518,6 +520,8 @@ MIT License
  * ScribeJava
    - scribejava-apis-6.9.0.jar
    - scribejava-core-6.9.0.jar
+ * OSHI
+   - oshi-core-5.8.5.jar
 
 CDDL - 1.0
  * OSGi Resource Locator
@@ -537,10 +541,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-client-2.34.jar
     - jersey-container-servlet-2.34.jar
     - jersey-container-servlet-core-2.34.jar
-    - jersey-entity-filtering-2.34.jar
     - jersey-hk2-2.34.jar
-    - jersey-media-json-jackson-2.34.jar
-    - jersey-media-multipart-2.34.jar
     - jersey-server-2.34.jar
     - jersey-common-2.34.jar
  * JAXB
