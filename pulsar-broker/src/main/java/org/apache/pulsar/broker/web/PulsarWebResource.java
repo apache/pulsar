@@ -186,7 +186,7 @@ public abstract class PulsarWebResource {
     }
 
     public CompletableFuture<Void> validateSuperUserAccessAsync() {
-        if (!config().isAuthorizationEnabled()) {
+        if (!config().isAuthenticationEnabled() || !config().isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
         String appId = clientAppId();
