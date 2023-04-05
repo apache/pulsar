@@ -326,7 +326,8 @@ public class PulsarJsonFieldDecoder
             return blockBuilder.build();
         }
 
-        private static Block serializeLongDecimal(BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
+        private static Block serializeLongDecimal(
+                BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
             final BlockBuilder blockBuilder;
             if (parentBlockBuilder != null) {
                 blockBuilder = parentBlockBuilder;
