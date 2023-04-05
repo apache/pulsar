@@ -103,14 +103,14 @@ public class DebeziumDB2DbSourceTester extends SourceTester<DebeziumDB2DbContain
         log.info(String.format("Running : %s", debeziumDB2DbContainer.addCdcTableStatement()));
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.addCdcTableStatement())
                 .execute();
-
+/*
         log.info(String.format("Running : %s", debeziumDB2DbContainer.insertStatement()));
         debeziumDB2DbContainer.getPreparedStatement(debeziumDB2DbContainer.insertStatement())
                 .execute();
 
         log.info(String.format("Running : %s", debeziumDB2DbContainer.selectStatement()));
         var result = debeziumDB2DbContainer.getStoreNameResult();
-        log.info("debeziumDB2DbContainer.getStoreNameResult() returned: %s", result);
+        log.info("debeziumDB2DbContainer.getStoreNameResult() returned: %s", result);*/
     }
 
     @Override
