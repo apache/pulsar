@@ -514,7 +514,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, getOwnerRequests2.size());
 
         // recovered, check the monitor update state : Assigned -> Owned
-        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress1))).when(loadManager).selectAsync(any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress1)))
+                .when(loadManager).selectAsync(any());
         FieldUtils.writeDeclaredField(channel2, "producer", producer, true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
@@ -733,8 +734,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         var owner1 = channel1.getOwnerAsync(bundle1);
         var owner2 = channel2.getOwnerAsync(bundle2);
-        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2))).when(loadManager).selectAsync(any());
-
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2)))
+                .when(loadManager).selectAsync(any());
         assertTrue(owner1.get().isEmpty());
         assertTrue(owner2.get().isEmpty());
 
@@ -1099,7 +1100,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
-        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2))).when(loadManager).selectAsync(any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2)))
+                .when(loadManager).selectAsync(any());
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress2);
         // channel1 is broken. the assign won't be complete.
         waitUntilState(channel1, bundle);
@@ -1437,7 +1439,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 new ServiceUnitStateData(Owned, broker, null, 1));
 
         // test stable metadata state
-        doReturn(Optional.of(lookupServiceAddress2)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2)))
+                .when(loadManager).selectAsync(any());
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         followerChannel.handleMetadataSessionEvent(SessionReestablished);
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
@@ -1501,7 +1504,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 new ServiceUnitStateData(Owned, broker, null, 1));
 
         // test stable metadata state
-        doReturn(Optional.of(lookupServiceAddress2)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2)))
+                .when(loadManager).selectAsync(any());
         FieldUtils.writeDeclaredField(leaderChannel, "inFlightStateWaitingTimeInMillis",
                 -1, true);
         FieldUtils.writeDeclaredField(followerChannel, "inFlightStateWaitingTimeInMillis",
