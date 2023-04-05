@@ -205,7 +205,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         this.additionalPulsarTestContext.close();
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     protected void initializeState() throws PulsarAdminException {
         admin.namespaces().unload("public/default");
         reset(primaryLoadManager, secondaryLoadManager);
