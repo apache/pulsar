@@ -1966,8 +1966,8 @@ flexible messaging model and an intuitive client API.</description>
         <test.additional.args/>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
-        <pulsar.client.compiler.release></pulsar.client.compiler.release>
+        <pulsar.broker.compiler.release/>
+        <pulsar.client.compiler.release/>
       </properties>
     </profile>
     <profile>
