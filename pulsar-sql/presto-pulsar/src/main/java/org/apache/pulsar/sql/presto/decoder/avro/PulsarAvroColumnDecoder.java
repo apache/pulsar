@@ -66,11 +66,14 @@ import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 
 /**
- * Copy from {@link io.trino.decoder.avro.AvroColumnDecoder} (presto-record-decoder-345)
- * with A little bit pulsar's extensions.
- * 1) support {@link io.trino.spi.type.TimestampType},{@link io.trino.spi.type.DateType}DATE,
- *  * {@link io.trino.spi.type.TimeType}.
+ * Copy from {@link io.trino.decoder.avro.AvroColumnDecoder}
+ * with A little pulsar's extensions.
+ * 1) support date and time types.
+ *  {@link io.trino.spi.type.TimestampType}
+ *  {@link io.trino.spi.type.DateType}
+ *  {@link io.trino.spi.type.TimeType}
  * 2) support {@link io.trino.spi.type.RealType}.
+ * 3) support {@link io.trino.spi.type.DecimalType}.
  */
 public class PulsarAvroColumnDecoder {
     private static final Set<Type> SUPPORTED_PRIMITIVE_TYPES = ImmutableSet.of(

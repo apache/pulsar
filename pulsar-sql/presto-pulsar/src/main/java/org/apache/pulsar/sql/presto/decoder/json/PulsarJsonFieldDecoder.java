@@ -66,14 +66,16 @@ import java.util.Map;
 import org.apache.commons.lang3.tuple.Pair;
 
 /**
- * Copy from {@link io.trino.decoder.json.DefaultJsonFieldDecoder} (presto-record-decoder-345)
- * with some pulsar's extensions.
+ * Copy from {@link io.trino.decoder.json.DefaultJsonFieldDecoder} with some pulsar's extensions.
  * 1) support {@link io.trino.spi.type.ArrayType}.
  * 2) support {@link io.trino.spi.type.MapType}.
  * 3) support {@link io.trino.spi.type.RowType}.
- * 4) support {@link io.trino.spi.type.TimestampType},{@link io.trino.spi.type.DateType},
- * {@link io.trino.spi.type.TimeType}.
+ * 4) support date and time types.
+ *  {@link io.trino.spi.type.TimestampType}
+ *  {@link io.trino.spi.type.DateType}
+ *  {@link io.trino.spi.type.TimeType}
  * 5) support {@link io.trino.spi.type.RealType}.
+ * 6) support {@link io.trino.spi.type.DecimalType}.
  */
 public class PulsarJsonFieldDecoder
         implements JsonFieldDecoder {
@@ -90,7 +92,6 @@ public class PulsarJsonFieldDecoder
         Pair<Long, Long> range = getNumRangeByType(columnHandle.getType());
         minValue = range.getKey();
         maxValue = range.getValue();
-
     }
 
     private static Pair<Long, Long> getNumRangeByType(Type type) {
