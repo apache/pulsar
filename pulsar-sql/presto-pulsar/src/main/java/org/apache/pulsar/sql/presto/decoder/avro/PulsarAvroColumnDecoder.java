@@ -41,8 +41,8 @@ import io.trino.spi.type.BigintType;
 import io.trino.spi.type.BooleanType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.DecimalType;
-import io.trino.spi.type.Decimals;
 import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.Int128;
 import io.trino.spi.type.IntegerType;
 import io.trino.spi.type.MapType;
 import io.trino.spi.type.RealType;
@@ -252,13 +252,6 @@ public class PulsarAvroColumnDecoder {
             }
         }
 
-        // The returned Slice size must be equals to 18 Byte
-        if (type instanceof DecimalType) {
-            ByteBuffer buffer = (ByteBuffer) value;
-            BigInteger bigInteger = new BigInteger(buffer.array());
-            return Decimals.encodeUnscaledValue(bigInteger);
-        }
-
         throw new TrinoException(DECODER_CONVERSION_NOT_SUPPORTED,
                 format("cannot decode object of '%s' as '%s' for column '%s'",
                         value.getClass(), type, columnName));
@@ -273,6 +266,9 @@ public class PulsarAvroColumnDecoder {
         }
         if (type instanceof RowType) {
             return serializeRow(builder, value, type, columnName);
+        }
+        if (type instanceof DecimalType && !((DecimalType) type).isShort()) {
+            return serializeLongDecimal(builder, value, type, columnName);
         }
         serializePrimitive(builder, value, type, columnName);
         return null;
@@ -297,6 +293,21 @@ public class PulsarAvroColumnDecoder {
             return null;
         }
         return blockBuilder.build();
+    }
+
+    private static Block serializeLongDecimal(BlockBuilder parentBlockBuilder, Object value, Type type, String columnName) {
+        final BlockBuilder blockBuilder;
+        if (parentBlockBuilder != null) {
+            blockBuilder = parentBlockBuilder;
+        } else {
+            blockBuilder = type.createBlockBuilder(null, 1);
+        }
+        final ByteBuffer buffer = (ByteBuffer) value;
+        type.writeObject(blockBuilder, Int128.fromBigEndian(buffer.array()));
+        if (parentBlockBuilder == null) {
+            return blockBuilder.getSingleValueBlock(0);
+        }
+        return null;
     }
 
     private static void serializePrimitive(BlockBuilder blockBuilder, Object value, Type type, String columnName) {

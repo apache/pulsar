@@ -278,7 +278,8 @@ public class PulsarJsonFieldDecoder
             if (type instanceof DecimalType) {
                 textValue = textValue.replace(".", "");
                 BigInteger bigInteger = new BigInteger(textValue);
-                return Decimals.encodeUnscaledValue(bigInteger);
+//                return Decimals.encodeUnscaledValue(bigInteger);
+                return null;
             }
 
             Slice slice = utf8Slice(textValue);
