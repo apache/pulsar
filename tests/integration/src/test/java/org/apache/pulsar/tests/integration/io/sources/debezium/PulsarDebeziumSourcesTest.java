@@ -255,7 +255,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         final String consumeTopicName = "debezium/db2/mydb2.DB2INST1.STORES";
         final String sourceName = "test-source-debezium-db2-" + functionRuntimeType + "-" + randomName(8);
 
-        final int numMessages = 1;
+        final int numMessages = 2;
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
