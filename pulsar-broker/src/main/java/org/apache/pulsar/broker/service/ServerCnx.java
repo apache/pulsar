@@ -44,6 +44,7 @@ import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -2767,7 +2768,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final long requestId = command.getRequestId();
-        final List<org.apache.pulsar.common.api.proto.Subscription> subscriptionsList = command.getSubscriptionsList();
+        final List<org.apache.pulsar.common.api.proto.Subscription> subscriptionsList = new ArrayList<>();
+        for (org.apache.pulsar.common.api.proto.Subscription sub : command.getSubscriptionsList()) {
+            subscriptionsList.add(new org.apache.pulsar.common.api.proto.Subscription().copyFrom(sub));
+        }
         if (log.isDebugEnabled()) {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}",
                     requestId, remoteAddress, txnID);
