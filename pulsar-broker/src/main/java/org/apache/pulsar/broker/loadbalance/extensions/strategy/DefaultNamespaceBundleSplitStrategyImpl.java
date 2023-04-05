@@ -98,9 +98,8 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
 
             if (!channel.isOwner(bundle)) {
                 if (debug) {
-                    log.error(String.format(CANNOT_SPLIT_BUNDLE_MSG
+                    log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG
                             + " This broker is not the owner.", bundle));
-                    counter.update(Failure, Unknown);
                 }
                 continue;
             }

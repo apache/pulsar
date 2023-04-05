@@ -169,7 +169,7 @@ public class DefaultNamespaceBundleSplitStrategyTest {
         var actual = strategy.findBundlesToSplit(loadManagerContext, pulsar);
         var expected = Set.of();
         assertEquals(actual, expected);
-        verify(counter, times(2)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
+        verify(counter, times(0)).update(eq(SplitDecision.Label.Failure), eq(Unknown));
     }
 
     public void testError() throws Exception {
