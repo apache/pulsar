@@ -233,7 +233,9 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     @Test(timeOut = 10000)
     public void activeBrokerParse() throws Exception {
+        pulsar1.getConfiguration().setAuthorizationEnabled(true);
         //init clusterData
+
         String cluster2ServiceUrls = String.format("%s,localhost:1234,localhost:5678,localhost:5677,localhost:5676",
                 pulsar2.getWebServiceAddress());
         ClusterData cluster2Data = ClusterData.builder().serviceUrl(cluster2ServiceUrls).build();
@@ -244,6 +246,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         List<String> list = admin1.brokers().getActiveBrokers(cluster2);
         assertEquals(list.get(0), url2.toString().replace("http://", ""));
+        //restore configuration
+        pulsar1.getConfiguration().setAuthorizationEnabled(false);
     }
 
     @SuppressWarnings("unchecked")
