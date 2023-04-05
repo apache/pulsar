@@ -529,8 +529,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             var availableBrokers = pulsar3.getLoadManager().get().getAvailableBrokers();
             assertEquals(availableBrokers.size(), 1);
             assertEquals(availableBrokers.iterator().next(), pulsar3.getLookupServiceAddress());
-            assertNotEquals(availableBrokers.iterator().next(), pulsar1.getLookupServiceAddress());
-            assertNotEquals(availableBrokers.iterator().next(), pulsar2.getLookupServiceAddress());
 
             availableBrokers = pulsar1.getLoadManager().get().getAvailableBrokers();
             assertEquals(availableBrokers.size(), 2);
