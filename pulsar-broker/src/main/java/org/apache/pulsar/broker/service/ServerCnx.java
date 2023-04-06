@@ -2538,20 +2538,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private CompletableFuture<Boolean> isSuperUser() {
         assert ctx.executor().inEventLoop();
         if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
-            if (!service.isAuthorizationEnabled()) {
-                return CompletableFuture.completedFuture(true);
-            }
-            CompletableFuture<Boolean> isProxyAuthorizedFuture;
-            if (originalPrincipal != null) {
-                isProxyAuthorizedFuture = service.getAuthorizationService().isSuperUser(originalPrincipal,
-                        originalAuthData != null ? originalAuthData : authenticationData);
-            } else {
-                isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
-            }
-            CompletableFuture<Boolean> isAuthorizedFuture = service.getAuthorizationService().isSuperUser(
+            CompletableFuture<Boolean> isAuthRoleAuthorized = service.getAuthorizationService().isSuperUser(
                     authRole, authenticationData);
-            return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture,
-                    (isProxyAuthorized, isAuthorized) -> isProxyAuthorized && isAuthorized);
+            if (originalPrincipal != null) {
+                CompletableFuture<Boolean> isOriginalPrincipalAuthorized = service.getAuthorizationService()
+                        .isSuperUser(originalPrincipal,
+                                originalAuthData != null ? originalAuthData : authenticationData);
+                return isOriginalPrincipalAuthorized.thenCombine(isAuthRoleAuthorized,
+                        (originalPrincipal, authRole) -> originalPrincipal && authRole);
+            } else {
+                return isAuthRoleAuthorized;
+            }
         } else {
             return CompletableFuture.completedFuture(true);
         }
