@@ -493,6 +493,15 @@ public class ProxyConnection extends PulsarHandler {
             return;
         }
 
+        if (connect.hasProxyVersion()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("[{}] Client illegally provided proxyVersion.", remoteAddress);
+            }
+            state = State.Closing;
+            writeAndFlushAndClose(Commands.newError(-1, ServerError.NotAllowedError, "Must not provide proxyVersion"));
+            return;
+        }
+
         try {
             // init authn
             this.clientConf = createClientConfiguration();
