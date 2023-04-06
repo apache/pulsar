@@ -140,6 +140,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", this.topicName, consumer);
             consumer.disconnect();
+            return;
         }
 
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
