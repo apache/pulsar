@@ -561,11 +561,11 @@ public class PersistentTopicTest extends BrokerTestBase {
         if (topicLevelPolicy) {
             // setReplicationClusters may fail, so do retry.
             Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-                admin.topics().setReplicationClusters(topicName, Arrays.asList(remoteCluster, "test"));
+                admin.topics().setReplicationClusters(topicName, Collections.singletonList(remoteCluster));
             });
         } else {
             admin.namespaces().setNamespaceReplicationClustersAsync(
-                    namespace, new HashSet<>(Arrays.asList(remoteCluster, "test"))).get();
+                    namespace, Collections.singleton(remoteCluster)).get();
         }
 
         final PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false)
