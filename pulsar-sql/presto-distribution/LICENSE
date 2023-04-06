@@ -303,28 +303,28 @@ The Apache Software License, Version 2.0
     - bytecode-1.2.jar
   * Airlift
     - aircompressor-0.20.jar
-    - bootstrap-208.jar
-    - concurrent-208.jar
-    - configuration-208.jar
-    - discovery-208.jar
+    - bootstrap-213.jar
+    - concurrent-213.jar
+    - configuration-213.jar
+    - discovery-213.jar
     - discovery-server-1.30.jar
-    - event-208.jar
-    - event-http-208.jar
-    - http-client-208.jar
-    - http-server-208.jar
-    - jmx-208.jar
-    - jmx-http-208.jar
-    - jmx-http-rpc-208.jar
+    - event-213.jar
+    - event-http-213.jar
+    - http-client-213.jar
+    - http-server-213.jar
+    - jmx-213.jar
+    - jmx-http-213.jar
+    - jmx-http-rpc-213.jar
     - joni-2.1.5.3.jar
-    - json-208.jar
-    - log-208.jar
-    - log-manager-208.jar
-    - node-208.jar
+    - json-213.jar
+    - log-213.jar
+    - log-manager-213.jar
+    - node-213.jar
     - parameternames-1.4.jar
-    - security-208.jar
+    - security-213.jar
     - slice-0.41.jar
-    - stats-208.jar
-    - trace-token-208.jar
+    - stats-213.jar
+    - trace-token-213.jar
     - units-1.6.jar
    * Apache HTTP Client
     - httpclient-4.5.13.jar
@@ -538,7 +538,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - hk2-utils-2.6.1.jar
    - aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - jaxrs-208.jar
+    - jaxrs-213.jar
     - jersey-client-2.34.jar
     - jersey-common-2.34.jar
     - jersey-container-servlet-2.34.jar
