@@ -1746,7 +1746,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 }
                             });
                         } else {
-                            log.info("===> {}", ex.getMessage());
                             // Start replication is failed.
                             replicationStartFuture.completeExceptionally(ex);
                             return CompletableFuture.completedFuture(null);
