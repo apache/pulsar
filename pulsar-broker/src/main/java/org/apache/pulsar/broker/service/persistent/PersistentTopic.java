@@ -1747,6 +1747,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             });
                         } else {
                             // Start replication is failed.
+                            log.error("[{}] The replicator startup failed {}", topic, remoteCluster, ex);
                             replicationStartFuture.completeExceptionally(ex);
                             return CompletableFuture.completedFuture(null);
                         }
