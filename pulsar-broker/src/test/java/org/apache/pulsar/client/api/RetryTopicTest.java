@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -514,6 +515,53 @@ public class RetryTopicTest extends ProducerConsumerBase {
             fail("exception should be PulsarClientException.InvalidTopicNameException");
         }
         consumer.close();
+    }
+
+
+    @Test(timeOut = 30000L)
+    public void testRetryProducerWillCloseByConsumer() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/tp_" + UUID.randomUUID().toString();
+        final String subscriptionName = "sub1";
+        final String topicRetry = topicName + "-" + subscriptionName + "-RETRY";
+        final String topicDLQ = topicName + "-" + subscriptionName + "-DLQ";
+
+        // Trigger the DLQ and retry topic creation.
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().deadLetterTopic(topicDLQ).maxRedeliverCount(2).build())
+                .receiverQueueSize(100)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        // send messages.
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .sendAsync();
+        }
+        producer.flush();
+        for (int i = 0; i < 20; i++) {
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.reconsumeLater(msg, 1, TimeUnit.SECONDS);
+            } else {
+                break;
+            }
+        }
+
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+
+        // Verify: "retryLetterProducer" and "deadLetterProducer" will be closed by "consumer.close()", so these two
+        //  topics can be deleted successfully.
+        admin.topics().delete(topicRetry, false);
+        admin.topics().delete(topicDLQ, false);
     }
 
 }
