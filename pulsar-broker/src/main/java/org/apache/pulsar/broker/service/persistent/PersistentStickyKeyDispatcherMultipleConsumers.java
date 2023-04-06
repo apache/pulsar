@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -52,6 +53,7 @@ import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,31 +109,37 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
             consumer.disconnect();
-            return;
+            return CompletableFuture.completedFuture(null);
         }
-        super.addConsumer(consumer);
-        try {
-            selector.addConsumer(consumer);
-        } catch (BrokerServiceException e) {
-            consumerSet.removeAll(consumer);
-            consumerList.remove(consumer);
-            throw e;
-        }
-
-        PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
-        consumer.setReadPositionWhenJoining(readPositionWhenJoining);
-        // If this was the 1st consumer, or if all the messages are already acked, then we
-        // don't need to do anything special
-        if (!allowOutOfOrderDelivery
-                && recentlyJoinedConsumers != null
-                && consumerList.size() > 1
-                && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
-            recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
-        }
+        return super.addConsumer(consumer).thenCompose(__ ->
+                selector.addConsumer(consumer).handle((result, ex) -> {
+                    if (ex != null) {
+                        synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                            consumerSet.removeAll(consumer);
+                            consumerList.remove(consumer);
+                        }
+                        throw FutureUtil.wrapToCompletionException(ex);
+                    }
+                    return result;
+                })
+        ).thenRun(() -> {
+            synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
+                PositionImpl readPositionWhenJoining = (PositionImpl) cursor.getReadPosition();
+                consumer.setReadPositionWhenJoining(readPositionWhenJoining);
+                // If this was the 1st consumer, or if all the messages are already acked, then we
+                // don't need to do anything special
+                if (!allowOutOfOrderDelivery
+                        && recentlyJoinedConsumers != null
+                        && consumerList.size() > 1
+                        && cursor.getNumberOfEntriesSinceFirstNotAckedMessage() > 1) {
+                    recentlyJoinedConsumers.put(consumer, readPositionWhenJoining);
+                }
+            }
+        });
     }
 
     @Override

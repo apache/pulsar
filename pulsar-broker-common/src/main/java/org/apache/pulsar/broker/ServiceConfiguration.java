@@ -2676,6 +2676,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "How often to check pulsar connection is still alive"
     )
     private int keepAliveIntervalSeconds = 30;
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Timeout for connection liveness check used to check liveness of possible consumer or producer "
+                    + "duplicates. Helps prevent ProducerFencedException with exclusive producer, "
+                    + "ConsumerAssignException with range conflict for Key Shared with sticky hash ranges or "
+                    + "ConsumerBusyException in the case of an exclusive consumer. Set to 0 to disable connection "
+                    + "liveness check."
+    )
+    private long connectionLivenessCheckTimeoutMillis = 5000L;
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
