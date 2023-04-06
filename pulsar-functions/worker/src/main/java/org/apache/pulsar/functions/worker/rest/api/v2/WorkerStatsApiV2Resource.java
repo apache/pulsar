@@ -34,8 +34,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.functions.worker.WorkerService;
@@ -69,8 +69,8 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
         return get().getWorkers();
     }
 
-    Authentication authentication() {
-        return Authentication.builder()
+    AuthenticationParameters authParams() {
+        return AuthenticationParameters.builder()
                 .clientRole(clientAppId())
                 .originalPrincipal(httpRequest.getHeader(FunctionApiResource.ORIGINAL_PRINCIPAL_HEADER))
                 .clientAuthenticationDataSource((AuthenticationDataSource)
@@ -79,7 +79,7 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
     }
 
     /**
-     * @deprecated use {@link Authentication} instead
+     * @deprecated use {@link AuthenticationParameters} instead
      */
     @Deprecated
     public String clientAppId() {
@@ -101,7 +101,7 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
     })
     @Produces(MediaType.APPLICATION_JSON)
     public List<org.apache.pulsar.common.stats.Metrics> getMetrics() throws Exception {
-        return workers().getWorkerMetrics(authentication());
+        return workers().getWorkerMetrics(authParams());
     }
 
     @GET
@@ -117,6 +117,6 @@ public class WorkerStatsApiV2Resource implements Supplier<WorkerService> {
     })
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerFunctionInstanceStats> getStats() throws IOException {
-        return workers().getFunctionsMetrics(authentication());
+        return workers().getFunctionsMetrics(authParams());
     }
 }

@@ -23,8 +23,8 @@ import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.functions.worker.WorkerService;
 
@@ -49,8 +49,8 @@ public class FunctionApiResource implements Supplier<WorkerService> {
         return this.workerService;
     }
 
-    public Authentication authentication() {
-        return Authentication.builder()
+    public AuthenticationParameters authParams() {
+        return AuthenticationParameters.builder()
                 .originalPrincipal(httpRequest.getHeader(ORIGINAL_PRINCIPAL_HEADER))
                 .clientRole(clientAppId())
                 .clientAuthenticationDataSource(clientAuthData())
@@ -58,7 +58,7 @@ public class FunctionApiResource implements Supplier<WorkerService> {
     }
 
     /**
-     * @deprecated use {@link #authentication()} instead.
+     * @deprecated use {@link #authParams()} instead.
      */
     @Deprecated
     public String clientAppId() {
@@ -68,7 +68,7 @@ public class FunctionApiResource implements Supplier<WorkerService> {
     }
 
     /**
-     * @deprecated use {@link #authentication()} instead.
+     * @deprecated use {@link #authParams()} instead.
      */
     @Deprecated
     public AuthenticationDataSource clientAuthData() {

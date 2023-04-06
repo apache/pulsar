@@ -21,9 +21,9 @@ package org.apache.pulsar.functions.worker.service.api;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -45,7 +45,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                         FormDataContentDisposition fileDetail,
                         String sourcePkgUrl,
                         SourceConfig sourceConfig,
-                        Authentication authentication);
+                        AuthenticationParameters authParams);
 
     /**
      * Update a function.
@@ -69,7 +69,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                         SourceConfig sourceConfig,
                         String clientRole,
                         AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         registerSource(
                 tenant,
@@ -79,7 +79,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                 fileDetail,
                 sourcePkgUrl,
                 sourceConfig,
-                authentication);
+                authParams);
     }
 
     /**
@@ -116,7 +116,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                       FormDataContentDisposition fileDetail,
                       String sourcePkgUrl,
                       SourceConfig sourceConfig,
-                      Authentication authentication,
+                      AuthenticationParameters authParams,
                       UpdateOptionsImpl updateOptions);
 
     /**
@@ -143,7 +143,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                       String clientRole,
                       AuthenticationDataSource clientAuthenticationDataHttps,
                       UpdateOptionsImpl updateOptions) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         updateSource(
                 tenant,
@@ -153,7 +153,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                 fileDetail,
                 sourcePkgUrl,
                 sourceConfig,
-                authentication,
+                authParams,
                 updateOptions);
     }
 
@@ -191,7 +191,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                                  String namespace,
                                  String componentName,
                                  URI uri,
-                                 Authentication authentication);
+                                 AuthenticationParameters authParams);
 
     @Deprecated
     default SourceStatus getSourceStatus(String tenant,
@@ -200,10 +200,10 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                                  URI uri,
                                  String clientRole,
                                  AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder()
+        AuthenticationParameters authParams = AuthenticationParameters.builder()
                 .clientRole(clientRole).clientAuthenticationDataSource(clientAuthenticationDataHttps)
                 .build();
-        return getSourceStatus(tenant, namespace, componentName, uri, authentication);
+        return getSourceStatus(tenant, namespace, componentName, uri, authParams);
     }
 
 
@@ -212,7 +212,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                                                      String sourceName,
                                                      String instanceId,
                                                      URI uri,
-                                                     Authentication authentication);
+                                                     AuthenticationParameters authParams);
 
     @Deprecated
     default SourceInstanceStatusData getSourceInstanceStatus(String tenant,
@@ -222,21 +222,21 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                                                      URI uri,
                                                      String clientRole,
                                                      AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        return getSourceInstanceStatus(tenant, namespace, sourceName, instanceId, uri, authentication);
+        return getSourceInstanceStatus(tenant, namespace, sourceName, instanceId, uri, authParams);
     }
 
     SourceConfig getSourceInfo(String tenant,
                                String namespace,
                                String componentName,
-                               Authentication authentication);
+                               AuthenticationParameters authParams);
     @Deprecated
     default SourceConfig getSourceInfo(String tenant,
                                String namespace,
                                String componentName) {
-        Authentication authentication = Authentication.builder().build();
-        return getSourceInfo(tenant, namespace, componentName, authentication);
+        AuthenticationParameters authParams = AuthenticationParameters.builder().build();
+        return getSourceInfo(tenant, namespace, componentName, authParams);
     }
 
     List<ConnectorDefinition> getSourceList();

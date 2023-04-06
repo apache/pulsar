@@ -39,8 +39,8 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
@@ -79,7 +79,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     }
 
     /**
-     * @deprecated use {@link #authentication()} instead
+     * @deprecated use {@link #authParams()} instead
      */
     @Deprecated
     public String clientAppId() {
@@ -88,8 +88,8 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
                 : null;
     }
 
-    public Authentication authentication() {
-        return Authentication.builder()
+    public AuthenticationParameters authParams() {
+        return AuthenticationParameters.builder()
                 .clientRole(clientAppId())
                 .originalPrincipal(httpRequest.getHeader(FunctionApiResource.ORIGINAL_PRINCIPAL_HEADER))
                 .clientAuthenticationDataSource((AuthenticationDataSource)
@@ -110,7 +110,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster")
     @Produces(MediaType.APPLICATION_JSON)
     public List<WorkerInfo> getCluster() {
-        return workers().getCluster(authentication());
+        return workers().getCluster(authParams());
     }
 
     @GET
@@ -125,7 +125,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/cluster/leader")
     @Produces(MediaType.APPLICATION_JSON)
     public WorkerInfo getClusterLeader() {
-        return workers().getClusterLeader(authentication());
+        return workers().getClusterLeader(authParams());
     }
 
     @GET
@@ -140,7 +140,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     @Path("/assignments")
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Collection<String>> getAssignments() {
-        return workers().getAssignments(authentication());
+        return workers().getAssignments(authParams());
     }
 
     @GET
@@ -155,7 +155,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/connectors")
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return workers().getListOfConnectors(authentication());
+        return workers().getListOfConnectors(authParams());
     }
 
     @PUT
@@ -169,7 +169,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/rebalance")
     public void rebalance() {
-        workers().rebalance(uri.getRequestUri(), authentication());
+        workers().rebalance(uri.getRequestUri(), authParams());
     }
 
     @PUT
@@ -185,7 +185,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/leader/drain")
     public void drainAtLeader(@QueryParam("workerId") String workerId) {
-        workers().drain(uri.getRequestUri(), workerId, authentication(), true);
+        workers().drain(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @PUT
@@ -201,7 +201,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/drain")
     public void drain() {
-        workers().drain(uri.getRequestUri(), null, authentication(), false);
+        workers().drain(uri.getRequestUri(), null, authParams(), false);
     }
 
     @GET
@@ -215,7 +215,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/leader/drain")
     public LongRunningProcessStatus getDrainStatus(@QueryParam("workerId") String workerId) {
-        return workers().getDrainStatus(uri.getRequestUri(), workerId, authentication(), true);
+        return workers().getDrainStatus(uri.getRequestUri(), workerId, authParams(), true);
     }
 
     @GET
@@ -229,7 +229,7 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/drain")
     public LongRunningProcessStatus getDrainStatus() {
-        return workers().getDrainStatus(uri.getRequestUri(), null, authentication(), false);
+        return workers().getDrainStatus(uri.getRequestUri(), null, authParams(), false);
     }
 
     @GET

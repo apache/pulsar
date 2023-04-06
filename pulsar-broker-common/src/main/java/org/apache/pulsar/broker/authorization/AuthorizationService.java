@@ -27,8 +27,8 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -76,20 +76,20 @@ public class AuthorizationService {
         }
     }
 
-    public CompletableFuture<Boolean> isSuperUser(Authentication authentication) {
-        if (!isValidOriginalPrincipal(authentication)) {
+    public CompletableFuture<Boolean> isSuperUser(AuthenticationParameters authParams) {
+        if (!isValidOriginalPrincipal(authParams)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(authentication.getClientRole())) {
-            CompletableFuture<Boolean> isRoleAuthorizedFuture = isSuperUser(authentication.getClientRole(),
-                    authentication.getClientAuthenticationDataSource());
+        if (isProxyRole(authParams.getClientRole())) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = isSuperUser(authParams.getClientRole(),
+                    authParams.getClientAuthenticationDataSource());
             // No authentication data for original principal
-            CompletableFuture<Boolean> isOriginalAuthorizedFuture = isSuperUser(authentication.getOriginalPrincipal(),
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = isSuperUser(authParams.getOriginalPrincipal(),
                     null);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
-            return isSuperUser(authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+            return isSuperUser(authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
         }
     }
 
@@ -308,21 +308,21 @@ public class AuthorizationService {
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName,
-                                                            Authentication authentication) {
-        if (!isValidOriginalPrincipal(authentication)) {
+                                                            AuthenticationParameters authParams) {
+        if (!isValidOriginalPrincipal(authParams)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(authentication.getClientRole())) {
+        if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowFunctionOpsAsync(namespaceName,
-                    authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+                    authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
             // No authentication data for original principal
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowFunctionOpsAsync(
-                    namespaceName, authentication.getOriginalPrincipal(), null);
+                    namespaceName, authParams.getOriginalPrincipal(), null);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
-            return allowFunctionOpsAsync(namespaceName, authentication.getClientRole(),
-                    authentication.getClientAuthenticationDataSource());
+            return allowFunctionOpsAsync(namespaceName, authParams.getClientRole(),
+                    authParams.getClientAuthenticationDataSource());
         }
     }
 
@@ -336,21 +336,21 @@ public class AuthorizationService {
     }
 
     public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName,
-                                                          Authentication authentication) {
-        if (!isValidOriginalPrincipal(authentication)) {
+                                                          AuthenticationParameters authParams) {
+        if (!isValidOriginalPrincipal(authParams)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(authentication.getClientRole())) {
+        if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowSourceOpsAsync(namespaceName,
-                    authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+                    authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
             // No authentication data for original principal
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowSourceOpsAsync(
-                    namespaceName, authentication.getOriginalPrincipal(), null);
+                    namespaceName, authParams.getOriginalPrincipal(), null);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
-            return allowSourceOpsAsync(namespaceName, authentication.getClientRole(),
-                    authentication.getClientAuthenticationDataSource());
+            return allowSourceOpsAsync(namespaceName, authParams.getClientRole(),
+                    authParams.getClientAuthenticationDataSource());
         }
     }
 
@@ -364,21 +364,21 @@ public class AuthorizationService {
     }
 
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName,
-                                                        Authentication authentication) {
-        if (!isValidOriginalPrincipal(authentication)) {
+                                                        AuthenticationParameters authParams) {
+        if (!isValidOriginalPrincipal(authParams)) {
             return CompletableFuture.completedFuture(false);
         }
-        if (isProxyRole(authentication.getClientRole())) {
+        if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowSinkOpsAsync(namespaceName,
-                    authentication.getClientRole(), authentication.getClientAuthenticationDataSource());
+                    authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
             // No authentication data for original principal
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowSinkOpsAsync(
-                    namespaceName, authentication.getOriginalPrincipal(), null);
+                    namespaceName, authParams.getOriginalPrincipal(), null);
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
-            return allowSinkOpsAsync(namespaceName, authentication.getClientRole(),
-                    authentication.getClientAuthenticationDataSource());
+            return allowSinkOpsAsync(namespaceName, authParams.getClientRole(),
+                    authParams.getClientAuthenticationDataSource());
         }
     }
 
@@ -409,9 +409,9 @@ public class AuthorizationService {
                 });
     }
 
-    private boolean isValidOriginalPrincipal(Authentication authentication) {
-        return isValidOriginalPrincipal(authentication.getClientRole(),
-                authentication.getOriginalPrincipal(), authentication.getClientAuthenticationDataSource());
+    private boolean isValidOriginalPrincipal(AuthenticationParameters authParams) {
+        return isValidOriginalPrincipal(authParams.getClientRole(),
+                authParams.getOriginalPrincipal(), authParams.getClientAuthenticationDataSource());
     }
 
     /**

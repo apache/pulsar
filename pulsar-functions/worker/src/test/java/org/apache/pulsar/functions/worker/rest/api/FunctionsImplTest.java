@@ -40,7 +40,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.broker.authentication.Authentication;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -300,23 +300,23 @@ public class FunctionsImplTest {
 
         // test proxy user with no original principal
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                Authentication.builder().clientRole(proxyUser).build()));
+                AuthenticationParameters.builder().clientRole(proxyUser).build()));
 
         // test proxy user with tenant admin original principal
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                Authentication.builder().clientRole(proxyUser).originalPrincipal("tenant-admin").build()));
+                AuthenticationParameters.builder().clientRole(proxyUser).originalPrincipal("tenant-admin").build()));
 
         // test proxy user with non admin user
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                Authentication.builder().clientRole(proxyUser).originalPrincipal("test-non-admin-user").build()));
+                AuthenticationParameters.builder().clientRole(proxyUser).originalPrincipal("test-non-admin-user").build()));
 
         // test proxy user with allow function action
         assertTrue(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                Authentication.builder().clientRole(proxyUser).originalPrincipal("test-function-user").build()));
+                AuthenticationParameters.builder().clientRole(proxyUser).originalPrincipal("test-function-user").build()));
 
         // test non-proxy user passing original principal
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns",
-                Authentication.builder().clientRole("nobody").originalPrincipal("test-non-admin-user").build()));
+                AuthenticationParameters.builder().clientRole("nobody").originalPrincipal("test-non-admin-user").build()));
     }
 
     @Test
@@ -329,9 +329,9 @@ public class FunctionsImplTest {
         workerConfig.setAuthorizationEnabled(true);
         workerConfig.setSuperUserRoles(Collections.singleton(superUser));
         doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
-        when(authorizationService.isSuperUser(any(Authentication.class)))
+        when(authorizationService.isSuperUser(any(AuthenticationParameters.class)))
             .thenAnswer((invocationOnMock) -> {
-                String role = invocationOnMock.getArgument(0, Authentication.class).getClientRole();
+                String role = invocationOnMock.getArgument(0, AuthenticationParameters.class).getClientRole();
                 return CompletableFuture.completedFuture(superUser.equals(role));
             });
 
@@ -341,7 +341,7 @@ public class FunctionsImplTest {
         assertFalse(functionImpl.isSuperUser(null, null));
 
         // test super roles is null and it's not a pulsar super user
-        when(authorizationService.isSuperUser(Authentication.builder().clientRole(superUser).build()))
+        when(authorizationService.isSuperUser(AuthenticationParameters.builder().clientRole(superUser).build()))
                 .thenReturn(CompletableFuture.completedFuture(false));
         functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));
         workerConfig = new WorkerConfig();
@@ -350,9 +350,9 @@ public class FunctionsImplTest {
         assertFalse(functionImpl.isSuperUser(superUser, null));
 
         // test super role is null but the auth datasource contains superuser
-        when(authorizationService.isSuperUser(any(Authentication.class)))
+        when(authorizationService.isSuperUser(any(AuthenticationParameters.class)))
             .thenAnswer((invocationOnMock -> {
-                Authentication authData = invocationOnMock.getArgument(0, Authentication.class);
+                AuthenticationParameters authData = invocationOnMock.getArgument(0, AuthenticationParameters.class);
                 String user = authData.getClientAuthenticationDataSource().getHttpHeader("mockedUser");
                 return CompletableFuture.completedFuture(superUser.equals(user));
             }));

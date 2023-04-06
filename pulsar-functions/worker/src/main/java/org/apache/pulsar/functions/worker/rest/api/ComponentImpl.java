@@ -66,8 +66,8 @@ import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.Message;
@@ -456,14 +456,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     public void deregisterFunction(final String tenant,
                                    final String namespace,
                                    final String componentName,
-                                   final Authentication authentication) {
+                                   final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "deregister",
-                authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -531,14 +531,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     public FunctionConfig getFunctionInfo(final String tenant,
                                           final String namespace,
                                           final String componentName,
-                                          final Authentication authentication) {
+                                          final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "get",
-                authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -573,8 +573,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                      final String componentName,
                                      final String instanceId,
                                      final URI uri,
-                                     final Authentication authentication) {
-        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri, authentication);
+                                     final AuthenticationParameters authParams) {
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, false, uri, authParams);
     }
 
     @Override
@@ -583,8 +583,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                       final String componentName,
                                       final String instanceId,
                                       final URI uri,
-                                      final Authentication authentication) {
-        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, true, uri, authentication);
+                                      final AuthenticationParameters authParams) {
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, true, uri, authParams);
     }
 
     @Deprecated
@@ -596,11 +596,11 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                              final URI uri,
                                              final String clientRole,
                                              final AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder()
+        AuthenticationParameters authParams = AuthenticationParameters.builder()
                 .clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps)
                 .build();
-        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, start, uri, authentication);
+        changeFunctionInstanceStatus(tenant, namespace, componentName, instanceId, start, uri, authParams);
     }
 
     public void changeFunctionInstanceStatus(final String tenant,
@@ -609,14 +609,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                              final String instanceId,
                                              final boolean start,
                                              final URI uri,
-                                             final Authentication authentication) {
+                                             final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "start/stop",
-                authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -663,13 +663,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                         final String componentName,
                                         final String instanceId,
                                         final URI uri,
-                                        final Authentication authentication) {
+                                        final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "restart",
-                        authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -714,16 +714,16 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     public void stopFunctionInstances(final String tenant,
                                       final String namespace,
                                       final String componentName,
-                                      final Authentication authentication) {
-        changeFunctionStatusAllInstances(tenant, namespace, componentName, false, authentication);
+                                      final AuthenticationParameters authParams) {
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, false, authParams);
     }
 
     @Override
     public void startFunctionInstances(final String tenant,
                                        final String namespace,
                                        final String componentName,
-                                       final Authentication authentication) {
-        changeFunctionStatusAllInstances(tenant, namespace, componentName, true, authentication);
+                                       final AuthenticationParameters authParams) {
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, true, authParams);
     }
 
     @Deprecated
@@ -733,22 +733,22 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                                  final boolean start,
                                                  final String clientRole,
                                                  final AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        changeFunctionStatusAllInstances(tenant, namespace, componentName, start, authentication);
+        changeFunctionStatusAllInstances(tenant, namespace, componentName, start, authParams);
     }
 
     public void changeFunctionStatusAllInstances(final String tenant,
                                                  final String namespace,
                                                  final String componentName,
                                                  final boolean start,
-                                                 final Authentication authentication) {
+                                                 final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "start/stop",
-                        authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -793,13 +793,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     public void restartFunctionInstances(final String tenant,
                                          final String namespace,
                                          final String componentName,
-                                         final Authentication authentication) {
+                                         final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "restart",
-                        authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -844,13 +844,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                               final String namespace,
                                               final String componentName,
                                               final URI uri,
-                                              final Authentication authentication) {
+                                              final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "get stats for",
-                        authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -899,13 +899,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                               final String componentName,
                               final String instanceId,
                               final URI uri,
-                              final Authentication authentication) {
+                              final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "get stats for",
-                        authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -961,13 +961,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     @Override
     public List<String> listFunctions(final String tenant,
                                       final String namespace,
-                                      final Authentication authentication) {
+                                      final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, null, "list", authentication);
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, null, "list", authParams);
 
         // validate parameters
         try {
@@ -1009,13 +1009,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public void reloadConnectors(Authentication authentication) {
+    public void reloadConnectors(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             // Only superuser has permission to do this operation.
-            if (!isSuperUser(authentication)) {
+            if (!isSuperUser(authParams)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
         }
@@ -1033,13 +1033,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                   final String input,
                                   final InputStream uploadedInputStream,
                                   final String topic,
-                                  final Authentication authentication) {
+                                  final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "trigger", authentication);
+        throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "trigger", authParams);
 
         // validate parameters
         try {
@@ -1153,14 +1153,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                           final String namespace,
                                           final String functionName,
                                           final String key,
-                                          final Authentication authentication) {
+                                          final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "get state for",
-                authentication);
+                authParams);
 
         if (null == worker().getStateStoreAdminClient()) {
             throwStateStoreUnvailableResponse();
@@ -1230,7 +1230,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                  final String functionName,
                                  final String key,
                                  final FunctionState state,
-                                 final Authentication authentication) {
+                                 final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -1241,7 +1241,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "put state for",
-                authentication);
+                authParams);
 
         if (!key.equals(state.getKey())) {
             log.error("{}/{}/{} Bad putFunction Request, path key doesn't match key in json", tenant, namespace,
@@ -1298,14 +1298,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     @Override
     public void uploadFunction(final InputStream uploadedInputStream, final String path,
-                               Authentication authentication) {
+                               AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         if (worker().getWorkerConfig().isAuthorizationEnabled()
-                && !isSuperUser(authentication)) {
+                && !isSuperUser(authParams)) {
             throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 
@@ -1340,13 +1340,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     @Override
     public StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
-                                            Authentication authentication, boolean transformFunction) {
+                                            AuthenticationParameters authParams, boolean transformFunction) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "download package for",
-                authentication);
+                authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, componentName)) {
@@ -1431,7 +1431,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     @Override
-    public StreamingOutput downloadFunction(final String path, final Authentication authentication) {
+    public StreamingOutput downloadFunction(final String path, final AuthenticationParameters authParams) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -1446,9 +1446,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 String componentName = tokens[2];
 
                 throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "download package for",
-                        authentication);
+                        authParams);
             } else {
-                if (!isSuperUser(authentication)) {
+                if (!isSuperUser(authParams)) {
                     throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
                 }
             }
@@ -1587,32 +1587,32 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     }
 
     /**
-     * @deprecated use {@link #isAuthorizedRole(String, String, Authentication)} instead.
+     * @deprecated use {@link #isAuthorizedRole(String, String, AuthenticationParameters)} instead.
      */
     @Deprecated
     public boolean isAuthorizedRole(String tenant, String namespace, String clientRole,
                                     AuthenticationDataSource authenticationData) throws PulsarAdminException {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(authenticationData).build();
-        return isAuthorizedRole(tenant, namespace, authentication);
+        return isAuthorizedRole(tenant, namespace, authParams);
     }
 
     public boolean isAuthorizedRole(String tenant, String namespace,
-                                    Authentication authentication) throws PulsarAdminException {
+                                    AuthenticationParameters authParams) throws PulsarAdminException {
         if (worker().getWorkerConfig().isAuthorizationEnabled()) {
-            return allowFunctionOps(NamespaceName.get(tenant, namespace), authentication);
+            return allowFunctionOps(NamespaceName.get(tenant, namespace), authParams);
         } else {
             return true;
         }
     }
 
     public void throwRestExceptionIfUnauthorizedForNamespace(String tenant, String namespace, String componentName,
-                                                             String action, Authentication authentication) {
+                                                             String action, AuthenticationParameters authParams) {
         try {
-            if (!isAuthorizedRole(tenant, namespace, authentication)) {
+            if (!isAuthorizedRole(tenant, namespace, authParams)) {
                 log.warn("{}/{}/{} Client with role [{}] and originalPrincipal [{}] is not authorized to {} {}",
-                        tenant, namespace, componentName, authentication.getClientRole(),
-                        authentication.getOriginalPrincipal(), action, ComponentTypeUtils.toString(componentType));
+                        tenant, namespace, componentName, authParams.getClientRole(),
+                        authParams.getOriginalPrincipal(), action, ComponentTypeUtils.toString(componentType));
                 throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
             }
         } catch (PulsarAdminException e) {
@@ -1626,21 +1626,21 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                                   final String componentName,
                                                   final String clientRole,
                                                   final AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        componentStatusRequestValidate(tenant, namespace, componentName, authentication);
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
     }
 
     protected void componentStatusRequestValidate(final String tenant, final String namespace,
                                                   final String componentName,
-                                                  final Authentication authentication) {
+                                                  final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throw new RestException(Status.SERVICE_UNAVAILABLE,
                     "Function worker service is not done initializing. Please try again in a little while.");
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, componentName, "get status for",
-                authentication);
+                authParams);
 
         // validate parameters
         try {
@@ -1676,18 +1676,18 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                                       final int instanceId,
                                                       final String clientRole,
                                                       final AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        componentInstanceStatusRequestValidate(tenant, namespace, componentName, instanceId, authentication);
+        componentInstanceStatusRequestValidate(tenant, namespace, componentName, instanceId, authParams);
     }
 
     protected void componentInstanceStatusRequestValidate(final String tenant,
                                                           final String namespace,
                                                           final String componentName,
                                                           final int instanceId,
-                                                          final Authentication authentication) {
+                                                          final AuthenticationParameters authParams) {
 
-        componentStatusRequestValidate(tenant, namespace, componentName, authentication);
+        componentStatusRequestValidate(tenant, namespace, componentName, authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         FunctionMetaData functionMetaData =
@@ -1702,19 +1702,19 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
-    public boolean isSuperUser(Authentication authentication) {
-        if (authentication.getClientRole() != null) {
+    public boolean isSuperUser(AuthenticationParameters authParams) {
+        if (authParams.getClientRole() != null) {
             try {
-                return worker().getAuthorizationService().isSuperUser(authentication)
+                return worker().getAuthorizationService().isSuperUser(authParams)
                         .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             } catch (InterruptedException e) {
                 log.warn("Time-out {} sec while checking the role {} originalPrincipal {} is a super user role ",
                         worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(),
-                        authentication.getClientRole(), authentication.getOriginalPrincipal());
+                        authParams.getClientRole(), authParams.getOriginalPrincipal());
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             } catch (Exception e) {
                 log.warn("Failed verifying role {} originalPrincipal {} is a super user role",
-                        authentication.getClientRole(), authentication.getOriginalPrincipal(), e);
+                        authParams.getClientRole(), authParams.getOriginalPrincipal(), e);
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
@@ -1723,31 +1723,31 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     @Deprecated
     public boolean isSuperUser(String clientRole, AuthenticationDataSource authenticationData) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(authenticationData).build();
-        return isSuperUser(authentication);
+        return isSuperUser(authParams);
     }
 
     @Deprecated
     public boolean allowFunctionOps(NamespaceName namespaceName, String role,
                                     AuthenticationDataSource authenticationData) {
-        Authentication authentication = Authentication.builder().clientRole(role)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(role)
                 .clientAuthenticationDataSource(authenticationData).build();
-        return allowFunctionOps(namespaceName, authentication);
+        return allowFunctionOps(namespaceName, authParams);
     }
 
-    public boolean allowFunctionOps(NamespaceName namespaceName, Authentication authentication) {
+    public boolean allowFunctionOps(NamespaceName namespaceName, AuthenticationParameters authParams) {
         try {
             switch (componentType) {
                 case SINK:
-                    return worker().getAuthorizationService().allowSinkOpsAsync(namespaceName, authentication)
+                    return worker().getAuthorizationService().allowSinkOpsAsync(namespaceName, authParams)
                             .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
                 case SOURCE:
-                    return worker().getAuthorizationService().allowSourceOpsAsync(namespaceName, authentication)
+                    return worker().getAuthorizationService().allowSourceOpsAsync(namespaceName, authParams)
                             .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
                 case FUNCTION:
                 default:
-                    return worker().getAuthorizationService().allowFunctionOpsAsync(namespaceName, authentication)
+                    return worker().getAuthorizationService().allowFunctionOpsAsync(namespaceName, authParams)
                             .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             }
         } catch (InterruptedException e) {
@@ -1756,8 +1756,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (Exception e) {
             log.warn("Admin-client with Role [{}] originalPrincipal [{}] failed to get function permissions for "
-                            + "namespace - {}. {}", authentication.getClientRole(),
-                    authentication.getOriginalPrincipal(), namespaceName, e.getMessage(), e);
+                            + "namespace - {}. {}", authParams.getClientRole(),
+                    authParams.getOriginalPrincipal(), namespaceName, e.getMessage(), e);
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         }
     }

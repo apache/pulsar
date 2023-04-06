@@ -72,7 +72,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                      final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions().registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, authentication());
+                functionPkgUrl, functionDetailsJson, authParams());
     }
 
     @PUT
@@ -93,7 +93,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                    final @FormDataParam("functionDetails") String functionDetailsJson) {
 
         return functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionDetailsJson, authentication());
+                functionPkgUrl, functionDetailsJson, authParams());
     }
 
 
@@ -110,7 +110,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     public Response deregisterFunction(final @PathParam("tenant") String tenant,
                                        final @PathParam("namespace") String namespace,
                                        final @PathParam("functionName") String functionName) {
-        return functions().deregisterFunction(tenant, namespace, functionName, authentication());
+        return functions().deregisterFunction(tenant, namespace, functionName, authParams());
     }
 
     @GET
@@ -129,7 +129,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName) throws IOException {
 
-        return functions().getFunctionInfo(tenant, namespace, functionName, authentication());
+        return functions().getFunctionInfo(tenant, namespace, functionName, authParams());
     }
 
     @GET
@@ -150,7 +150,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                               final @PathParam("instanceId") String instanceId) throws IOException {
 
         return functions().getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri.getRequestUri(),
-                authentication());
+                authParams());
     }
 
     @GET
@@ -168,7 +168,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionStatusV2(tenant, namespace, functionName, uri.getRequestUri(),
-                authentication());
+                authParams());
     }
 
     @GET
@@ -184,7 +184,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     @Path("/{tenant}/{namespace}")
     public Response listFunctions(final @PathParam("tenant") String tenant,
                                   final @PathParam("namespace") String namespace) {
-        return functions().listFunctions(tenant, namespace, authentication());
+        return functions().listFunctions(tenant, namespace, authParams());
     }
 
     @POST
@@ -207,7 +207,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                     final @FormDataParam("dataStream") InputStream triggerStream,
                                     final @FormDataParam("topic") String topic) {
         return functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic,
-                authentication());
+                authParams());
     }
 
     @GET
@@ -226,7 +226,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                      final @PathParam("namespace") String namespace,
                                      final @PathParam("functionName") String functionName,
                                      final @PathParam("key") String key) {
-        return functions().getFunctionState(tenant, namespace, functionName, key, authentication());
+        return functions().getFunctionState(tenant, namespace, functionName, key, authParams());
     }
 
     @POST
@@ -243,7 +243,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                     final @PathParam("functionName") String functionName,
                                     final @PathParam("instanceId") String instanceId) {
         return functions().restartFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(),
-                authentication());
+                authParams());
     }
 
     @POST
@@ -256,7 +256,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     public Response restartFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName) {
-        return functions().restartFunctionInstances(tenant, namespace, functionName, authentication());
+        return functions().restartFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
@@ -271,7 +271,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
                                  final @PathParam("functionName") String functionName,
                                  final @PathParam("instanceId") String instanceId) {
         return functions().stopFunctionInstance(tenant, namespace, functionName, instanceId, uri.getRequestUri(),
-                authentication());
+                authParams());
     }
 
     @POST
@@ -284,7 +284,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     public Response stopFunction(final @PathParam("tenant") String tenant,
                                  final @PathParam("namespace") String namespace,
                                  final @PathParam("functionName") String functionName) {
-        return functions().stopFunctionInstances(tenant, namespace, functionName, authentication());
+        return functions().stopFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
@@ -296,7 +296,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public Response uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("path") String path) {
-        return functions().uploadFunction(uploadedInputStream, path, authentication());
+        return functions().uploadFunction(uploadedInputStream, path, authParams());
     }
 
     @GET
@@ -306,7 +306,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     )
     @Path("/download")
     public Response downloadFunction(final @QueryParam("path") String path) {
-        return functions().downloadFunction(path, authentication());
+        return functions().downloadFunction(path, authParams());
     }
 
     @GET

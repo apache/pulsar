@@ -22,9 +22,9 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import javax.ws.rs.core.StreamingOutput;
-import org.apache.pulsar.broker.authentication.Authentication;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -41,7 +41,7 @@ public interface Component<W extends WorkerService> {
 
     W worker();
 
-    void deregisterFunction(String tenant, String namespace, String componentName, Authentication authentication);
+    void deregisterFunction(String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
     @Deprecated
     default void deregisterFunction(String tenant,
@@ -49,9 +49,9 @@ public interface Component<W extends WorkerService> {
                             String componentName,
                             String clientRole,
                             AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        deregisterFunction(tenant, namespace, componentName, authentication);
+        deregisterFunction(tenant, namespace, componentName, authParams);
     }
 
     @Deprecated
@@ -60,13 +60,13 @@ public interface Component<W extends WorkerService> {
                             String componentName,
                             String clientRole,
                             AuthenticationDataHttps clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        deregisterFunction(tenant, namespace, componentName, authentication);
+        deregisterFunction(tenant, namespace, componentName, authParams);
     }
 
     FunctionConfig getFunctionInfo(String tenant, String namespace, String componentName,
-                                   Authentication authentication);
+                                   AuthenticationParameters authParams);
 
     @Deprecated
     default FunctionConfig getFunctionInfo(String tenant,
@@ -74,14 +74,14 @@ public interface Component<W extends WorkerService> {
                                    String componentName,
                                    String clientRole,
                                    AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return getFunctionInfo(tenant, namespace, componentName, authData);
     }
 
 
     void stopFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
-                              Authentication authentication);
+                              AuthenticationParameters authParams);
 
     @Deprecated
     default void stopFunctionInstance(String tenant,
@@ -91,13 +91,13 @@ public interface Component<W extends WorkerService> {
                               URI uri,
                               String clientRole,
                               AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         stopFunctionInstance(tenant, namespace, componentName, instanceId, uri, authData);
     }
 
     void startFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
-                               Authentication authentication);
+                               AuthenticationParameters authParams);
 
     @Deprecated
     default void startFunctionInstance(String tenant,
@@ -107,13 +107,13 @@ public interface Component<W extends WorkerService> {
                                URI uri,
                                String clientRole,
                                AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         startFunctionInstance(tenant, namespace, componentName, instanceId, uri, authData);
     }
 
     void restartFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
-                                 Authentication authentication);
+                                 AuthenticationParameters authParams);
 
     @Deprecated
     default void restartFunctionInstance(String tenant,
@@ -123,13 +123,13 @@ public interface Component<W extends WorkerService> {
                                  URI uri,
                                  String clientRole,
                                  AuthenticationDataSource clientAuthenticationDataHttps){
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         restartFunctionInstance(tenant, namespace, componentName, instanceId, uri, authData);
     }
 
     void startFunctionInstances(String tenant, String namespace, String componentName,
-                                Authentication authentication);
+                                AuthenticationParameters authParams);
 
     @Deprecated
     default void startFunctionInstances(String tenant,
@@ -137,13 +137,13 @@ public interface Component<W extends WorkerService> {
                                 String componentName,
                                 String clientRole,
                                 AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         startFunctionInstances(tenant, namespace, componentName, authData);
     }
 
     void stopFunctionInstances(String tenant, String namespace, String componentName,
-                               Authentication authentication);
+                               AuthenticationParameters authParams);
 
     @Deprecated
     default void stopFunctionInstances(String tenant,
@@ -151,13 +151,13 @@ public interface Component<W extends WorkerService> {
                                String componentName,
                                String clientRole,
                                AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         stopFunctionInstances(tenant, namespace, componentName, authData);
     }
 
     void restartFunctionInstances(String tenant, String namespace, String componentName,
-                                  Authentication authentication);
+                                  AuthenticationParameters authParams);
 
     @Deprecated
     default void restartFunctionInstances(String tenant,
@@ -165,13 +165,13 @@ public interface Component<W extends WorkerService> {
                                   String componentName,
                                   String clientRole,
                                   AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         restartFunctionInstances(tenant, namespace, componentName, authData);
     }
 
     FunctionStatsImpl getFunctionStats(String tenant, String namespace, String componentName, URI uri,
-                                       Authentication authentication);
+                                       AuthenticationParameters authParams);
 
     @Deprecated
     default FunctionStatsImpl getFunctionStats(String tenant,
@@ -180,14 +180,14 @@ public interface Component<W extends WorkerService> {
                                        URI uri,
                                        String clientRole,
                                        AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return getFunctionStats(tenant, namespace, componentName, uri, authData);
     }
 
     FunctionInstanceStatsDataImpl getFunctionsInstanceStats(String tenant, String namespace, String componentName,
                                                             String instanceId, URI uri,
-                                                            Authentication authentication);
+                                                            AuthenticationParameters authParams);
 
     @Deprecated
     default FunctionInstanceStatsDataImpl getFunctionsInstanceStats(String tenant,
@@ -197,13 +197,13 @@ public interface Component<W extends WorkerService> {
                                                             URI uri,
                                                             String clientRole,
                                                             AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return getFunctionsInstanceStats(tenant, namespace, componentName, instanceId, uri, authData);
     }
 
     String triggerFunction(String tenant, String namespace, String functionName, String input,
-                           InputStream uploadedInputStream, String topic, Authentication authentication);
+                           InputStream uploadedInputStream, String topic, AuthenticationParameters authParams);
 
     @Deprecated
     default String triggerFunction(String tenant,
@@ -214,25 +214,25 @@ public interface Component<W extends WorkerService> {
                            String topic,
                            String clientRole,
                            AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return triggerFunction(tenant, namespace, functionName, input, uploadedInputStream, topic, authData);
     }
 
-    List<String> listFunctions(String tenant, String namespace, Authentication authentication);
+    List<String> listFunctions(String tenant, String namespace, AuthenticationParameters authParams);
 
     @Deprecated
     default List<String> listFunctions(String tenant,
                                String namespace,
                                String clientRole,
                                AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return listFunctions(tenant, namespace, authData);
     }
 
     FunctionState getFunctionState(String tenant, String namespace, String functionName, String key,
-                                   Authentication authentication);
+                                   AuthenticationParameters authParams);
 
     @Deprecated
     default FunctionState getFunctionState(String tenant,
@@ -241,13 +241,13 @@ public interface Component<W extends WorkerService> {
                                    String key,
                                    String clientRole,
                                    AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return getFunctionState(tenant, namespace, functionName, key, authData);
     }
 
     void putFunctionState(String tenant, String namespace, String functionName, String key, FunctionState state,
-                          Authentication authentication);
+                          AuthenticationParameters authParams);
 
     @Deprecated
     default void putFunctionState(String tenant,
@@ -257,30 +257,30 @@ public interface Component<W extends WorkerService> {
                           FunctionState state,
                           String clientRole,
                           AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         putFunctionState(tenant, namespace, functionName, key, state, authData);
     }
 
-    void uploadFunction(InputStream uploadedInputStream, String path, Authentication authentication);
+    void uploadFunction(InputStream uploadedInputStream, String path, AuthenticationParameters authParams);
 
     @Deprecated
     default void uploadFunction(InputStream uploadedInputStream,
                         String path,
                         String clientRole,
                         AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         uploadFunction(uploadedInputStream, path, authData);
     }
 
-    StreamingOutput downloadFunction(String path, Authentication authentication);
+    StreamingOutput downloadFunction(String path, AuthenticationParameters authParams);
 
     @Deprecated
     default StreamingOutput downloadFunction(String path,
                                      String clientRole,
                                      AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return downloadFunction(path, authData);
     }
@@ -289,13 +289,13 @@ public interface Component<W extends WorkerService> {
     default StreamingOutput downloadFunction(String path,
                                      String clientRole,
                                      AuthenticationDataHttps clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return downloadFunction(path, authData);
     }
 
     StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
-                                     Authentication authentication, boolean transformFunction);
+                                     AuthenticationParameters authParams, boolean transformFunction);
 
     @Deprecated
     default StreamingOutput downloadFunction(String tenant,
@@ -304,7 +304,7 @@ public interface Component<W extends WorkerService> {
                                      String clientRole,
                                      AuthenticationDataSource clientAuthenticationDataHttps,
                                      boolean transformFunction) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return downloadFunction(tenant, namespace, componentName, authData, transformFunction);
     }
@@ -315,7 +315,7 @@ public interface Component<W extends WorkerService> {
                                      String componentName,
                                      String clientRole,
                                      AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return downloadFunction(tenant, namespace, componentName, authData, false);
     }
@@ -326,7 +326,7 @@ public interface Component<W extends WorkerService> {
                                      String componentName,
                                      String clientRole,
                                      AuthenticationDataHttps clientAuthenticationDataHttps) {
-        Authentication authData = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authData = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
         return downloadFunction(tenant, namespace, componentName, authData, false);
     }
@@ -336,10 +336,10 @@ public interface Component<W extends WorkerService> {
 
     @Deprecated
     default void reloadConnectors(String clientRole, AuthenticationDataSource clientAuthenticationDataHttps) {
-        Authentication authentication = Authentication.builder().clientRole(clientRole)
+        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
                 .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        reloadConnectors(authentication);
+        reloadConnectors(authParams);
     }
 
-    void reloadConnectors(Authentication authentication);
+    void reloadConnectors(AuthenticationParameters authParams);
 }

@@ -24,11 +24,11 @@ import lombok.Builder;
  * A class to collect all the common fields used for authentication. Because the authentication data source is
  * not always consistent when using the Pulsar Protocol and the Pulsar Proxy
  * (see <a href="https://github.com/apache/pulsar/issues/19332">19332</a>), this class is currently restricted
- * to use only in HTTP authentication. In the future, we can consider using this class for all authentication.
+ * to use only in authenticating HTTP requests.
  */
 @Builder
 @lombok.Value
-public class Authentication {
+public class AuthenticationParameters {
 
     /**
      * The original principal (or role) of the client.
