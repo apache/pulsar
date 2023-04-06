@@ -39,21 +39,24 @@ import org.apache.pulsar.functions.proto.Function;
 import org.eclipse.jetty.util.StringUtil;
 
 /**
- * Kubernetes Function Authentication Provider that uses adds a service account to a function pod's container
- * definition. This is used to authenticate the function instance via OpenId Connect. Relevant settings:
+ * Kubernetes Function Authentication Provider that adds Service Account Token Projection to a function pod's container
+ * definition. This token can be used to authenticate the function instance with the broker and the function worker via
+ * OpenId Connect when each server is configured to trust the kubernetes issuer. See docs for additional details.
+ * Relevant settings:
  * <p>
  *     brokerClientTrustCertsSecretName: The Kubernetes secret containing the broker's trust certs. If it is not set,
  *     the function will not use a custom trust store. The secret must already exist in each function's target
- *     namespace. The secret must contain a key named `ca.crt` with the trust certs.
+ *     namespace. The secret must contain a key named `ca.crt` with the trust certs. Only the ca.crt will be mounted.
  * </p>
  * <p>
  *     serviceAccountTokenExpirationSeconds: The expiration for the token created by the
- *     KubernetesServiceAccountAuthProvider. The default value is 3600 seconds.
+ *     {@link KubernetesServiceAccountTokenAuthProvider}. The default value is 3600 seconds.
  * </p>
  * <p>
- *     serviceAccountTokenAudience: The audience for the token created by the KubernetesServiceAccountAuthProvider.
+ *     serviceAccountTokenAudience: The audience for the token created by the
+ *     {@link KubernetesServiceAccountTokenAuthProvider}.
  * </p>
- * Note: the pod inherits the namespaces default service account.
+ * Note: the pod inherits the namespace's default service account.
  */
 public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunctionAuthProvider {
 
@@ -66,6 +69,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
     private static final String DEFAULT_MOUNT_DIR = "/etc/auth";
     private static final String FUNCTION_AUTH_TOKEN = "token";
     private static final String FUNCTION_CA_CERT = "ca.crt";
+    private static final String DEFAULT_CERT_PATH = DEFAULT_MOUNT_DIR + "/" + FUNCTION_CA_CERT;
     private String brokerTrustCertsSecretName;
     private long serviceAccountTokenExpirationSeconds;
     private String serviceAccountTokenAudience;
@@ -113,14 +117,13 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
         authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
         authConfig.setClientAuthenticationParameters(Paths.get(DEFAULT_MOUNT_DIR, FUNCTION_AUTH_TOKEN)
                 .toUri().toString());
-        // if we have ca bytes, update the new path for the CA
         if (StringUtil.isNotBlank(brokerTrustCertsSecretName)) {
-            authConfig.setTlsTrustCertsFilePath(String.format("%s/%s", DEFAULT_MOUNT_DIR, FUNCTION_CA_CERT));
+            authConfig.setTlsTrustCertsFilePath(DEFAULT_CERT_PATH);
         }
     }
 
     /**
-     * No need to cache anything because we rely on Kubernetes to generate the token used for authentication.
+     * No need to cache anything. Kubernetes generates the token used for authentication.
      */
     @Override
     public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
@@ -130,7 +133,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
     }
 
     /**
-     * No need to update anything because we rely on Kubernetes to generate the token used for authentication.
+     * No need to update anything. Kubernetes updates the token used for authentication.
      */
     @Override
     public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
@@ -141,7 +144,7 @@ public class KubernetesServiceAccountTokenAuthProvider implements KubernetesFunc
     }
 
     /**
-     * No need to clean up anything because we rely on Kubernetes to clean up the secret when the pod is deleted.
+     * No need to clean up anything. Kubernetes cleans up the secret when the pod is deleted.
      */
     @Override
     public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
