@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.bookkeeper.mledger.util;
 
 public final class WindowWrap<T> {
     private final long interval;

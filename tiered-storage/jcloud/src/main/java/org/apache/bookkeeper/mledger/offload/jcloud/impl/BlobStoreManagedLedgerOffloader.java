@@ -188,8 +188,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 return;
             }
             OffloadIndexBlockBuilder indexBuilder = OffloadIndexBlockBuilder.create()
-                .withLedgerMetadata(readHandle.getLedgerMetadata())
-                .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
+                    .withLedgerMetadata(readHandle.getLedgerMetadata())
+                    .withDataBlockHeaderLength(BlockAwareSegmentInputStreamImpl.getHeaderSize());
             String dataBlockKey = DataBlockUtils.dataBlockOffloadKey(readHandle.getId(), uuid);
             String indexBlockKey = DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid);
             log.info("ledger {} dataBlockKey {} indexBlockKey {}", readHandle.getId(), dataBlockKey, indexBlockKey);
@@ -203,7 +203,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 Map<String, String> objectMetadata = new HashMap<>(userMetadata);
                 objectMetadata.put("role", "data");
                 if (extraMetadata != null) {
-                   objectMetadata.putAll(extraMetadata);
+                    objectMetadata.putAll(extraMetadata);
                 }
                 DataBlockUtils.addVersionInfo(blobBuilder, objectMetadata);
                 Blob blob = blobBuilder.build();
@@ -219,11 +219,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             try {
                 long startEntry = 0;
                 int partId = 1;
-                long start = System.nanoTime();
                 long entryBytesWritten = 0;
                 while (startEntry <= readHandle.getLastAddConfirmed()) {
-                    int blockSize = BlockAwareSegmentInputStreamImpl
-                        .calculateBlockSize(config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
+                    int blockSize = BlockAwareSegmentInputStreamImpl.calculateBlockSize(
+                                    config.getMaxBlockSizeInBytes(), readHandle, startEntry, entryBytesWritten);
 
                     try (BlockAwareSegmentInputStream blockStream = new BlockAwareSegmentInputStreamImpl(
                             readHandle, startEntry, blockSize, this.offloaderStats, topicName)) {
@@ -287,7 +286,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 Blob blob = blobBuilder
                         .payload(indexPayload)
                         .contentLength((long) indexStream.getStreamSize())
-                    .build();
+                        .build();
                 writeBlobStore.putBlob(config.getBucket(), blob);
                 promise.complete(null);
             } catch (Throwable t) {
@@ -525,7 +524,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
      */
     private BlobStoreLocation getBlobStoreLocation(Map<String, String> offloadDriverMetadata) {
         return (!offloadDriverMetadata.isEmpty()) ? new BlobStoreLocation(offloadDriverMetadata) :
-            new BlobStoreLocation(getOffloadDriverMetadata());
+                new BlobStoreLocation(getOffloadDriverMetadata());
     }
 
     @Override
@@ -600,8 +599,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         scheduler.chooseThread(ledgerId).execute(() -> {
             try {
                 readBlobstore.removeBlobs(readBucket,
-                    ImmutableList.of(DataBlockUtils.dataBlockOffloadKey(ledgerId, uid),
-                                     DataBlockUtils.indexBlockOffloadKey(ledgerId, uid)));
+                        ImmutableList.of(DataBlockUtils.dataBlockOffloadKey(ledgerId, uid),
+                                DataBlockUtils.indexBlockOffloadKey(ledgerId, uid)));
                 promise.complete(null);
             } catch (Throwable t) {
                 log.error("Failed delete Blob", t);

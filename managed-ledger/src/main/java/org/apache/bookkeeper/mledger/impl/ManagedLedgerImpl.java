@@ -113,6 +113,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundExce
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
+import org.apache.bookkeeper.mledger.OffloadReadHandle;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
@@ -3169,15 +3170,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Map<String, String> driverMetadata = config.getLedgerOffloader().getOffloadDriverMetadata();
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
-                .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
-                .thenCompose((ignore) -> {
+                    .thenCompose((ignore) -> getLedgerHandle(ledgerId))
+                    .thenCompose(handle -> OffloadReadHandle.create(handle, config, scheduledExecutor))
+                    .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
+                    .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                                                                       TimeUnit.SECONDS.toHours(1)).limit(10),
-                                           FAIL_ON_CONFLICT,
-                                           () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
-                                           scheduledExecutor, name)
-                            .whenComplete((ignore2, exception) -> {
+                                TimeUnit.SECONDS.toHours(1)).limit(10),
+                                FAIL_ON_CONFLICT,
+                                () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
+                                scheduledExecutor, name)
+                                .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
                                         Throwable e = FutureUtil.unwrapCompletionException(exception);
                                         if (e instanceof MetaStoreException) {
@@ -3200,7 +3202,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     }
                                 });
                     })
-                .whenComplete((ignore, exception) -> {
+                    .whenComplete((ignore, exception) -> {
                         if (exception != null) {
                             lastOffloadFailureTimestamp = System.currentTimeMillis();
                             log.warn("[{}] Exception occurred for ledgerId {} timestamp {} during offload", name,
@@ -3217,9 +3219,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 }
                             }
 
-                            offloadLoop(promise, ledgersToOffload,
-                                        newFirstUnoffloaded,
-                                        errorToReport);
+                            offloadLoop(promise, ledgersToOffload, newFirstUnoffloaded, errorToReport);
                         } else {
                             lastOffloadSuccessTimestamp = System.currentTimeMillis();
                             log.info("[{}] offload for ledgerId {} timestamp {} succeed", name, ledgerId,

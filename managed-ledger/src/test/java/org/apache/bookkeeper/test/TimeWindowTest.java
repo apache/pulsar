@@ -16,11 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats;
+package org.apache.bookkeeper.test;
+
+import org.apache.bookkeeper.mledger.util.TimeWindow;
+import org.apache.bookkeeper.mledger.util.WindowWrap;
+import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import org.testng.annotations.Test;
 
 public class TimeWindowTest {
 
