@@ -960,7 +960,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             features.copyFrom(connect.getFeatureFlags());
         }
 
-        if (connect.hasProxyVersion() && isNotBlank(connect.getProxyVersion())) {
+        if (connect.hasProxyVersion()) {
             proxyVersion = connect.getProxyVersion();
         }
 
