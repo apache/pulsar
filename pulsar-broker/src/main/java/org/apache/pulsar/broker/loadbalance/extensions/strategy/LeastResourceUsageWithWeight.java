@@ -82,7 +82,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
         var conf = context.brokerConfiguration();
         if (candidates.isEmpty()) {
-            log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            log.warn("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
         }
 
@@ -131,8 +131,10 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
 
         if (bestBrokers.isEmpty()) {
             // Assign randomly as all brokers are overloaded.
-            log.warn("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
-                    + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
+            if (debugMode) {
+                log.info("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
+                        + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
+            }
             for (String broker : candidates) {
                 bestBrokers.add(broker);
             }

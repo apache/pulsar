@@ -678,7 +678,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             if (message == null) {
                 break;
             }
-            received.add(MessageIdImpl.convertToMessageIdImpl(message.getMessageId()));
+            received.add(message.getMessageId());
         }
         int msgNumFromPartition1 = list.size() / 2;
         int msgNumFromPartition2 = 1;

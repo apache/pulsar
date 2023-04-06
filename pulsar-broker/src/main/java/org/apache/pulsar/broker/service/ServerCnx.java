@@ -388,7 +388,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
             log.warn("[{}] Got exception {}", remoteAddress,
-                    ClientCnx.isKnownException(cause) ? cause : ExceptionUtils.getStackTrace(cause));
+                    ClientCnx.isKnownException(cause) ? cause.toString() : ExceptionUtils.getStackTrace(cause));
             state = State.Failed;
             if (log.isDebugEnabled()) {
                 log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Failed.name());
@@ -397,7 +397,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
             // failed
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Got exception: {}", remoteAddress, cause);
+                log.debug("[{}] Got exception {}", remoteAddress,
+                        ClientCnx.isKnownException(cause) ? cause.toString() : ExceptionUtils.getStackTrace(cause));
             }
         }
         ctx.close();
@@ -690,7 +691,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
         }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
-        if (isNotBlank(clientVersion) && !clientVersion.contains(" ") /* ignore default version: pulsar client */) {
+        if (isNotBlank(clientVersion)) {
             this.clientVersion = clientVersion.intern();
         }
         if (brokerInterceptor != null) {
@@ -1194,8 +1195,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
+                                    .schemaType(schema == null ? null : schema.getType())
                                     .build();
-                            if (schema != null) {
+                            if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
                                         .thenCompose(v -> topic.subscribe(option));
                             } else {
@@ -2181,8 +2183,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     getBrokerService().pulsar().getNamespaceService().getListOfTopics(namespaceName, mode)
                         .thenAccept(topics -> {
                             boolean filterTopics = false;
-                            // filter transaction internal topic
-                            List<String> filteredTopics = TopicList.filterTransactionInternalName(topics);
+                            // filter system topic
+                            List<String> filteredTopics = TopicList.filterSystemTopic(topics);
 
                             if (enableSubscriptionPatternEvaluation && topicsPattern.isPresent()) {
                                 if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {

@@ -22,6 +22,7 @@ import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 
 /**
  * Filter out unqualified Brokers, which are not entered into LoadBalancer for decision-making.
@@ -37,10 +38,13 @@ public interface BrokerFilter {
      * Filter out unqualified brokers based on implementation.
      *
      * @param brokers The full broker and lookup data.
+     * @param serviceUnit The current serviceUnit.
      * @param context The load manager context.
      * @return Filtered broker list.
      */
-    Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers, LoadManagerContext context)
+    Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                         ServiceUnitId serviceUnit,
+                                         LoadManagerContext context)
             throws BrokerFilterException;
 
 }

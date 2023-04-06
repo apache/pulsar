@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions.data;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 
@@ -69,5 +70,10 @@ public record BrokerLookupData (String webServiceUrl,
     public LookupResult toLookupResult() {
         return new LookupResult(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
                 LookupResult.Type.BrokerUrl, false);
+    }
+
+    public NamespaceEphemeralData toNamespaceEphemeralData() {
+        return new NamespaceEphemeralData(pulsarServiceUrl, pulsarServiceUrlTls, webServiceUrl, webServiceUrlTls,
+                false, advertisedListeners);
     }
 }

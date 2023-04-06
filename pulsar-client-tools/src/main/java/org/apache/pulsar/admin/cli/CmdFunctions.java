@@ -325,6 +325,9 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--subs-position", description = "Pulsar source subscription position if user wants to "
                 + "consume messages from the specified location #Java")
         protected SubscriptionInitialPosition subsPosition;
+        @Parameter(names = "--skip-to-latest", description = "Whether or not the consumer skip to latest message "
+            + "upon function instance restart", arity = 1)
+        protected Boolean skipToLatest;
         @Parameter(names = "--parallelism", description = "The parallelism factor of a Pulsar Function "
                 + "(i.e. the number of function instances to run) #Java")
         protected Integer parallelism;
@@ -546,6 +549,10 @@ public class CmdFunctions extends CmdBase {
 
             if (null != subsPosition) {
                 functionConfig.setSubscriptionPosition(subsPosition);
+            }
+
+            if (null != skipToLatest) {
+                functionConfig.setSkipToLatest(skipToLatest);
             }
 
             if (null != userConfigString) {

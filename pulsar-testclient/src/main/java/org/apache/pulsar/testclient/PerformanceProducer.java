@@ -356,6 +356,7 @@ public class PerformanceProducer {
         long start = System.nanoTime();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            executorShutdownNow();
             printAggregatedThroughput(start, arguments);
             printAggregatedStats();
         }));
@@ -478,6 +479,18 @@ public class PerformanceProducer {
             reportHistogram.reset();
 
             oldTime = now;
+        }
+    }
+
+    private static void executorShutdownNow() {
+        executor.shutdownNow();
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                log.warn("Failed to terminate executor within timeout. The following are stack"
+                        + " traces of still running threads.");
+            }
+        } catch (InterruptedException e) {
+            log.warn("Shutdown of thread pool was interrupted");
         }
     }
 

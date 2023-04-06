@@ -16,32 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import java.util.Set;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 
-import org.testng.annotations.Test;
+/**
+ * Determines which bundles should be split based on various thresholds.
+ *
+ * Migrate from {@link org.apache.pulsar.broker.loadbalance.BundleSplitStrategy}
+ */
+public interface NamespaceBundleSplitStrategy {
 
-public class BatchMessageAckerDisabledTest {
-
-    @Test
-    public void testAckIndividual() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
-        }
-    }
-
-    @Test
-    public void testAckCumulative() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
-        }
-    }
-
-    @Test
-    public void testGetOutstandingAcks() {
-        assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
-    }
-
+    /**
+     * Determines which bundles, if any, should be split.
+     *
+     * @param context The context used for decisions.
+     * @return A set of the bundles that should be split.
+     */
+    Set<SplitDecision> findBundlesToSplit(LoadManagerContext context, PulsarService pulsar);
 }

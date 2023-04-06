@@ -45,6 +45,7 @@ message Schema {
         LocalTime = 18;
         LocalDateTime = 19;
         ProtobufNative = 20;
+        AutoConsume = 21;
     }
 
     required string name = 1;
@@ -263,6 +264,7 @@ enum ProtocolVersion {
     v18 = 18; // Add client support for broker entry metadata
     v19 = 19; // Add CommandTcClientConnectRequest and CommandTcClientConnectResponse
     v20 = 20; // Add client support for topic migration redirection CommandTopicMigrated
+    v21 = 21; // Carry the AUTO_CONSUME schema to the Broker after this version
 }
 
 message CommandConnect {

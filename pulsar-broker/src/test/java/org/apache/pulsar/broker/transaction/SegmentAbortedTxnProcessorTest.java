@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.transaction;
 
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;
@@ -34,6 +36,7 @@ import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -125,6 +128,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         newProcessor.trimExpiredAbortedTxns();
         //4. Verify the two sealed segment will be deleted.
         Awaitility.await().untilAsserted(() -> verifyAbortedTxnIDAndSegmentIndex(newProcessor, 11, 4));
+        processor.closeAsync().get(5, TimeUnit.SECONDS);
     }
 
     private void waitTaskExecuteCompletely(AbortedTxnProcessor processor) throws Exception {
@@ -177,8 +181,11 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 new MutablePair<>(new CompletableFuture<>(), task)));
         try {
             processor.takeAbortedTxnsSnapshot(new PositionImpl(1, 10)).get(2, TimeUnit.SECONDS);
+            fail("The update index operation should fail.");
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        } finally {
+            processor.closeAsync().get(5, TimeUnit.SECONDS);
         }
     }
 
@@ -200,12 +207,13 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker worker =
                 (SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker) field.get(processor);
         Field indexWriteFutureField = SnapshotSegmentAbortedTxnProcessorImpl
-                .PersistentWorker.class.getDeclaredField("snapshotIndexWriterFuture");
+                .PersistentWorker.class.getDeclaredField("snapshotIndexWriter");
         indexWriteFutureField.setAccessible(true);
-        CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>> snapshotIndexWriterFuture =
-                (CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshotIndexes>>)
-                        indexWriteFutureField.get(worker);
-        snapshotIndexWriterFuture.get().close();
+        ReferenceCountedWriter<TransactionBufferSnapshotIndexes> snapshotIndexWriter =
+                (ReferenceCountedWriter<TransactionBufferSnapshotIndexes>) indexWriteFutureField.get(worker);
+        snapshotIndexWriter.release();
+        // After release, the writer should be closed, call close method again to make sure the writer was closed.
+        snapshotIndexWriter.getFuture().get().close();
         //3. Try to write a snapshot segment that will fail to update indexes.
         for (int j = 0; j < SEGMENT_SIZE; j++) {
             TxnID txnID = new TxnID(0, j);
@@ -233,6 +241,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //7. Verify the snapshot segments and index after clearing.
         verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 0);
         verifySnapshotSegmentsIndexSize(PROCESSOR_TOPIC, 1);
+        processor.closeAsync().get(5, TimeUnit.SECONDS);
     }
 
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {

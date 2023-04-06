@@ -16,35 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.broker.loadbalance.extensions.manager;
 
-import java.util.BitSet;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 
-class BatchMessageAckerDisabled extends BatchMessageAcker {
+public interface StateChangeListener {
 
-    static final BatchMessageAckerDisabled INSTANCE = new BatchMessageAckerDisabled();
-
-    private BatchMessageAckerDisabled() {
-        super(new BitSet(), 0);
-    }
-
-    @Override
-    public synchronized int getBatchSize() {
-        return 0;
-    }
-
-    @Override
-    public boolean ackIndividual(int batchIndex) {
-        return true;
-    }
-
-    @Override
-    public boolean ackCumulative(int batchIndex) {
-        return true;
-    }
-
-    @Override
-    public int getOutstandingAcks() {
-        return 0;
-    }
+    /**
+     * Handle the service unit state change.
+     *
+     * @param serviceUnit - Service Unit(Namespace bundle).
+     * @param data - Service unit state data.
+     * @param t - Exception, if present.
+     */
+    void handleEvent(String serviceUnit, ServiceUnitStateData data, Throwable t);
 }

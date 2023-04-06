@@ -130,13 +130,16 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertException(e, BadVersionException.class);
         }
 
-        store.put(key1, "value-1".getBytes(), Optional.of(-1L)).join();
+        var putRes = store.put(key1, "value-1".getBytes(), Optional.of(-1L)).join();
+        long putVersion = putRes.getVersion();
+        assertTrue(putVersion >= 0);
+        assertTrue(putRes.isFirstVersion());
 
         assertTrue(store.exists(key1).join());
         Optional<GetResult> optRes = store.get(key1).join();
         assertTrue(optRes.isPresent());
         assertEquals(optRes.get().getValue(), "value-1".getBytes());
-        assertEquals(optRes.get().getStat().getVersion(), 0);
+        assertEquals(optRes.get().getStat().getVersion(), putVersion);
 
         try {
             store.put(key1, "value-2".getBytes(), Optional.of(-1L)).join();
@@ -146,7 +149,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
 
         try {
-            store.put(key1, "value-2".getBytes(), Optional.of(1L)).join();
+            store.put(key1, "value-2".getBytes(), Optional.of(putVersion + 1)).join();
             fail("Should have failed");
         } catch (CompletionException e) {
             assertException(e, BadVersionException.class);
@@ -156,15 +159,16 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         optRes = store.get(key1).join();
         assertTrue(optRes.isPresent());
         assertEquals(optRes.get().getValue(), "value-1".getBytes());
-        assertEquals(optRes.get().getStat().getVersion(), 0);
+        assertEquals(optRes.get().getStat().getVersion(), putVersion);
 
-        store.put(key1, "value-2".getBytes(), Optional.of(0L)).join();
+        putRes = store.put(key1, "value-2".getBytes(), Optional.of(putVersion)).join();
+        assertTrue(putRes.getVersion() > putVersion);
 
         assertTrue(store.exists(key1).join());
         optRes = store.get(key1).join();
         assertTrue(optRes.isPresent());
         assertEquals(optRes.get().getValue(), "value-2".getBytes());
-        assertEquals(optRes.get().getStat().getVersion(), 1);
+        assertEquals(optRes.get().getStat().getVersion(), putRes.getVersion());
     }
 
     @Test(dataProvider = "impl")
@@ -315,12 +319,14 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         Stat stat = store.put(key1, "value-1".getBytes(), Optional.empty()).join();
         assertTrue(store.get(key1).join().isPresent());
         assertEquals(store.getChildren(key1).join(), Collections.emptyList());
-        assertEquals(stat.getVersion(), 0);
+        assertTrue(stat.getVersion() >= 0);
+        assertTrue(stat.isFirstVersion());
 
         Notification n = notifications.poll(3, TimeUnit.SECONDS);
         assertNotNull(n);
         assertEquals(n.getType(), NotificationType.Created);
         assertEquals(n.getPath(), key1);
+        var firstVersion = stat.getVersion();
 
         // Trigger modified notification
         stat = store.put(key1, "value-2".getBytes(), Optional.empty()).join();
@@ -328,7 +334,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertNotNull(n);
         assertEquals(n.getType(), NotificationType.Modified);
         assertEquals(n.getPath(), key1);
-        assertEquals(stat.getVersion(), 1);
+        assertTrue(stat.getVersion() > firstVersion);
 
         // Trigger modified notification on the parent
         String key1Child = key1 + "/xx";

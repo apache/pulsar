@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 
@@ -36,14 +37,22 @@ import org.apache.pulsar.client.api.TableView;
  */
 public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
-    private final TableView<T> tableView;
+    private TableView<T> tableView;
 
     private final Producer<T> producer;
 
+    private final PulsarClient client;
+
+    private final String topic;
+
+    private final Class<T> clazz;
+
     public TableViewLoadDataStoreImpl(PulsarClient client, String topic, Class<T> clazz) throws LoadDataStoreException {
         try {
-            this.tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).create();
+            this.client = client;
             this.producer = client.newProducer(Schema.JSON(clazz)).topic(topic).create();
+            this.topic = topic;
+            this.clazz = clazz;
         } catch (Exception e) {
             throw new LoadDataStoreException(e);
         }
@@ -61,21 +70,45 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
 
     @Override
     public Optional<T> get(String key) {
+        validateTableViewStart();
         return Optional.ofNullable(tableView.get(key));
     }
 
     @Override
     public void forEach(BiConsumer<String, T> action) {
+        validateTableViewStart();
         tableView.forEach(action);
     }
 
     public Set<Map.Entry<String, T>> entrySet() {
+        validateTableViewStart();
         return tableView.entrySet();
     }
 
     @Override
     public int size() {
+        validateTableViewStart();
         return tableView.size();
+    }
+
+    @Override
+    public void closeTableView() throws IOException {
+        if (tableView != null) {
+            tableView.close();
+            tableView = null;
+        }
+    }
+
+    @Override
+    public void startTableView() throws LoadDataStoreException {
+        if (tableView == null) {
+            try {
+                tableView = client.newTableViewBuilder(Schema.JSON(clazz)).topic(topic).create();
+            } catch (PulsarClientException e) {
+                tableView = null;
+                throw new LoadDataStoreException(e);
+            }
+        }
     }
 
     @Override
@@ -83,8 +116,13 @@ public class TableViewLoadDataStoreImpl<T> implements LoadDataStore<T> {
         if (producer != null) {
             producer.close();
         }
-        if (tableView != null) {
-            tableView.close();
+        closeTableView();
+    }
+
+    private void validateTableViewStart() {
+        if (tableView == null) {
+            throw new IllegalStateException("table view has not been started");
         }
     }
+
 }
