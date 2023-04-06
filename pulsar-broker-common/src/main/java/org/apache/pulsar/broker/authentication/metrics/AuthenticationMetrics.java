@@ -62,8 +62,8 @@ public class AuthenticationMetrics {
 
     public static void authenticateFailure(String providerName, String authMethod,
                                            AuthenticationException exception) {
-        ErrorCode errorCode = exception instanceof PulsarAuthenticationException ?
-                ((PulsarAuthenticationException) exception).getErrorCode() : ErrorCode.UNKNOWN;
+        ErrorCode errorCode = exception instanceof PulsarAuthenticationException
+                ? ((PulsarAuthenticationException) exception).getErrorCode() : ErrorCode.UNKNOWN;
         authenticateFailure(providerName, authMethod, errorCode);
     }
 
