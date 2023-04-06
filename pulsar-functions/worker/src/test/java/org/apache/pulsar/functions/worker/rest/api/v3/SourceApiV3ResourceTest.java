@@ -489,7 +489,7 @@ public class SourceApiV3ResourceTest {
                 details,
                 pkgUrl,
                 sourceConfig,
-                null, null);
+                null);
 
     }
 
@@ -503,7 +503,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
@@ -517,7 +517,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null);
     }
 
     private void registerDefaultSource() throws IOException {
@@ -534,7 +534,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 packageUrl,
                 sourceConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already "
@@ -635,7 +635,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sourceConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -938,7 +938,7 @@ public class SourceApiV3ResourceTest {
                 details,
                 null,
                 sourceConfig,
-                null, null, null);
+                null);
 
     }
 
@@ -984,7 +984,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     packageUrl,
                     sourceConfig,
-                    null, null, null);
+                    null);
         }
     }
 
@@ -1070,7 +1070,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 filePackageUrl,
                 sourceConfig,
-                null, null, null);
+                null);
 
     }
 
@@ -1183,7 +1183,7 @@ public class SourceApiV3ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null, null);
+                null);
 
     }
 
@@ -1192,7 +1192,7 @@ public class SourceApiV3ResourceTest {
                 tenant,
                 namespace,
                 source,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't " +

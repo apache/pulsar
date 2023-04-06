@@ -112,6 +112,18 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                 (AuthenticationDataSource) clientAuthenticationDataHttps);
     }
 
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Function
+     * @param namespace The namespace of a Pulsar Function
+     * @param functionName The name of a Pulsar Function
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param functionPkgUrl URL path of the Pulsar Function package
+     * @param functionConfig Configuration of Pulsar Function
+     * @param authParams the authentication parameters associated with the request
+     * @param updateOptions Options while updating the function
+     */
     void updateFunction(String tenant,
                         String namespace,
                         String functionName,
@@ -122,75 +134,6 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                         AuthenticationParameters authParams,
                         UpdateOptionsImpl updateOptions);
 
-    /**
-     * Update a function.
-     * @param tenant The tenant of a Pulsar Function
-     * @param namespace The namespace of a Pulsar Function
-     * @param functionName The name of a Pulsar Function
-     * @param uploadedInputStream Input stream of bytes
-     * @param fileDetail A form-data content disposition header
-     * @param functionPkgUrl URL path of the Pulsar Function package
-     * @param functionConfig Configuration of Pulsar Function
-     * @param clientRole Client role for running the Pulsar Function
-     * @param clientAuthenticationDataHttps Authentication status of the http client
-     * @param updateOptions Options while updating the function
-     */
-    @Deprecated
-    default void updateFunction(String tenant,
-                        String namespace,
-                        String functionName,
-                        InputStream uploadedInputStream,
-                        FormDataContentDisposition fileDetail,
-                        String functionPkgUrl,
-                        FunctionConfig functionConfig,
-                        String clientRole,
-                        AuthenticationDataSource clientAuthenticationDataHttps,
-                        UpdateOptionsImpl updateOptions) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder()
-                .clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
-                .build();
-        updateFunction(
-                tenant,
-                namespace,
-                functionName,
-                uploadedInputStream,
-                fileDetail,
-                functionPkgUrl,
-                functionConfig,
-                authParams,
-                updateOptions);
-    }
-
-    /**
-     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
-     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
-     * the signature of the AuthenticationDataSource.
-     */
-    @Deprecated
-    default void updateFunction(String tenant,
-                        String namespace,
-                        String functionName,
-                        InputStream uploadedInputStream,
-                        FormDataContentDisposition fileDetail,
-                        String functionPkgUrl,
-                        FunctionConfig functionConfig,
-                        String clientRole,
-                        AuthenticationDataHttps clientAuthenticationDataHttps,
-                        UpdateOptionsImpl updateOptions) {
-        updateFunction(
-                tenant,
-                namespace,
-                functionName,
-                uploadedInputStream,
-                fileDetail,
-                functionPkgUrl,
-                functionConfig,
-                clientRole,
-                (AuthenticationDataSource) clientAuthenticationDataHttps,
-                updateOptions);
-    }
-
     void updateFunctionOnWorkerLeader(String tenant,
                                       String namespace,
                                       String functionName,
@@ -199,37 +142,11 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                       URI uri,
                                       AuthenticationParameters authParams);
 
-    @Deprecated
-    default void updateFunctionOnWorkerLeader(String tenant,
-                                              String namespace,
-                                              String functionName,
-                                              InputStream uploadedInputStream,
-                                              boolean delete,
-                                              URI uri,
-                                              String clientRole,
-                                              AuthenticationDataSource clientAuthenticationDataHttps) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream, delete, uri,
-                authParams);
-    }
     FunctionStatus getFunctionStatus(String tenant,
                                      String namespace,
                                      String componentName,
                                      URI uri,
                                      AuthenticationParameters authParams);
-
-    @Deprecated
-    default FunctionStatus getFunctionStatus(String tenant,
-                                             String namespace,
-                                             String componentName,
-                                             URI uri,
-                                             String clientRole,
-                                             AuthenticationDataSource clientAuthenticationDataHttps) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        return getFunctionStatus(tenant, namespace, componentName, uri, authParams);
-    }
 
     FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
                                                          String namespace,
@@ -238,37 +155,7 @@ public interface Functions<W extends WorkerService> extends Component<W> {
                                                          URI uri,
                                                          AuthenticationParameters authParams);
 
-    @Deprecated
-    default FunctionInstanceStatusData getFunctionInstanceStatus(String tenant,
-                                                         String namespace,
-                                                         String componentName,
-                                                         String instanceId,
-                                                         URI uri,
-                                                         String clientRole,
-                                                         AuthenticationDataSource clientAuthenticationDataHttps) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        return getFunctionInstanceStatus(tenant, namespace, componentName, instanceId, uri, authParams);
-    }
-
     void reloadBuiltinFunctions(AuthenticationParameters authParams) throws IOException;
 
-    @Deprecated
-    default void reloadBuiltinFunctions(String clientRole,
-                                AuthenticationDataSource clientAuthenticationDataHttps) throws IOException {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        reloadBuiltinFunctions(authParams);
-    }
-
     List<FunctionDefinition> getBuiltinFunctions(AuthenticationParameters authParams);
-
-
-    @Deprecated
-    default List<FunctionDefinition> getBuiltinFunctions(String clientRole,
-                                                         AuthenticationDataSource clientAuthenticationDataHttps) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps).build();
-        return getBuiltinFunctions(authParams);
-    }
 }
