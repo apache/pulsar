@@ -1706,37 +1706,53 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     protected CompletableFuture<Void> addReplicationCluster(String remoteCluster, ManagedCursor cursor,
             String localCluster) {
-        return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
-                .thenCompose(__ -> checkReplicationCluster(remoteCluster))
-                .thenCompose(clusterExists -> {
-                    if (!clusterExists) {
-                        log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
-                        return removeReplicator(remoteCluster).thenApply(__ -> null);
+        CompletableFuture<Void> replicationStartFuture = new CompletableFuture<>();
+        AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
+            .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
+                    .getClusterAsync(remoteCluster)
+                    .thenApply(clusterData ->
+                            brokerService.getReplicationClient(remoteCluster, clusterData)))
+            .thenAccept(replicationClient -> {
+                Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
+                    try {
+                        return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
+                                remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
+                    } catch (PulsarServerException e) {
+                        log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
                     }
-                    return brokerService.pulsar().getPulsarResources().getClusterResources()
-                            .getClusterAsync(remoteCluster)
-                            .thenApply(clusterData ->
-                                    brokerService.getReplicationClient(remoteCluster, clusterData));
-                })
-                .thenAccept(replicationClient -> {
-                    if (replicationClient == null) {
-                        return;
-                    }
-                    Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
-                        try {
-                            return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
-                                    remoteCluster, brokerService, (PulsarClientImpl) replicationClient);
-                        } catch (PulsarServerException e) {
-                            log.error("[{}] Replicator startup failed {}", topic, remoteCluster, e);
-                        }
-                        return null;
-                    });
-
-                    // clean up replicator if startup is failed
-                    if (replicator == null) {
-                        replicators.removeNullValue(remoteCluster);
-                    }
+                    return null;
                 });
+                // clean up replicator if startup is failed
+                if (replicator == null) {
+                    replicators.removeNullValue(remoteCluster);
+                }
+            }).whenComplete((ignore, ex) -> {
+                if (ex == null){
+                    replicationStartFuture.complete(null);
+                } else {
+                    checkReplicationCluster(remoteCluster).thenCompose(clusterExists -> {
+                        if (!clusterExists) {
+                            log.warn("[{}] Start remove the replicator because the cluster '{}' does not exist",
+                                    topic, remoteCluster);
+                            replicationStartFuture.complete(null);
+                            return removeReplicator(remoteCluster).whenComplete((ignore2, remoteCursorEx) -> {
+                                if (remoteCursorEx != null) {
+                                    log.error("[{}] Remove the cursor of replicator[{}] is failed, please reload topic."
+                                            , topic, remoteCluster);
+                                } else {
+                                    log.warn("[{}] Remove the cursor of replicator[{}] successfully",
+                                            topic, remoteCluster);
+                                }
+                            });
+                        } else {
+                            // Start replication is failed.
+                            replicationStartFuture.completeExceptionally(ex);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                    });
+                }
+            });
+        return replicationStartFuture;
     }
 
     CompletableFuture<Void> removeReplicator(String remoteCluster) {

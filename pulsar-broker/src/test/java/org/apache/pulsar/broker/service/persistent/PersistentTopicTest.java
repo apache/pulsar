@@ -39,6 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -558,10 +559,10 @@ public class PersistentTopicTest extends BrokerTestBase {
         admin.tenants().updateTenant("prop", tenantInfo);
 
         if (topicLevelPolicy) {
-            admin.topics().setReplicationClusters(topicName, Collections.singletonList(remoteCluster));
+            admin.topics().setReplicationClusters(topicName, Arrays.asList(remoteCluster, "test"));
         } else {
             admin.namespaces().setNamespaceReplicationClustersAsync(
-                    namespace, Collections.singleton(remoteCluster)).get();
+                    namespace, new HashSet<>(Arrays.asList(remoteCluster, "test"))).get();
         }
 
         final PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false)
@@ -577,13 +578,12 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(getCursors.get(), Collections.singleton(conf.getReplicatorPrefix() + "." + remoteCluster));
 
         if (topicLevelPolicy) {
-            admin.topics().setReplicationClusters(topicName, Collections.emptyList());
+            admin.topics().setReplicationClusters(topicName, Collections.singletonList("test"));
         } else {
-            admin.namespaces().setNamespaceReplicationClustersAsync(namespace, Collections.emptySet()).get();
+            admin.namespaces().setNamespaceReplicationClustersAsync(namespace, Collections.singleton("test")).get();
         }
         admin.clusters().deleteCluster(remoteCluster);
         // Now the cluster and its related policy has been removed but the replicator cursor still exists
-
         topic.initialize().get(3, TimeUnit.SECONDS);
         Awaitility.await().atMost(3, TimeUnit.SECONDS)
                 .until(() -> !topic.getManagedLedger().getCursors().iterator().hasNext());
