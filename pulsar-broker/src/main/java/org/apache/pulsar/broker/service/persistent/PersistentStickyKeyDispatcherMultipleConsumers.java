@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -98,6 +99,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         default:
             throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
+    }
+
+    @VisibleForTesting
+    public StickyKeyConsumerSelector getSelector() {
+        return selector;
     }
 
     @Override
