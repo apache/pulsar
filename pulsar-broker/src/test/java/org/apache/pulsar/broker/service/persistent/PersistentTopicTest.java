@@ -593,8 +593,8 @@ public class PersistentTopicTest extends BrokerTestBase {
         //    If the topic loading by client is failed, it will retry, so we can do retry "topic.initialize()".
         // 2. The repl cursor will be deleted.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
-                    topic.initialize().get(3, TimeUnit.SECONDS);
-                    assertFalse(topic.getManagedLedger().getCursors().iterator().hasNext());
-                });
+            topic.initialize().get(3, TimeUnit.SECONDS);
+            assertFalse(topic.getManagedLedger().getCursors().iterator().hasNext());
+        });
     }
 }
