@@ -271,7 +271,7 @@ public class SinksBase extends AdminResource {
                            @ApiParam(value = "Update options for the Pulsar Sink")
                            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
          sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                sinkPkgUrl, sinkConfig, updateOptions, authParams());
+                sinkPkgUrl, sinkConfig, authParams(), updateOptions);
 
     }
 

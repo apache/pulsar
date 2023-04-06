@@ -65,8 +65,8 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param sinkPkgUrl URL path of the Pulsar Sink package
      * @param sinkConfig Configuration of Pulsar Sink
-     * @param updateOptions Options while updating the sink
      * @param authParams the authentication parameters associated with the request
+     * @param updateOptions Options while updating the sink
      */
     void updateSink(String tenant,
                     String namespace,
@@ -75,8 +75,8 @@ public interface Sinks<W extends WorkerService> extends Component<W> {
                     FormDataContentDisposition fileDetail,
                     String sinkPkgUrl,
                     SinkConfig sinkConfig,
-                    UpdateOptionsImpl updateOptions,
-                    AuthenticationParameters authParams);
+                    AuthenticationParameters authParams,
+                    UpdateOptionsImpl updateOptions);
 
     SinkInstanceStatusData getSinkInstanceStatus(String tenant,
                                                  String namespace,

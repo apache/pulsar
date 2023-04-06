@@ -242,8 +242,8 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                            final FormDataContentDisposition fileDetail,
                            final String sinkPkgUrl,
                            final SinkConfig sinkConfig,
-                           UpdateOptionsImpl updateOptions,
-                           final AuthenticationParameters authParams) {
+                           final AuthenticationParameters authParams,
+                           UpdateOptionsImpl updateOptions) {
 
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();

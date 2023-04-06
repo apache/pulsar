@@ -86,7 +86,7 @@ public class SinksApiV3Resource extends FunctionApiResource {
                            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
 
         sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                functionPkgUrl, sinkConfig, updateOptions, authParams());
+                functionPkgUrl, sinkConfig, authParams(), updateOptions);
     }
 
     @DELETE
