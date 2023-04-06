@@ -18,37 +18,48 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
+import java.util.PriorityQueue;
 import javax.annotation.concurrent.NotThreadSafe;
+import lombok.AllArgsConstructor;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 
 @NotThreadSafe
 class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
 
-    private final List<SnapshotSegment> segmentListA;
-    private final List<SnapshotSegment> segmentListB;
+    @AllArgsConstructor
+    static class Node {
+        List<SnapshotSegment> segmentList;
 
-    private int segmentListACursor = 0;
-    private int segmentListBCursor = 0;
-    private int segmentACursor = 0;
-    private int segmentBCursor = 0;
+        int segmentListCursor;
 
-    private CombinedSegmentDelayedIndexQueue(List<SnapshotSegment> segmentListA,
-                                             List<SnapshotSegment> segmentListB) {
-        this.segmentListA = segmentListA;
-        this.segmentListB = segmentListB;
+        int segmentCursor;
     }
 
-    public static CombinedSegmentDelayedIndexQueue wrap(
-            List<SnapshotSegment> segmentListA,
-            List<SnapshotSegment> segmentListB) {
-        return new CombinedSegmentDelayedIndexQueue(segmentListA, segmentListB);
+    private static final Comparator<Node> COMPARATOR_NODE = (node1, node2) -> DelayedIndexQueue.COMPARATOR.compare(
+            node1.segmentList.get(node1.segmentListCursor).getIndexes(node1.segmentCursor),
+            node2.segmentList.get(node2.segmentListCursor).getIndexes(node2.segmentCursor));
+
+    private final PriorityQueue<Node> kpq;
+
+    private CombinedSegmentDelayedIndexQueue(List<List<SnapshotSegment>> segmentLists) {
+        this.kpq = new PriorityQueue<>(segmentLists.size(), COMPARATOR_NODE);
+        for (List<SnapshotSegment> segmentList : segmentLists) {
+            Node node = new Node(segmentList, 0, 0);
+            kpq.offer(node);
+        }
+    }
+
+    public static CombinedSegmentDelayedIndexQueue wrap(List<List<SnapshotSegment>> segmentLists) {
+        return new CombinedSegmentDelayedIndexQueue(segmentLists);
     }
 
     @Override
     public boolean isEmpty() {
-        return segmentListACursor >= segmentListA.size() && segmentListBCursor >= segmentListB.size();
+        return kpq.isEmpty();
     }
 
     @Override
@@ -62,48 +73,35 @@ class CombinedSegmentDelayedIndexQueue implements DelayedIndexQueue {
     }
 
     private DelayedIndex getValue(boolean needAdvanceCursor) {
-        // skip empty segment
-        while (segmentListACursor < segmentListA.size()
-                && segmentListA.get(segmentListACursor).getIndexesCount() == 0) {
-            segmentListACursor++;
-        }
-        while (segmentListBCursor < segmentListB.size()
-                && segmentListB.get(segmentListBCursor).getIndexesCount() == 0) {
-            segmentListBCursor++;
+        Node node = kpq.peek();
+        Objects.requireNonNull(node);
+
+        SnapshotSegment snapshotSegment = node.segmentList.get(node.segmentListCursor);
+        DelayedIndex delayedIndex = snapshotSegment.getIndexes(node.segmentCursor);
+        if (!needAdvanceCursor) {
+            return delayedIndex;
         }
 
-        DelayedIndex delayedIndexA = null;
-        DelayedIndex delayedIndexB = null;
-        if (segmentListACursor >= segmentListA.size()) {
-            delayedIndexB = segmentListB.get(segmentListBCursor).getIndexes(segmentBCursor);
-        } else if (segmentListBCursor >= segmentListB.size()) {
-            delayedIndexA = segmentListA.get(segmentListACursor).getIndexes(segmentACursor);
-        } else {
-            delayedIndexA = segmentListA.get(segmentListACursor).getIndexes(segmentACursor);
-            delayedIndexB = segmentListB.get(segmentListBCursor).getIndexes(segmentBCursor);
-        }
+        kpq.poll();
 
-        DelayedIndex resultValue;
-        if (delayedIndexB == null || (delayedIndexA != null && COMPARATOR.compare(delayedIndexA, delayedIndexB) < 0)) {
-            resultValue = delayedIndexA;
-            if (needAdvanceCursor) {
-                if (++segmentACursor >= segmentListA.get(segmentListACursor).getIndexesCount()) {
-                    segmentListA.set(segmentListACursor, null);
-                    ++segmentListACursor;
-                    segmentACursor = 0;
-                }
-            }
-        } else {
-            resultValue = delayedIndexB;
-            if (needAdvanceCursor) {
-                if (++segmentBCursor >= segmentListB.get(segmentListBCursor).getIndexesCount()) {
-                    segmentListB.set(segmentListBCursor, null);
-                    ++segmentListBCursor;
-                    segmentBCursor = 0;
+        if (node.segmentCursor + 1 < snapshotSegment.getIndexesCount()) {
+            node.segmentCursor++;
+            kpq.offer(node);
+        } else  {
+            // help GC
+            node.segmentList.set(node.segmentListCursor, null);
+            while (node.segmentListCursor + 1 < node.segmentList.size()) {
+                node.segmentListCursor++;
+                node.segmentCursor = 0;
+
+                // skip empty segment
+                if (node.segmentList.get(node.segmentListCursor).getIndexesCount() > 0) {
+                    kpq.offer(node);
+                    break;
                 }
             }
         }
 
-        return resultValue;
+        return delayedIndex;
     }
 }

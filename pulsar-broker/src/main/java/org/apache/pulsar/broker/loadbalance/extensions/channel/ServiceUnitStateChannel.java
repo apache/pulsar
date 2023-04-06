@@ -65,6 +65,12 @@ public interface ServiceUnitStateChannel extends Closeable {
     CompletableFuture<Boolean> isChannelOwnerAsync();
 
     /**
+     * Checks if the current broker is the owner broker of the system topic in this channel.
+     * @return True if the current broker is the owner. Otherwise, false.
+     */
+    boolean isChannelOwner();
+
+    /**
      * Handles the metadata session events to track
      * if the connection between the broker and metadata store is stable or not.
      * This will be registered as a metadata SessionEvent listener.
@@ -126,6 +132,25 @@ public interface ServiceUnitStateChannel extends Closeable {
     CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit);
 
     /**
+     * Checks if the target broker is the owner of the service unit.
+     *
+     *
+     * @param serviceUnit (e.g. bundle)
+     * @param targetBroker
+     * @return true if the target broker is the owner. false if unknown.
+     */
+    boolean isOwner(String serviceUnit, String targetBroker);
+
+    /**
+     * Checks if the current broker is the owner of the service unit.
+     *
+     *
+     * @param serviceUnit (e.g. bundle))
+     * @return true if the current broker is the owner. false if unknown.
+     */
+    boolean isOwner(String serviceUnit);
+
+    /**
      * Asynchronously publishes the service unit assignment event to the system topic in this channel.
      * It de-duplicates assignment events if there is any ongoing assignment event for the same service unit.
      * @param serviceUnit (e.g bundle)
@@ -172,4 +197,13 @@ public interface ServiceUnitStateChannel extends Closeable {
      */
     Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet();
 
+    /**
+     * Schedules ownership monitor to periodically check and correct invalid ownership states.
+     */
+    void scheduleOwnershipMonitor();
+
+    /**
+     * Cancels the ownership monitor.
+     */
+    void cancelOwnershipMonitor();
 }

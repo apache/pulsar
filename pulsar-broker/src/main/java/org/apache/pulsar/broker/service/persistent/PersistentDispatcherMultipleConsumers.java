@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
@@ -71,6 +72,7 @@ import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferEx
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
@@ -331,7 +333,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     Predicate<PositionImpl> skipCondition = null;
                     final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
                     if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
-                        skipCondition = position -> deliveryTracker
+                        skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
                                 .containsMessage(position.getLedgerId(), position.getEntryId());
                     }
                     cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
@@ -1089,8 +1091,26 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public void clearDelayedMessages() {
-        this.delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::clear);
+    public CompletableFuture<Void> clearDelayedMessages() {
+        if (!topic.isDelayedDeliveryEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        if (delayedDeliveryTracker.isEmpty() && topic.getBrokerService()
+                .getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory) {
+            synchronized (this) {
+                if (delayedDeliveryTracker.isEmpty()) {
+                    delayedDeliveryTracker = Optional
+                            .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                }
+            }
+        }
+
+        if (delayedDeliveryTracker.isPresent()) {
+            return this.delayedDeliveryTracker.get().clear();
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 
     @Override
@@ -1159,6 +1179,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         return 0;
+    }
+
+    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+        if (delayedDeliveryTracker.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        if (delayedDeliveryTracker.get() instanceof BucketDelayedDeliveryTracker) {
+            return ((BucketDelayedDeliveryTracker) delayedDeliveryTracker.get()).genTopicMetricMap();
+        }
+
+        return Collections.emptyMap();
     }
 
     public ManagedCursor getCursor() {

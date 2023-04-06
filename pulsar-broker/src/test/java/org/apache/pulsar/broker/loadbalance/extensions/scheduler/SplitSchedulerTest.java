@@ -27,7 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -78,11 +77,11 @@ public class SplitSchedulerTest {
         doReturn(CompletableFuture.completedFuture(null)).when(channel).publishSplitEventAsync(any());
 
         decision1 = new SplitDecision();
-        decision1.setSplit(new Split(bundle1, broker, new HashMap<>()));
+        decision1.setSplit(new Split(bundle1, broker));
         decision1.succeed(SplitDecision.Reason.MsgRate);
 
         decision2 = new SplitDecision();
-        decision2.setSplit(new Split(bundle2, broker, new HashMap<>()));
+        decision2.setSplit(new Split(bundle2, broker));
         decision2.succeed(SplitDecision.Reason.Sessions);
         Set<SplitDecision> decisions = Set.of(decision1, decision2);
         doReturn(decisions).when(strategy).findBundlesToSplit(any(), any());

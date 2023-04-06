@@ -110,8 +110,8 @@ public interface Dispatcher {
         return 0;
     }
 
-    default void clearDelayedMessages() {
-        //No-op
+    default CompletableFuture<Void> clearDelayedMessages() {
+        return CompletableFuture.completedFuture(null);
     }
 
     default void cursorIsReset() {

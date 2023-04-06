@@ -79,6 +79,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -152,6 +153,7 @@ import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -1078,13 +1080,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new AsyncCallbacks.DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
-                            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
                         }
 
                         @Override
                         public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             if (exception instanceof MetadataNotFoundException) {
-                                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                                asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
                                 return;
                             }
 
@@ -1094,10 +1096,49 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         }
                     }, null);
         } else {
-            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            asyncDeleteCursorWithClearDelayedMessage(subscriptionName, unsubscribeFuture);
         }
 
         return unsubscribeFuture;
+    }
+
+    private void asyncDeleteCursorWithClearDelayedMessage(String subscriptionName,
+                                                          CompletableFuture<Void> unsubscribeFuture) {
+        if (!isDelayedDeliveryEnabled()
+                || !(brokerService.getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory)) {
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
+        }
+
+        PersistentSubscription persistentSubscription = subscriptions.get(subscriptionName);
+        if (persistentSubscription == null) {
+            log.warn("[{}][{}] Can't find subscription, skip clear delayed message", topic, subscriptionName);
+            asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            return;
+        }
+
+        Dispatcher dispatcher = persistentSubscription.getDispatcher();
+        final Dispatcher temporaryDispatcher;
+        if (dispatcher == null) {
+            log.info("[{}][{}] Dispatcher is null, try to create temporary dispatcher to clear delayed message", topic,
+                    subscriptionName);
+            dispatcher = temporaryDispatcher =
+                    new PersistentDispatcherMultipleConsumers(this, persistentSubscription.cursor,
+                            persistentSubscription);
+        } else {
+            temporaryDispatcher = null;
+        }
+
+        dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
+            if (ex != null) {
+                unsubscribeFuture.completeExceptionally(ex);
+            } else {
+                asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+            }
+            if (temporaryDispatcher != null) {
+                temporaryDispatcher.close();
+            }
+        });
     }
 
     private void asyncDeleteCursor(String subscriptionName, CompletableFuture<Void> unsubscribeFuture) {
@@ -1655,14 +1696,32 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return future;
     }
 
+    private CompletableFuture<Boolean> checkReplicationCluster(String remoteCluster) {
+        return brokerService.getPulsar().getPulsarResources().getNamespaceResources()
+                .getPoliciesAsync(TopicName.get(topic).getNamespaceObject())
+                .thenApply(optPolicies -> optPolicies.map(policies -> policies.replication_clusters)
+                        .orElse(Collections.emptySet()).contains(remoteCluster)
+                        || topicPolicies.getReplicationClusters().get().contains(remoteCluster));
+    }
+
     protected CompletableFuture<Void> addReplicationCluster(String remoteCluster, ManagedCursor cursor,
             String localCluster) {
         return AbstractReplicator.validatePartitionedTopicAsync(PersistentTopic.this.getName(), brokerService)
-                .thenCompose(__ -> brokerService.pulsar().getPulsarResources().getClusterResources()
-                        .getClusterAsync(remoteCluster)
-                        .thenApply(clusterData ->
-                                brokerService.getReplicationClient(remoteCluster, clusterData)))
+                .thenCompose(__ -> checkReplicationCluster(remoteCluster))
+                .thenCompose(clusterExists -> {
+                    if (!clusterExists) {
+                        log.warn("Remove the replicator because the cluster '{}' does not exist", remoteCluster);
+                        return removeReplicator(remoteCluster).thenApply(__ -> null);
+                    }
+                    return brokerService.pulsar().getPulsarResources().getClusterResources()
+                            .getClusterAsync(remoteCluster)
+                            .thenApply(clusterData ->
+                                    brokerService.getReplicationClient(remoteCluster, clusterData));
+                })
                 .thenAccept(replicationClient -> {
+                    if (replicationClient == null) {
+                        return;
+                    }
                     Replicator replicator = replicators.computeIfAbsent(remoteCluster, r -> {
                         try {
                             return new GeoPersistentReplicator(PersistentTopic.this, cursor, localCluster,
@@ -1686,8 +1745,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         String name = PersistentReplicator.getReplicatorName(replicatorPrefix, remoteCluster);
 
-        replicators.get(remoteCluster).disconnect().thenRun(() -> {
-
+        Optional.ofNullable(replicators.get(remoteCluster)).map(Replicator::disconnect)
+                .orElse(CompletableFuture.completedFuture(null)).thenRun(() -> {
             ledger.asyncDeleteCursor(name, new DeleteCursorCallback() {
                 @Override
                 public void deleteCursorComplete(Object ctx) {
@@ -2143,6 +2202,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             stats.nonContiguousDeletedMessagesRangesSerializedSize +=
                     subStats.nonContiguousDeletedMessagesRangesSerializedSize;
             stats.delayedMessageIndexSizeInBytes += subStats.delayedMessageIndexSizeInBytes;
+
+            subStats.bucketDelayedIndexStats.forEach((k, v) -> {
+                TopicMetricBean topicMetricBean =
+                        stats.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+                topicMetricBean.name = v.name;
+                topicMetricBean.labelsAndValues = v.labelsAndValues;
+                topicMetricBean.value += v.value;
+            });
         });
 
         replicators.forEach((cluster, replicator) -> {

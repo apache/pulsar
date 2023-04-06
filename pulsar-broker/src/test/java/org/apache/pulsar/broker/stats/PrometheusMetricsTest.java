@@ -319,11 +319,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
-        assertEquals(cm.size(), 3);
-        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic2");
+        assertEquals(cm.size(), 2);
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
-        assertEquals(cm.get(2).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
-        assertEquals(cm.get(2).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
+        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("topic_load_times_count");
         assertEquals(cm.size(), 1);
@@ -360,6 +360,97 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
         assertEquals(cm.get(1).tags.get("subscription"), "test");
+
+        p1.close();
+        p2.close();
+        c1.close();
+        c2.close();
+    }
+
+    @Test
+    public void testPerBrokerStats() throws Exception {
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        Consumer<byte[]> c2 = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/my-ns/my-topic2")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 10;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+            c2.acknowledge(c2.receive());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+
+        Collection<Metric> brokerMetrics = metrics.get("pulsar_broker_topics_count");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_subscriptions_count");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_producers_count");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_consumers_count");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_rate_in");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_rate_out");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_throughput_in");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_throughput_out");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_storage_size");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_storage_logical_size");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_storage_write_rate");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_storage_read_rate");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
+
+        brokerMetrics = metrics.get("pulsar_broker_msg_backlog");
+        assertEquals(brokerMetrics.size(), 1);
+        assertEquals(brokerMetrics.stream().toList().get(0).tags.get("cluster"), "test");
 
         p1.close();
         p2.close();
@@ -674,9 +765,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_producers_count");
-        assertEquals(cm.size(), 2);
-        assertNull(cm.get(1).tags.get("topic"));
-        assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
+        assertEquals(cm.size(), 1);
+        assertNull(cm.get(0).tags.get("topic"));
+        assertEquals(cm.get(0).tags.get("namespace"), "my-property/use/my-ns");
 
         cm = (List<Metric>) metrics.get("pulsar_in_bytes_total");
         assertEquals(cm.size(), 1);

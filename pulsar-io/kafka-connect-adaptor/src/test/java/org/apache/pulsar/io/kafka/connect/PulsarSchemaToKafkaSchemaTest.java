@@ -32,6 +32,7 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.io.kafka.connect.schema.KafkaConnectData;
 import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.math.BigInteger;
@@ -39,6 +40,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Test the conversion of PulsarSchema To KafkaSchema\.
@@ -132,101 +135,134 @@ public class PulsarSchemaToKafkaSchemaTest {
         String[] stringArr;
     }
 
-    @Test
-    public void bytesSchemaTest() {
+    @DataProvider(name = "useOptionalPrimitives")
+    public static Object[][] useOptionalPrimitives() {
+        return new Object[][] {
+                {true},
+                {false}
+        };
+    }
+
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void bytesSchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTES);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTES, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
 
         kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTEBUFFER);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTEBUFFER, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void stringSchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void stringSchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.STRING);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.STRING, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRING);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void booleanSchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void booleanSchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BOOL);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BOOL, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BOOLEAN);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void int8SchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void int8SchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT8);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT8, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT8);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void int16SchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void int16SchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT16);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT16, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT16);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void int32SchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void int32SchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT32);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT32, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT32);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void int64SchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void int64SchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT64);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT64, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT64);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void float32SchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void float32SchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.FLOAT);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.FLOAT, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.FLOAT32);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void float64SchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void float64SchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.DOUBLE);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.DOUBLE, useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.FLOAT64);
+        assertEquals(useOptionalPrimitives, kafkaSchema.isOptional());
     }
 
-    @Test
-    public void kvBytesSchemaTest() {
+    @Test(dataProvider = "useOptionalPrimitives")
+    public void kvBytesSchemaTest(boolean useOptionalPrimitives) {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.KV_BYTES());
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.KV_BYTES(), useOptionalPrimitives);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.MAP);
         assertEquals(kafkaSchema.keySchema().type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
         assertEquals(kafkaSchema.valueSchema().type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
+        assertTrue(kafkaSchema.isOptional());
+
+        // key and value are always optional
+        assertTrue(kafkaSchema.keySchema().isOptional());
+        assertTrue(kafkaSchema.valueSchema().isOptional());
     }
 
     @Test
     public void kvBytesIntSchemaTests() {
         Schema pulsarKvSchema = KeyValueSchemaImpl.of(Schema.STRING, Schema.INT64);
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarKvSchema);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarKvSchema, false);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.MAP);
         assertEquals(kafkaSchema.keySchema().type(), org.apache.kafka.connect.data.Schema.Type.STRING);
         assertEquals(kafkaSchema.valueSchema().type(), org.apache.kafka.connect.data.Schema.Type.INT64);
+        assertTrue(kafkaSchema.isOptional());
+
+        // key and value are always optional
+        assertTrue(kafkaSchema.keySchema().isOptional());
+        assertTrue(kafkaSchema.valueSchema().isOptional());
     }
 
     @Test
     public void avroSchemaTest() {
         AvroSchema<StructWithAnnotations> pulsarAvroSchema = AvroSchema.of(StructWithAnnotations.class);
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, false);
+        org.apache.kafka.connect.data.Schema kafkaSchemaOpt =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), STRUCT_FIELDS.size());
         for (String name: STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
+            // set by avro schema
+            assertEquals(kafkaSchema.field(name).schema().isOptional(),
+                    kafkaSchemaOpt.field(name).schema().isOptional());
         }
     }
 
@@ -234,11 +270,16 @@ public class PulsarSchemaToKafkaSchemaTest {
     public void avroComplexSchemaTest() {
         AvroSchema<ComplexStruct> pulsarAvroSchema = AvroSchema.of(ComplexStruct.class);
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, false);
+        org.apache.kafka.connect.data.Schema kafkaSchemaOpt =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(pulsarAvroSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), COMPLEX_STRUCT_FIELDS.size());
         for (String name: COMPLEX_STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
+            // set by avro schema
+            assertEquals(kafkaSchema.field(name).schema().isOptional(),
+                    kafkaSchemaOpt.field(name).schema().isOptional());
         }
     }
 
@@ -250,11 +291,16 @@ public class PulsarSchemaToKafkaSchemaTest {
                 .withAlwaysAllowNull(false)
                 .build());
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, false);
+        org.apache.kafka.connect.data.Schema kafkaSchemaOpt =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, true);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), STRUCT_FIELDS.size());
         for (String name: STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
+            // set by schema
+            assertEquals(kafkaSchema.field(name).schema().isOptional(),
+                    kafkaSchemaOpt.field(name).schema().isOptional());
         }
     }
 
@@ -266,11 +312,27 @@ public class PulsarSchemaToKafkaSchemaTest {
                         .withAlwaysAllowNull(false)
                         .build());
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, false);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
         assertEquals(kafkaSchema.fields().size(), COMPLEX_STRUCT_FIELDS.size());
         for (String name: COMPLEX_STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
+            assertFalse(kafkaSchema.field(name).schema().isOptional());
+        }
+
+        kafkaSchema =
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(jsonSchema, true);
+        assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRUCT);
+        assertEquals(kafkaSchema.fields().size(), COMPLEX_STRUCT_FIELDS.size());
+        for (String name: COMPLEX_STRUCT_FIELDS) {
+            assertEquals(kafkaSchema.field(name).name(), name);
+            assertFalse(kafkaSchema.field(name).schema().isOptional());
+
+            if (kafkaSchema.field(name).schema().type().isPrimitive()) {
+                // false because .withAlwaysAllowNull(false), avroschema values are used
+                assertFalse(kafkaSchema.field(name).schema().isOptional(),
+                        kafkaSchema.field(name).schema().type().getName());
+            }
         }
     }
 
@@ -308,39 +370,40 @@ public class PulsarSchemaToKafkaSchemaTest {
     @Test
     public void dateSchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
-                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.DATE);
+                PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.DATE, true);
         assertEquals(kafkaSchema.type(), Date.SCHEMA.type());
+        assertFalse(kafkaSchema.isOptional());
     }
 
     // not supported schemas below:
     @Test(expectedExceptions = IllegalStateException.class)
     public void timeSchemaTest() {
-        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.TIME);
+        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.TIME, false);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void timestampSchemaTest() {
-        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.TIMESTAMP);
+        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.TIMESTAMP, false);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void instantSchemaTest() {
-        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INSTANT);
+        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INSTANT, false);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void localDateSchemaTest() {
-        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE);
+        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE, false);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void localTimeSchemaTest() {
-        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_TIME);
+        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_TIME, false);
     }
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void localDatetimeSchemaTest() {
-        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE_TIME);
+        PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE_TIME, false);
     }
 
 }

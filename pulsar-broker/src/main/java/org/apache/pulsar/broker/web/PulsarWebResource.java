@@ -185,8 +185,8 @@ public abstract class PulsarWebResource {
         return true;
     }
 
-    public CompletableFuture<Void> validateSuperUserAccessAsync(){
-        if (!config().isAuthenticationEnabled()) {
+    public CompletableFuture<Void> validateSuperUserAccessAsync() {
+        if (!config().isAuthenticationEnabled() || !config().isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
         String appId = clientAppId();
@@ -221,22 +221,15 @@ public abstract class PulsarWebResource {
                         }
                     });
         } else {
-            if (config().isAuthorizationEnabled()) {
-                return pulsar.getBrokerService()
-                        .getAuthorizationService()
-                        .isSuperUser(appId, clientAuthData())
-                        .thenAccept(proxyAuthorizationSuccess -> {
-                            if (!proxyAuthorizationSuccess) {
-                                throw new RestException(Status.UNAUTHORIZED,
-                                        "This operation requires super-user access");
-                            }
-                        });
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("Successfully authorized {} as super-user",
-                        appId);
-            }
-            return CompletableFuture.completedFuture(null);
+            return pulsar.getBrokerService()
+                    .getAuthorizationService()
+                    .isSuperUser(appId, clientAuthData())
+                    .thenAccept(proxyAuthorizationSuccess -> {
+                        if (!proxyAuthorizationSuccess) {
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    "This operation requires super-user access");
+                        }
+                    });
         }
     }
 
@@ -636,9 +629,6 @@ public abstract class PulsarWebResource {
         } catch (WebApplicationException wae) {
             return CompletableFuture.failedFuture(wae);
         }
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
-            return CompletableFuture.completedFuture(nsBundle);
-        }
         return validateBundleOwnershipAsync(nsBundle, authoritative, readOnly)
                 .thenApply(__ -> nsBundle);
     }
@@ -717,6 +707,10 @@ public abstract class PulsarWebResource {
                         log.warn("Unable to get web service url");
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
+                    }
+                    // If the load manager is extensible load manager, we don't need check the authoritative.
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                        return CompletableFuture.completedFuture(null);
                     }
                     return nsService.isServiceUnitOwnedAsync(bundle)
                             .thenAccept(owned -> {

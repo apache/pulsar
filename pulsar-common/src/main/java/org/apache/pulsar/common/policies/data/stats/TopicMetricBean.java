@@ -16,32 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.common.policies.data.stats;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
-import org.testng.annotations.Test;
-
-public class BatchMessageAckerDisabledTest {
-
-    @Test
-    public void testAckIndividual() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
-        }
-    }
-
-    @Test
-    public void testAckCumulative() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
-        }
-    }
-
-    @Test
-    public void testGetOutstandingAcks() {
-        assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
-    }
-
+@NoArgsConstructor
+@AllArgsConstructor
+public class TopicMetricBean {
+    public String name;
+    public double value;
+    public String[] labelsAndValues;
 }
