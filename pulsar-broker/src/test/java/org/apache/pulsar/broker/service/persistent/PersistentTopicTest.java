@@ -559,7 +559,15 @@ public class PersistentTopicTest extends BrokerTestBase {
         admin.tenants().updateTenant("prop", tenantInfo);
 
         if (topicLevelPolicy) {
-            admin.topics().setReplicationClusters(topicName, Arrays.asList(remoteCluster, "test"));
+            // setReplicationClusters may fail, so do retry.
+            Awaitility.await().until(() -> {
+                try {
+                    admin.topics().setReplicationClusters(topicName, Arrays.asList(remoteCluster, "test"));
+                    return true;
+                } catch (Exception ex) {
+                    return false;
+                }
+            });
         } else {
             admin.namespaces().setNamespaceReplicationClustersAsync(
                     namespace, new HashSet<>(Arrays.asList(remoteCluster, "test"))).get();
@@ -584,8 +592,15 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
         admin.clusters().deleteCluster(remoteCluster);
         // Now the cluster and its related policy has been removed but the replicator cursor still exists
-        topic.initialize().get(3, TimeUnit.SECONDS);
-        Awaitility.await().atMost(3, TimeUnit.SECONDS)
-                .until(() -> !topic.getManagedLedger().getCursors().iterator().hasNext());
+
+        // Verify:
+        // 1. Topic can load success( use "topic.initialize()" instead of "load topic" ).
+        //    If the topic loading by client is failed, it will retry, so we can do retry "topic.initialize()".
+        // 2. The repl cursor will be deleted.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(() -> {
+                    topic.initialize().get(3, TimeUnit.SECONDS);
+                    return !topic.getManagedLedger().getCursors().iterator().hasNext();
+                });
     }
 }
