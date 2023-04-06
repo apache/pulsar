@@ -37,6 +37,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision.Reason.Unknown;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -59,7 +60,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import java.net.URL;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,13 +81,12 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.AssignCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.reporter.BrokerLoadDataReporter;
 import org.apache.pulsar.broker.loadbalance.extensions.scheduler.TransferShedder;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.resources.NamespaceResources;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.TableViewImpl;
@@ -97,11 +96,8 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
@@ -121,8 +117,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     private PulsarService pulsar2;
 
     private PulsarTestContext additionalPulsarTestContext;
-
-    private PulsarResources resources;
 
     private ExtensibleLoadManagerImpl primaryLoadManager;
 
@@ -164,37 +158,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                 Sets.newHashSet(this.conf.getClusterName()));
     }
 
-    protected void beforePulsarStart(PulsarService pulsar) throws Exception {
-        if (resources == null) {
-            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null);
-            MetadataStoreExtended configStore = (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null);
-            resources = new PulsarResources(localStore, configStore);
-        }
-        this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
-                NamespaceName.SYSTEM_NAMESPACE);
-    }
-
-    protected void createNamespaceIfNotExists(PulsarResources resources,
-                                              String publicTenant,
-                                              NamespaceName ns) throws Exception {
-        TenantResources tr = resources.getTenantResources();
-        NamespaceResources nsr = resources.getNamespaceResources();
-
-        if (!tr.tenantExists(publicTenant)) {
-            tr.createTenant(publicTenant,
-                    TenantInfo.builder()
-                            .adminRoles(Sets.newHashSet(conf.getSuperUserRoles()))
-                            .allowedClusters(Sets.newHashSet(conf.getClusterName()))
-                            .build());
-        }
-
-        if (!nsr.namespaceExists(ns)) {
-            Policies nsp = new Policies();
-            nsp.replication_clusters = Collections.singleton(conf.getClusterName());
-            nsr.createPolicies(ns, nsp);
-        }
-    }
-
     @Override
     @AfterClass
     protected void cleanup() throws Exception {
@@ -204,7 +167,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         this.additionalPulsarTestContext.close();
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     protected void initializeState() throws PulsarAdminException {
         admin.namespaces().unload("public/default");
         reset(primaryLoadManager, secondaryLoadManager);
@@ -282,11 +245,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             @Override
             public String name() {
                 return "Mock broker filter";
-            }
-
-            @Override
-            public void initialize(PulsarService pulsar) {
-                // No-op
             }
 
             @Override
@@ -514,6 +472,33 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testStartOldLoadManager() throws Exception {
+        ServiceConfiguration defaultConf = getDefaultConf();
+        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.setForceDeleteNamespaceAllowed(true);
+        defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerSheddingEnabled(false);
+        try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
+            // start pulsar3 with old load manager
+            var pulsar3 = additionalPulsarTestContext.getPulsarService();
+
+            var availableBrokers = pulsar3.getLoadManager().get().getAvailableBrokers();
+            assertEquals(availableBrokers.size(), 1);
+            assertEquals(availableBrokers.iterator().next(), pulsar3.getLookupServiceAddress());
+
+            availableBrokers = pulsar1.getLoadManager().get().getAvailableBrokers();
+            assertEquals(availableBrokers.size(), 2);
+            assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
+            assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
+
+            availableBrokers = pulsar2.getLoadManager().get().getAvailableBrokers();
+            assertEquals(availableBrokers.size(), 2);
+            assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
+            assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
+        }
+    }
+
+    @Test
     public void testTopBundlesLoadDataStoreTableViewFromChannelOwner() throws Exception {
         var topBundlesLoadDataStorePrimary =
                 (LoadDataStore) FieldUtils.readDeclaredField(primaryLoadManager, "topBundlesLoadDataStore", true);
@@ -640,8 +625,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetMetrics() throws Exception {
         {
-            var brokerLoadMetrics = (AtomicReference<List<Metrics>>)
-                    FieldUtils.readDeclaredField(primaryLoadManager, "brokerLoadMetrics", true);
+            var brokerLoadDataReporter = mock(BrokerLoadDataReporter.class);
+            FieldUtils.writeDeclaredField(primaryLoadManager, "brokerLoadDataReporter", brokerLoadDataReporter, true);
             BrokerLoadData loadData = new BrokerLoadData();
             SystemResourceUsage usage = new SystemResourceUsage();
             var cpu = new ResourceUsage(1.0, 100.0);
@@ -655,7 +640,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             usage.setBandwidthIn(bandwidthIn);
             usage.setBandwidthOut(bandwidthOut);
             loadData.update(usage, 1, 2, 3, 4, 5, 6, conf);
-            brokerLoadMetrics.set(loadData.toMetrics(pulsar.getAdvertisedAddress()));
+            doReturn(loadData).when(brokerLoadDataReporter).generateLoadData();
         }
         {
             var unloadMetrics = (AtomicReference<List<Metrics>>)
@@ -705,8 +690,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         {
             AssignCounter assignCounter = new AssignCounter();
             assignCounter.incrementSuccess();
-            assignCounter.incrementEmpty();
-            assignCounter.incrementEmpty();
+            assignCounter.incrementFailure();
+            assignCounter.incrementFailure();
             assignCounter.incrementSkip();
             assignCounter.incrementSkip();
             assignCounter.incrementSkip();
@@ -714,7 +699,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         }
 
         {
-
+            FieldUtils.writeDeclaredField(channel1, "lastOwnedServiceUnitCountAt", System.currentTimeMillis(), true);
+            FieldUtils.writeDeclaredField(channel1, "totalOwnedServiceUnitCnt", 10, true);
             FieldUtils.writeDeclaredField(channel1, "totalInactiveBrokerCleanupCnt", 1, true);
             FieldUtils.writeDeclaredField(channel1, "totalServiceUnitTombstoneCleanupCnt", 2, true);
             FieldUtils.writeDeclaredField(channel1, "totalOrphanServiceUnitCleanupCnt", 3, true);
@@ -723,21 +709,21 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
             FieldUtils.writeDeclaredField(channel1, "totalInactiveBrokerCleanupIgnoredCnt", 6, true);
             FieldUtils.writeDeclaredField(channel1, "totalInactiveBrokerCleanupCancelledCnt", 7, true);
 
-            Map<ServiceUnitState, AtomicLong> ownerLookUpCounters = new LinkedHashMap<>();
+            Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters> ownerLookUpCounters = new LinkedHashMap<>();
             Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters> handlerCounters = new LinkedHashMap<>();
             Map<ServiceUnitStateChannelImpl.EventType, ServiceUnitStateChannelImpl.Counters> eventCounters =
                     new LinkedHashMap<>();
-            int i = 1;
             int j = 0;
             for (var state : ServiceUnitState.values()) {
-                ownerLookUpCounters.put(state, new AtomicLong(i));
+                ownerLookUpCounters.put(state,
+                        new ServiceUnitStateChannelImpl.Counters(
+                                new AtomicLong(j + 1), new AtomicLong(j + 2)));
                 handlerCounters.put(state,
                         new ServiceUnitStateChannelImpl.Counters(
                                 new AtomicLong(j + 1), new AtomicLong(j + 2)));
-                i++;
                 j += 2;
             }
-            i = 0;
+            int i = 0;
             for (var type : ServiceUnitStateChannelImpl.EventType.values()) {
                 eventCounters.put(type,
                         new ServiceUnitStateChannelImpl.Counters(
@@ -774,22 +760,31 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Bandwidth, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=4}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Admin, result=Success}], metrics=[{brk_lb_bundles_split_breakdown_total=5}]
                         dimensions=[{broker=localhost, metric=bundlesSplit, reason=Unknown, result=Failure}], metrics=[{brk_lb_bundles_split_breakdown_total=6}]
-                        dimensions=[{broker=localhost, metric=assign, result=Empty}], metrics=[{brk_lb_assign_broker_breakdown_total=2}]
+                        dimensions=[{broker=localhost, metric=assign, result=Failure}], metrics=[{brk_lb_assign_broker_breakdown_total=2}]
                         dimensions=[{broker=localhost, metric=assign, result=Skip}], metrics=[{brk_lb_assign_broker_breakdown_total=3}]
                         dimensions=[{broker=localhost, metric=assign, result=Success}], metrics=[{brk_lb_assign_broker_breakdown_total=1}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Init}], metrics=[{brk_sunit_state_chn_owner_lookup_total=1}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Free}], metrics=[{brk_sunit_state_chn_owner_lookup_total=2}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Owned}], metrics=[{brk_sunit_state_chn_owner_lookup_total=3}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Assigning}], metrics=[{brk_sunit_state_chn_owner_lookup_total=4}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Releasing}], metrics=[{brk_sunit_state_chn_owner_lookup_total=5}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Splitting}], metrics=[{brk_sunit_state_chn_owner_lookup_total=6}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn, state=Deleted}], metrics=[{brk_sunit_state_chn_owner_lookup_total=7}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Init}], metrics=[{brk_sunit_state_chn_owner_lookup_total=1}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Init}], metrics=[{brk_sunit_state_chn_owner_lookup_total=2}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Free}], metrics=[{brk_sunit_state_chn_owner_lookup_total=3}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Free}], metrics=[{brk_sunit_state_chn_owner_lookup_total=4}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Owned}], metrics=[{brk_sunit_state_chn_owner_lookup_total=5}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Owned}], metrics=[{brk_sunit_state_chn_owner_lookup_total=6}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Assigning}], metrics=[{brk_sunit_state_chn_owner_lookup_total=7}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Assigning}], metrics=[{brk_sunit_state_chn_owner_lookup_total=8}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Releasing}], metrics=[{brk_sunit_state_chn_owner_lookup_total=9}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Releasing}], metrics=[{brk_sunit_state_chn_owner_lookup_total=10}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Splitting}], metrics=[{brk_sunit_state_chn_owner_lookup_total=11}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Splitting}], metrics=[{brk_sunit_state_chn_owner_lookup_total=12}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Total, state=Deleted}], metrics=[{brk_sunit_state_chn_owner_lookup_total=13}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Failure, state=Deleted}], metrics=[{brk_sunit_state_chn_owner_lookup_total=14}]
                         dimensions=[{broker=localhost, event=Assign, metric=sunitStateChn, result=Total}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=1}]
                         dimensions=[{broker=localhost, event=Assign, metric=sunitStateChn, result=Failure}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=2}]
                         dimensions=[{broker=localhost, event=Split, metric=sunitStateChn, result=Total}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=3}]
                         dimensions=[{broker=localhost, event=Split, metric=sunitStateChn, result=Failure}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=4}]
                         dimensions=[{broker=localhost, event=Unload, metric=sunitStateChn, result=Total}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=5}]
                         dimensions=[{broker=localhost, event=Unload, metric=sunitStateChn, result=Failure}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=6}]
+                        dimensions=[{broker=localhost, event=Override, metric=sunitStateChn, result=Total}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=7}]
+                        dimensions=[{broker=localhost, event=Override, metric=sunitStateChn, result=Failure}], metrics=[{brk_sunit_state_chn_event_publish_ops_total=8}]
                         dimensions=[{broker=localhost, event=Init, metric=sunitStateChn, result=Total}], metrics=[{brk_sunit_state_chn_subscribe_ops_total=1}]
                         dimensions=[{broker=localhost, event=Init, metric=sunitStateChn, result=Failure}], metrics=[{brk_sunit_state_chn_subscribe_ops_total=2}]
                         dimensions=[{broker=localhost, event=Free, metric=sunitStateChn, result=Total}], metrics=[{brk_sunit_state_chn_subscribe_ops_total=3}]
@@ -808,7 +803,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Skip}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=6}]
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Cancel}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=7}]
                         dimensions=[{broker=localhost, metric=sunitStateChn, result=Schedule}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=5}]
-                        dimensions=[{broker=localhost, metric=sunitStateChn}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=1, brk_sunit_state_chn_orphan_su_cleanup_ops_total=3, brk_sunit_state_chn_su_tombstone_cleanup_ops_total=2}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn, result=Success}], metrics=[{brk_sunit_state_chn_inactive_broker_cleanup_ops_total=1}]
+                        dimensions=[{broker=localhost, metric=sunitStateChn}], metrics=[{brk_sunit_state_chn_orphan_su_cleanup_ops_total=3, brk_sunit_state_chn_owned_su_total=10, brk_sunit_state_chn_su_tombstone_cleanup_ops_total=2}]
                         """.split("\n"));
         var actual = primaryLoadManager.getMetrics().stream().map(m -> m.toString()).collect(Collectors.toSet());
         assertEquals(actual, expected);
@@ -819,11 +815,6 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         @Override
         public String name() {
             return "Mock-broker-filter";
-        }
-
-        @Override
-        public void initialize(PulsarService pulsar) {
-            // No-op
         }
 
     }

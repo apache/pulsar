@@ -51,7 +51,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 @Slf4j
 public class BrokerRegistryImpl implements BrokerRegistry {
 
-    protected static final String LOOKUP_DATA_PATH = "/loadbalance/brokers";
+    protected static final String LOOKUP_DATA_PATH = "/loadbalance/extension/brokers";
 
     private final PulsarService pulsar;
 

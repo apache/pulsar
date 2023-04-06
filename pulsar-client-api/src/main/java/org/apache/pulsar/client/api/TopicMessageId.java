@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.BitSet;
+
 /**
  * The MessageId used for a consumer that subscribes multiple topics or partitioned topics.
  *
@@ -49,13 +51,13 @@ public interface TopicMessageId extends MessageId {
     /**
      * The simplest implementation of a TopicMessageId interface.
      */
-    class Impl implements TopicMessageId {
+    class Impl implements MessageIdAdv, TopicMessageId {
         private final String topic;
-        private final MessageId messageId;
+        private final MessageIdAdv messageId;
 
         public Impl(String topic, MessageId messageId) {
             this.topic = topic;
-            this.messageId = messageId;
+            this.messageId = (MessageIdAdv) messageId;
         }
 
         @Override
@@ -66,6 +68,41 @@ public interface TopicMessageId extends MessageId {
         @Override
         public String getOwnerTopic() {
             return topic;
+        }
+
+        @Override
+        public long getLedgerId() {
+            return messageId.getLedgerId();
+        }
+
+        @Override
+        public long getEntryId() {
+            return messageId.getEntryId();
+        }
+
+        @Override
+        public int getPartitionIndex() {
+            return messageId.getPartitionIndex();
+        }
+
+        @Override
+        public int getBatchIndex() {
+            return messageId.getBatchIndex();
+        }
+
+        @Override
+        public int getBatchSize() {
+            return messageId.getBatchSize();
+        }
+
+        @Override
+        public BitSet getAckSet() {
+            return messageId.getAckSet();
+        }
+
+        @Override
+        public MessageIdAdv getFirstChunkMessageId() {
+            return messageId.getFirstChunkMessageId();
         }
 
         @Override
