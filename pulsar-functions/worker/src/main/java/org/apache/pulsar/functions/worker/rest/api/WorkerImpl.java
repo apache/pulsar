@@ -126,9 +126,9 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     }
 
     private void throwIfNotSuperUser(AuthenticationParameters authParams, String action) {
-        if (authParams.getClientRole() != null) {
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
             try {
-                if (!worker().getAuthorizationService().isSuperUser(authParams)
+                if (authParams.getClientRole() == null || !worker().getAuthorizationService().isSuperUser(authParams)
                         .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS)) {
                     log.error("Client with role [{}] and originalPrincipal [{}] is not authorized to {}",
                             authParams.getClientRole(), authParams.getOriginalPrincipal(), action);
