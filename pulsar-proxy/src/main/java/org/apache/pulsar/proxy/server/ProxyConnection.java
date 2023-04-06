@@ -263,6 +263,9 @@ public class ProxyConnection extends PulsarHandler {
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
+                        if (ctx.pipeline().get("readTimeoutHandler") != null) {
+                            ctx.pipeline().remove("readTimeoutHandler");
+                        }
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) directProxyHandler.outboundChannel, SPLICE_BYTES)
                                 .addListener(future -> {
