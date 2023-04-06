@@ -581,16 +581,16 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(getCursors.get(), Collections.singleton(conf.getReplicatorPrefix() + "." + remoteCluster));
 
         if (topicLevelPolicy) {
-            admin.topics().setReplicationClusters(topicName, Collections.singletonList("test"));
+            admin.topics().setReplicationClusters(topicName, Collections.emptyList());
         } else {
-            admin.namespaces().setNamespaceReplicationClustersAsync(namespace, Collections.singleton("test")).get();
+            admin.namespaces().setNamespaceReplicationClustersAsync(namespace, Collections.emptySet()).get();
         }
         admin.clusters().deleteCluster(remoteCluster);
         // Now the cluster and its related policy has been removed but the replicator cursor still exists
 
         // Verify:
-        // 1. Topic can load success( use "topic.initialize()" instead of "load topic" ).
-        //    If the topic loading by client is failed, it will retry, so we can do retry "topic.initialize()".
+        // 1. Topic can load success. If the topic loading by client is failed, it will retry,
+        //    so we can do retry "initialize topic".
         // 2. The repl cursor will be deleted.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
             topic.initialize().get(3, TimeUnit.SECONDS);
