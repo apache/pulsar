@@ -75,11 +75,11 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistryImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
-import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Producer;
@@ -116,7 +116,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private BrokerRegistryImpl registry;
 
-    private BrokerSelectionStrategy brokerSelector;
+    private ExtensibleLoadManagerImpl loadManager;
 
     @BeforeClass
     @Override
@@ -135,7 +135,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         loadManagerContext = mock(LoadManagerContext.class);
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
-        brokerSelector = mock(BrokerSelectionStrategy.class);
+        loadManager = mock(ExtensibleLoadManagerImpl.class);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(getDefaultConf());
         pulsar2 = additionalPulsarTestContext.getPulsarService();
 
@@ -496,7 +496,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, getOwnerRequests2.size());
 
         // recovered, check the monitor update state : Assigned -> Owned
-        doReturn(Optional.of(lookupServiceAddress1)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress1))).when(loadManager).selectAsync(any());
         FieldUtils.writeDeclaredField(channel2, "producer", producer, true);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1 , true);
@@ -714,7 +714,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         var owner1 = channel1.getOwnerAsync(bundle1);
         var owner2 = channel2.getOwnerAsync(bundle2);
-        doReturn(Optional.of(lookupServiceAddress2)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2))).when(loadManager).selectAsync(any());
 
         assertTrue(owner1.get().isEmpty());
         assertTrue(owner2.get().isEmpty());
@@ -1076,7 +1076,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
-        doReturn(Optional.of(lookupServiceAddress2)).when(brokerSelector).select(any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(Optional.of(lookupServiceAddress2))).when(loadManager).selectAsync(any());
         channel1.publishAssignEventAsync(bundle, lookupServiceAddress2);
         // channel1 is broken. the assign won't be complete.
         waitUntilState(channel1, bundle);
@@ -1418,11 +1418,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
 
         var ownerLookUpCounters =
-                (Map<ServiceUnitStateChannelImpl.EventType, AtomicLong>)
+                (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
                         FieldUtils.readDeclaredField(channel, "ownerLookUpCounters", true);
 
         for(var val : ownerLookUpCounters.values()){
-            val.set(0);
+            val.getFailure().set(0);
+            val.getTotal().set(0);
         }
     }
 
@@ -1518,20 +1519,20 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                                                     )
             throws IllegalAccessException {
         var ownerLookUpCounters =
-                (Map<ServiceUnitState, AtomicLong>)
+                (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
                         FieldUtils.readDeclaredField(channel, "ownerLookUpCounters", true);
 
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> { // wait until true
-                    assertEquals(assigned, ownerLookUpCounters.get(Assigning).get());
-                    assertEquals(owned, ownerLookUpCounters.get(Owned).get());
-                    assertEquals(released, ownerLookUpCounters.get(Releasing).get());
-                    assertEquals(splitting, ownerLookUpCounters.get(Splitting).get());
-                    assertEquals(free, ownerLookUpCounters.get(Free).get());
-                    assertEquals(deleted, ownerLookUpCounters.get(Deleted).get());
-                    assertEquals(init, ownerLookUpCounters.get(Init).get());
+                    assertEquals(assigned, ownerLookUpCounters.get(Assigning).getTotal().get());
+                    assertEquals(owned, ownerLookUpCounters.get(Owned).getTotal().get());
+                    assertEquals(released, ownerLookUpCounters.get(Releasing).getTotal().get());
+                    assertEquals(splitting, ownerLookUpCounters.get(Splitting).getTotal().get());
+                    assertEquals(free, ownerLookUpCounters.get(Free).getTotal().get());
+                    assertEquals(deleted, ownerLookUpCounters.get(Deleted).getTotal().get());
+                    assertEquals(init, ownerLookUpCounters.get(Init).getTotal().get());
                 });
     }
 
@@ -1565,7 +1566,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         doReturn(loadManagerContext).when(channel).getContext();
         doReturn(registry).when(channel).getBrokerRegistry();
-        doReturn(brokerSelector).when(channel).getBrokerSelector();
+        doReturn(loadManager).when(channel).getLoadManager();
 
 
         var leaderElectionService = new LeaderElectionService(

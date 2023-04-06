@@ -31,7 +31,6 @@ import static org.testng.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import org.apache.commons.lang.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -71,13 +70,13 @@ public class BrokerIsolationPoliciesFilterTest {
         var namespace = "my-tenant/my-ns";
         NamespaceName namespaceName = NamespaceName.get(namespace);
 
-        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter();
         var policies = mock(SimpleResourceAllocationPolicies.class);
 
         // 1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
         setIsolationPolicies(policies, namespaceName, Set.of("broker1"), Set.of("broker2"), Set.of("broker3"), 1);
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
-        FieldUtils.writeDeclaredField(filter, "isolationPoliciesHelper", isolationPoliciesHelper, true);
+
+        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
 
         // a. available-brokers: broker1, broker2, broker3 => result: broker1
         Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(Map.of(
@@ -128,13 +127,14 @@ public class BrokerIsolationPoliciesFilterTest {
         doReturn(true).when(namespaceBundle).hasNonPersistentTopic();
         doReturn(namespaceName).when(namespaceBundle).getNamespaceObject();
 
-        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter();
-
         var policies = mock(SimpleResourceAllocationPolicies.class);
         doReturn(false).when(policies).areIsolationPoliciesPresent(eq(namespaceName));
         doReturn(true).when(policies).isSharedBroker(any());
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
-        FieldUtils.writeDeclaredField(filter, "isolationPoliciesHelper", isolationPoliciesHelper, true);
+
+        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
+
+
 
         Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(Map.of(
                 "broker1", getLookupData(),
