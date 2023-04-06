@@ -517,7 +517,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null);
+                null, null);
     }
 
     private void registerDefaultSource() throws IOException {
@@ -938,7 +938,7 @@ public class SourceApiV3ResourceTest {
                 details,
                 null,
                 sourceConfig,
-                null);
+                null, null);
 
     }
 
@@ -984,7 +984,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     packageUrl,
                     sourceConfig,
-                    null);
+                    null, null);
         }
     }
 
@@ -1070,7 +1070,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 filePackageUrl,
                 sourceConfig,
-                null);
+                null, null);
 
     }
 

@@ -40,8 +40,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
@@ -208,7 +208,7 @@ public class FunctionsImplTest {
 
     @Test
     public void testStatusEmpty() {
-        assertNotNull(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null, null, null));
+        assertNotNull(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null, null));
     }
 
     @Test
