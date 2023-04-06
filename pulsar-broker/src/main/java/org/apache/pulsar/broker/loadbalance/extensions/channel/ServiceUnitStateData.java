@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
-
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -28,25 +29,32 @@ import org.apache.commons.lang3.StringUtils;
  */
 
 public record ServiceUnitStateData(
-        ServiceUnitState state, String broker, String sourceBroker, boolean force, long timestamp) {
+        ServiceUnitState state, String dstBroker, String sourceBroker,
+        Map<String, Optional<String>> splitServiceUnitToDestBroker, boolean force, long timestamp, long versionId) {
 
     public ServiceUnitStateData {
         Objects.requireNonNull(state);
-        if (StringUtils.isBlank(broker)) {
+        if (StringUtils.isBlank(dstBroker) && StringUtils.isBlank(sourceBroker)) {
             throw new IllegalArgumentException("Empty broker");
         }
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, String sourceBroker) {
-        this(state, broker, sourceBroker, false, System.currentTimeMillis());
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker,
+                                Map<String, Optional<String>> splitServiceUnitToDestBroker, long versionId) {
+        this(state, dstBroker, sourceBroker, splitServiceUnitToDestBroker, false,
+                System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker) {
-        this(state, broker, null, false, System.currentTimeMillis());
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, String sourceBroker, long versionId) {
+        this(state, dstBroker, sourceBroker, null, false, System.currentTimeMillis(), versionId);
     }
 
-    public ServiceUnitStateData(ServiceUnitState state, String broker, boolean force) {
-        this(state, broker, null, force, System.currentTimeMillis());
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, long versionId) {
+        this(state, dstBroker, null, null, false, System.currentTimeMillis(), versionId);
+    }
+
+    public ServiceUnitStateData(ServiceUnitState state, String dstBroker, boolean force, long versionId) {
+        this(state, dstBroker, null, null, force, System.currentTimeMillis(), versionId);
     }
 
     public static ServiceUnitState state(ServiceUnitStateData data) {

@@ -502,7 +502,7 @@ public class CmdPersistentTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-s",
-                "--subscription" }, description = "Subscription to reset position on", required = true)
+                "--subscription" }, description = "Subscription name", required = true)
         private String subscriptionName;
 
         @Parameter(names = { "--messageId",

@@ -697,11 +697,13 @@
           <plugin>
             <groupId>com.github.kongchen</groupId>
             <artifactId>swagger-maven-plugin</artifactId>
-            <version>3.1.7</version>
+            <version>3.1.8</version>
             <configuration>
               <apiSources>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>
                     <location>org.apache.pulsar.broker.admin.v2.Bookies</location>
                     <location>org.apache.pulsar.broker.admin.v2.BrokerStats</location>
@@ -737,6 +739,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.lookup.v2</locations>
                   <schemes>http,https</schemes>
                   <basePath>/lookup</basePath>
@@ -754,6 +758,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Functions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -771,6 +777,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Transactions</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -788,6 +796,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Sources</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -805,6 +815,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Sinks</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>
@@ -822,6 +834,8 @@
                 </apiSource>
                 <apiSource>
                   <springmvc>false</springmvc>
+                  <operationIdFormat>{{className}}_{{methodName}}</operationIdFormat>
+                  <outputFormats>json</outputFormats>
                   <locations>org.apache.pulsar.broker.admin.v3.Packages</locations>
                   <schemes>http,https</schemes>
                   <basePath>/admin/v3</basePath>

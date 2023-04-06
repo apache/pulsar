@@ -348,14 +348,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     private void checkCompatible(SchemaAndMetadata existingSchema, SchemaData newSchema,
                                  SchemaCompatibilityStrategy strategy) throws IncompatibleSchemaException {
-        SchemaHash existingHash = SchemaHash.of(existingSchema.schema);
-        SchemaHash newHash = SchemaHash.of(newSchema);
         SchemaData existingSchemaData = existingSchema.schema;
         if (newSchema.getType() != existingSchemaData.getType()) {
             throw new IncompatibleSchemaException(String.format("Incompatible schema: "
                             + "exists schema type %s, new schema type %s",
                     existingSchemaData.getType(), newSchema.getType()));
         }
+        SchemaHash existingHash = SchemaHash.of(existingSchemaData);
+        SchemaHash newHash = SchemaHash.of(newSchema);
         if (!newHash.equals(existingHash)) {
             compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
                     .checkCompatible(existingSchemaData, newSchema, strategy);
@@ -465,17 +465,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     }
                 });
 
-                if (existingSchema.schema.getType() != schema.getType()) {
-                    result.completeExceptionally(new IncompatibleSchemaException(
-                            String.format("Incompatible schema: exists schema type %s, new schema type %s",
-                                    existingSchema.schema.getType(), schema.getType())));
-                } else {
-                    try {
-                        checkCompatible(existingSchema, schema, strategy);
-                        result.complete(null);
-                    } catch (IncompatibleSchemaException e) {
-                        result.completeExceptionally(e);
-                    }
+                try {
+                    checkCompatible(existingSchema, schema, strategy);
+                    result.complete(null);
+                } catch (IncompatibleSchemaException e) {
+                    result.completeExceptionally(e);
                 }
                 return result;
             } else {

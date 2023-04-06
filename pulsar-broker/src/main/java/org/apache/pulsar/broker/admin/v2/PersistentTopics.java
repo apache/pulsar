@@ -1106,7 +1106,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
                                 t.getMessage());
                     }
-                    if (isManagedLedgerNotFoundException(t)) {
+                    if (t instanceof IllegalStateException){
+                        ex = new RestException(422/* Unprocessable entity*/, t.getMessage());
+                    } else if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
                     } else if (!isRedirectException(ex)) {

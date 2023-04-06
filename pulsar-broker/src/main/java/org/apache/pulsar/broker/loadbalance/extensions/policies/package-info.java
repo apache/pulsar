@@ -16,24 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.loadbalance.extensions.scheduler;
-
-import java.util.Set;
-import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
-import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
-
-/**
- * Determines which bundles should be split based on various thresholds.
- *
- * Migrate from {@link org.apache.pulsar.broker.loadbalance.BundleSplitStrategy}
- */
-public interface NamespaceBundleSplitStrategy {
-
-    /**
-     * Determines which bundles, if any, should be split.
-     *
-     * @param context The context used for decisions.
-     * @return A set of the bundles that should be split.
-     */
-    Set<Split> findBundlesToSplit(LoadManagerContext context);
-}
+package org.apache.pulsar.broker.loadbalance.extensions.policies;

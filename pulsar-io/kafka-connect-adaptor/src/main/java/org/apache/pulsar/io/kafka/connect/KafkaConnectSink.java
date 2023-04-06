@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
@@ -89,11 +91,21 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private PulsarKafkaConnectSinkConfig kafkaSinkConfig;
 
     protected String topicName;
+    protected boolean useOptionalPrimitives;
 
     private boolean sanitizeTopicName = false;
+    // Thi is a workaround for https://github.com/apache/pulsar/issues/19922
+    private boolean collapsePartitionedTopics = false;
+
     private final Cache<String, String> sanitizedTopicCache =
             CacheBuilder.newBuilder().maximumSize(1000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
+
+    // Can't really safely expire these entries.  If we do, we could end up with
+    // a sanitized topic name that used in e.g. resume() after a long pause but can't be
+    // // re-resolved into a form usable for Pulsar.
+    private final Cache<String, String> desanitizedTopicCache =
+            CacheBuilder.newBuilder().build();
 
     private int maxBatchBitsForOffset = 12;
     private boolean useIndexAsOffset = true;
@@ -153,6 +165,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
         sanitizeTopicName = kafkaSinkConfig.isSanitizeTopicName();
+        collapsePartitionedTopics = kafkaSinkConfig.isCollapsePartitionedTopics();
+        useOptionalPrimitives = kafkaSinkConfig.isUseOptionalPrimitives();
 
         useIndexAsOffset = kafkaSinkConfig.isUseIndexAsOffset();
         maxBatchBitsForOffset = kafkaSinkConfig.getMaxBatchBitsForOffset();
@@ -184,7 +198,18 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         });
         task = (SinkTask) taskClass.getConstructor().newInstance();
         taskContext =
-                new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open);
+                new PulsarKafkaSinkTaskContext(configs.get(0), ctx, task::open, kafkaName -> {
+                    if (sanitizeTopicName) {
+                        String pulsarTopicName = desanitizedTopicCache.getIfPresent(kafkaName);
+                        if (log.isDebugEnabled()) {
+                            log.debug("desanitizedTopicCache got: kafkaName: {}, pulsarTopicName: {}",
+                                    kafkaName, pulsarTopicName);
+                        }
+                        return pulsarTopicName != null ? pulsarTopicName : kafkaName;
+                    } else {
+                        return kafkaName;
+                    }
+                });
         task.initialize(taskContext);
         task.start(configs.get(0));
 
@@ -365,6 +390,23 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         int batchIdx;
     }
 
+    private static Method getMethodOfMessageId(MessageId messageId, String name) throws NoSuchMethodException {
+        Class<?> clazz = messageId.getClass();
+        NoSuchMethodException firstException = null;
+        while (clazz != null) {
+            try {
+                return clazz.getDeclaredMethod(name);
+            } catch (NoSuchMethodException e) {
+                if (firstException == null) {
+                    firstException = e;
+                }
+                clazz = clazz.getSuperclass();
+            }
+        }
+        assert firstException != null;
+        throw firstException;
+    }
+
     @VisibleForTesting
     static BatchMessageSequenceRef getMessageSequenceRefForBatchMessage(MessageId messageId) {
         long ledgerId;
@@ -372,23 +414,17 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         int batchIdx;
         try {
             try {
-                messageId = (MessageId) messageId.getClass().getDeclaredMethod("getInnerMessageId").invoke(messageId);
-            } catch (NoSuchMethodException noSuchMethodException) {
-                // not a TopicMessageIdImpl
-            }
-
-            try {
-                batchIdx = (int) messageId.getClass().getDeclaredMethod("getBatchIndex").invoke(messageId);
+                batchIdx = (int) getMethodOfMessageId(messageId, "getBatchIndex").invoke(messageId);
+                if (batchIdx < 0) {
+                    return null;
+                }
             } catch (NoSuchMethodException noSuchMethodException) {
                 // not a BatchMessageIdImpl, returning null to use the standard sequenceId
                 return null;
             }
 
-            // if getBatchIndex exists it means messageId is a 'BatchMessageIdImpl' instance.
-            final Class<?> messageIdImplClass = messageId.getClass().getSuperclass();
-
-            ledgerId = (long) messageIdImplClass.getDeclaredMethod("getLedgerId").invoke(messageId);
-            entryId = (long) messageIdImplClass.getDeclaredMethod("getEntryId").invoke(messageId);
+            ledgerId = (long) getMethodOfMessageId(messageId, "getLedgerId").invoke(messageId);
+            entryId = (long) getMethodOfMessageId(messageId, "getEntryId").invoke(messageId);
         } catch (IllegalAccessException | NoSuchMethodException | InvocationTargetException ex) {
             log.error("Unexpected error while retrieving sequenceId, messageId class: {}, error: {}",
                     messageId.getClass().getName(), ex.getMessage(), ex);
@@ -400,8 +436,19 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     @SuppressWarnings("rawtypes")
     protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
-        final int partition = sourceRecord.getPartitionIndex().orElse(0);
-        final String topic = sanitizeNameIfNeeded(sourceRecord.getTopicName().orElse(topicName), sanitizeTopicName);
+        final int partition;
+        final String topic;
+
+        if (collapsePartitionedTopics
+                && sourceRecord.getTopicName().isPresent()
+                && TopicName.get(sourceRecord.getTopicName().get()).isPartitioned()) {
+            TopicName tn = TopicName.get(sourceRecord.getTopicName().get());
+            partition = tn.getPartitionIndex();
+            topic = sanitizeNameIfNeeded(tn.getPartitionedTopicName(), sanitizeTopicName);
+        } else {
+            partition = sourceRecord.getPartitionIndex().orElse(0);
+            topic = sanitizeNameIfNeeded(sourceRecord.getTopicName().orElse(topicName), sanitizeTopicName);
+        }
         final Object key;
         final Object value;
         final Schema keySchema;
@@ -413,15 +460,18 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 && sourceRecord.getSchema().getSchemaInfo() != null
                 && sourceRecord.getSchema().getSchemaInfo().getType() == SchemaType.KEY_VALUE) {
             KeyValueSchema kvSchema = (KeyValueSchema) sourceRecord.getSchema();
-            keySchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getKeySchema());
-            valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(kvSchema.getValueSchema());
+            // Assume Key_Value schema's key and value are always optional
+            keySchema = PulsarSchemaToKafkaSchema
+                    .getOptionalKafkaConnectSchema(kvSchema.getKeySchema(), useOptionalPrimitives);
+            valueSchema = PulsarSchemaToKafkaSchema
+                    .getOptionalKafkaConnectSchema(kvSchema.getValueSchema(), useOptionalPrimitives);
 
             Object nativeObject = sourceRecord.getValue().getNativeObject();
 
             if (nativeObject instanceof KeyValue) {
                 KeyValue kv = (KeyValue) nativeObject;
-                key = KafkaConnectData.getKafkaConnectData(kv.getKey(), keySchema);
-                value = KafkaConnectData.getKafkaConnectData(kv.getValue(), valueSchema);
+                key = KafkaConnectData.getKafkaConnectDataFromSchema(kv.getKey(), keySchema);
+                value = KafkaConnectData.getKafkaConnectDataFromSchema(kv.getValue(), valueSchema);
             } else if (nativeObject != null) {
                 throw new IllegalStateException("Cannot extract KeyValue data from " + nativeObject.getClass());
             } else {
@@ -431,12 +481,13 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         } else {
             if (sourceRecord.getMessage().get().hasBase64EncodedKey()) {
                 key = sourceRecord.getMessage().get().getKeyBytes();
-                keySchema = Schema.BYTES_SCHEMA;
+                keySchema = useOptionalPrimitives ? Schema.OPTIONAL_BYTES_SCHEMA : Schema.BYTES_SCHEMA;
             } else {
                 key = sourceRecord.getKey().orElse(null);
-                keySchema = Schema.STRING_SCHEMA;
+                keySchema = useOptionalPrimitives ? Schema.OPTIONAL_STRING_SCHEMA : Schema.STRING_SCHEMA;
             }
-            valueSchema = PulsarSchemaToKafkaSchema.getKafkaConnectSchema(sourceRecord.getSchema());
+            valueSchema = PulsarSchemaToKafkaSchema
+                    .getKafkaConnectSchema(sourceRecord.getSchema(), useOptionalPrimitives);
             value = KafkaConnectData.getKafkaConnectData(sourceRecord.getValue().getNativeObject(), valueSchema);
         }
 
@@ -486,6 +537,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
                 if (sanitizedName.matches("^[^a-zA-Z_].*")) {
                     sanitizedName = "_" + sanitizedName;
                 }
+                // do this once, sanitize() can be called on already sanitized name
+                // so avoid replacing with (sanitizedName -> sanitizedName).
+                desanitizedTopicCache.get(sanitizedName, () -> name);
                 return sanitizedName;
             });
         } catch (ExecutionException e) {

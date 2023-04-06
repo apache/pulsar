@@ -19,11 +19,11 @@
 package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +31,7 @@ import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.SafeRunnable;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -61,6 +62,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private Optional<T> proposedValue;
 
     private final ScheduledExecutorService executor;
+    private final FutureUtil.Sequencer<Void> sequencer;
 
     private enum InternalState {
         Init, ElectionInProgress, LeaderIsPresent, Closed
@@ -84,7 +86,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.internalState = InternalState.Init;
         this.stateChangesListener = stateChangesListener;
         this.executor = executor;
-
+        this.sequencer = FutureUtil.Sequencer.create();
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
         updateCachedValueFuture = executor.scheduleWithFixedDelay(SafeRunnable.safeRun(this::getLeaderValue),
@@ -111,13 +113,13 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        }).thenComposeAsync(leaderElectionState -> {
+        }).thenCompose(leaderElectionState -> {
             // make sure that the cache contains the current leader
             // so that getLeaderValueIfPresent works on all brokers
             cache.refresh(path);
             return cache.get(path)
                     .thenApply(__ -> leaderElectionState);
-        }, executor);
+        });
     }
 
     private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
@@ -252,8 +254,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
         internalState = InternalState.Closed;
 
-        executor.shutdownNow();
-
         if (leaderElectionState != LeaderElectionState.Leading) {
             return CompletableFuture.completedFuture(null);
         }
@@ -278,18 +278,18 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private void handleSessionNotification(SessionEvent event) {
         // Ensure we're only processing one session event at a time.
-        executor.execute(SafeRunnable.safeRun(() -> {
+        sequencer.sequential(() -> FutureUtil.composeAsync(() -> {
             if (event == SessionEvent.SessionReestablished) {
                 log.info("Revalidating leadership for {}", path);
-
-                try {
-                    LeaderElectionState les = elect().get();
-                    log.info("Resynced leadership for {} - State: {}", path, les);
-                } catch (ExecutionException | InterruptedException e) {
-                    log.warn("Failure when processing session event", e);
-                }
+                return elect().thenAccept(leaderState -> {
+                    log.info("Resynced leadership for {} - State: {}", path, leaderState);
+                }).exceptionally(ex -> {
+                    log.warn("Failure when processing session event", ex);
+                    return null;
+                });
             }
-        }));
+            return CompletableFuture.completedFuture(null);
+        }, executor));
     }
 
     private void handlePathNotification(Notification notification) {
@@ -335,5 +335,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 }
             }
         }
+    }
+
+    @VisibleForTesting
+    protected ScheduledExecutorService getSchedulerExecutor() {
+        return executor;
     }
 }

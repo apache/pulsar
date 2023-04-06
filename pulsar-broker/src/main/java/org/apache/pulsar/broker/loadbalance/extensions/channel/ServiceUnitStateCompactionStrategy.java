@@ -50,14 +50,19 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
     public boolean shouldKeepLeft(ServiceUnitStateData from, ServiceUnitStateData to) {
         if (to == null) {
             return false;
-        } else if (to.force()) {
+        }
+
+        // Skip the compaction case where from = null and to.versionId > 1
+        if (from != null && from.versionId() + 1 != to.versionId()) {
+            return true;
+        }
+
+        if (to.force()) {
             return false;
         }
 
-
         ServiceUnitState prevState = state(from);
         ServiceUnitState state = state(to);
-
         if (!ServiceUnitState.isValidTransition(prevState, state)) {
             return true;
         }
@@ -66,22 +71,21 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
             switch (prevState) {
                 case Owned:
                     switch (state) {
-                        case Assigning:
-                            return invalidTransfer(from, to);
                         case Splitting:
+                            return isNotBlank(to.dstBroker())
+                                    || !from.dstBroker().equals(to.sourceBroker());
                         case Releasing:
-                            return isNotBlank(to.sourceBroker()) || targetNotEquals(from, to);
+                            return invalidUnload(from, to);
                     }
                 case Assigning:
                     switch (state) {
-                        case Releasing:
-                            return isBlank(to.sourceBroker()) || notEquals(from, to);
                         case Owned:
-                            return isNotBlank(to.sourceBroker()) || targetNotEquals(from, to);
+                            return notEquals(from, to);
                     }
                 case Releasing:
                     switch (state) {
-                        case Owned:
+                        case Assigning:
+                            return isBlank(to.dstBroker()) || notEquals(from, to);
                         case Free:
                             return notEquals(from, to);
                     }
@@ -93,24 +97,21 @@ public class ServiceUnitStateCompactionStrategy implements TopicCompactionStrate
                 case Free:
                     switch (state) {
                         case Assigning:
-                            return isNotBlank(to.sourceBroker());
+                            return isNotBlank(to.sourceBroker()) || isBlank(to.dstBroker());
                     }
             }
         }
         return false;
     }
 
-    private boolean targetNotEquals(ServiceUnitStateData from, ServiceUnitStateData to) {
-        return !from.broker().equals(to.broker());
-    }
-
     private boolean notEquals(ServiceUnitStateData from, ServiceUnitStateData to) {
-        return !from.broker().equals(to.broker())
+        return !StringUtils.equals(from.dstBroker(), to.dstBroker())
                 || !StringUtils.equals(from.sourceBroker(), to.sourceBroker());
     }
 
-    private boolean invalidTransfer(ServiceUnitStateData from, ServiceUnitStateData to) {
-        return !from.broker().equals(to.sourceBroker())
-                || from.broker().equals(to.broker());
+    private boolean invalidUnload(ServiceUnitStateData from, ServiceUnitStateData to) {
+        return isBlank(to.sourceBroker())
+                || !from.dstBroker().equals(to.sourceBroker())
+                || from.dstBroker().equals(to.dstBroker());
     }
 }
