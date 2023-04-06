@@ -1734,17 +1734,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         if (!clusterExists) {
                             log.warn("[{}] Start remove the replicator because the cluster '{}' does not exist",
                                     topic, remoteCluster);
-                            replicationStartFuture.complete(null);
-                            return removeReplicator(remoteCluster).whenComplete((ignore2, remoteCursorEx) -> {
-                                if (remoteCursorEx != null) {
+                            return removeReplicator(remoteCluster).whenComplete((ignore2, removeCursorEx) -> {
+                                if (removeCursorEx != null) {
                                     log.error("[{}] Remove the cursor of replicator[{}] is failed, please reload topic."
                                             , topic, remoteCluster);
+                                    replicationStartFuture.failedFuture(removeCursorEx);
                                 } else {
                                     log.warn("[{}] Remove the cursor of replicator[{}] successfully",
                                             topic, remoteCluster);
+                                    replicationStartFuture.complete(null);
                                 }
                             });
                         } else {
+                            log.info("===> {}", ex.getMessage());
                             // Start replication is failed.
                             replicationStartFuture.completeExceptionally(ex);
                             return CompletableFuture.completedFuture(null);

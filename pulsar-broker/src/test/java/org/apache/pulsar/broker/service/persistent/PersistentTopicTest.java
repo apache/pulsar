@@ -560,13 +560,8 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         if (topicLevelPolicy) {
             // setReplicationClusters may fail, so do retry.
-            Awaitility.await().until(() -> {
-                try {
-                    admin.topics().setReplicationClusters(topicName, Arrays.asList(remoteCluster, "test"));
-                    return true;
-                } catch (Exception ex) {
-                    return false;
-                }
+            Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+                admin.topics().setReplicationClusters(topicName, Arrays.asList(remoteCluster, "test"));
             });
         } else {
             admin.namespaces().setNamespaceReplicationClustersAsync(
