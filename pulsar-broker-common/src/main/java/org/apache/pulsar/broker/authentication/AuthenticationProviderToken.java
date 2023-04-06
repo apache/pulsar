@@ -44,6 +44,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
@@ -167,8 +168,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
             return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);
             throw exception;
         }
     }
@@ -207,14 +207,15 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
             String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new AuthenticationException("Invalid HTTP Authorization header");
+                throw new PulsarAuthenticationException("Invalid HTTP Authorization header",
+                        ErrorCode.TOKEN_INVALID_HEADER);
             }
 
             // Remove prefix
             String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
             return validateToken(token);
         } else {
-            throw new AuthenticationException("No token credentials passed");
+            throw new PulsarAuthenticationException("No token credentials passed", ErrorCode.TOKEN_NO_AUTH_DATA);
         }
     }
 
@@ -222,7 +223,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         if (StringUtils.isNotBlank(token)) {
             return token;
         } else {
-            throw new AuthenticationException("Blank token found");
+            throw new PulsarAuthenticationException("Blank token found", ErrorCode.TOKEN_EMPTY_TOKEN);
         }
     }
 
@@ -241,17 +242,20 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
-                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
-                                                          + "] not contains this broker: " + audience);
+                        throw new PulsarAuthenticationException("Audiences in token: ["
+                                + String.join(", ", audiences) + "] not contains this broker: " + audience,
+                                ErrorCode.TOKEN_INVALID_AUDIENCES);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
-                        throw new AuthenticationException("Audiences in token: [" + object
-                                                          + "] not contains this broker: " + audience);
+                        throw new PulsarAuthenticationException(
+                                "Audiences in token: [" + object + "] not contains this broker: " + audience,
+                                ErrorCode.TOKEN_INVALID_AUDIENCES);
                     }
                 } else {
                     // should not reach here.
-                    throw new AuthenticationException("Audiences in token is not in expected format: " + object);
+                    throw new PulsarAuthenticationException("Audiences in token is not in expected format: " + object,
+                            ErrorCode.TOKEN_INVALID_AUDIENCES);
                 }
             }
 
@@ -264,7 +268,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             if (e instanceof ExpiredJwtException) {
                 expiredTokenMetrics.inc();
             }
-            throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
+            throw new PulsarAuthenticationException("Failed to authentication token: " + e.getMessage(),
+                    ErrorCode.TOKEN_INVALID_TOKEN);
         }
     }
 

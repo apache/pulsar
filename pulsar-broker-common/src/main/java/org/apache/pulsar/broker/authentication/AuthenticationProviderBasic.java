@@ -37,6 +37,7 @@ import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
 
@@ -104,10 +105,11 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         String userId = authParams.getUserId();
         String password = authParams.getPassword();
         String msg = "Unknown user or invalid password";
+        ErrorCode errorCode = ErrorCode.BASIC_INVALID_AUTH_DATA;
 
         try {
             if (users.get(userId) == null) {
-                throw new AuthenticationException(msg);
+                throw new PulsarAuthenticationException(msg, errorCode);
             }
 
             String encryptedPassword = users.get(userId);
@@ -117,15 +119,14 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
                 if (splitEncryptedPassword.size() != 4 || !encryptedPassword
                         .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
-                    throw new AuthenticationException(msg);
+                    throw new PulsarAuthenticationException(msg, errorCode);
                 }
                 // For crypt algorithm
             } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
-                throw new AuthenticationException(msg);
+                throw new PulsarAuthenticationException(msg, errorCode);
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);
             throw exception;
         }
         AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
@@ -144,25 +145,30 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
                 // parsing and validation
                 if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
-                    throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
+                    throw new PulsarAuthenticationException("Authentication token has to be started with \"Basic \"",
+                            ErrorCode.BASIC_INVALID_TOKEN);
                 }
                 String[] splitRawAuthToken = rawAuthToken.split(" ");
                 if (splitRawAuthToken.length != 2) {
-                    throw new AuthenticationException("Base64 encoded token is not found");
+                    throw new PulsarAuthenticationException("Base64 encoded token is not found",
+                            ErrorCode.BASIC_INVALID_TOKEN);
                 }
 
                 try {
                     authParams = new String(Base64.getDecoder().decode(splitRawAuthToken[1]));
                 } catch (Exception e) {
-                    throw new AuthenticationException("Base64 decoding is failure: " + e.getMessage());
+                    throw new PulsarAuthenticationException("Base64 decoding is failure: " + e.getMessage(),
+                            ErrorCode.BASIC_INVALID_TOKEN);
                 }
             } else {
-                throw new AuthenticationException("Authentication data source does not have data");
+                throw new PulsarAuthenticationException("Authentication data source does not have data",
+                        ErrorCode.BASIC_INVALID_TOKEN);
             }
 
             String[] parsedAuthParams = authParams.split(":");
             if (parsedAuthParams.length != 2) {
-                throw new AuthenticationException("Base64 decoded params are invalid");
+                throw new PulsarAuthenticationException("Base64 decoded params are invalid",
+                        ErrorCode.BASIC_INVALID_AUTH_DATA);
             }
 
             userId = parsedAuthParams[0];

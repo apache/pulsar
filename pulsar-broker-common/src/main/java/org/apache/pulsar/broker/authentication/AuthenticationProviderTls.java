@@ -23,6 +23,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public class AuthenticationProviderTls implements AuthenticationProvider {
@@ -72,7 +73,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 // CN=Steve Kille,O=Isode Limited,C=GB
                 Certificate[] certs = authData.getTlsCertificates();
                 if (null == certs) {
-                    throw new AuthenticationException("Failed to get TLS certificates from client");
+                    throw new PulsarAuthenticationException("Failed to get TLS certificates from client",
+                            ErrorCode.TLS_NO_CERTS);
                 }
                 String distinguishedName = ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
                 for (String keyValueStr : distinguishedName.split(",")) {
@@ -85,12 +87,12 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             }
 
             if (commonName == null) {
-                throw new AuthenticationException("Client unable to authenticate with TLS certificate");
+                throw new PulsarAuthenticationException("Client unable to authenticate with TLS certificate",
+                        ErrorCode.TLS_NO_CN);
             }
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);
             throw exception;
         }
         return commonName;

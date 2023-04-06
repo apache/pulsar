@@ -19,6 +19,9 @@
 package org.apache.pulsar.broker.authentication.metrics;
 
 import io.prometheus.client.Counter;
+import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.authentication.PulsarAuthenticationException;
+import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
 
 public class AuthenticationMetrics {
     private static final Counter authSuccessMetrics = Counter.build()
@@ -43,11 +46,36 @@ public class AuthenticationMetrics {
 
     /**
      * Log authenticate failure event to the authentication metrics.
+     *
+     * This method is deprecated due to the label "reason" is a potential infinite value.
+     * @deprecated See {@link #authenticateFailure(String, String, ErrorCode)} ()}
+     * or {@link #authenticateFailure(String, String, AuthenticationException)}
+     *
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
      * @param reason Failure reason.
      */
+    @Deprecated
     public static void authenticateFailure(String providerName, String authMethod, String reason) {
         authFailuresMetrics.labels(providerName, authMethod, reason).inc();
     }
+
+    public static void authenticateFailure(String providerName, String authMethod,
+                                           AuthenticationException exception) {
+        ErrorCode errorCode = exception instanceof PulsarAuthenticationException ?
+                ((PulsarAuthenticationException) exception).getErrorCode() : ErrorCode.UNKNOWN;
+        authenticateFailure(providerName, authMethod, errorCode);
+    }
+
+    /**
+     * Log authenticate failure event to the authentication metrics.
+     * @param providerName The short class name of the provider
+     * @param authMethod Authentication method name.
+     * @param errorCode Error code.
+     */
+    public static void authenticateFailure(String providerName, String authMethod, ErrorCode errorCode) {
+        authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
+    }
+
+
 }
