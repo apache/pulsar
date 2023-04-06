@@ -83,9 +83,9 @@ public class AuthorizationService {
         if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = isSuperUser(authParams.getClientRole(),
                     authParams.getClientAuthenticationDataSource());
-            // No authentication data for original principal
+            // The current paradigm is to pass the client auth data when we don't have access to the original auth data.
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = isSuperUser(authParams.getOriginalPrincipal(),
-                    null);
+                    authParams.getClientAuthenticationDataSource());
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
@@ -315,9 +315,9 @@ public class AuthorizationService {
         if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowFunctionOpsAsync(namespaceName,
                     authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
-            // No authentication data for original principal
+            // The current paradigm is to pass the client auth data when we don't have access to the original auth data.
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowFunctionOpsAsync(
-                    namespaceName, authParams.getOriginalPrincipal(), null);
+                    namespaceName, authParams.getOriginalPrincipal(), authParams.getClientAuthenticationDataSource());
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
@@ -343,9 +343,9 @@ public class AuthorizationService {
         if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowSourceOpsAsync(namespaceName,
                     authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
-            // No authentication data for original principal
+            // The current paradigm is to pass the client auth data when we don't have access to the original auth data.
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowSourceOpsAsync(
-                    namespaceName, authParams.getOriginalPrincipal(), null);
+                    namespaceName, authParams.getOriginalPrincipal(), authParams.getClientAuthenticationDataSource());
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
@@ -371,9 +371,9 @@ public class AuthorizationService {
         if (isProxyRole(authParams.getClientRole())) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowSinkOpsAsync(namespaceName,
                     authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
-            // No authentication data for original principal
+            // The current paradigm is to pass the client auth data when we don't have access to the original auth data.
             CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowSinkOpsAsync(
-                    namespaceName, authParams.getOriginalPrincipal(), null);
+                    namespaceName, authParams.getOriginalPrincipal(), authParams.getClientAuthenticationDataSource());
             return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
