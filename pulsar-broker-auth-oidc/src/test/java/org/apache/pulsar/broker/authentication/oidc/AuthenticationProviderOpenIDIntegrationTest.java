@@ -32,6 +32,9 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.security.Keys;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -75,7 +78,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
         // Port matches the port supplied in the fakeKubeConfig.yaml resource, which makes the k8s integration
         // tests work correctly.
-        server = new WireMockServer(wireMockConfig().port(12345));
+        server = new WireMockServer(wireMockConfig().port(0));
         server.start();
         issuer = server.baseUrl();
         issuerWithTrailingSlash = issuer + "/trailing-slash/";
@@ -180,6 +183,13 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
         props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer + "," + issuerWithTrailingSlash
                 + "," + issuerThatFails);
+
+        // Create the fake kube config file. This file is configured via the env vars and is written to the
+        // target directory so maven clean will remove it.
+        byte[] template = Files.readAllBytes(Path.of(System.getenv("KUBECONFIG_TEMPLATE")));
+        String kubeConfig = new String(template).replace("${WIRE_MOCK_PORT}", String.valueOf(server.port()));
+        Files.write(Path.of(System.getenv("KUBECONFIG")), kubeConfig.getBytes());
+
         provider = new AuthenticationProviderOpenID();
         provider.initialize(conf);
     }

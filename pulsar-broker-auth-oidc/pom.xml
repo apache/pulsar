@@ -95,7 +95,7 @@
     <dependency>
       <groupId>com.github.tomakehurst</groupId>
       <artifactId>wiremock-jre8</artifactId>
-      <version>2.35.0</version>
+      <version>${wiremock.version}</version>
       <scope>test</scope>
     </dependency>
 
@@ -162,7 +162,8 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <environmentVariables>
-            <KUBECONFIG>src/test/java/resources/fakeKubeConfig.yaml</KUBECONFIG>
+            <KUBECONFIG_TEMPLATE>src/test/java/resources/fakeKubeConfig.yaml</KUBECONFIG_TEMPLATE>
+            <KUBECONFIG>${project.basedir}/target/kubeconfig.yaml</KUBECONFIG>
           </environmentVariables>
         </configuration>
       </plugin>
