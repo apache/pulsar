@@ -50,7 +50,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
-import javax.ws.rs.core.Response;
 import lombok.Getter;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -96,6 +95,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionConflictUnloadException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBacklogQuotaExceededException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -121,7 +121,6 @@ import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferDisable;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
-import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -185,7 +184,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Subscriptions to this topic
     private final ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> unloadSubscriptionFutures;
 
     private final ConcurrentOpenHashMap<String/*RemoteCluster*/, Replicator> replicators;
     private final ConcurrentOpenHashMap<String/*ShadowTopic*/, Replicator> shadowReplicators;
@@ -282,10 +280,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 : null;
         this.ledger = ledger;
         this.subscriptions = ConcurrentOpenHashMap.<String, PersistentSubscription>newBuilder()
-                        .expectedItems(16)
-                        .concurrencyLevel(1)
-                        .build();
-        this.unloadSubscriptionFutures = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder()
                         .expectedItems(16)
                         .concurrencyLevel(1)
                         .build();
@@ -403,10 +397,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 .expectedItems(16)
                 .concurrencyLevel(1)
                 .build();
-        this.unloadSubscriptionFutures = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder()
-                .expectedItems(16)
-                .concurrencyLevel(1)
-                .build();
         this.replicators = ConcurrentOpenHashMap.<String, Replicator>newBuilder()
                 .expectedItems(16)
                 .concurrencyLevel(1)
@@ -447,6 +437,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * Unload a subscriber.
      * @throws SubscriptionNotFoundException If subscription not founded.
      * @throws UnsupportedSubscriptionException If the subscription is typed compaction.
+     * @throws SubscriptionConflictUnloadException Conflict topic-close, topic-delete, another-subscribe-unload,
+     *     cannot unload subscription now
      */
     public CompletableFuture<Void> unloadSubscription(@Nonnull String subName) {
         final PersistentSubscription sub = subscriptions.get(subName);
@@ -459,23 +451,31 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
         }
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
-        CompletableFuture<Void> result = unloadSubscriptionFutures.computeIfAbsent(subName,
-                k -> sub.disconnect().thenAccept(ignore -> {
-                    lock.writeLock().lock();
-                    try {
-                        if (isFenced) {
-                            return;
-                        }
-                        sub.getCursor().rewind();
-                        PersistentSubscription subNew = PersistentTopic.this.createPersistentSubscription(sub.getName(),
-                                sub.getCursor(), sub.isReplicated(), sub.getSubscriptionProperties());
-                        subscriptions.put(subName, subNew);
-                    } finally {
-                        lock.writeLock().unlock();
-                    }
-                }));
-        result.whenComplete((ignore, ex) -> unloadSubscriptionFutures.remove(subName, result));
-        return result;
+        return sub.disconnect().thenCompose(ignore -> {
+            if (!lock.writeLock().tryLock()) {
+                return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format( "Conflict"
+                        + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
+                        topic, subName)));
+            }
+            try {
+                if (isFenced) {
+                    return CompletableFuture.failedFuture(new TopicFencedException(String.format(
+                            "Topic[%s] is fenced, can not unload subscription %s now", topic, subName)));
+                }
+                if (sub != subscriptions.get(subName)) {
+                    // Another task already finished.
+                    return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format(
+                            "Another unload subscriber[%s] has been finished, do not repeat call.", subName)));
+                }
+                sub.getCursor().rewind();
+                PersistentSubscription subNew = PersistentTopic.this.createPersistentSubscription(sub.getName(),
+                        sub.getCursor(), sub.isReplicated(), sub.getSubscriptionProperties());
+                subscriptions.put(subName, subNew);
+                return CompletableFuture.completedFuture(null);
+            } finally {
+                lock.writeLock().unlock();
+            }
+        });
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,

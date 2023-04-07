@@ -166,6 +166,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class SubscriptionConflictUnloadException extends BrokerServiceException {
+        public SubscriptionConflictUnloadException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionBusyException extends BrokerServiceException {
         public SubscriptionBusyException(String msg) {
             super(msg);
