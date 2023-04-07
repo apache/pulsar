@@ -32,7 +32,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isInFlightState;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Closed;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Constructed;
-import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Initializing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Started;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Assign;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Split;
@@ -45,6 +45,7 @@ import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -108,7 +109,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             "loadbalancer-service-unit-state").toString();
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
     public static final long VERSION_ID_INIT = 1; // initial versionId
-    private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
+    private static final long MONITOR_DELAY_TIME_IN_SECS = 60;
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
@@ -131,7 +132,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long lastMetadataSessionEventTimestamp = 0;
     private long inFlightStateWaitingTimeInMillis;
 
-    private long ownershipMonitorDelayTimeInSecs;
+    private long monitorDelayTimeInSecs;
     private long semiTerminalStateWaitingTimeInMillis;
     private long maxCleanupDelayTimeInSecs;
     private long minCleanupDelayTimeInSecs;
@@ -144,6 +145,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalInactiveBrokerCleanupScheduledCnt = 0;
     private long totalInactiveBrokerCleanupIgnoredCnt = 0;
     private long totalInactiveBrokerCleanupCancelledCnt = 0;
+    private Counters tableViewStartCounters = new Counters();
     private volatile ChannelState channelState;
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
@@ -176,7 +178,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     enum ChannelState {
         Closed(0),
         Constructed(1),
-        LeaderElectionServiceStarted(2),
+        Initializing(2),
         Started(3);
 
         ChannelState(int id) {
@@ -203,7 +205,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateCleanUpDelayTimeInSeconds()
                 * 1000;
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
-        this.ownershipMonitorDelayTimeInSecs = OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS;
+        this.monitorDelayTimeInSecs = MONITOR_DELAY_TIME_IN_SECS;
         if (semiTerminalStateWaitingTimeInMillis < inFlightStateWaitingTimeInMillis) {
             throw new IllegalArgumentException(
                     "Invalid Config: loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds < "
@@ -228,34 +230,30 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.channelState = Constructed;
     }
 
-    public void scheduleOwnershipMonitor() {
+
+    @VisibleForTesting
+    protected void scheduleMonitor() {
         if (monitorTask == null) {
             this.monitorTask = this.pulsar.getLoadManagerExecutor()
                     .scheduleWithFixedDelay(() -> {
                                 try {
-                                    monitorOwnerships(brokerRegistry.getAvailableBrokersAsync()
-                                            .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
+                                    monitorTableView();
+                                    if (isChannelOwner()) {
+                                        monitorOwnerships(brokerRegistry.getAvailableBrokersAsync()
+                                                .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
+                                    }
                                 } catch (Exception e) {
-                                    log.info("Failed to monitor the ownerships. will retry..", e);
+                                    log.info("Failed to monitor. will retry..", e);
                                 }
                             },
-                            0, ownershipMonitorDelayTimeInSecs, SECONDS);
-            log.info("This leader broker:{} started the ownership monitor.",
-                    lookupServiceAddress);
-        }
-    }
-
-    public void cancelOwnershipMonitor() {
-        if (monitorTask != null) {
-            monitorTask.cancel(false);
-            monitorTask = null;
-            log.info("This previous leader broker:{} stopped the ownership monitor.",
+                            0, monitorDelayTimeInSecs, SECONDS);
+            log.info("This broker:{} started the tableview monitor.",
                     lookupServiceAddress);
         }
     }
 
     public synchronized void start() throws PulsarServerException {
-        if (!validateChannelState(LeaderElectionServiceStarted, false)) {
+        if (!validateChannelState(Initializing, false)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
         }
 
@@ -271,9 +269,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             } else {
                 log.warn("Failed to find the channel leader.");
             }
-            this.channelState = LeaderElectionServiceStarted;
-            loadManager = getLoadManager();
 
+            this.channelState = Initializing;
+            loadManager = getLoadManager();
             if (producer != null) {
                 producer.close();
                 if (debug) {
@@ -294,33 +292,46 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 log.info("Successfully started the channel producer.");
             }
 
-            if (tableview != null) {
-                tableview.close();
-                if (debug) {
-                    log.info("Closed the channel tableview.");
-                }
-            }
-            tableview = pulsar.getClient().newTableViewBuilder(schema)
-                    .topic(TOPIC)
-                    .loadConf(Map.of(
-                            "topicCompactionStrategyClassName",
-                            ServiceUnitStateCompactionStrategy.class.getName()))
-                    .create();
-            tableview.listen((key, value) -> handle(key, value));
-            if (debug) {
-                log.info("Successfully started the channel tableview.");
-            }
+            startTableView();
+
             pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
             if (debug) {
                 log.info("Successfully registered the handleMetadataSessionEvent");
             }
-
+            scheduleMonitor();
             channelState = Started;
             log.info("Successfully started the channel.");
         } catch (Exception e) {
             String msg = "Failed to start the channel.";
             log.error(msg, e);
             throw new PulsarServerException(msg, e);
+        }
+    }
+
+    @VisibleForTesting
+    void startTableView() throws IOException {
+        try {
+            log.info("Starting the channel tableview. tableViewStartTotalCnt:{}, tableViewStartFailureCnt:{}",
+                    tableViewStartCounters.getTotal().incrementAndGet(),
+                    tableViewStartCounters.getFailure().get());
+            if (tableview != null) {
+                tableview.close();
+                log.info("Closed the channel tableview.");
+                tableview = null;
+            }
+            tableview = pulsar.getClient().newTableView(schema)
+                    .topic(TOPIC)
+                    .loadConf(Map.of(
+                            "topicCompactionStrategyClassName",
+                            ServiceUnitStateCompactionStrategy.class.getName()))
+                    .create();
+            tableview.listen((k, v) -> handle(k, v));
+            log.info("Successfully started the channel tableview.");
+        } catch (Throwable e){
+            tableview = null;
+            log.error("Failed to start the channel tableview. tableViewStartTotalCnt:{}, tableViewStartFailureCnt:{}",
+                    tableViewStartCounters.getTotal().get(), tableViewStartCounters.getFailure().incrementAndGet());
+            throw e;
         }
     }
 
@@ -402,7 +413,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
-        if (!validateChannelState(LeaderElectionServiceStarted, true)) {
+        if (!validateChannelState(Initializing, true)) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
@@ -1175,11 +1186,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     @VisibleForTesting
-    protected void monitorOwnerships(List<String> brokers) {
-        if (!isChannelOwner()) {
-            log.warn("This broker is not the leader now. Skipping ownership monitor.");
-            return;
+    protected void monitorTableView() throws IOException {
+        if (tableview == null || tableview.isInterrupted()) {
+            channelState = Initializing;
+            startTableView();
+            channelState = Started;
         }
+    }
+
+    @VisibleForTesting
+    protected void monitorOwnerships(List<String> brokers) {
 
         if (brokers == null || brokers.size() == 0) {
             log.error("no active brokers found. Skipping ownership monitor.");
@@ -1454,13 +1470,32 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             metric.put("brk_sunit_state_chn_inactive_broker_cleanup_ops_total", totalInactiveBrokerCleanupCnt);
             metrics.add(metric);
         }
+        {
+            var metric = Metrics.create(dimensions);
 
-        var metric = Metrics.create(dimensions);
+            metric.put("brk_sunit_state_chn_orphan_su_cleanup_ops_total", totalOrphanServiceUnitCleanupCnt);
+            metric.put("brk_sunit_state_chn_su_tombstone_cleanup_ops_total", totalServiceUnitTombstoneCleanupCnt);
+            metric.put("brk_sunit_state_chn_owned_su_total", getTotalOwnedServiceUnitCnt());
+            metrics.add(metric);
+        }
 
-        metric.put("brk_sunit_state_chn_orphan_su_cleanup_ops_total", totalOrphanServiceUnitCleanupCnt);
-        metric.put("brk_sunit_state_chn_su_tombstone_cleanup_ops_total", totalServiceUnitTombstoneCleanupCnt);
-        metric.put("brk_sunit_state_chn_owned_su_total", getTotalOwnedServiceUnitCnt());
-        metrics.add(metric);
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Total");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_tableview_start_total",
+                    tableViewStartCounters.getTotal().get());
+            metrics.add(metric);
+        }
+
+        {
+            var dim = new HashMap<>(dimensions);
+            dim.put("result", "Failure");
+            var metric = Metrics.create(dim);
+            metric.put("brk_sunit_state_chn_tableview_start_total",
+                    tableViewStartCounters.getFailure().get());
+            metrics.add(metric);
+        }
 
         return metrics;
     }

@@ -573,7 +573,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             while (true) {
                 try {
                     initWaiter.await();
-                    serviceUnitStateChannel.scheduleOwnershipMonitor();
                     topBundlesLoadDataStore.startTableView();
                     unloadScheduler.start();
                     break;
@@ -609,7 +608,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
             while (true) {
                 try {
                     initWaiter.await();
-                    serviceUnitStateChannel.cancelOwnershipMonitor();
                     topBundlesLoadDataStore.closeTableView();
                     unloadScheduler.close();
                     break;
