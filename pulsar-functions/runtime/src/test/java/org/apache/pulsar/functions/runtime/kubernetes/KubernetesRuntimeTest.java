@@ -24,7 +24,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
 import io.kubernetes.client.custom.Quantity;
+import io.kubernetes.client.openapi.ApiException;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
@@ -58,6 +62,7 @@ import org.testng.annotations.Test;
 
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
+import java.net.HttpURLConnection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -65,11 +70,23 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import okhttp3.Call;
+import okhttp3.Response;
 
 import static org.apache.pulsar.functions.runtime.RuntimeUtils.FUNCTIONS_INSTANCE_CLASSPATH;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
+import org.mockito.ArgumentMatcher;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -1232,5 +1249,55 @@ public class KubernetesRuntimeTest {
             assertTrue(container.getProcessArgs().stream().collect(Collectors.joining(" "))
                     .contains("--metrics_port 0"));
         }
+    }
+    
+    @Test
+    public void testDeleteStatefulSetWithTranslatedKubernetesLabelChars() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
+            return fb.setTenant("c:tenant").setNamespace("c:ns").setName("c:fn");
+        }));
+
+        CoreV1Api coreApi = mock(CoreV1Api.class);
+        AppsV1Api appsApi = mock(AppsV1Api.class);
+        
+        Call successfulCall = mock(Call.class);
+        Response okResponse = mock(Response.class);
+        when(okResponse.code()).thenReturn(HttpURLConnection.HTTP_OK);
+        when(okResponse.isSuccessful()).thenReturn(true);
+        when(okResponse.message()).thenReturn("");
+        when(successfulCall.execute()).thenReturn(okResponse);
+        
+        final String expectedFunctionNamePrefix = String.format("pf-%s-%s-%s", "c-tenant", "c-ns", "c-fn");
+        
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        factory.setCoreClient(coreApi);
+        factory.setAppsClient(appsApi);
+
+        ArgumentMatcher<String> hasTranslatedFunctionName = (String t) -> {
+            return t.startsWith(expectedFunctionNamePrefix);
+        };
+        
+        when(appsApi.deleteNamespacedStatefulSetCall(
+                argThat(hasTranslatedFunctionName),
+                anyString(), isNull(), isNull(), anyInt(), isNull(), anyString(), any(), isNull())).thenReturn(successfulCall);
+
+        ApiException notFoundException = mock(ApiException.class);
+        when(notFoundException.getCode()).thenReturn(HttpURLConnection.HTTP_NOT_FOUND);
+        when(appsApi.readNamespacedStatefulSet(argThat(hasTranslatedFunctionName), anyString(),
+                isNull(), isNull(), isNull())).thenThrow(notFoundException);
+
+        V1PodList podList = mock(V1PodList.class);
+        when(podList.getItems()).thenReturn(Collections.emptyList());
+        
+        String expectedLabels = String.format("tenant=%s,namespace=%s,name=%s", "c-tenant", "c-ns", "c-fn");
+        
+        when(coreApi.listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
+                eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull())).thenReturn(podList);
+        KubernetesRuntime kr = factory.createContainer(config, "/test/code", "code.yml", "/test/transforms", "transform.yml", Long.MIN_VALUE);        
+        kr.deleteStatefulSet();
+        
+        verify(coreApi).listNamespacedPod(anyString(), isNull(), isNull(), isNull(), isNull(),
+                eq(expectedLabels), isNull(), isNull(), isNull(), isNull(), isNull());
     }
 }
