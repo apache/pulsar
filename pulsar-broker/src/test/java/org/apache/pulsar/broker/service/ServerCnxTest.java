@@ -30,6 +30,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,7 +76,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.auth.MockAlwaysExpiredAuthenticationProvider;
+import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
@@ -93,11 +96,13 @@ import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
@@ -2748,4 +2753,45 @@ public class ServerCnxTest {
         verify(authResponse, times(1)).hasClientVersion();
         verify(authResponse, times(0)).getClientVersion();
     }
+
+    @Test(timeOut = 30000)
+    public void sendAddPartitionToTxnResponseFailedAuth() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.fail"));
+
+        svcConfig.setAuthorizationProvider(MockAuthorizationProvider.class.getName());
+        AuthorizationService authorizationService =
+                spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig,
+                        pulsar.getPulsarResources());
+        when(brokerService.getAuthorizationService()).thenReturn(authorizationService);
+        svcConfig.setAuthorizationEnabled(true);
+
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(false));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+
+        ByteBuf connect = Commands.newConnect(authMethodName, "pass.fail", "test", "localhost",
+                "pass.pass", "pass.pass", authMethodName);
+        channel.writeInbound(connect);
+        Object connectResponse = getResponse();
+        assertTrue(connectResponse instanceof CommandConnected);
+
+        ByteBuf clientCommand = Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                Collections.singletonList("tenant/ns/topic1"));
+        channel.writeInbound(clientCommand);
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.TransactionNotFound);
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
 }
