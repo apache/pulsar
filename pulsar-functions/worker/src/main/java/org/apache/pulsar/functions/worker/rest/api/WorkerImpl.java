@@ -28,6 +28,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -134,14 +136,10 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
                             authParams.getClientRole(), authParams.getOriginalPrincipal(), action);
                     throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
                 }
-            } catch (InterruptedException e) {
+            } catch (ExecutionException | TimeoutException | InterruptedException e) {
                 log.warn("Time-out {} sec while checking the role {} originalPrincipal {} is a super user role ",
                         worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(),
                         authParams.getClientRole(), authParams.getOriginalPrincipal());
-                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
-            } catch (Exception e) {
-                log.warn("Failed verifying role {} originalPrincipal {} is a super user role",
-                        authParams.getClientRole(), authParams.getOriginalPrincipal(), e);
                 throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }
