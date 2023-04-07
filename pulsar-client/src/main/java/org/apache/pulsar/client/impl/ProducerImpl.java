@@ -738,7 +738,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         byte[] schemaVersion = schemaCache.get(msg.getSchemaHash());
         if (schemaVersion != null) {
             if (schemaVersion != SchemaVersion.Empty.bytes()) {
-                msg.getMessageBuilder().setSchemaVersion(schemaVersion);
+                msgMetadataBuilder.setSchemaVersion(schemaVersion);
             }
 
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
