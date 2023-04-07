@@ -27,6 +27,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
@@ -219,6 +220,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String token = generateToken(invalidJwk, issuer, role, "allowed-audience",0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -230,6 +232,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String token = generateToken(validJwk, issuerThatFails, role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -241,6 +244,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String token = generateToken(validJwk, issuer, role, "invalid-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -252,6 +256,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String token = generateToken(validJwk, "https://not-an-allowed-issuer.com", role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -273,8 +278,22 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         provider.initialize(conf);
 
         String role = "superuser";
+        // We use the normal issuer on the token because the /k8s endpoint is configured via the kube config file
+        // made as part of the test setup. The kube client then gets the issuer from the /k8s endpoint and discovers
+        // this issuer.
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+
+        // Ensure that a subsequent token with a different issuer still fails due to invalid issuer exception
+        String token2 = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token2)).get();
+            fail("Expected exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("Issuer not allowed"),
+                    "Unexpected error message: " + e.getMessage());
+        }
     }
 
     @Test
@@ -295,6 +314,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -319,6 +339,17 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String role = "superuser";
         String token = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
         assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(token)).get());
+
+        // Ensure that a subsequent token with a different issuer still fails due to invalid issuer exception
+        String token2 = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token2)).get();
+            fail("Expected exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+            assertTrue(e.getCause().getMessage().contains("Issuer not allowed"),
+                    "Unexpected error message: " + e.getMessage());
+        }
     }
 
     @Test
@@ -339,6 +370,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         String token = generateToken(validJwk, "http://not-the-k8s-issuer", role, "allowed-audience", 0L, 0L, 10000L);
         try {
             provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -363,6 +395,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         AuthenticationState state = provider.newAuthState(null, null, null);
         try {
             state.authenticateAsync(AuthData.of(token.getBytes())).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }
@@ -375,6 +408,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         AuthenticationState state = provider.newAuthState(null, null, null);
         try {
             state.authenticateAsync(AuthData.of(token.getBytes())).get();
+            fail("Expected exception");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
         }

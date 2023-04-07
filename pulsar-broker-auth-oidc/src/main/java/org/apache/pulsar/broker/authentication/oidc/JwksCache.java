@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.authentication.oidc;
 
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_EXPIRATION_SECONDS_DEFAULT;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_REFRESH_AFTER_WRITE_SECONDS;
+import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.CACHE_SIZE_DEFAULT;
 import static org.apache.pulsar.broker.authentication.oidc.AuthenticationProviderOpenID.incrementFailureMetric;
@@ -27,7 +29,8 @@ import static org.apache.pulsar.broker.authentication.oidc.ConfigUtils.getConfig
 import com.auth0.jwk.Jwk;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import com.github.benmanes.caffeine.cache.AsyncCache;
+import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.kubernetes.client.openapi.ApiCallback;
 import io.kubernetes.client.openapi.ApiClient;
@@ -48,22 +51,35 @@ import org.asynchttpclient.AsyncHttpClient;
 public class JwksCache {
 
     // Map from an issuer's JWKS URI to its JWKS. When the Issuer is not empty, use the fallback client.
-    private final AsyncCache<Optional<String>, List<Jwk>> cache;
+    private final AsyncLoadingCache<Optional<String>, List<Jwk>> cache;
 
     private final ObjectReader reader = new ObjectMapper().readerFor(HashMap.class);
     private final AsyncHttpClient httpClient;
     private final OpenidApi openidApi;
 
     JwksCache(ServiceConfiguration config, AsyncHttpClient httpClient, ApiClient apiClient) throws IOException {
-        int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
-        int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
-                CACHE_EXPIRATION_SECONDS_DEFAULT);
+        // Store the clients
         this.httpClient = httpClient;
         this.openidApi = apiClient != null ? new OpenidApi(apiClient) : null;
+
+        // Configure the cache
+        int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
+        int refreshAfterWriteSeconds = getConfigValueAsInt(config, CACHE_REFRESH_AFTER_WRITE_SECONDS,
+                CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT);
+        int expireAfterSeconds = getConfigValueAsInt(config, CACHE_EXPIRATION_SECONDS,
+                CACHE_EXPIRATION_SECONDS_DEFAULT);
+        AsyncCacheLoader<Optional<String>, List<Jwk>> loader = (jwksUri, executor) -> {
+            if (jwksUri.isPresent()) {
+                return getJwksFromJwksUri(jwksUri.get());
+            } else {
+                return getJwksFromKubernetesApiServer();
+            }
+        };
         this.cache = Caffeine.newBuilder()
                 .maximumSize(maxSize)
+                .refreshAfterWrite(refreshAfterWriteSeconds, TimeUnit.SECONDS)
                 .expireAfterWrite(expireAfterSeconds, TimeUnit.SECONDS)
-                .buildAsync();
+                .buildAsync(loader);
     }
 
     CompletableFuture<Jwk> getJwk(String jwksUri, String keyId) {
@@ -71,31 +87,38 @@ public class JwksCache {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
             return CompletableFuture.failedFuture(new IllegalArgumentException("jwksUri must not be null."));
         }
-        return cache.get(Optional.of(jwksUri), (__, executor) -> {
-            return httpClient
-                    .prepareGet(jwksUri)
-                    .execute()
-                    .toCompletableFuture()
-                    .thenCompose(result -> {
-                        CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
-                        try {
-                            HashMap<String, Object> jwks =
-                                    reader.readValue(result.getResponseBodyAsBytes());
-                            future.complete(convertToJwks(jwksUri, jwks));
-                        } catch (AuthenticationException e) {
-                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
-                            future.completeExceptionally(e);
-                        } catch (Exception e) {
-                            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
-                            future.completeExceptionally(new AuthenticationException(
-                                    "Error retrieving public key at " + jwksUri + ": " + e.getMessage()));
-                        }
-                        return future;
-                    });
-        }).thenApply(jwks -> getJwkForKID(jwks, keyId));
+        return cache.get(Optional.of(jwksUri)).thenApply(jwks -> getJwkForKID(jwks, keyId));
+    }
+
+    private CompletableFuture<List<Jwk>> getJwksFromJwksUri(String jwksUri) {
+        return httpClient
+                .prepareGet(jwksUri)
+                .execute()
+                .toCompletableFuture()
+                .thenCompose(result -> {
+                    CompletableFuture<List<Jwk>> future = new CompletableFuture<>();
+                    try {
+                        HashMap<String, Object> jwks =
+                                reader.readValue(result.getResponseBodyAsBytes());
+                        future.complete(convertToJwks(jwksUri, jwks));
+                    } catch (AuthenticationException e) {
+                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                        future.completeExceptionally(e);
+                    } catch (Exception e) {
+                        incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+                        future.completeExceptionally(new AuthenticationException(
+                                "Error retrieving public key at " + jwksUri + ": " + e.getMessage()));
+                    }
+                    return future;
+                });
     }
 
     CompletableFuture<Jwk> getJwkFromKubernetesApiServer(String keyId) {
+        if (openidApi == null) {
+            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
+            return CompletableFuture.failedFuture(new AuthenticationException(
+                    "Failed to retrieve public key from Kubernetes API server: Kubernetes fallback is not enabled."));
+        }
         return cache.get(Optional.empty(), (__, executor) -> getJwksFromKubernetesApiServer())
                 .thenApply(jwks -> getJwkForKID(jwks, keyId));
     }

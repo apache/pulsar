@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
+import static org.testng.AssertJUnit.fail;
 import javax.naming.AuthenticationException;
 import org.testng.annotations.Test;
 
@@ -50,6 +51,7 @@ public class AuthenticationStateOpenIDTest {
         AuthenticationStateOpenID state = new AuthenticationStateOpenID(null, null, null);
         try {
             state.authenticate(null);
+            fail("Expected AuthenticationException to be thrown");
         } catch (AuthenticationException e) {
             assertEquals(e.getMessage(), "Not supported");
         }

@@ -127,6 +127,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     static final int ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT = 0;
     static final String CACHE_SIZE = "openIDCacheSize";
     static final int CACHE_SIZE_DEFAULT = 5;
+    static final String CACHE_REFRESH_AFTER_WRITE_SECONDS = "openIDCacheRefreshAfterWriteSeconds";
+    static final int CACHE_REFRESH_AFTER_WRITE_SECONDS_DEFAULT = 18 * 60 * 60;
     static final String CACHE_EXPIRATION_SECONDS = "openIDCacheExpirationSeconds";
     static final int CACHE_EXPIRATION_SECONDS_DEFAULT = 24 * 60 * 60;
     static final String HTTP_CONNECTION_TIMEOUT_MILLIS = "openIDHttpConnectionTimeoutMillis";
