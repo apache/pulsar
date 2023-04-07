@@ -23,16 +23,19 @@ import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.testng.Assert.assertEquals;
 
+@Test(groups = "broker-impl")
 public class ProducerEmptySchemaCacheTest {
 
     MockBrokerService mockBrokerService;
@@ -45,14 +48,11 @@ public class ProducerEmptySchemaCacheTest {
 
     @AfterClass(alwaysRun = true)
     public void teardown() {
-        if (mockBrokerService != null) {
-            mockBrokerService.stop();
-            mockBrokerService = null;
-        }
+        mockBrokerService.stop();
     }
 
-    @org.testng.annotations.Test
-    public void testConsumerUnsubscribeReference() throws Exception {
+    @Test
+    public void testProducerShouldCacheEmptySchema() throws Exception {
         @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl(mockBrokerService.getBrokerAddress())
@@ -72,17 +72,29 @@ public class ProducerEmptySchemaCacheTest {
         // and when retry message or dlq message is send
         // will use typed message builder set Schema.Bytes to send message.
 
+        Schema<byte[]> schema = Schema.BYTES;
+        Schema<byte[]> readerSchema = Schema.BYTES;
+
         @Cleanup
-        Producer<byte[]> producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(Schema.BYTES))
+        Producer<byte[]> dlqProducer = client.newProducer(Schema.AUTO_PRODUCE_BYTES(schema))
                 .topic("testAutoProduceBytesSchemaShouldCache")
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
                 .enableBatching(false)
                 .create();
 
-        producer.newMessage(Schema.BYTES).value("hello".getBytes()).send();
+        for (int i = 10; i > 0; i--) {
+            TypedMessageBuilder<byte[]> typedMessageBuilderNew =
+                    dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(readerSchema))
+                            .value("hello".getBytes());
 
+            typedMessageBuilderNew.send();
+        }
 
+        // schema should only be requested once.
+        // and if the schemaVersion is empty (e.g. Schema.BYTES)
+        // it should be cached by the client
+        // to avoid continuously send `CommandGetOrCreateSchema` rpc
         assertEquals(counter.get(), 1);
     }
 }
