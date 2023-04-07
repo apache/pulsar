@@ -316,7 +316,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     }
 
     @Override
-    public boolean isLeaderReady() {
+    public boolean isLeaderReady(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }

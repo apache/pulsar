@@ -1721,6 +1721,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return false;
     }
 
+    /**
+     * @deprecated use {@link #isSuperUser(AuthenticationParameters)}
+     */
     @Deprecated
     public boolean isSuperUser(String clientRole, AuthenticationDataSource authenticationData) {
         AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole)
@@ -1728,6 +1731,9 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         return isSuperUser(authParams);
     }
 
+    /**
+     * @deprecated use {@link #isSuperUser(AuthenticationParameters)}
+     */
     @Deprecated
     public boolean allowFunctionOps(NamespaceName namespaceName, String role,
                                     AuthenticationDataSource authenticationData) {

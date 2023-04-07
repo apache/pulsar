@@ -242,6 +242,6 @@ public class WorkerApiV2Resource implements Supplier<WorkerService> {
     })
     @Path("/cluster/leader/ready")
     public Boolean isLeaderReady() {
-        return workers().isLeaderReady();
+        return workers().isLeaderReady(authParams());
     }
 }

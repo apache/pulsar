@@ -55,6 +55,6 @@ public interface Workers<W extends WorkerService> {
     LongRunningProcessStatus getDrainStatus(URI uri, String workerId, AuthenticationParameters authParams,
                                             boolean leaderUri);
 
-    boolean isLeaderReady();
+    boolean isLeaderReady(AuthenticationParameters authParams);
 
 }
