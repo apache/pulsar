@@ -35,7 +35,6 @@ import io.jsonwebtoken.security.Keys;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
