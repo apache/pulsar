@@ -38,16 +38,6 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Functions<W extends WorkerService> extends Component<W> {
 
-
-    void registerFunction(String tenant,
-                          String namespace,
-                          String functionName,
-                          InputStream uploadedInputStream,
-                          FormDataContentDisposition fileDetail,
-                          String functionPkgUrl,
-                          FunctionConfig functionConfig,
-                          AuthenticationParameters authParams);
-
     /**
      * Register a new function.
      * @param tenant The tenant of a Pulsar Function
@@ -57,60 +47,16 @@ public interface Functions<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param functionPkgUrl URL path of the Pulsar Function package
      * @param functionConfig Configuration of Pulsar Function
-     * @param clientRole Client role for running the pulsar function
-     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param authParams the authentication parameters associated with the request
      */
-    @Deprecated
-    default void registerFunction(String tenant,
+    void registerFunction(String tenant,
                           String namespace,
                           String functionName,
                           InputStream uploadedInputStream,
                           FormDataContentDisposition fileDetail,
                           String functionPkgUrl,
                           FunctionConfig functionConfig,
-                          String clientRole,
-                          AuthenticationDataSource clientAuthenticationDataHttps) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder()
-                .clientRole(clientRole)
-                .clientAuthenticationDataSource(clientAuthenticationDataHttps)
-                .build();
-        registerFunction(
-                tenant,
-                namespace,
-                functionName,
-                uploadedInputStream,
-                fileDetail,
-                functionPkgUrl,
-                functionConfig,
-                authParams);
-    }
-
-    /**
-     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
-     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
-     * the signature of the AuthenticationDataSource.
-     */
-    @Deprecated
-    default void registerFunction(String tenant,
-                          String namespace,
-                          String functionName,
-                          InputStream uploadedInputStream,
-                          FormDataContentDisposition fileDetail,
-                          String functionPkgUrl,
-                          FunctionConfig functionConfig,
-                          String clientRole,
-                          AuthenticationDataHttps clientAuthenticationDataHttps) {
-        registerFunction(
-                tenant,
-                namespace,
-                functionName,
-                uploadedInputStream,
-                fileDetail,
-                functionPkgUrl,
-                functionConfig,
-                clientRole,
-                (AuthenticationDataSource) clientAuthenticationDataHttps);
-    }
+                          AuthenticationParameters authParams);
 
     /**
      * Update a function.

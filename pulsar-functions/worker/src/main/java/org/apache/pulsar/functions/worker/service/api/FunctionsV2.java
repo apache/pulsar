@@ -38,15 +38,6 @@ public interface FunctionsV2<W extends WorkerService> {
                              String functionName,
                              AuthenticationParameters authParams) throws IOException;
 
-    @Deprecated
-    default Response getFunctionInfo(String tenant,
-                             String namespace,
-                             String functionName,
-                             String clientRole) throws IOException {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return getFunctionInfo(tenant, namespace, functionName, authParams);
-    }
-
     Response getFunctionInstanceStatus(String tenant,
                                                String namespace,
                                                String functionName,
@@ -54,32 +45,11 @@ public interface FunctionsV2<W extends WorkerService> {
                                                URI uri,
                                                AuthenticationParameters authParams) throws IOException;
 
-    @Deprecated
-    default Response getFunctionInstanceStatus(String tenant,
-                                       String namespace,
-                                       String functionName,
-                                       String instanceId,
-                                       URI uri,
-                                       String clientRole) throws IOException {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return getFunctionInstanceStatus(tenant, namespace, functionName, instanceId, uri, authParams);
-    }
-
     Response getFunctionStatusV2(String tenant,
                                  String namespace,
                                  String functionName,
                                  URI requestUri,
                                  AuthenticationParameters authParams) throws IOException;
-
-    @Deprecated
-    default Response getFunctionStatusV2(String tenant,
-                                 String namespace,
-                                 String functionName,
-                                 URI requestUri,
-                                 String clientRole) throws IOException {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return getFunctionStatusV2(tenant, namespace, functionName, requestUri, authParams);
-    }
 
     Response registerFunction(String tenant,
                               String namespace,
@@ -89,20 +59,6 @@ public interface FunctionsV2<W extends WorkerService> {
                               String functionPkgUrl,
                               String functionDetailsJson,
                               AuthenticationParameters authParams);
-
-    @Deprecated
-    default Response registerFunction(String tenant,
-                              String namespace,
-                              String functionName,
-                              InputStream uploadedInputStream,
-                              FormDataContentDisposition fileDetail,
-                              String functionPkgUrl,
-                              String functionDetailsJson,
-                              String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl,
-                functionDetailsJson, authParams);
-    }
 
 
     Response updateFunction(String tenant,
@@ -114,39 +70,10 @@ public interface FunctionsV2<W extends WorkerService> {
                             String functionDetailsJson,
                             AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response updateFunction(String tenant,
-                            String namespace,
-                            String functionName,
-                            InputStream uploadedInputStream,
-                            FormDataContentDisposition fileDetail,
-                            String functionPkgUrl,
-                            String functionDetailsJson,
-                            String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail, functionPkgUrl,
-                functionDetailsJson, authParams);
-    }
-
     Response deregisterFunction(String tenant, String namespace, String functionName,
                                 AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response deregisterFunction(String tenant,
-                                String namespace,
-                                String functionName,
-                                String clientAppId) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientAppId).build();
-        return deregisterFunction(tenant, namespace, functionName, authParams);
-    }
-
     Response listFunctions(String tenant, String namespace, AuthenticationParameters authParams);
-
-    @Deprecated
-    default Response listFunctions(String tenant, String namespace, String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return listFunctions(tenant, namespace, authParams);
-    }
 
     Response triggerFunction(String tenant,
                              String namespace,
@@ -156,33 +83,11 @@ public interface FunctionsV2<W extends WorkerService> {
                              String topic,
                              AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response triggerFunction(String tenant,
-                             String namespace,
-                             String functionName,
-                             String triggerValue,
-                             InputStream triggerStream,
-                             String topic,
-                             String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return triggerFunction(tenant, namespace, functionName, triggerValue, triggerStream, topic, authParams);
-    }
-
     Response getFunctionState(String tenant,
                               String namespace,
                               String functionName,
                               String key,
                               AuthenticationParameters authParams);
-
-    @Deprecated
-    default Response getFunctionState(String tenant,
-                              String namespace,
-                              String functionName,
-                              String key,
-                              String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return getFunctionState(tenant, namespace, functionName, key, authParams);
-    }
 
     Response restartFunctionInstance(String tenant,
                                      String namespace,
@@ -191,30 +96,11 @@ public interface FunctionsV2<W extends WorkerService> {
                                      URI uri,
                                      AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response restartFunctionInstance(String tenant,
-                                     String namespace,
-                                     String functionName,
-                                     String instanceId,
-                                     URI uri,
-                                     String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return restartFunctionInstance(tenant, namespace, functionName, instanceId, uri, authParams);
-    }
-
 
     Response restartFunctionInstances(String tenant,
                                       String namespace,
                                       String functionName,
                                       AuthenticationParameters authParams);
-    @Deprecated
-    default Response restartFunctionInstances(String tenant,
-                                      String namespace,
-                                      String functionName,
-                                      String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return restartFunctionInstances(tenant, namespace, functionName, authParams);
-    }
 
     Response stopFunctionInstance(String tenant,
                                   String namespace,
@@ -223,50 +109,16 @@ public interface FunctionsV2<W extends WorkerService> {
                                   URI uri,
                                   AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response stopFunctionInstance(String tenant,
-                                  String namespace,
-                                  String functionName,
-                                  String instanceId,
-                                  URI uri,
-                                  String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return stopFunctionInstance(tenant, namespace, functionName, instanceId, uri, authParams);
-    }
-
     Response stopFunctionInstances(String tenant,
                                    String namespace,
                                    String functionName,
                                    AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response stopFunctionInstances(String tenant,
-                                   String namespace,
-                                   String functionName,
-                                   String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return stopFunctionInstances(tenant, namespace, functionName, authParams);
-    }
-
     Response uploadFunction(InputStream uploadedInputStream,
                             String path,
                             AuthenticationParameters authParams);
 
-    @Deprecated
-    default Response uploadFunction(InputStream uploadedInputStream,
-                            String path,
-                            String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return uploadFunction(uploadedInputStream, path, authParams);
-    }
-
     Response downloadFunction(String path, AuthenticationParameters authParams);
-
-    @Deprecated
-    default Response downloadFunction(String path, String clientRole) {
-        AuthenticationParameters authParams = AuthenticationParameters.builder().clientRole(clientRole).build();
-        return downloadFunction(path, authParams);
-    }
 
     List<ConnectorDefinition> getListOfConnectors();
 
