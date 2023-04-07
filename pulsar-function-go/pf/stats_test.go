@@ -264,22 +264,23 @@ func TestInstanceControlMetrics(t *testing.T) {
 	instance := newGoInstance()
 	t.Cleanup(instance.close)
 	instanceClient := instanceCommunicationClient(t, instance)
-	metrics, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	_, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
 	assert.NoError(t, err, "err communicating with instance control: %v", err)
-	assert.Len(t, metrics.UserMetrics, 0, "user metrics are not empty before recording a user metric")
 
-	testLabels := []string{"userMetricTest1", "userMetricTest2"}
+	testLabels := []string{"userMetricControlTest1", "userMetricControlTest2"}
+	for _, label := range testLabels {
+		assert.NotContainsf(t, label, "user metrics should not yet contain %s", label)
+	}
 
 	for value, label := range testLabels {
 		instance.context.RecordMetric(label, float64(value+1))
 	}
 	time.Sleep(time.Second)
 
-	metrics, err = instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	metrics, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
 	assert.NoError(t, err, "err communicating with instance control: %v", err)
-	assert.Greater(t, len(metrics.UserMetrics), 0, "user metrics are empty after recording a user metric")
 	for value, label := range testLabels {
-		assert.Contains(t, metrics.UserMetrics, label)
-		assert.EqualValuesf(t, value+1, metrics.UserMetrics[label], "test metric %s != %d", label, value+1)
+		assert.Containsf(t, metrics.UserMetrics, label, "user metrics should contain metric %s", label)
+		assert.EqualValuesf(t, value+1, metrics.UserMetrics[label], "user metric %s != %d", label, value+1)
 	}
 }
