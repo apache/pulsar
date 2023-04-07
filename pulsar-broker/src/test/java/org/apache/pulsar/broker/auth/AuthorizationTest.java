@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.auth;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -79,7 +80,9 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     public void simple() throws Exception {
         AuthorizationService auth = pulsar.getBrokerService().getAuthorizationService();
 
-        assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
+        assertThatThrownBy(
+                () -> auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null)).hasMessageContaining(
+                "404");
 
         admin.clusters().createCluster("c1", ClusterData.builder().build());
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
@@ -215,20 +218,19 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                 SubscriptionAuthMode.Prefix);
         waitForChange();
 
+        // role1 is tenant's superuser
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null));
-        assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null));
-        try {
-            assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"));
-            fail();
-        } catch (Exception ignored) {}
-        try {
-            assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"));
-            fail();
-        } catch (Exception ignored) {}
-
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"));
+
+        // role2
+        assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
-        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
+        assertTrue(
+                auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
+
+        assertThrows(() -> auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"));
+        assertThrows(() -> auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub1"));
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.tenants().deleteTenant("p1");

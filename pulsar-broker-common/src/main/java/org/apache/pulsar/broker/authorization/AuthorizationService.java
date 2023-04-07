@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -165,7 +166,7 @@ public class AuthorizationService {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
-                return provider.canProduceAsync(topicName, role, authenticationData);
+                return provider.allowTopicOperationAsync(topicName, role, TopicOperation.PRODUCE, authenticationData);
             }
         });
     }
@@ -190,7 +191,14 @@ public class AuthorizationService {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
-                return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+                AuthenticationDataSource subscriptionDataSource;
+                if (authenticationData instanceof AuthenticationDataSubscription) {
+                    subscriptionDataSource = authenticationData;
+                } else {
+                    subscriptionDataSource = new AuthenticationDataSubscription(authenticationData, subscription);
+                }
+                return provider.allowTopicOperationAsync(topicName, role, TopicOperation.CONSUME,
+                        subscriptionDataSource);
             }
         });
     }
@@ -272,7 +280,7 @@ public class AuthorizationService {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
-                return provider.canLookupAsync(topicName, role, authenticationData);
+                return provider.allowTopicOperationAsync(topicName, role, TopicOperation.LOOKUP, authenticationData);
             }
         });
     }

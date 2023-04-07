@@ -19,6 +19,7 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -83,7 +84,8 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     public void test() throws Exception {
         AuthorizationService auth = service.getAuthorizationService();
 
-        assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
+        assertThatThrownBy(() -> auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role",
+                null)).hasMessageContaining("404");
 
         admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
