@@ -44,6 +44,7 @@ import io.prometheus.client.Gauge;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -2534,32 +2535,39 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 });
     }
 
-    private CompletableFuture<Boolean> verifyTxnOwnershipForTCToBrokerCommands() {
+    private CompletableFuture<Boolean> isSuperUser() {
+        assert ctx.executor().inEventLoop();
         if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
-            return getBrokerService()
-                    .getAuthorizationService()
-                    .isSuperUser(getPrincipal(), getAuthenticationData());
+            CompletableFuture<Boolean> isAuthRoleAuthorized = service.getAuthorizationService().isSuperUser(
+                    authRole, authenticationData);
+            if (originalPrincipal != null) {
+                CompletableFuture<Boolean> isOriginalPrincipalAuthorized = service.getAuthorizationService()
+                        .isSuperUser(originalPrincipal,
+                                originalAuthData != null ? originalAuthData : authenticationData);
+                return isOriginalPrincipalAuthorized.thenCombine(isAuthRoleAuthorized,
+                        (originalPrincipal, authRole) -> originalPrincipal && authRole);
+            } else {
+                return isAuthRoleAuthorized;
+            }
         } else {
             return CompletableFuture.completedFuture(true);
         }
     }
 
     private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID) {
-        final String checkOwner = getPrincipal();
+        assert ctx.executor().inEventLoop();
         return service.pulsar().getTransactionMetadataStoreService()
-                .verifyTxnOwnership(txnID, checkOwner)
-                .thenCompose(isOwner -> {
+                .verifyTxnOwnership(txnID, getPrincipal())
+                .thenComposeAsync(isOwner -> {
                     if (isOwner) {
                         return CompletableFuture.completedFuture(true);
                     }
                     if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled()) {
-                        return getBrokerService()
-                                .getAuthorizationService()
-                                .isSuperUser(checkOwner, getAuthenticationData());
+                        return isSuperUser();
                     } else {
                         return CompletableFuture.completedFuture(false);
                     }
-                });
+                }, ctx.executor());
     }
 
     @Override
@@ -2576,10 +2584,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     txnID, txnAction);
         }
         CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
-        topicFuture.thenAccept(optionalTopic -> {
+        topicFuture.thenAcceptAsync(optionalTopic -> {
             if (optionalTopic.isPresent()) {
-                // we only accept super user becase this endpoint is reserved for tc to broker communication
-                verifyTxnOwnershipForTCToBrokerCommands()
+                // we only accept superuser because this endpoint is reserved for tc to broker communication
+                isSuperUser()
                         .thenCompose(isOwner -> {
                             if (!isOwner) {
                                 return failedFutureTxnTcNotAllowed(txnID);
@@ -2629,7 +2637,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return null;
                 });
             }
-        }).exceptionally(e -> {
+        }, ctx.executor()).exceptionally(e -> {
             log.error("handleEndTxnOnPartition fail ! topic {}, "
                             + "txnId: [{}], txnAction: [{}]", topic, txnID,
                     TxnAction.valueOf(txnAction), e.getCause());
@@ -2658,7 +2666,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         CompletableFuture<Optional<Topic>> topicFuture = service.getTopicIfExists(TopicName.get(topic).toString());
-        topicFuture.thenAccept(optionalTopic -> {
+        topicFuture.thenAcceptAsync(optionalTopic -> {
             if (optionalTopic.isPresent()) {
                 Subscription subscription = optionalTopic.get().getSubscription(subName);
                 if (subscription == null) {
@@ -2670,7 +2678,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return;
                 }
                 // we only accept super user becase this endpoint is reserved for tc to broker communication
-                verifyTxnOwnershipForTCToBrokerCommands()
+                isSuperUser()
                         .thenCompose(isOwner -> {
                             if (!isOwner) {
                                 return failedFutureTxnTcNotAllowed(txnID);
@@ -2720,7 +2728,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return null;
                 });
             }
-        }).exceptionally(e -> {
+        }, ctx.executor()).exceptionally(e -> {
             log.error("handleEndTxnOnSubscription fail ! topic: {}, subscription: {}"
                             + "txnId: [{}], txnAction: [{}]", topic, subName,
                     txnID, TxnAction.valueOf(txnAction), e.getCause());
@@ -2757,7 +2765,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         final TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final long requestId = command.getRequestId();
-        final List<org.apache.pulsar.common.api.proto.Subscription> subscriptionsList = command.getSubscriptionsList();
+        final List<org.apache.pulsar.common.api.proto.Subscription> subscriptionsList = new ArrayList<>();
+        for (org.apache.pulsar.common.api.proto.Subscription sub : command.getSubscriptionsList()) {
+            subscriptionsList.add(new org.apache.pulsar.common.api.proto.Subscription().copyFrom(sub));
+        }
         if (log.isDebugEnabled()) {
             log.debug("Receive add published partition to txn request {} from {} with txnId {}",
                     requestId, remoteAddress, txnID);

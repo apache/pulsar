@@ -47,7 +47,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     protected final Subscription subscription;
 
     private CompletableFuture<Void> closeFuture = null;
-    private final String name;
+    protected final String name;
     protected final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
