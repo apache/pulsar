@@ -167,8 +167,7 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
                                       final @PathParam("namespace") String namespace,
                                       final @PathParam("functionName") String functionName) throws IOException {
-        return functions().getFunctionStatusV2(tenant, namespace, functionName, uri.getRequestUri(),
-                authParams());
+        return functions().getFunctionStatusV2(tenant, namespace, functionName, uri.getRequestUri(), authParams());
     }
 
     @GET

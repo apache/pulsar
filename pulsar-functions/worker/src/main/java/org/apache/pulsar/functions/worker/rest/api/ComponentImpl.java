@@ -895,11 +895,11 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
     @Override
     public FunctionInstanceStatsDataImpl
     getFunctionsInstanceStats(final String tenant,
-                              final String namespace,
-                              final String componentName,
-                              final String instanceId,
-                              final URI uri,
-                              final AuthenticationParameters authParams) {
+                           final String namespace,
+                           final String componentName,
+                           final String instanceId,
+                           final URI uri,
+                           final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -1304,8 +1304,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled()
-                && !isSuperUser(authParams)) {
+        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(authParams)) {
             throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
 

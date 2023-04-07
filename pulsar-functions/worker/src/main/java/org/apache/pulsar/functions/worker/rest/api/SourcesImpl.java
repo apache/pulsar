@@ -598,8 +598,7 @@ public class SourcesImpl extends ComponentImpl implements Sources<PulsarWorkerSe
                             final URI uri,
                             final AuthenticationParameters authParams) {
         // validate parameters
-        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId),
-                authParams);
+        componentInstanceStatusRequestValidate(tenant, namespace, sourceName, Integer.parseInt(instanceId), authParams);
 
         SourceStatus.SourceInstanceStatus.SourceInstanceStatusData sourceInstanceStatusData;
         try {
