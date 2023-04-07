@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import static org.testng.AssertJUnit.assertFalse;
 
 import com.google.common.collect.Sets;
 import java.time.Duration;
@@ -40,6 +43,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -396,5 +400,31 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
             assertEquals(tv.size(), count);
         });
         assertEquals(tv.keySet(), keys);
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testTableViewIsInterrupted() throws Exception {
+        String topic = "persistent://public/default/tableview-is-interrupted-test";
+        admin.topics().createNonPartitionedTopic(topic);
+        @Cleanup
+        TableView<byte[]> tv = pulsarClient.newTableView(Schema.BYTES)
+                .topic(topic)
+                .autoUpdatePartitionsInterval(60, TimeUnit.SECONDS)
+                .create();
+        assertFalse(tv.isInterrupted());
+
+        // inject failure on consumer.receiveAsync()
+        var reader = ((CompletableFuture<Reader<byte[]>>)
+                FieldUtils.readDeclaredField(tv, "reader", true)).join();
+        var consumer = spy((ConsumerImpl<byte[]>)
+                FieldUtils.readDeclaredField(reader, "consumer", true));
+        doReturn(CompletableFuture.failedFuture(new RuntimeException())).when(consumer).receiveAsync();
+        FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
+
+        this.publishMessages(topic, 2, false, false);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(tv.isInterrupted());
+        });
+        verify(consumer, times(1)).receiveAsync();
     }
 }
