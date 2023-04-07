@@ -303,7 +303,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
     @Test(timeOut = 10000)
     public void testAddConsumerWhenClosed() throws Exception {
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, pulsarTestContext.getBrokerService());
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock, false);
         PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
                 SubType.Failover, 0, topic, sub);
