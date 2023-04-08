@@ -49,6 +49,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -571,7 +572,7 @@ public class FunctionApiV3ResourceTest {
                 details,
                 functionPkgUrl,
                 functionConfig,
-                null, null);
+                null);
 
     }
 
@@ -585,7 +586,7 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
@@ -600,7 +601,7 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null, null);
     }
 
     private void registerDefaultFunction() {
@@ -617,7 +618,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             packageUrl,
             functionConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
@@ -794,7 +795,7 @@ public class FunctionApiV3ResourceTest {
                     mockedFormData,
                     null,
                     functionConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -851,7 +852,7 @@ public class FunctionApiV3ResourceTest {
                         mockedFormData,
                         null,
                         functionConfig,
-                        null, null);
+                        null);
                 Assert.fail();
             } catch (RuntimeException e) {
                 Assert.assertEquals(e.getMessage(), injectedErrMsg);
@@ -1114,7 +1115,7 @@ public class FunctionApiV3ResourceTest {
             details,
             null,
             functionConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1142,7 +1143,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             packageUrl,
             functionConfig,
-                null, null, null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1216,7 +1217,7 @@ public class FunctionApiV3ResourceTest {
             null,
             filePackageUrl,
             functionConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1330,7 +1331,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null, null);
+                null);
     }
 
     private void deregisterDefaultFunction() {
@@ -1338,7 +1339,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1443,7 +1444,7 @@ public class FunctionApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            function,null,null
+            function,null
         );
 
     }
@@ -1453,7 +1454,6 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null,
                 null
         );
     }
@@ -1538,7 +1538,7 @@ public class FunctionApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace,null,null
+            namespace,null
         );
 
     }
@@ -1546,7 +1546,7 @@ public class FunctionApiV3ResourceTest {
     private List<String> listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace,null,null
+            namespace,null
         );
     }
 
@@ -1603,7 +1603,7 @@ public class FunctionApiV3ResourceTest {
                 "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
 
-        StreamingOutput streamOutput = resource.downloadFunction(jarHttpUrl, null, null);
+        StreamingOutput streamOutput = resource.downloadFunction(jarHttpUrl, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1618,7 +1618,7 @@ public class FunctionApiV3ResourceTest {
         String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV3ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
 
-        StreamingOutput streamOutput = resource.downloadFunction("file:///" + fileLocation, null, null);
+        StreamingOutput streamOutput = resource.downloadFunction("file:///" + fileLocation, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1642,7 +1642,7 @@ public class FunctionApiV3ResourceTest {
         when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
         when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction("builtin://cassandra", null, null);
+        StreamingOutput streamOutput = resource.downloadFunction("builtin://cassandra", null);
 
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
@@ -1671,7 +1671,7 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
         when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction("builtin://exclamation", null, null);
+        StreamingOutput streamOutput = resource.downloadFunction("builtin://exclamation", null);
 
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
@@ -1705,7 +1705,8 @@ public class FunctionApiV3ResourceTest {
         when(connectorsManager.getConnector("cassandra")).thenReturn(connector);
         when(mockedWorkerService.getConnectorsManager()).thenReturn(connectorsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null);
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                AuthenticationParameters.builder().build());
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1737,7 +1738,8 @@ public class FunctionApiV3ResourceTest {
         when(mockedWorkerService.getConnectorsManager()).thenReturn(mock(ConnectorsManager.class));
         when(mockedWorkerService.getFunctionsManager()).thenReturn(functionsManager);
 
-        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function, null, null);
+        StreamingOutput streamOutput = resource.downloadFunction(tenant, namespace, function,
+                AuthenticationParameters.builder().build());
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1766,7 +1768,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null);
 
     }
 
@@ -1796,7 +1798,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function language runtime is either not set or cannot be determined")
@@ -1818,7 +1820,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null);
 
     }
 
