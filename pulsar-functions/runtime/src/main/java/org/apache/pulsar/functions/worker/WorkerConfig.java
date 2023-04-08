@@ -483,6 +483,12 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
 
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Role names that are treated as `proxy roles`. These are the only roles that can supply the "
+                    + "originalPrincipal.")
+    private Set<String> proxyRoles = new TreeSet<>();
+
     private Properties properties = new Properties();
 
     public boolean getTlsEnabled() {

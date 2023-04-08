@@ -58,6 +58,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
@@ -526,8 +527,8 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     functionPkgUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -544,8 +545,8 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -944,8 +945,8 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -972,8 +973,8 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -1055,8 +1056,8 @@ public class FunctionApiV2ResourceTest {
                     null,
                     null,
                     filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
-                    null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -1167,7 +1168,7 @@ public class FunctionApiV2ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null);
+                AuthenticationParameters.builder().build());
     }
 
     private void deregisterDefaultFunction() {
@@ -1175,7 +1176,7 @@ public class FunctionApiV2ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null);
+                AuthenticationParameters.builder().build());
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1284,7 +1285,8 @@ public class FunctionApiV2ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                function, null
+                function,
+                AuthenticationParameters.builder().build()
         );
 
     }
@@ -1293,7 +1295,8 @@ public class FunctionApiV2ResourceTest {
         String json = (String) resource.getFunctionInfo(
                 tenant,
                 namespace,
-                function, null
+                function,
+                AuthenticationParameters.builder().build()
         ).getEntity();
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         mergeJson(json, functionDetailsBuilder);
@@ -1378,7 +1381,8 @@ public class FunctionApiV2ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null
+                namespace,
+                AuthenticationParameters.builder().build()
         );
 
     }
@@ -1386,7 +1390,8 @@ public class FunctionApiV2ResourceTest {
     private List<String> listDefaultFunctions() {
         return new Gson().fromJson((String) resource.listFunctions(
                 tenant,
-                namespace, null
+                namespace,
+                AuthenticationParameters.builder().build()
         ).getEntity(), List.class);
     }
 
@@ -1413,7 +1418,8 @@ public class FunctionApiV2ResourceTest {
         String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
-        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction(jarHttpUrl, null).getEntity();
+        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction(jarHttpUrl,
+                AuthenticationParameters.builder().build()).getEntity();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1430,7 +1436,8 @@ public class FunctionApiV2ResourceTest {
         String fileLocation = file.getAbsolutePath().replace('\\', '/');
         String testDir = FunctionApiV2ResourceTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         FunctionsImplV2 function = new FunctionsImplV2(() -> mockedWorkerService);
-        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file:///" + fileLocation, null).getEntity();
+        StreamingOutput streamOutput = (StreamingOutput) function.downloadFunction("file:///" + fileLocation,
+                        AuthenticationParameters.builder().build()).getEntity();
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1462,7 +1469,8 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         try {
             resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
            throw new RuntimeException(e);
         }
@@ -1496,7 +1504,8 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         try {
             resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
+                    AuthenticationParameters.builder().build());
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }

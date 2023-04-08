@@ -23,6 +23,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -32,23 +33,23 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface FunctionsV2<W extends WorkerService> {
 
-    Response getFunctionInfo(final String tenant,
-                             final String namespace,
-                             final String functionName,
-                             String clientRole) throws IOException;
+    Response getFunctionInfo(String tenant,
+                             String namespace,
+                             String functionName,
+                             AuthenticationParameters authParams) throws IOException;
 
-    Response getFunctionInstanceStatus(final String tenant,
-                                       final String namespace,
-                                       final String functionName,
-                                       final String instanceId,
-                                       URI uri,
-                                       String clientRole) throws IOException;
+    Response getFunctionInstanceStatus(String tenant,
+                                               String namespace,
+                                               String functionName,
+                                               String instanceId,
+                                               URI uri,
+                                               AuthenticationParameters authParams) throws IOException;
 
     Response getFunctionStatusV2(String tenant,
                                  String namespace,
                                  String functionName,
                                  URI requestUri,
-                                 String clientRole) throws IOException;
+                                 AuthenticationParameters authParams) throws IOException;
 
     Response registerFunction(String tenant,
                               String namespace,
@@ -57,7 +58,8 @@ public interface FunctionsV2<W extends WorkerService> {
                               FormDataContentDisposition fileDetail,
                               String functionPkgUrl,
                               String functionDetailsJson,
-                              String clientRole);
+                              AuthenticationParameters authParams);
+
 
     Response updateFunction(String tenant,
                             String namespace,
@@ -66,14 +68,12 @@ public interface FunctionsV2<W extends WorkerService> {
                             FormDataContentDisposition fileDetail,
                             String functionPkgUrl,
                             String functionDetailsJson,
-                            String clientRole);
+                            AuthenticationParameters authParams);
 
-    Response deregisterFunction(String tenant,
-                                String namespace,
-                                String functionName,
-                                String clientAppId);
+    Response deregisterFunction(String tenant, String namespace, String functionName,
+                                AuthenticationParameters authParams);
 
-    Response listFunctions(String tenant, String namespace, String clientRole);
+    Response listFunctions(String tenant, String namespace, AuthenticationParameters authParams);
 
     Response triggerFunction(String tenant,
                              String namespace,
@@ -81,45 +81,44 @@ public interface FunctionsV2<W extends WorkerService> {
                              String triggerValue,
                              InputStream triggerStream,
                              String topic,
-                             String clientRole);
+                             AuthenticationParameters authParams);
 
     Response getFunctionState(String tenant,
                               String namespace,
                               String functionName,
                               String key,
-                              String clientRole);
-
+                              AuthenticationParameters authParams);
 
     Response restartFunctionInstance(String tenant,
                                      String namespace,
                                      String functionName,
                                      String instanceId,
                                      URI uri,
-                                     String clientRole);
+                                     AuthenticationParameters authParams);
+
 
     Response restartFunctionInstances(String tenant,
                                       String namespace,
                                       String functionName,
-                                      String clientRole);
+                                      AuthenticationParameters authParams);
 
     Response stopFunctionInstance(String tenant,
                                   String namespace,
                                   String functionName,
                                   String instanceId,
                                   URI uri,
-                                  String clientRole);
+                                  AuthenticationParameters authParams);
 
     Response stopFunctionInstances(String tenant,
                                    String namespace,
                                    String functionName,
-                                   String clientRole);
+                                   AuthenticationParameters authParams);
 
     Response uploadFunction(InputStream uploadedInputStream,
                             String path,
-                            String clientRole);
+                            AuthenticationParameters authParams);
 
-    Response downloadFunction(String path, String clientRole);
-
+    Response downloadFunction(String path, AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getListOfConnectors();
 

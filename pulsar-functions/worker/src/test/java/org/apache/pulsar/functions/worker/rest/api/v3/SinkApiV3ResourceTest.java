@@ -52,6 +52,7 @@ import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -505,7 +506,7 @@ public class SinkApiV3ResourceTest {
                 details,
                 pkgUrl,
                 sinkConfig,
-                null, null);
+                null);
 
     }
 
@@ -519,7 +520,7 @@ public class SinkApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink config is not provided")
@@ -533,7 +534,7 @@ public class SinkApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null, null);
     }
 
     private void registerDefaultSink() throws IOException {
@@ -551,7 +552,7 @@ public class SinkApiV3ResourceTest {
                     mockedFormData,
                     packageUrl,
                     sinkConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -641,7 +642,7 @@ public class SinkApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sinkConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -938,7 +939,7 @@ public class SinkApiV3ResourceTest {
                 details,
                 null,
                 sinkConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -989,7 +990,7 @@ public class SinkApiV3ResourceTest {
                     mockedFormData,
                     packageUrl,
                     sinkConfig,
-                    null, null, null);
+                    null, null);
         }
     }
 
@@ -1086,7 +1087,7 @@ public class SinkApiV3ResourceTest {
                 null,
                 filePackageUrl,
                 sinkConfig,
-                null, null, null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "sink failed to register")
@@ -1210,7 +1211,7 @@ public class SinkApiV3ResourceTest {
                 tenant,
                 namespace,
                 sink,
-                null, null);
+                null);
 
     }
 
@@ -1219,7 +1220,7 @@ public class SinkApiV3ResourceTest {
                 tenant,
                 namespace,
                 sink,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Sink test-sink doesn't exist")
@@ -1406,7 +1407,8 @@ public class SinkApiV3ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                sink, null, null
+                sink,
+                AuthenticationParameters.builder().build()
         );
 
     }
@@ -1415,7 +1417,8 @@ public class SinkApiV3ResourceTest {
         return resource.getSinkInfo(
                 tenant,
                 namespace,
-                sink
+                sink,
+                AuthenticationParameters.builder().build()
         );
     }
 
@@ -1508,7 +1511,8 @@ public class SinkApiV3ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                AuthenticationParameters.builder().build()
         );
 
     }
@@ -1516,7 +1520,8 @@ public class SinkApiV3ResourceTest {
     private List<String> listDefaultSinks() {
         return resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                AuthenticationParameters.builder().build()
         );
     }
 

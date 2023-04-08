@@ -22,8 +22,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
 import javax.ws.rs.core.StreamingOutput;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -39,121 +38,55 @@ public interface Component<W extends WorkerService> {
 
     W worker();
 
-    void deregisterFunction(final String tenant,
-                            final String namespace,
-                            final String componentName,
-                            final String clientRole,
-                            AuthenticationDataHttps clientAuthenticationDataHttps);
+    void deregisterFunction(String tenant, String namespace, String componentName, AuthenticationParameters authParams);
 
-    FunctionConfig getFunctionInfo(final String tenant,
-                                   final String namespace,
-                                   final String componentName,
-                                   final String clientRole,
-                                   final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionConfig getFunctionInfo(String tenant, String namespace, String componentName,
+                                   AuthenticationParameters authParams);
 
-    void stopFunctionInstance(final String tenant,
-                              final String namespace,
-                              final String componentName,
-                              final String instanceId,
-                              final URI uri,
-                              final String clientRole,
-                              final AuthenticationDataSource clientAuthenticationDataHttps);
+    void stopFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
+                              AuthenticationParameters authParams);
 
-    void startFunctionInstance(final String tenant,
-                               final String namespace,
-                               final String componentName,
-                               final String instanceId,
-                               final URI uri,
-                               final String clientRole,
-                               final AuthenticationDataSource clientAuthenticationDataHttps);
+    void startFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
+                               AuthenticationParameters authParams);
 
-    void restartFunctionInstance(final String tenant,
-                                 final String namespace,
-                                 final String componentName,
-                                 final String instanceId,
-                                 final URI uri,
-                                 final String clientRole,
-                                 final AuthenticationDataSource clientAuthenticationDataHttps);
+    void restartFunctionInstance(String tenant, String namespace, String componentName, String instanceId, URI uri,
+                                 AuthenticationParameters authParams);
 
-    void startFunctionInstances(final String tenant,
-                                final String namespace,
-                                final String componentName,
-                                final String clientRole,
-                                final AuthenticationDataSource clientAuthenticationDataHttps);
+    void startFunctionInstances(String tenant, String namespace, String componentName,
+                                AuthenticationParameters authParams);
 
-    void stopFunctionInstances(final String tenant,
-                               final String namespace,
-                               final String componentName,
-                               final String clientRole,
-                               final AuthenticationDataSource clientAuthenticationDataHttps);
+    void stopFunctionInstances(String tenant, String namespace, String componentName,
+                               AuthenticationParameters authParams);
 
-    void restartFunctionInstances(final String tenant,
-                                  final String namespace,
-                                  final String componentName,
-                                  final String clientRole,
-                                  final AuthenticationDataSource clientAuthenticationDataHttps);
+    void restartFunctionInstances(String tenant, String namespace, String componentName,
+                                  AuthenticationParameters authParams);
 
-    FunctionStatsImpl getFunctionStats(final String tenant,
-                                       final String namespace,
-                                       final String componentName,
-                                       final URI uri,
-                                       final String clientRole,
-                                       final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionStatsImpl getFunctionStats(String tenant, String namespace, String componentName, URI uri,
+                                       AuthenticationParameters authParams);
 
-    FunctionInstanceStatsDataImpl getFunctionsInstanceStats(final String tenant,
-                                                            final String namespace,
-                                                            final String componentName,
-                                                            final String instanceId,
-                                                            final URI uri,
-                                                            final String clientRole,
-                                                            final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionInstanceStatsDataImpl getFunctionsInstanceStats(String tenant, String namespace, String componentName,
+                                                            String instanceId, URI uri,
+                                                            AuthenticationParameters authParams);
 
-    String triggerFunction(final String tenant,
-                           final String namespace,
-                           final String functionName,
-                           final String input,
-                           final InputStream uploadedInputStream,
-                           final String topic,
-                           final String clientRole,
-                           final AuthenticationDataSource clientAuthenticationDataHttps);
+    String triggerFunction(String tenant, String namespace, String functionName, String input,
+                           InputStream uploadedInputStream, String topic, AuthenticationParameters authParams);
 
-    List<String> listFunctions(final String tenant,
-                               final String namespace,
-                               final String clientRole,
-                               final AuthenticationDataSource clientAuthenticationDataHttps);
+    List<String> listFunctions(String tenant, String namespace, AuthenticationParameters authParams);
 
-    FunctionState getFunctionState(final String tenant,
-                                   final String namespace,
-                                   final String functionName,
-                                   final String key,
-                                   final String clientRole,
-                                   final AuthenticationDataSource clientAuthenticationDataHttps);
+    FunctionState getFunctionState(String tenant, String namespace, String functionName, String key,
+                                   AuthenticationParameters authParams);
 
-    void putFunctionState(final String tenant,
-                          final String namespace,
-                          final String functionName,
-                          final String key,
-                          final FunctionState state,
-                          final String clientRole,
-                          final AuthenticationDataSource clientAuthenticationDataHttps);
+    void putFunctionState(String tenant, String namespace, String functionName, String key, FunctionState state,
+                          AuthenticationParameters authParams);
 
-    void uploadFunction(final InputStream uploadedInputStream,
-                        final String path,
-                        String clientRole,
-                        final AuthenticationDataSource clientAuthenticationDataHttps);
+    void uploadFunction(InputStream uploadedInputStream, String path, AuthenticationParameters authParams);
 
-    StreamingOutput downloadFunction(String path,
-                                     String clientRole,
-                                     AuthenticationDataHttps clientAuthenticationDataHttps);
+    StreamingOutput downloadFunction(String path, AuthenticationParameters authParams);
 
-    StreamingOutput downloadFunction(String tenant,
-                                     String namespace,
-                                     String componentName,
-                                     String clientRole,
-                                     AuthenticationDataHttps clientAuthenticationDataHttps);
+    StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
+                                     AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getListOfConnectors();
 
-
-    void reloadConnectors(String clientRole, AuthenticationDataSource clientAuthenticationDataHttps);
+    void reloadConnectors(AuthenticationParameters authParams);
 }

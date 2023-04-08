@@ -541,7 +541,7 @@ public class FunctionApiV3ResourceTest {
                 details,
                 functionPkgUrl,
                 functionConfig,
-                null, null);
+                null);
 
     }
 
@@ -555,7 +555,7 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
@@ -570,7 +570,7 @@ public class FunctionApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null, null);
     }
 
     private void registerDefaultFunction() {
@@ -587,7 +587,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             packageUrl,
             functionConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function already exists")
@@ -1005,7 +1005,7 @@ public class FunctionApiV3ResourceTest {
             details,
             null,
             functionConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1033,7 +1033,7 @@ public class FunctionApiV3ResourceTest {
             mockedFormData,
             packageUrl,
             functionConfig,
-                null, null, null);
+                null, null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1110,7 +1110,7 @@ public class FunctionApiV3ResourceTest {
             null,
             filePackageUrl,
             functionConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1236,7 +1236,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null, null);
+                null);
     }
 
     private void deregisterDefaultFunction() {
@@ -1244,7 +1244,7 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function test-function doesn't exist")
@@ -1353,7 +1353,7 @@ public class FunctionApiV3ResourceTest {
         resource.getFunctionInfo(
             tenant,
             namespace,
-            function,null,null
+            function,null
         );
 
     }
@@ -1363,7 +1363,6 @@ public class FunctionApiV3ResourceTest {
             tenant,
             namespace,
             function,
-                null,
                 null
         );
     }
@@ -1446,7 +1445,7 @@ public class FunctionApiV3ResourceTest {
     ) {
         resource.listFunctions(
             tenant,
-            namespace,null,null
+            namespace,null
         );
 
     }
@@ -1454,7 +1453,7 @@ public class FunctionApiV3ResourceTest {
     private List<String> listDefaultFunctions() {
         return resource.listFunctions(
             tenant,
-            namespace,null,null
+            namespace,null
         );
     }
 
@@ -1510,7 +1509,7 @@ public class FunctionApiV3ResourceTest {
         when(config.isAuthorizationEnabled()).thenReturn(false);
         when(worker.getWorkerConfig()).thenReturn(config);
         FunctionsImpl function = new FunctionsImpl(()-> worker);
-        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl, null, null);
+        StreamingOutput streamOutput = function.downloadFunction(jarHttpUrl, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1532,7 +1531,7 @@ public class FunctionApiV3ResourceTest {
         when(config.isAuthorizationEnabled()).thenReturn(false);
         when(worker.getWorkerConfig()).thenReturn(config);
         FunctionsImpl function = new FunctionsImpl(() -> worker);
-        StreamingOutput streamOutput = function.downloadFunction("file:///" + fileLocation, null, null);
+        StreamingOutput streamOutput = function.downloadFunction("file:///" + fileLocation, null);
         File pkgFile = new File(testDir, UUID.randomUUID().toString());
         OutputStream output = new FileOutputStream(pkgFile);
         streamOutput.write(output);
@@ -1562,7 +1561,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null);
 
     }
 
@@ -1591,7 +1590,8 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl, functionConfig,
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function language runtime is either not set or cannot be determined")
@@ -1613,7 +1613,7 @@ public class FunctionApiV3ResourceTest {
         functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
         functionConfig.setOutput(outputTopic);
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null, null);
+        resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig, null);
 
     }
 

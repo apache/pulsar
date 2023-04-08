@@ -53,6 +53,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -131,6 +132,14 @@ public abstract class PulsarWebResource {
 
     public static String splitPath(String source, int slice) {
         return PolicyPath.splitPath(source, slice);
+    }
+
+    public AuthenticationParameters authParams() {
+        return AuthenticationParameters.builder()
+                .originalPrincipal(originalPrincipal())
+                .clientRole(clientAppId())
+                .clientAuthenticationDataSource(clientAuthData())
+                .build();
     }
 
     /**
