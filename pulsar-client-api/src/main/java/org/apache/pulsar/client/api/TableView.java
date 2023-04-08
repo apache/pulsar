@@ -110,11 +110,4 @@ public interface TableView<T> extends Closeable {
      * @return a future that can used to track when the table view has been closed.
      */
     CompletableFuture<Void> closeAsync();
-
-    /**
-     * Checks if the tableview is interrupted.
-     *
-     * @return ture if the tableview is interrupted
-     */
-    boolean isInterrupted();
 }
