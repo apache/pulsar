@@ -73,6 +73,7 @@ public class Producer {
     private final String appId;
     private final BrokerInterceptor brokerInterceptor;
     private Rate msgIn;
+    private Rate requestIn;
     private Rate chunkedMessageRate;
     // it records msg-drop rate only for non-persistent topic
     private final Rate msgDrop;
@@ -117,6 +118,7 @@ public class Producer {
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
         this.msgIn = new Rate();
+        this.requestIn = new Rate();
         this.chunkedMessageRate = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
@@ -272,7 +274,7 @@ public class Producer {
     private void publishMessageToTopic(ByteBuf headersAndPayload, long sequenceId, long batchSize, boolean isChunked,
                                        boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext =
-                MessagePublishContext.get(this, sequenceId, msgIn, headersAndPayload.readableBytes(),
+                MessagePublishContext.get(this, sequenceId, msgIn, requestIn, headersAndPayload.readableBytes(),
                         batchSize, isChunked, System.nanoTime(), isMarker, position);
         if (brokerInterceptor != null) {
             brokerInterceptor
@@ -284,7 +286,7 @@ public class Producer {
     private void publishMessageToTopic(ByteBuf headersAndPayload, long lowestSequenceId, long highestSequenceId,
                                        long batchSize, boolean isChunked, boolean isMarker, Position position) {
         MessagePublishContext messagePublishContext = MessagePublishContext.get(this, lowestSequenceId,
-                highestSequenceId, msgIn, headersAndPayload.readableBytes(), batchSize,
+                highestSequenceId, msgIn, requestIn, headersAndPayload.readableBytes(), batchSize,
                 isChunked, System.nanoTime(), isMarker, position);
         if (brokerInterceptor != null) {
             brokerInterceptor
@@ -377,6 +379,7 @@ public class Producer {
         private long ledgerId;
         private long entryId;
         private Rate rateIn;
+        private Rate requestIn;
         private int msgSize;
         private long batchSize;
         private boolean chunked;
@@ -537,6 +540,7 @@ public class Producer {
 
             // stats
             rateIn.recordMultipleEvents(batchSize, msgSize);
+            requestIn.recordMultipleEvents(1L, batchSize);
             producer.topic.recordAddLatency(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
             producer.cnx.getCommandSender().sendSendReceiptResponse(producer.producerId, sequenceId, highestSequenceId,
                     ledgerId, entryId);
@@ -552,12 +556,13 @@ public class Producer {
             recycle();
         }
 
-        static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, int msgSize,
+        static MessagePublishContext get(Producer producer, long sequenceId, Rate rateIn, Rate requestIn, int msgSize,
                 long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = sequenceId;
             callback.rateIn = rateIn;
+            callback.requestIn = requestIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
             callback.chunked = chunked;
@@ -574,12 +579,14 @@ public class Producer {
         }
 
         static MessagePublishContext get(Producer producer, long lowestSequenceId, long highestSequenceId, Rate rateIn,
-                int msgSize, long batchSize, boolean chunked, long startTimeNs, boolean isMarker, Position position) {
+               Rate requestIn, int msgSize, long batchSize, boolean chunked, long startTimeNs, boolean isMarker,
+                                         Position position) {
             MessagePublishContext callback = RECYCLER.get();
             callback.producer = producer;
             callback.sequenceId = lowestSequenceId;
             callback.highestSequenceId = highestSequenceId;
             callback.rateIn = rateIn;
+            callback.requestIn = requestIn;
             callback.msgSize = msgSize;
             callback.batchSize = batchSize;
             callback.originalProducerName = null;
@@ -629,6 +636,7 @@ public class Producer {
             originalSequenceId = -1L;
             originalHighestSequenceId = -1L;
             rateIn = null;
+            requestIn = null;
             msgSize = 0;
             ledgerId = -1L;
             entryId = -1L;
@@ -730,10 +738,13 @@ public class Producer {
 
     public void updateRates() {
         msgIn.calculateRate();
+        requestIn.calculateRate();
         chunkedMessageRate.calculateRate();
         stats.msgRateIn = msgIn.getRate();
         stats.msgThroughputIn = msgIn.getValueRate();
         stats.averageMsgSize = msgIn.getAverageValue();
+        stats.requestRateIn = requestIn.getRate();
+        stats.averageMsgPerRequest = requestIn.getAverageValue();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
         if (chunkedMessageRate.getCount() > 0 && this.topic instanceof PersistentTopic) {
             ((PersistentTopic) this.topic).msgChunkPublished = true;
@@ -813,7 +824,7 @@ public class Producer {
             return;
         }
         MessagePublishContext messagePublishContext =
-                MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn,
+                MessagePublishContext.get(this, sequenceId, highSequenceId, msgIn, requestIn,
                         headersAndPayload.readableBytes(), batchSize, isChunked, System.nanoTime(), isMarker, null);
         if (brokerInterceptor != null) {
             brokerInterceptor

@@ -43,6 +43,12 @@ public class PublisherStatsImpl implements PublisherStats {
     /** Average message size published by this publisher. */
     public double averageMsgSize;
 
+    /** Total rate of request published by this publisher (request/s). */
+    public double requestRateIn;
+
+    /** Average number of messages per entry by this publisher (msg/request). */
+    public double averageMsgPerRequest;
+
     /** The total rate of chunked messages published by this publisher. **/
     public double chunkedMessageRate;
 
@@ -95,6 +101,8 @@ public class PublisherStatsImpl implements PublisherStats {
         this.msgThroughputIn += stats.msgThroughputIn;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
+        this.requestRateIn += stats.requestRateIn;
+        this.averageMsgPerRequest += stats.averageMsgPerRequest;
         return this;
     }
 

@@ -28,4 +28,8 @@ public class AggregatedProducerStats {
 
     public double averageMsgSize;
 
+    public double requestRateIn;
+
+    public double averageMsgPerRequest;
+
 }

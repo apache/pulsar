@@ -37,6 +37,8 @@ class TopicStats {
     double rateOut;
     double throughputIn;
     double throughputOut;
+    double requestRateIn;
+    double averageMsgPerRequest;
     long msgInCounter;
     long bytesInCounter;
     long msgOutCounter;
@@ -81,6 +83,8 @@ class TopicStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        requestRateIn = 0;
+        averageMsgPerRequest = 0;
         bytesInCounter = 0;
         msgInCounter = 0;
         bytesOutCounter = 0;
@@ -132,6 +136,11 @@ class TopicStats {
         writeMetric(stream, "pulsar_throughput_out", stats.throughputOut,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_average_msg_size", stats.averageMsgSize,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+
+        writeMetric(stream, "pulsar_request_rate_in", stats.requestRateIn,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_average_msg_per_request", stats.averageMsgPerRequest,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
         writeMetric(stream, "pulsar_txn_tb_active_total", stats.ongoingTxnCount,
@@ -257,6 +266,10 @@ class TopicStats {
             writeProducerMetric(stream, "pulsar_producer_msg_throughput_in", producerStats.msgThroughputIn,
                     cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
             writeProducerMetric(stream, "pulsar_producer_msg_average_Size", producerStats.averageMsgSize,
+                    cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
+            writeProducerMetric(stream, "pulsar_producer_request_in", producerStats.requestRateIn,
+                    cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
+            writeProducerMetric(stream, "pulsar_producer_avg_msg_per_request", producerStats.averageMsgPerRequest,
                     cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
         });
 
