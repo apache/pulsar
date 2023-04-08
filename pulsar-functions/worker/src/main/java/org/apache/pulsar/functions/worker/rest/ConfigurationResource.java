@@ -18,16 +18,12 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Path("/")
 public class ConfigurationResource {
