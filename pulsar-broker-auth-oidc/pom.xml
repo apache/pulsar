@@ -77,6 +77,13 @@
       <groupId>io.kubernetes</groupId>
       <artifactId>client-java</artifactId>
       <version>${kubernetesclient.version}</version>
+      <exclusions>
+        <!-- exclude prometheus http server since we don't export metrics from the client -->
+        <exclusion>
+          <groupId>io.prometheus</groupId>
+          <artifactId>simpleclient_httpserver</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
