@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
@@ -28,7 +29,7 @@ import org.apache.pulsar.PulsarVersion;
 @Path("/")
 public class ConfigurationResource {
 
-    private final static String VERSION = "{\"version\":\"" + PulsarVersion.getVersion() + "\"}";
+    private static final String VERSION = "{\"version\":\"" + PulsarVersion.getVersion() + "\"}";
 
     @Path("version")
     @GET
