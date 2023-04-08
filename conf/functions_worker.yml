@@ -301,6 +301,8 @@ authenticationProviders:
 authorizationProvider: org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
 # Set of role names that are treated as "super-user", meaning they will be able to access any admin-api
 superUserRoles:
+# Set of role names that are treated as "proxy" roles. These are the roles that can supply the originalPrincipal.
+proxyRoles:
 
 #### tls configuration for worker service
 # Enable TLS

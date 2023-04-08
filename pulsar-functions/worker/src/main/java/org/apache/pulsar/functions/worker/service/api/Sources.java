@@ -21,8 +21,7 @@ package org.apache.pulsar.functions.worker.service.api;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -37,47 +36,65 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
  */
 public interface Sources<W extends WorkerService> extends Component<W> {
 
-    void registerSource(final String tenant,
-                        final String namespace,
-                        final String sourceName,
-                        final InputStream uploadedInputStream,
-                        final FormDataContentDisposition fileDetail,
-                        final String sourcePkgUrl,
-                        final SourceConfig sourceConfig,
-                        final String clientRole,
-                        AuthenticationDataHttps clientAuthenticationDataHttps);
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Source
+     * @param namespace The namespace of a Pulsar Source
+     * @param sourceName The name of a Pulsar Source
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sourcePkgUrl URL path of the Pulsar Source package
+     * @param sourceConfig Configuration of Pulsar Source
+     * @param authParams the authentication parameters associated with the request
+     */
+    void registerSource(String tenant,
+                        String namespace,
+                        String sourceName,
+                        InputStream uploadedInputStream,
+                        FormDataContentDisposition fileDetail,
+                        String sourcePkgUrl,
+                        SourceConfig sourceConfig,
+                        AuthenticationParameters authParams);
 
-    void updateSource(final String tenant,
-                      final String namespace,
-                      final String sourceName,
-                      final InputStream uploadedInputStream,
-                      final FormDataContentDisposition fileDetail,
-                      final String sourcePkgUrl,
-                      final SourceConfig sourceConfig,
-                      final String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps,
+    /**
+     * Update a function.
+     * @param tenant The tenant of a Pulsar Source
+     * @param namespace The namespace of a Pulsar Source
+     * @param sourceName The name of a Pulsar Source
+     * @param uploadedInputStream Input stream of bytes
+     * @param fileDetail A form-data content disposition header
+     * @param sourcePkgUrl URL path of the Pulsar Source package
+     * @param sourceConfig Configuration of Pulsar Source
+     * @param authParams the authentication parameters associated with the request
+     * @param updateOptions Options while updating the source
+     */
+    void updateSource(String tenant,
+                      String namespace,
+                      String sourceName,
+                      InputStream uploadedInputStream,
+                      FormDataContentDisposition fileDetail,
+                      String sourcePkgUrl,
+                      SourceConfig sourceConfig,
+                      AuthenticationParameters authParams,
                       UpdateOptionsImpl updateOptions);
 
+    SourceStatus getSourceStatus(String tenant,
+                                 String namespace,
+                                 String componentName,
+                                 URI uri,
+                                 AuthenticationParameters authParams);
 
-    SourceStatus getSourceStatus(final String tenant,
-                                 final String namespace,
-                                 final String componentName,
-                                 final URI uri,
-                                 final String clientRole,
-                                 final AuthenticationDataSource clientAuthenticationDataHttps);
+    SourceInstanceStatusData getSourceInstanceStatus(String tenant,
+                                                     String namespace,
+                                                     String sourceName,
+                                                     String instanceId,
+                                                     URI uri,
+                                                     AuthenticationParameters authParams);
 
-
-    SourceInstanceStatusData getSourceInstanceStatus(final String tenant,
-                                                     final String namespace,
-                                                     final String sourceName,
-                                                     final String instanceId,
-                                                     final URI uri,
-                                                     final String clientRole,
-                                                     final AuthenticationDataSource clientAuthenticationDataHttps);
-
-    SourceConfig getSourceInfo(final String tenant,
-                               final String namespace,
-                               final String componentName);
+    SourceConfig getSourceInfo(String tenant,
+                               String namespace,
+                               String componentName,
+                               AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getSourceList();
 
