@@ -46,7 +46,6 @@ import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -61,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -200,7 +200,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 CompletableFuture<String>>newBuilder().build();
         this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
         this.stateChangeListeners = new StateChangeListeners();
-        this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateCleanUpDelayTimeInSeconds()
+        this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
                 * 1000;
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
         this.ownershipMonitorDelayTimeInSecs = OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS;
@@ -563,10 +563,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         ServiceUnitStateData next;
         if (isTransferCommand(unload)) {
             next = new ServiceUnitStateData(
-                    Releasing, unload.destBroker().get(), unload.sourceBroker(), getNextVersionId(serviceUnit));
+                    Releasing, unload.destBroker().get(), unload.sourceBroker(),
+                    unload.force(), getNextVersionId(serviceUnit));
         } else {
             next = new ServiceUnitStateData(
-                    Releasing, null, unload.sourceBroker(), getNextVersionId(serviceUnit));
+                    Releasing, null, unload.sourceBroker(), unload.force(), getNextVersionId(serviceUnit));
         }
         return pubAsync(serviceUnit, next).whenComplete((__, ex) -> {
             if (ex != null) {
@@ -660,7 +661,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 long handlerTotalCount = getHandlerTotalCounter(data).get();
                 long handlerFailureCount = getHandlerFailureCounter(data).get();
                 log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
-                                + "totalHandledRequests{}, totalFailedRequests:{}",
+                                + "totalHandledRequests:{}, totalFailedRequests:{}",
                         lookupServiceAddress, getLogEventTag(data), serviceUnit,
                         data == null ? "" : data,
                         next == null ? "" : next,
@@ -671,7 +672,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             long handlerTotalCount = getHandlerTotalCounter(data).get();
             long handlerFailureCount = getHandlerFailureCounter(data).incrementAndGet();
             log.error("{} failed to handle {} event for serviceUnit:{}, cur:{}, next:{}, "
-                            + "totalHandledRequests{}, totalFailedRequests:{}",
+                            + "totalHandledRequests:{}, totalFailedRequests:{}",
                     lookupServiceAddress, getLogEventTag(data), serviceUnit,
                     data == null ? "" : data,
                     next == null ? "" : next,
@@ -857,110 +858,158 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 boundariesSet.add(subBundle.getKeyRange().upperEndpoint());
             });
             boundaries = new ArrayList<>(boundariesSet);
-            nsBundleSplitAlgorithm = NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE_ALGO;
+            nsBundleSplitAlgorithm = NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE_FORCE_ALGO;
         }
         final AtomicInteger counter = new AtomicInteger(0);
+        var childBundles = data.splitServiceUnitToDestBroker().keySet().stream()
+                .map(child -> bundleFactory.getBundle(
+                        bundle.getNamespaceObject().toString(), child))
+                .collect(Collectors.toList());
         this.splitServiceUnitOnceAndRetry(namespaceService, bundleFactory, nsBundleSplitAlgorithm,
-                bundle, boundaries, serviceUnit, data, counter, startTime, completionFuture);
+                bundle, childBundles, boundaries, data, counter, startTime, completionFuture);
         return completionFuture;
     }
+
+
 
     @VisibleForTesting
     protected void splitServiceUnitOnceAndRetry(NamespaceService namespaceService,
                                                 NamespaceBundleFactory bundleFactory,
                                                 NamespaceBundleSplitAlgorithm algorithm,
-                                                NamespaceBundle bundle,
+                                                NamespaceBundle parentBundle,
+                                                List<NamespaceBundle> childBundles,
                                                 List<Long> boundaries,
-                                                String serviceUnit,
-                                                ServiceUnitStateData data,
+                                                ServiceUnitStateData parentData,
                                                 AtomicInteger counter,
                                                 long startTime,
                                                 CompletableFuture<Void> completionFuture) {
-        CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
+        ownChildBundles(childBundles, parentData)
+                .thenCompose(__ -> getSplitNamespaceBundles(
+                        namespaceService, bundleFactory, algorithm, parentBundle, childBundles, boundaries))
+                .thenCompose(namespaceBundles -> updateSplitNamespaceBundlesAsync(
+                        namespaceService, bundleFactory, parentBundle, namespaceBundles))
+                .thenAccept(__ -> // Update bundled_topic cache for load-report-generation
+                        pulsar.getBrokerService().refreshTopicToStatsMaps(parentBundle))
+                .thenAccept(__ -> pubAsync(parentBundle.toString(), new ServiceUnitStateData(
+                                Deleted, null, parentData.sourceBroker(), getNextVersionId(parentData))))
+                .thenAccept(__ -> {
+                    double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
+                    log.info("Successfully split {} parent namespace-bundle to {} in {} ms",
+                            parentBundle, childBundles, splitBundleTime);
+                    completionFuture.complete(null);
+                })
+                .exceptionally(ex -> {
+                    // Retry several times on BadVersion
+                    Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+                    if ((throwable instanceof MetadataStoreException.BadVersionException)
+                            && (counter.incrementAndGet() < NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT)) {
+                        log.warn("Failed to update bundle range in metadata store. Retrying {} th / {} limit",
+                                counter.get(), NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, ex);
+                        pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(
+                                namespaceService, bundleFactory, algorithm, parentBundle, childBundles,
+                                        boundaries, parentData, counter, startTime, completionFuture),
+                                100, MILLISECONDS);
+                    } else {
+                        // Retry enough, or meet other exception
+                        String msg = format("Failed to split bundle %s, Retried %d th / %d limit, reason %s",
+                                parentBundle.toString(), counter.get(),
+                                NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, throwable.getMessage());
+                        log.warn(msg, throwable);
+                        completionFuture.completeExceptionally(
+                                new BrokerServiceException.ServiceUnitNotReadyException(msg));
+                    }
+                    return null;
+                });
+    }
 
-        namespaceService.getSplitBoundary(bundle, algorithm, boundaries)
-                .thenAccept(splitBundlesPair -> {
-            // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
-            if (splitBundlesPair == null) {
-                String msg = format("Bundle %s not found under namespace", serviceUnit);
-                updateFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
-                return;
-            }
-            ServiceUnitStateData next = new ServiceUnitStateData(Owned, data.sourceBroker(), VERSION_ID_INIT);
-            NamespaceBundles targetNsBundle = splitBundlesPair.getLeft();
-            List<NamespaceBundle> splitBundles = Collections.unmodifiableList(splitBundlesPair.getRight());
-            List<NamespaceBundle> successPublishedBundles =
-                    Collections.synchronizedList(new ArrayList<>(splitBundles.size()));
-            List<CompletableFuture<Void>> futures = new ArrayList<>(splitBundles.size());
-            for (NamespaceBundle sBundle : splitBundles) {
-                futures.add(pubAsync(sBundle.toString(), next).thenAccept(__ -> successPublishedBundles.add(sBundle)));
-            }
-            NamespaceName nsname = bundle.getNamespaceObject();
-            FutureUtil.waitForAll(futures)
-                    .thenCompose(__ -> namespaceService.updateNamespaceBundles(nsname, targetNsBundle))
-                    .thenCompose(__ -> namespaceService.updateNamespaceBundlesForPolicies(nsname, targetNsBundle))
-                    .thenRun(() -> {
-                        bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
-                        updateFuture.complete(splitBundles);
-                    }).exceptionally(e -> {
-                        // Clean the new bundle when has exception.
-                        List<CompletableFuture<Void>> futureList = new ArrayList<>();
-                        for (NamespaceBundle sBundle : successPublishedBundles) {
-                            futureList.add(tombstoneAsync(sBundle.toString()).thenAccept(__ -> {}));
-                        }
-                        FutureUtil.waitForAll(futureList)
-                                .whenComplete((__, ex) -> {
-                                    if (ex != null) {
-                                        log.warn("Clean new bundles failed,", ex);
-                                    }
-                                    updateFuture.completeExceptionally(e);
-                                });
-                        return null;
-                    });
-        }).exceptionally(e -> {
-            updateFuture.completeExceptionally(e);
-            return null;
-        });
-
-        updateFuture.thenAccept(r -> {
-            // Delete the old bundle
-            pubAsync(serviceUnit, new ServiceUnitStateData(
-                    Deleted, null, data.sourceBroker(), getNextVersionId(data)))
-                    .thenRun(() -> {
-                // Update bundled_topic cache for load-report-generation
-                pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
-                // TODO: Update the load data immediately if needed.
-                completionFuture.complete(null);
-                double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
-                log.info("Successfully split {} parent namespace-bundle to {} in {} ms", serviceUnit, r,
-                        splitBundleTime);
-            }).exceptionally(e -> {
-                double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
-                String msg = format("Failed to free bundle %s in %s ms, under namespace [%s] with error %s",
-                        bundle.getNamespaceObject().toString(), splitBundleTime, bundle, e.getMessage());
-                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
-                return null;
-            });
-        }).exceptionally(ex -> {
-            // Retry several times on BadVersion
-            Throwable throwable = FutureUtil.unwrapCompletionException(ex);
-            if ((throwable instanceof MetadataStoreException.BadVersionException)
-                    && (counter.incrementAndGet() < NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT)) {
-                log.warn("Failed to update bundle range in metadata store. Retrying {} th / {} limit",
-                        counter.get(), NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, ex);
-                pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(namespaceService, bundleFactory,
-                        algorithm, bundle, boundaries, serviceUnit, data, counter, startTime, completionFuture),
-                        100, MILLISECONDS);
-            } else if (throwable instanceof IllegalArgumentException) {
-                completionFuture.completeExceptionally(throwable);
+    private CompletableFuture<Void> ownChildBundles(List<NamespaceBundle> childBundles,
+                                                    ServiceUnitStateData parentData) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>(childBundles.size());
+        var debug = debug();
+        for (var childBundle : childBundles) {
+            var childBundleStr = childBundle.toString();
+            var childData = tableview.get(childBundleStr);
+            if (childData != null) {
+                if (debug) {
+                    log.info("Already owned child bundle:{}", childBundleStr);
+                }
             } else {
-                // Retry enough, or meet other exception
-                String msg = format("Bundle: %s not success update nsBundles, counter %d, reason %s",
-                        bundle.toString(), counter.get(), throwable.getMessage());
-                completionFuture.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(msg));
+                childData = new ServiceUnitStateData(Owned, parentData.sourceBroker(),
+                        VERSION_ID_INIT);
+                futures.add(pubAsync(childBundleStr, childData).thenApply(__ -> null));
             }
-            return null;
-        });
+        }
+
+        if (!futures.isEmpty()) {
+            return FutureUtil.waitForAll(futures);
+        } else {
+            return CompletableFuture.completedFuture(null);
+        }
+    }
+
+    private CompletableFuture<NamespaceBundles> getSplitNamespaceBundles(NamespaceService namespaceService,
+                                                                         NamespaceBundleFactory bundleFactory,
+                                                                         NamespaceBundleSplitAlgorithm algorithm,
+                                                                         NamespaceBundle parentBundle,
+                                                                         List<NamespaceBundle> childBundles,
+                                                                         List<Long> boundaries) {
+        CompletableFuture future = new CompletableFuture();
+        final var debug = debug();
+        var targetNsBundle = bundleFactory.getBundles(parentBundle.getNamespaceObject());
+        boolean found = false;
+        try {
+            targetNsBundle.validateBundle(parentBundle);
+        } catch (IllegalArgumentException e) {
+            if (debug) {
+                log.info("Namespace bundles do not contain the parent bundle:{}",
+                        parentBundle);
+            }
+            for (var childBundle : childBundles) {
+                try {
+                    targetNsBundle.validateBundle(childBundle);
+                    if (debug) {
+                        log.info("Namespace bundles contain the child bundle:{}",
+                                childBundle);
+                    }
+                } catch (Exception ex) {
+                    future.completeExceptionally(
+                            new BrokerServiceException.ServiceUnitNotReadyException(
+                                    "Namespace bundles do not contain the child bundle:" + childBundle, e));
+                    return future;
+                }
+            }
+            found = true;
+        } catch (Exception e) {
+            future.completeExceptionally(
+                    new BrokerServiceException.ServiceUnitNotReadyException(
+                            "Failed to validate the parent bundle in the namespace bundles.", e));
+            return future;
+        }
+        if (found) {
+            future.complete(targetNsBundle);
+            return future;
+        } else {
+            return namespaceService.getSplitBoundary(parentBundle, algorithm, boundaries)
+                    .thenApply(splitBundlesPair -> splitBundlesPair.getLeft());
+        }
+    }
+
+    private CompletableFuture<Void> updateSplitNamespaceBundlesAsync(
+            NamespaceService namespaceService,
+            NamespaceBundleFactory bundleFactory,
+            NamespaceBundle parentBundle,
+            NamespaceBundles splitNamespaceBundles) {
+        var namespaceName = parentBundle.getNamespaceObject();
+        return namespaceService.updateNamespaceBundles(
+                        namespaceName, splitNamespaceBundles)
+                .thenCompose(__ -> namespaceService.updateNamespaceBundlesForPolicies(
+                        namespaceName, splitNamespaceBundles))
+                .thenAccept(__ -> {
+                    bundleFactory.invalidateBundleCache(parentBundle.getNamespaceObject());
+                    if (debug()) {
+                        log.info("Successfully updated split namespace bundles and namespace bundle cache.");
+                    }
+                });
     }
 
     public void handleMetadataSessionEvent(SessionEvent e) {
@@ -1053,11 +1102,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 broker, delayInSecs, cleanupJobs.size());
     }
 
+
+    private ServiceUnitStateData getOverrideInactiveBrokerStateData(ServiceUnitStateData orphanData,
+                                                                    String selectedBroker) {
+        if (orphanData.state() == Splitting) {
+            return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
+                    Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
+                    true, getNextVersionId(orphanData));
+        } else {
+            return new ServiceUnitStateData(Owned, selectedBroker, true, getNextVersionId(orphanData));
+        }
+    }
+
     private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData) {
+
         Optional<String> selectedBroker = selectBroker(serviceUnit);
         if (selectedBroker.isPresent()) {
-            var override =
-                    new ServiceUnitStateData(Owned, selectedBroker.get(), true, getNextVersionId(orphanData));
+            var override = getOverrideInactiveBrokerStateData(orphanData, selectedBroker.get());
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
             publishOverrideEventAsync(serviceUnit, orphanData, override)
@@ -1157,7 +1218,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             case Assigning: {
                 return getRollForwardStateData(serviceUnit, nextVersionId);
             }
-            case Splitting, Releasing: {
+            case Splitting: {
+                return Optional.of(new ServiceUnitStateData(Splitting,
+                        orphanData.dstBroker(), orphanData.sourceBroker(),
+                        Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
+                        true, nextVersionId));
+            }
+            case Releasing: {
                 if (availableBrokers.contains(orphanData.sourceBroker())) {
                     // rollback to the src
                     return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true, nextVersionId));
@@ -1219,7 +1286,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     inactiveBrokers.add(dstBroker);
                 } else if (isInFlightState(state)
                         && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
-                    log.warn("Found orphan serviceUnit:{}, stateData:{}", serviceUnit, stateData);
                     orphanServiceUnits.put(serviceUnit, stateData);
                 }
             } else if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
@@ -1249,6 +1315,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 var overrideData = getOverrideInFlightStateData(
                         orphanServiceUnit, orphanData, activeBrokers);
                 if (overrideData.isPresent()) {
+                    log.info("Overriding in-flight state ownership serviceUnit:{} "
+                                    + "from orphanData:{} to overrideData:{}",
+                            orphanServiceUnit, orphanData, overrideData);
                     publishOverrideEventAsync(orphanServiceUnit, orphanData, overrideData.get())
                             .whenComplete((__, e) -> {
                                 if (e != null) {

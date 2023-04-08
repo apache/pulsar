@@ -2609,7 +2609,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "minimum value = 30 secs"
                     + "(only used in load balancer extension logics)"
     )
-    private long loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds = 604800;
+    private long loadBalancerServiceUnitStateTombstoneDelayTimeInSeconds = 3600;
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
