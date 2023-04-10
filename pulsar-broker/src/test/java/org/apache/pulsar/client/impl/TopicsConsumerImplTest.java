@@ -78,7 +78,6 @@ import java.util.stream.IntStream;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -1137,7 +1136,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
 
-        assertThrows(PulsarClientException.class, consumer::getLastMessageId);
         List<TopicMessageId> msgIds = consumer.getLastMessageIds();
         assertEquals(msgIds.size(), 6);
         assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);
@@ -1158,7 +1156,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
 
-        assertThrows(PulsarClientException.class, consumer::getLastMessageId);
         msgIds = consumer.getLastMessageIds();
         assertEquals(msgIds.size(), 6);
         assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);

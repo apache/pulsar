@@ -537,19 +537,20 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     CompletableFuture<Void> seekAsync(long timestamp);
 
     /**
-     * Get the last message id of the topic subscribed.
+     * Get the last message id available for consume.
      *
-     * @return the last message id of the topic subscribed
-     * @throws PulsarClientException if multiple topics or partitioned topics are subscribed or failed because of a
-     *   network issue
-     * NOTE: Use {@link Consumer#getLastMessageIds()} instead.
+     * @return the last message id.
+     * @apiNote If the consumer is a multi-topics consumer, the returned value cannot be used anywhere.
+     * @deprecated Use {@link Consumer#getLastMessageIds()} instead.
      */
     @Deprecated
     MessageId getLastMessageId() throws PulsarClientException;
 
     /**
-     * The asynchronous version of {@link Consumer#getLastMessageId()}.
-     * NOTE: Use {@link Consumer#getLastMessageIdsAsync()} instead.
+     * Get the last message id available for consume.
+     *
+     * @return a future that can be used to track the completion of the operation.
+     * @deprecated Use {@link Consumer#getLastMessageIdsAsync()}} instead.
      */
     @Deprecated
     CompletableFuture<MessageId> getLastMessageIdAsync();

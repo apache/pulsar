@@ -598,6 +598,11 @@
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
     <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiMessageIdImpl"/>
+        <Method name="getMap"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
         <Class name="org.apache.pulsar.client.impl.MultiTopicConsumerStatsRecorderImpl"/>
         <Method name="getPartitionStats"/>
         <Bug pattern="EI_EXPOSE_REP"/>
