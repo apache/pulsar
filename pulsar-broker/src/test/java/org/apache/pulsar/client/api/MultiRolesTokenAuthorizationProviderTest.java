@@ -157,7 +157,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
                 .allowedClusters(Sets.newHashSet(configClusterName)).build());
         String namespace = "superuser-admin-namespace";
         admin.namespaces().createNamespace(tenant + "/" + namespace);
-        admin.brokers().getAllDynamicConfigurations();
+        admin.brokers().getAllDynamicConfigurations("cluster");
         admin.tenants().getTenants();
         admin.topics().getList(tenant + "/" + namespace);
     }

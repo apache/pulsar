@@ -1435,15 +1435,15 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         int newTickMills = prevTickMills * 2;
         admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(newTickMills));
+                String.valueOf(newTickMills), "cluster");
         Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
 
         admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(0));
+                String.valueOf(0), "cluster");
         Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
 
         admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
-                String.valueOf(prevTickMills));
+                String.valueOf(prevTickMills), "cluster");
         Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
     }
 
@@ -1464,15 +1464,15 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         int newTickMills = prevTickMills * 2;
         admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(newTickMills));
+                String.valueOf(newTickMills), "cluster");
         Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
 
         admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(0));
+                String.valueOf(0), "cluster");
         Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
 
         admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
-                String.valueOf(prevTickMills));
+                String.valueOf(prevTickMills), "cluster");
         Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
     }
 
@@ -1562,7 +1562,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setForceDeleteNamespaceAllowed(false);
         setup();
         admin.brokers()
-                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
+                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true", "cluster");
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteNamespaceAllowed());
         });
@@ -1574,7 +1574,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setForceDeleteTenantAllowed(false);
         setup();
         admin.brokers()
-                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
+                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true", "cluster");
         Awaitility.await().untilAsserted(()->{
             assertTrue(conf.isForceDeleteTenantAllowed());
         });

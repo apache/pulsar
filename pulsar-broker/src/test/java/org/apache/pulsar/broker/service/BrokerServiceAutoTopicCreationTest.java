@@ -431,7 +431,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     public void testDynamicConfigurationTopicAutoCreationDisable() throws PulsarAdminException {
         // test disable AllowAutoTopicCreation
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
-        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "false");
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "false", "cluster");
         final String namespaceName = "prop/ns-abc";
         final String topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
@@ -447,8 +447,8 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
         // test enable AllowAutoTopicCreation, non-partitioned
-        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "true");
-        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreationType", "non-partitioned");
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreation", "true", "cluster");
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreationType", "non-partitioned", "cluster");
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .create();
@@ -469,10 +469,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
         // test enable AllowAutoTopicCreation, partitioned
-        admin.brokers().updateDynamicConfigurationAsync("allowAutoTopicCreation", "true");
-        admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "6");
-        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreationType", "partitioned");
-        admin.brokers().updateDynamicConfiguration("defaultNumPartitions", "4");
+        admin.brokers().updateDynamicConfigurationAsync("allowAutoTopicCreation", "true", "cluster");
+        admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "6", "cluster");
+        admin.brokers().updateDynamicConfiguration("allowAutoTopicCreationType", "partitioned", "cluster");
+        admin.brokers().updateDynamicConfiguration("defaultNumPartitions", "4", "cluster");
         Producer<byte[]> producer  = pulsarClient.newProducer().topic(topic).create();
         List<String> topics = admin.topics().getList(namespaceName);
         List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName);
@@ -495,8 +495,8 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         String topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
         // test enable AllowAutoTopicCreation, partitioned when maxNumPartitionsPerPartitionedTopic < defaultNumPartitions
-        admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "2");
-        admin.brokers().updateDynamicConfiguration("defaultNumPartitions", "6");
+        admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "2", "cluster");
+        admin.brokers().updateDynamicConfiguration("defaultNumPartitions", "6", "cluster");
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         List<String> topics = admin.topics().getList(namespaceName);
         List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(namespaceName);
@@ -510,10 +510,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
 
         // set maxNumPartitionsPerPartitionedTopic, make maxNumPartitionsPerPartitionedTopic < defaultNumPartitions
-        admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "1");
+        admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "1", "cluster");
         // Make sure the dynamic cache is updated to prevent the flaky test.
         Awaitility.await().untilAsserted(() ->
-                assertEquals(admin.brokers().getAllDynamicConfigurations()
+                assertEquals(admin.brokers().getAllDynamicConfigurations("cluster")
                         .get("maxNumPartitionsPerPartitionedTopic"), "1"));
         topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();

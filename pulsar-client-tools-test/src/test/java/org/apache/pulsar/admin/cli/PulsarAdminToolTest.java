@@ -142,17 +142,17 @@ public class PulsarAdminToolTest {
         brokers.run(split("namespaces use --url http://my-service.url:8080"));
         verify(mockBrokers).getOwnedNamespaces("use", "http://my-service.url:8080");
 
-        brokers.run(split("get-all-dynamic-config"));
-        verify(mockBrokers).getAllDynamicConfigurations();
+        brokers.run(split("get-all-dynamic-config --scope cluster"));
+        verify(mockBrokers).getAllDynamicConfigurations("cluster");
 
         brokers.run(split("list-dynamic-config"));
         verify(mockBrokers).getDynamicConfigurationNames();
 
-        brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
-        verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
+        brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100 --scope cluster"));
+        verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100", "cluster");
 
-        brokers.run(split("delete-dynamic-config --config brokerShutdownTimeoutMs"));
-        verify(mockBrokers).deleteDynamicConfiguration("brokerShutdownTimeoutMs");
+        brokers.run(split("delete-dynamic-config --config brokerShutdownTimeoutMs --scope cluster"));
+        verify(mockBrokers).deleteDynamicConfiguration("brokerShutdownTimeoutMs", "cluster");
 
         brokers.run(split("get-internal-config"));
         verify(mockBrokers).getInternalConfigurationData();

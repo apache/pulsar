@@ -554,7 +554,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     public void testUpdateDynamicLoadBalancerSheddingIntervalMinutes() throws Exception {
         // update configuration
-        admin.brokers().updateDynamicConfiguration("loadBalancerSheddingIntervalMinutes", "10");
+        admin.brokers().updateDynamicConfiguration("loadBalancerSheddingIntervalMinutes", "10", "cluster");
 
         // wait config to be updated
         Awaitility.await().until(() -> {
@@ -563,14 +563,107 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // verify value is updated
         assertEquals(conf.getLoadBalancerSheddingIntervalMinutes(), 10);
+
+
+        // update broker level dynamic configuration
+        admin.brokers().updateDynamicConfiguration("loadBalancerSheddingGracePeriodMinutes", "20",
+                pulsar.getLookupServiceAddress());
+
+        // wait config to be updated
+        Awaitility.await().until(() -> {
+            return conf.getLoadBalancerSheddingGracePeriodMinutes() == 20;
+        });
+
+        // verify value is updated
+        assertEquals(conf.getLoadBalancerSheddingGracePeriodMinutes(), 20);
+
+        //Get broker level props contains both `loadBalancerSheddingGracePeriodMinutes` and
+        // `loadBalancerSheddingGracePeriodMinutes`
+        Map<String, String> brokerLevelProps =
+                admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingGracePeriodMinutes"), "20");
+
+
+        //Get cluster level props only contains loadBalancerSheddingIntervalMinutes
+        Map<String, String> props = admin.brokers().getAllDynamicConfigurations("cluster");
+        assertEquals(props.get("loadBalancerSheddingIntervalMinutes"), "10");
+        assertFalse(props.containsKey("loadBalancerSheddingGracePeriodMinutes"));
+
+
+        //delete broker level dynamic configuration using cluster api
+        admin.brokers().deleteDynamicConfiguration("loadBalancerSheddingGracePeriodMinutes", "cluster");
+
+        //Get cluster level props only contains loadBalancerSheddingIntervalMinutes
+        props = admin.brokers().getAllDynamicConfigurations("cluster");
+        assertEquals(props.get("loadBalancerSheddingIntervalMinutes"), "10");
+        assertFalse(props.containsKey("loadBalancerSheddingGracePeriodMinutes"));
+
+        //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
+        // loadBalancerSheddingGracePeriodMinutes
+        brokerLevelProps =
+                admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingGracePeriodMinutes"), "20");
+
+
+        //delete broker level dynamic configuration
+        admin.brokers().deleteDynamicConfiguration("loadBalancerSheddingGracePeriodMinutes",
+                pulsar.getLookupServiceAddress());
+
+        //Get cluster level props only contains loadBalancerSheddingIntervalMinutes
+        props = admin.brokers().getAllDynamicConfigurations("cluster");
+        assertEquals(props.get("loadBalancerSheddingIntervalMinutes"), "10");
+        assertFalse(props.containsKey("loadBalancerSheddingGracePeriodMinutes"));
+
+
+        //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
+        // loadBalancerSheddingGracePeriodMinutes
+        brokerLevelProps =
+                admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
+        assertFalse(brokerLevelProps.containsKey("loadBalancerSheddingGracePeriodMinutes"));
+
+
+
+        // delete cluster level  loadBalancerSheddingIntervalMinutes using broker level api
+        admin.brokers().deleteDynamicConfiguration("loadBalancerSheddingIntervalMinutes", pulsar.getLookupServiceAddress());
+
+        //Get cluster level props only contains loadBalancerSheddingIntervalMinutes
+        props = admin.brokers().getAllDynamicConfigurations("cluster");
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
+
+
+        //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
+        // loadBalancerSheddingGracePeriodMinutes
+        brokerLevelProps =
+                admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
+        assertEquals(brokerLevelProps.get("loadBalancerSheddingIntervalMinutes"), "10");
+
+
+        //delete cluster level dynamic configuration
+        admin.brokers().deleteDynamicConfiguration("loadBalancerSheddingIntervalMinutes", "cluster");
+
+        //Get cluster level props only contains loadBalancerSheddingIntervalMinutes
+        props = admin.brokers().getAllDynamicConfigurations("cluster");
+        assertFalse(props.containsKey("loadBalancerSheddingIntervalMinutes"));
+        assertFalse(props.containsKey("loadBalancerSheddingGracePeriodMinutes"));
+
+
+        //Get broker level props contains both loadBalancerSheddingGracePeriodMinutes and
+        // loadBalancerSheddingGracePeriodMinutes
+        brokerLevelProps =
+                admin.brokers().getAllDynamicConfigurations(pulsar.getLookupServiceAddress());
+        assertFalse(brokerLevelProps.containsKey("loadBalancerSheddingIntervalMinutes"));
+        assertFalse(brokerLevelProps.containsKey("loadBalancerSheddingGracePeriodMinutes"));
     }
 
     @Test
     public void testUpdateDynamicCacheConfigurationWithZkWatch() throws Exception {
         // update configuration
-        admin.brokers().updateDynamicConfiguration("managedLedgerCacheSizeMB", "1");
-        admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionWatermark", "0.8");
-        admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionTimeThresholdMillis", "2000");
+        admin.brokers().updateDynamicConfiguration("managedLedgerCacheSizeMB", "1", "cluster");
+        admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionWatermark", "0.8", "cluster");
+        admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionTimeThresholdMillis", "2000", "cluster");
 
         // wait config to be updated
         Awaitility.await().until(() -> {
@@ -613,7 +706,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // (1) try to update dynamic field
         final long shutdownTime = 10;
         // update configuration
-        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue) {
@@ -633,14 +726,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (2) try to update non-dynamic field
         try {
-            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234");
+            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234", "cluster");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
 
         // (3) try to update non-existent field
         try {
-            admin.brokers().updateDynamicConfiguration("test", Long.toString(shutdownTime));
+            admin.brokers().updateDynamicConfiguration("test", Long.toString(shutdownTime), "cluster");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
@@ -649,20 +742,20 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String user1 = "test/test%&$*/^";
         String user2 = "user2/password";
         final String configValue = user1 + "," + user2;
-        admin.brokers().updateDynamicConfiguration("superUserRoles", configValue);
-        String storedValue = admin.brokers().getAllDynamicConfigurations().get("superUserRoles");
+        admin.brokers().updateDynamicConfiguration("superUserRoles", configValue, "cluster");
+        String storedValue = admin.brokers().getAllDynamicConfigurations("cluster").get("superUserRoles");
         assertEquals(configValue, storedValue);
         retryStrategically((test) -> pulsar.getConfiguration().getSuperUserRoles().size() == 2, 5, 200);
         assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user1));
         assertTrue(pulsar.getConfiguration().getSuperUserRoles().contains(user2));
 
 
-        admin.brokers().updateDynamicConfiguration("loadManagerClassName", SimpleLoadManagerImpl.class.getName());
+        admin.brokers().updateDynamicConfiguration("loadManagerClassName", SimpleLoadManagerImpl.class.getName(), "cluster");
         retryStrategically((test) -> pulsar.getConfiguration().getLoadManagerClassName()
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
         assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
-        admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
-        assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
+        admin.brokers().deleteDynamicConfiguration("loadManagerClassName", "cluster");
+        assertFalse(admin.brokers().getAllDynamicConfigurations("cluster").containsKey("loadManagerClassName"));
     }
 
     /**
@@ -719,7 +812,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final long shutdownTime = 10;
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(initValue);
         // update configuration
-        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
+        admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime), "cluster");
         // verify value is updated
         Awaitility.waitAtMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
@@ -739,13 +832,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String configName = "brokerShutdownTimeoutMs";
         final long shutdownTime = 10;
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(30000);
-        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations();
+        Map<String, String> configs = admin.brokers().getAllDynamicConfigurations("cluster");
         assertTrue(configs.isEmpty());
         assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
         // update configuration
-        admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime));
+        admin.brokers().updateDynamicConfiguration(configName, Long.toString(shutdownTime), "cluster");
         // Now, znode is created: updateConfigurationAndRegisterListeners and check if configuration updated
-        assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations().get(configName)), shutdownTime);
+        assertEquals(Long.parseLong(admin.brokers().getAllDynamicConfigurations("cluster").get(configName)), shutdownTime);
     }
 
     @Test

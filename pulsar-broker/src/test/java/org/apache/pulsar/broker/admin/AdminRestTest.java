@@ -67,7 +67,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
         Response response1 = target.request(MediaType.APPLICATION_JSON_TYPE).buildPost(Entity.json(data)).invoke();
         Assert.assertTrue(response1.getStatus() / 200 == 1);
         // Enabled feature, bad request response.
-        admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "true");
+        admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "true", "cluster");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> !pulsar.getWebService().getSharedUnknownPropertyHandler().isSkipUnknownProperty()
         );
@@ -78,7 +78,7 @@ public class AdminRestTest extends MockedPulsarServiceBaseTest {
                 + " one of these: [retentionSizeInMB, retentionTimeInMinutes]");
         Assert.assertEquals(response2.getStatus(), 400);
         // Disabled feature, response success.
-        admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "false");
+        admin.brokers().updateDynamicConfiguration("httpRequestsFailOnUnknownPropertiesEnabled", "false", "cluster");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(
                 () -> pulsar.getWebService().getSharedUnknownPropertyHandler().isSkipUnknownProperty()
         );

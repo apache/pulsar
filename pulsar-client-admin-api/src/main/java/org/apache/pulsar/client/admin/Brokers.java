@@ -190,9 +190,10 @@ public interface Brokers {
      *
      * @param configName
      * @param configValue
+     * @param scope
      * @throws PulsarAdminException
      */
-    void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException;
+    void updateDynamicConfiguration(String configName, String configValue, String scope) throws PulsarAdminException;
 
     /**
      * Update a dynamic configuration value into ZooKeeper asynchronously.
@@ -203,8 +204,9 @@ public interface Brokers {
      *
      * @param configName
      * @param configValue
+     * @param scope
      */
-    CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue);
+    CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue, String scope);
 
     /**
      * It deletes dynamic configuration value into ZooKeeper.
@@ -212,10 +214,11 @@ public interface Brokers {
      * It will not impact current value in broker but next time when
      * broker restarts, it applies value from configuration file only.
      *
-     * @param configName
+     * @param configNameString
+     * @param scope
      * @throws PulsarAdminException
      */
-    void deleteDynamicConfiguration(String configName) throws PulsarAdminException;
+    void deleteDynamicConfiguration(String configNameString, String scope) throws PulsarAdminException;
 
     /**
      * It deletes dynamic configuration value into ZooKeeper asynchronously.
@@ -224,8 +227,9 @@ public interface Brokers {
      * broker restarts, it applies value from configuration file only.
      *
      * @param configName
+     * @param scope
      */
-    CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName);
+    CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName, String scope);
 
     /**
      * Get list of updatable configuration name.
@@ -263,14 +267,14 @@ public interface Brokers {
      * @return
      * @throws PulsarAdminException
      */
-    Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException;
+    Map<String, String> getAllDynamicConfigurations(String scope) throws PulsarAdminException;
 
     /**
      * Get values of all overridden dynamic-configs asynchronously.
      *
      * @return
      */
-    CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync();
+    CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync(String scope);
 
     /**
      * Get the internal configuration data.

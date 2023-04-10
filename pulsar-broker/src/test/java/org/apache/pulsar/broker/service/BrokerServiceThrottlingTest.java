@@ -75,7 +75,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testThrottlingLookupRequestSemaphore() throws Exception {
         BrokerService service = pulsar.getBrokerService();
         assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
-        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(0));
+        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(0),
+                "cluster");
         Thread.sleep(1000);
         assertEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
     }
@@ -101,7 +102,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         consumer.close();
 
         int newPermits = 0;
-        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(newPermits));
+        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(newPermits),
+                "cluster");
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getMaxConcurrentLookupRequest() != newPermits) {
@@ -141,7 +143,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 .ioThreads(20).connectionsPerBroker(20).build();
 
         int newPermits = 1;
-        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(newPermits));
+        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", Integer.toString(newPermits),
+                "cluster");
         // wait config to be updated
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getMaxConcurrentLookupRequest() != newPermits) {
@@ -277,7 +280,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         }
         latch.await();
 
-        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", "1");
+        admin.brokers().updateDynamicConfiguration("maxConcurrentLookupRequest", "1",
+                "cluster");
         admin.topics().unload(topicName);
 
         // wait strategically for all consumers to reconnect

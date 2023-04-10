@@ -88,36 +88,38 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
-    public void updateDynamicConfiguration(String configName, String configValue) throws PulsarAdminException {
-        sync(() -> updateDynamicConfigurationAsync(configName, configValue));
+    public void updateDynamicConfiguration(String configName, String configValue, String scope)
+            throws PulsarAdminException {
+        sync(() -> updateDynamicConfigurationAsync(configName, configValue, scope));
     }
 
     @Override
-    public CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue) {
+    public CompletableFuture<Void> updateDynamicConfigurationAsync(String configName,
+                                                                   String configValue, String scope) {
         String value = Codec.encode(configValue);
-        WebTarget path = adminBrokers.path("configuration").path(configName).path(value);
+        WebTarget path = adminBrokers.path("configuration").path(configName).path(value).path(scope);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void deleteDynamicConfiguration(String configName) throws PulsarAdminException {
-        sync(() -> deleteDynamicConfigurationAsync(configName));
+    public void deleteDynamicConfiguration(String configName, String scope) throws PulsarAdminException {
+        sync(() -> deleteDynamicConfigurationAsync(configName, scope));
     }
 
     @Override
-    public CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName) {
-        WebTarget path = adminBrokers.path("configuration").path(configName);
+    public CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName, String scope) {
+        WebTarget path = adminBrokers.path("configuration").path(configName).path(scope);
         return asyncDeleteRequest(path);
     }
 
     @Override
-    public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
-        return sync(this::getAllDynamicConfigurationsAsync);
+    public Map<String, String> getAllDynamicConfigurations(String scope) throws PulsarAdminException {
+        return sync(() -> getAllDynamicConfigurationsAsync(scope));
     }
 
     @Override
-    public CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync() {
-        WebTarget path = adminBrokers.path("configuration").path("values");
+    public CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync(String scope) {
+        WebTarget path = adminBrokers.path("configuration").path("values").path(scope);
         return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 

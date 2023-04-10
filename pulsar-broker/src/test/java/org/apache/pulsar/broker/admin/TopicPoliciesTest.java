@@ -2595,7 +2595,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .subscribe().close();
 
         //update broker level dynamic update config
-        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Shared");
+        admin.brokers().updateDynamicConfiguration("subscriptionTypesEnabled", "Shared", "cluster");
         Awaitility.await().untilAsserted(()->{
             assertTrue(pulsar.getConfiguration().getSubscriptionTypesEnabled().contains("Shared"));
         });

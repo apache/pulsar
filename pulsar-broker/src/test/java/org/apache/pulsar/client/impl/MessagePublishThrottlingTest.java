@@ -221,7 +221,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         admin.brokers().
             updateDynamicConfiguration(
                 "brokerPublisherThrottlingMaxMessageRate",
-                Integer.toString(messageRate));
+                Integer.toString(messageRate), "cluster");
 
         retryStrategically(
             (test) ->
@@ -251,7 +251,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // disable throttling
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(0));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxMessageRate", Integer.toString(0), "cluster");
         retryStrategically((test) ->
                 topic.getBrokerPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
             5,
@@ -298,7 +298,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // enable throttling
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(byteRate));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(byteRate), "cluster");
 
         retryStrategically(
             (test) ->
@@ -330,7 +330,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // disable throttling
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(0));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(0), "cluster");
         retryStrategically((test) ->
                 topic.getBrokerPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
             5,
@@ -396,7 +396,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
         });
 
         admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate",
-                Long.toString(brokerByteRate));
+                Long.toString(brokerByteRate), "cluster");
         Awaitility.await().untilAsserted(() -> {
             assertNotSame(topic.getBrokerPublishRateLimiter(), PublishRateLimiter.DISABLED_RATE_LIMITER);
         });
@@ -504,7 +504,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
 
         // disable broker throttling, expected no throttling.
         admin.brokers()
-            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(0));
+            .updateDynamicConfiguration("brokerPublisherThrottlingMaxByteRate", Long.toString(0), "cluster");
         retryStrategically((test) ->
                 topic.getBrokerPublishRateLimiter().equals(PublishRateLimiter.DISABLED_RATE_LIMITER),
             5,

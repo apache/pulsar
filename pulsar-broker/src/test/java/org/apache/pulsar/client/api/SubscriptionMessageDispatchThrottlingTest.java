@@ -241,7 +241,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate, "cluster");
 
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -301,7 +301,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer.close();
         producer.close();
 
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes), "cluster");
 
         admin.topics().delete(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
@@ -419,7 +419,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         admin.namespaces().setSubscriptionDispatchRate(namespace, subscriptionDispatchRate);
         admin.namespaces().setDispatchRate(namespace, topicDispatchRate);
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + brokerRate, "cluster");
 
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
@@ -482,7 +482,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         consumer.close();
         producer.close();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes), "cluster");
         admin.topics().delete(topicName, true);
         admin.namespaces().deleteNamespace(namespace);
     }
@@ -537,7 +537,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         long initBytes = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInByte();
         final int byteRate = 1000;
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate);
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", "" + byteRate, "cluster");
         admin.namespaces().createNamespace(namespace1, Sets.newHashSet("test"));
         admin.namespaces().createNamespace(namespace2, Sets.newHashSet("test"));
 
@@ -595,7 +595,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer2.close();
         producer1.close();
         producer2.close();
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRateInByte", Long.toString(initBytes), "cluster");
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -705,7 +705,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
-            Integer.toString(messageRate));
+            Integer.toString(messageRate), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg() == initValue) {
@@ -745,7 +745,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         consumer.close();
         producer.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
-                Integer.toString(initValue));
+                Integer.toString(initValue), "cluster");
         conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(false);
         log.info("-- Exiting {} test --", methodName);
     }
@@ -780,7 +780,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
         // (1) Update message-dispatch-rate limit
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
-            Integer.toString(clusterMessageRate));
+            Integer.toString(clusterMessageRate), "cluster");
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
             if (pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg() == initValue) {
@@ -863,7 +863,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         producer.close();
         producer2.close();
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
-                Integer.toString(initValue));
+                Integer.toString(initValue), "cluster");
         log.info("-- Exiting {} test --", methodName);
     }
 

@@ -188,15 +188,15 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         assertFalse(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
 
         //set broker-level policy, which should take effect
-        admin1.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerReplicatorInMsg", "10");
-        admin1.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerReplicatorInByte", "20");
+        admin1.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerReplicatorInMsg", "10", "cluster");
+        admin1.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerReplicatorInByte", "20", "cluster");
         Awaitility.await().untilAsserted(() -> {
             assertTrue(admin1.brokers()
-                .getAllDynamicConfigurations().containsKey("dispatchThrottlingRatePerReplicatorInByte"));
+                .getAllDynamicConfigurations("cluster").containsKey("dispatchThrottlingRatePerReplicatorInByte"));
             assertEquals(admin1.brokers()
-                .getAllDynamicConfigurations().get("dispatchThrottlingRatePerReplicatorInMsg"), "10");
+                .getAllDynamicConfigurations("cluster").get("dispatchThrottlingRatePerReplicatorInMsg"), "10");
             assertEquals(admin1.brokers()
-                .getAllDynamicConfigurations().get("dispatchThrottlingRatePerReplicatorInByte"), "20");
+                .getAllDynamicConfigurations("cluster").get("dispatchThrottlingRatePerReplicatorInByte"), "20");
         });
 
         assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent());

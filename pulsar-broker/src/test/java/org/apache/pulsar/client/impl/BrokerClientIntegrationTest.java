@@ -630,7 +630,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // (1) try to update invalid loadManagerClass name
         try {
-            admin.brokers().updateDynamicConfiguration("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
+            admin.brokers().updateDynamicConfiguration("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager", "cluster");
             fail("it should have failed due to invalid argument");
         } catch (PulsarAdminException e) {
             // Ok: should have failed due to invalid config value
@@ -639,7 +639,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // (2) try to update with valid loadManagerClass name
         try {
             admin.brokers().updateDynamicConfiguration("loadManagerClassName",
-                    "org.apache.pulsar.broker.loadbalance.ModularLoadManager");
+                    "org.apache.pulsar.broker.loadbalance.ModularLoadManager", "cluster");
         } catch (PulsarAdminException e) {
             fail("it should have failed due to invalid argument", e);
         }
