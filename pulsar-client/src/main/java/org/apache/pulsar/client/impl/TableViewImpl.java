@@ -240,9 +240,13 @@ public class TableViewImpl<T> implements TableView<T> {
                                   handleMessage(msg);
                                   readAllExistingMessages(reader, future, startTime, messagesRead);
                                }).exceptionally(ex -> {
-                                   logException(
-                                           String.format("Reader %s was interrupted while reading existing messages",
-                                                   reader.getTopic()), ex);
+                                   if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                                       log.error("Reader {} was closed while reading existing messages.",
+                                               reader.getTopic(), ex);
+                                   } else {
+                                       log.warn("Reader {} was interrupted while reading existing messages. ",
+                                               reader.getTopic(), ex);
+                                   }
                                    future.completeExceptionally(ex);
                                    return null;
                                });
@@ -266,18 +270,15 @@ public class TableViewImpl<T> implements TableView<T> {
                     handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
-                    logException(
-                            String.format("Reader %s was interrupted while reading tail messages.",
-                                    reader.getTopic()), ex);
+                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
+                        log.error("Reader {} was closed while reading tail messages.",
+                                reader.getTopic(), ex);
+                    } else {
+                        log.warn("Reader {} was interrupted while reading tail messages. "
+                                        + "Retrying..", reader.getTopic(), ex);
+                        readTailMessages(reader);
+                    }
                     return null;
                 });
-    }
-
-    private void logException(String msg, Throwable ex) {
-        if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-            log.warn(msg, ex);
-        } else {
-            log.error(msg, ex);
-        }
     }
 }
