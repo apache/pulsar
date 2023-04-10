@@ -200,6 +200,54 @@ public class TransferShedderTest {
         return ctx;
     }
 
+    public LoadManagerContext setupContextLoadSkewedOverload(int clusterSize) {
+        var ctx = getContext();
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+
+        int i = 0;
+        for (; i < clusterSize-1; i++) {
+            int brokerLoad = 1;
+            topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
+                    300_000, 700_000));
+            brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad, "broker" + i));
+        }
+        int brokerLoad = 100;
+        topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
+                30_000_000, 70_000_000));
+        brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad, "broker" + i));
+
+        return ctx;
+    }
+
+    public LoadManagerContext setupContextLoadSkewedUnderload(int clusterSize) {
+        var ctx = getContext();
+
+        var brokerLoadDataStore = ctx.brokerLoadDataStore();
+        var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
+
+        int i = 0;
+        for (; i < clusterSize-2; i++) {
+            int brokerLoad = 98;
+            topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
+                    30_000_000, 70_000_000));
+            brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad, "broker" + i));
+        }
+
+        int brokerLoad = 99;
+        topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
+                30_000_000, 70_000_000));
+        brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad, "broker" + i));
+        i++;
+
+        brokerLoad = 1;
+        topBundlesLoadDataStore.pushAsync("broker" + i, getTopBundlesLoad("my-tenant/my-namespace" + i,
+                300_000, 700_000));
+        brokerLoadDataStore.pushAsync("broker" + i, getCpuLoad(ctx,  brokerLoad, "broker" + i));
+        return ctx;
+    }
+
     public BrokerLoadData getCpuLoad(LoadManagerContext ctx, int load, String broker) {
         var loadData = new BrokerLoadData();
         SystemResourceUsage usage1 = new SystemResourceUsage();
@@ -1174,6 +1222,36 @@ public class TransferShedderTest {
             assertTrue(stats.std() <= conf.getLoadBalancerBrokerLoadTargetStd()
                     || (!stats.hasTransferableBrokers()));
         }
+    }
+
+    @Test
+    public void testOverloadOutlier() {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = setupContextLoadSkewedOverload(100);
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        var expected = new HashSet<UnloadDecision>();
+        expected.add(new UnloadDecision(
+                new Unload("broker99", "my-tenant/my-namespace99/0x00000000_0x0FFFFFFF",
+                        Optional.of("broker52")), Success, Overloaded));
+        assertEquals(res, expected);
+        assertEquals(counter.getLoadAvg(), 0.019900000000000008);
+        assertEquals(counter.getLoadStd(), 0.09850375627355534);
+    }
+
+    @Test
+    public void testUnderloadOutlier() {
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(counter);
+        var ctx = setupContextLoadSkewedUnderload(100);
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        var expected = new HashSet<UnloadDecision>();
+        expected.add(new UnloadDecision(
+                new Unload("broker98", "my-tenant/my-namespace98/0x00000000_0x0FFFFFFF",
+                        Optional.of("broker99")), Success, Underloaded));
+        assertEquals(res, expected);
+        assertEquals(counter.getLoadAvg(), 0.9704000000000005);
+        assertEquals(counter.getLoadStd(), 0.09652895938523735);
     }
 
     @Test
