@@ -184,7 +184,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>363</trino.version>
+    <trino.version>368</trino.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
