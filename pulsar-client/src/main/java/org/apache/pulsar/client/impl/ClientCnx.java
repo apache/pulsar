@@ -194,6 +194,8 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     private long lastDisconnectedTimestamp;
 
+    private final String clientVersion;
+
     protected enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
@@ -252,6 +254,8 @@ public class ClientCnx extends PulsarHandler {
         this.state = State.None;
         this.protocolVersion = protocolVersion;
         this.idleState = new ClientCnxIdleState(this);
+        this.clientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion()
+                + (conf.getDescription() == null ? "" : ("-" + conf.getDescription()));
     }
 
     @Override
@@ -293,8 +297,7 @@ public class ClientCnx extends PulsarHandler {
         authenticationDataProvider = authentication.getAuthData(remoteHostName);
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, this.protocolVersion,
-                String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()), proxyToTargetBrokerAddress, null, null,
-                null);
+                clientVersion, proxyToTargetBrokerAddress, null, null, null);
     }
 
     @Override
@@ -411,7 +414,7 @@ public class ClientCnx extends PulsarHandler {
             ByteBuf request = Commands.newAuthResponse(authentication.getAuthMethodName(),
                     authData,
                     this.protocolVersion,
-                    String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
+                    clientVersion);
 
             if (log.isDebugEnabled()) {
                 log.debug("{} Mutual auth {}", ctx.channel(), authentication.getAuthMethodName());
