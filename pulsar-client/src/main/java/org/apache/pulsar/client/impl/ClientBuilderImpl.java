@@ -427,7 +427,7 @@ public class ClientBuilderImpl implements ClientBuilder {
      * @throws IllegalArgumentException if the length of description exceeds 64
      */
     public ClientBuilder description(String description) {
-        if (description.length() > 64) {
+        if (description != null && description.length() > 64) {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         conf.setDescription(description);
