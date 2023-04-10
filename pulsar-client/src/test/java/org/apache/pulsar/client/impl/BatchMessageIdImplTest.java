@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import java.io.IOException;
+import java.util.Collections;
 import org.testng.annotations.Test;
 
 public class BatchMessageIdImplTest {
@@ -65,6 +66,18 @@ public class BatchMessageIdImplTest {
         assertEquals(batchMsgId4, msgId);
 
         assertEquals(msgId, batchMsgId4);
+    }
+
+    @Test
+    public void notEqualsMultiTest() {
+        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0);
+        MessageIdImpl msgId = new MessageIdImpl(0, 0, 0);
+        MultiMessageIdImpl multiMsgId = new MultiMessageIdImpl(Collections.singletonMap("topic", msgId));
+
+        assertNotEquals(msgId, multiMsgId);
+        assertNotEquals(multiMsgId, msgId);
+        assertNotEquals(batchMsgId, multiMsgId);
+        assertNotEquals(multiMsgId, batchMsgId);
     }
 
     @Test

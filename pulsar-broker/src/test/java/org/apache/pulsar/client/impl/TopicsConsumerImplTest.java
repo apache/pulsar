@@ -1136,6 +1136,24 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
 
+        MessageId messageId = consumer.getLastMessageId();
+        assertTrue(messageId instanceof MultiMessageIdImpl);
+        MultiMessageIdImpl multiMessageId = (MultiMessageIdImpl) messageId;
+        Map<String, MessageId> map = multiMessageId.getMap();
+        assertEquals(map.size(), 6);
+        map.forEach((k, v) -> {
+            log.info("topic: {}, messageId:{} ", k, v.toString());
+            assertTrue(v instanceof MessageIdImpl);
+            MessageIdImpl messageId1 = (MessageIdImpl) v;
+            if (k.contains(topicName1)) {
+                assertEquals(messageId1.entryId,  totalMessages  - 1);
+            } else if (k.contains(topicName2)) {
+                assertEquals(messageId1.entryId,  totalMessages / 2  - 1);
+            } else {
+                assertEquals(messageId1.entryId,  totalMessages / 3  - 1);
+            }
+        });
+
         List<TopicMessageId> msgIds = consumer.getLastMessageIds();
         assertEquals(msgIds.size(), 6);
         assertEquals(msgIds.stream().map(TopicMessageId::getOwnerTopic).collect(Collectors.toSet()), topics);
@@ -1155,6 +1173,25 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             producer2.send((messagePredicate + "producer2-" + i).getBytes());
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
+
+
+        messageId = consumer.getLastMessageId();
+        assertTrue(messageId instanceof MultiMessageIdImpl);
+        MultiMessageIdImpl multiMessageId2 = (MultiMessageIdImpl) messageId;
+        Map<String, MessageId> map2 = multiMessageId2.getMap();
+        assertEquals(map2.size(), 6);
+        map2.forEach((k, v) -> {
+            log.info("topic: {}, messageId:{} ", k, v.toString());
+            assertTrue(v instanceof MessageIdImpl);
+            MessageIdImpl messageId1 = (MessageIdImpl) v;
+            if (k.contains(topicName1)) {
+                assertEquals(messageId1.entryId,  totalMessages * 2  - 1);
+            } else if (k.contains(topicName2)) {
+                assertEquals(messageId1.entryId,  totalMessages - 1);
+            } else {
+                assertEquals(messageId1.entryId,  totalMessages * 2 / 3  - 1);
+            }
+        });
 
         msgIds = consumer.getLastMessageIds();
         assertEquals(msgIds.size(), 6);
