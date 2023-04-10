@@ -664,7 +664,8 @@ public class TransferShedderTest {
         return new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols,
-                true, true, "3.0.0");
+                true, true,
+                conf.getLoadManagerClassName(), System.currentTimeMillis(), "3.0.0");
     }
 
     private void setIsolationPolicies(SimpleResourceAllocationPolicies policies,
