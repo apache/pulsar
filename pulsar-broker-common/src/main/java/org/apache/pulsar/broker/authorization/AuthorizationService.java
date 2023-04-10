@@ -738,6 +738,13 @@ public class AuthorizationService {
 
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
                                                                TopicOperation operation,
+                                                               AuthenticationParameters authParams) {
+        return allowTopicOperationAsync(topicName, operation, authParams.getOriginalPrincipal(),
+                authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
+    }
+
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation,
                                                                String originalRole,
                                                                String role,
                                                                AuthenticationDataSource authData) {

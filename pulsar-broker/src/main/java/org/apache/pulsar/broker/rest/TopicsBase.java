@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.rest;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.net.URI;
@@ -53,6 +54,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -80,6 +82,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -760,14 +763,24 @@ public class TopicsBase extends PersistentTopicsBase {
             if (!isClientAuthenticated(clientAppId())) {
                 throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
             }
+            AuthenticationParameters authParams = authParams();
+            boolean isAuthorized;
+            try {
+                isAuthorized = pulsar().getBrokerService().getAuthorizationService()
+                        .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, authParams)
+                        .get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+            } catch (InterruptedException e) {
+                log.warn("Time-out {} sec while checking authorization on {} ",
+                        config().getMetadataStoreOperationTimeoutSeconds(), topicName);
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Time-out while checking authorization");
+            } catch (Exception e) {
+                log.warn("Producer-client  with Role - {} {} failed to get permissions for topic - {}. {}",
+                        authParams.getClientRole(), authParams.getOriginalPrincipal(), topicName, e.getMessage());
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get permissions");
+            }
 
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .canProduce(topicName, originalPrincipal() == null ? clientAppId() : originalPrincipal(),
-                            clientAuthData());
             if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
-                                        + " with clientAppId [%s] and authdata %s", topicName.toString(),
-                        clientAppId(), clientAuthData()));
+                throw new RestException(Status.UNAUTHORIZED, "Unauthorized to produce to topic " + topicName);
             }
         }
     }
