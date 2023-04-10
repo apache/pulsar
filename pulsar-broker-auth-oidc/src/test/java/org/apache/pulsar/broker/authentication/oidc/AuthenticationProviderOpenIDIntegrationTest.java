@@ -40,6 +40,7 @@ import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -437,6 +438,49 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         assertTrue(state.isExpired());
     }
 
+    @Test
+    void ensureRoleClaimForNonSubClaimReturnsRole() throws Exception {
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        Properties props = new Properties();
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "test");
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setProperties(props);
+        provider.initialize(config);
+
+        // Build a JWT with a custom claim
+        HashMap<String, Object> claims = new HashMap();
+        claims.put("test", "my-role");
+        String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,
+                0L, 10000L, claims);
+        assertEquals(provider.authenticateAsync(new AuthenticationDataCommand(token)).get(), "my-role");
+    }
+
+    @Test
+    void ensureRoleClaimForNonSubClaimFailsWhenClaimIsMissing() throws Exception {
+        AuthenticationProviderOpenID provider = new AuthenticationProviderOpenID();
+        Properties props = new Properties();
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ROLE_CLAIM, "test");
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setProperties(props);
+        provider.initialize(config);
+
+        // Build a JWT without the "test" claim, which should cause the authentication to fail
+        String token = generateToken(validJwk, issuer, "not-my-role", "allowed-audience", 0L,
+                0L, 10000L);
+        try {
+            provider.authenticateAsync(new AuthenticationDataCommand(token)).get();
+            fail("Expected exception");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof AuthenticationException, "Found exception: " + e.getCause());
+        }
+    }
+
     // This test is somewhat counterintuitive. We allow the state object to change roles, but then we fail it
     // in the ServerCnx handling of the state object. As such, it is essential that the state object allow
     // the role to change.
@@ -462,6 +506,11 @@ public class AuthenticationProviderOpenIDIntegrationTest {
 
     private String generateToken(String kid, String issuer, String subject, String audience,
                                  Long iatOffset, Long nbfOffset, Long expOffset) {
+        return generateToken(kid, issuer, subject, audience, iatOffset, nbfOffset, expOffset, new HashMap<>());
+    }
+
+    private String generateToken(String kid, String issuer, String subject, String audience,
+                                 Long iatOffset, Long nbfOffset, Long expOffset, HashMap<String, Object> extraClaims) {
         long now = System.currentTimeMillis();
         DefaultJwtBuilder defaultJwtBuilder = new DefaultJwtBuilder();
         defaultJwtBuilder.setHeaderParam("kid", kid);
@@ -473,6 +522,7 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         defaultJwtBuilder.setIssuedAt(iatOffset != null ? new Date(now + iatOffset) : null);
         defaultJwtBuilder.setNotBefore(nbfOffset != null ? new Date(now + nbfOffset) : null);
         defaultJwtBuilder.setExpiration(expOffset != null ? new Date(now + expOffset) : null);
+        defaultJwtBuilder.addClaims(extraClaims);
         defaultJwtBuilder.signWith(privateKey);
         return defaultJwtBuilder.compact();
     }

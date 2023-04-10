@@ -36,6 +36,7 @@ import com.auth0.jwt.exceptions.SignatureVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import com.auth0.jwt.interfaces.Verification;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.util.Config;
 import io.netty.handler.ssl.SslContext;
@@ -115,7 +116,8 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
     private long acceptedTimeLeewaySeconds;
     private FallbackDiscoveryMode fallbackDiscoveryMode;
-    private String roleClaim;
+    private String roleClaim = ROLE_CLAIM_DEFAULT;
+    private boolean isRoleClaimNotSubject;
 
     static final String ALLOWED_TOKEN_ISSUERS = "openIDAllowedTokenIssuers";
     static final String ISSUER_TRUST_CERTS_FILE_PATH = "openIDTokenIssuerTrustCertsFilePath";
@@ -145,6 +147,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     public void initialize(ServiceConfiguration config) throws IOException {
         this.allowedAudiences = validateAllowedAudiences(getConfigValueAsSet(config, ALLOWED_AUDIENCES));
         this.roleClaim = getConfigValueAsString(config, ROLE_CLAIM, ROLE_CLAIM_DEFAULT);
+        this.isRoleClaimNotSubject = !ROLE_CLAIM_DEFAULT.equals(roleClaim);
         this.acceptedTimeLeewaySeconds = getConfigValueAsInt(config, ACCEPTED_TIME_LEEWAY_SECONDS,
                 ACCEPTED_TIME_LEEWAY_SECONDS_DEFAULT);
         boolean requireHttps = getConfigValueAsBoolean(config, REQUIRE_HTTPS, REQUIRE_HTTPS_DEFAULT);
@@ -406,14 +409,19 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
 
         // We verify issuer when retrieving the PublicKey, so it is not verified here.
         // The claim presence requirements are based on https://openid.net/specs/openid-connect-basic-1_0.html#IDToken
-        JWTVerifier verifier = JWT.require(alg)
+         Verification verifierBuilder = JWT.require(alg)
                 .acceptLeeway(acceptedTimeLeewaySeconds)
                 .withAnyOfAudience(allowedAudiences)
                 .withClaimPresence(RegisteredClaims.ISSUED_AT)
                 .withClaimPresence(RegisteredClaims.EXPIRES_AT)
                 .withClaimPresence(RegisteredClaims.NOT_BEFORE)
-                .withClaimPresence(RegisteredClaims.SUBJECT)
-                .build();
+                .withClaimPresence(RegisteredClaims.SUBJECT);
+
+        if (isRoleClaimNotSubject) {
+            verifierBuilder = verifierBuilder.withClaimPresence(roleClaim);
+        }
+
+        JWTVerifier verifier = verifierBuilder.build();
 
         try {
             return verifier.verify(jwt);
@@ -432,7 +440,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
         } catch (JWTDecodeException e) {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             throw new AuthenticationException("Error while decoding JWT: " + e.getMessage());
-        } catch (JWTVerificationException e) {
+        } catch (JWTVerificationException | IllegalArgumentException e) {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_VERIFYING_JWT);
             throw new AuthenticationException("JWT verification failed: " + e.getMessage());
         }
