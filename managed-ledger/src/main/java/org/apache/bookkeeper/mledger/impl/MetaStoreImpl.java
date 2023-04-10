@@ -308,6 +308,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         if (actEx instanceof MetadataStoreException.NotFoundException){
                             log.info("[{}] [{}] cursor delete done because it did not exist.", ledgerName, cursorName);
                             callback.operationComplete(null, null);
+                            return;
                         }
                         callback.operationFailed(getException(ex));
                     }));
