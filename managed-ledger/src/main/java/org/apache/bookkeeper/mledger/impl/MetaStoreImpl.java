@@ -309,7 +309,11 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                         callback.operationComplete(null, null);
                         return null;
                     }
-                    SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex)));
+                    try {
+                        callback.operationFailed(getException(ex));
+                    } catch (Exception ex2){
+                        log.error("Unexpected throwable caught when executing callback of async remove cursor", ex2);
+                    }
                     return null;
                 }, executor.chooseThread(ledgerName));
     }
