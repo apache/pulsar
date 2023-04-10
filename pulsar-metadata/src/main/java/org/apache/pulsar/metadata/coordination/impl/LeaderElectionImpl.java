@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.bookkeeper.common.util.SafeRunnable;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -89,7 +88,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.sequencer = FutureUtil.Sequencer.create();
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
-        updateCachedValueFuture = executor.scheduleWithFixedDelay(SafeRunnable.safeRun(this::getLeaderValue),
+        updateCachedValueFuture = executor.scheduleWithFixedDelay(this::getLeaderValue,
                 metadataCacheConfig.getRefreshAfterWriteMillis() / 2,
                 metadataCacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
     }

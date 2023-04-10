@@ -35,8 +35,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.bookkeeper.util.SafeRunnable;
 
 
 /**
@@ -44,7 +42,7 @@ import org.apache.bookkeeper.util.SafeRunnable;
  *
  */
 @Slf4j
-public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
+public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
@@ -212,7 +210,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
-    public void safeRun() {
+    public void run() {
         if (payloadProcessorHandle != null) {
             payloadProcessorHandle.release();
         }
@@ -328,11 +326,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         ManagedLedgerImpl finalMl = this.ml;
         finalMl.mbean.recordAddEntryError();
 
-        finalMl.getExecutor().execute(SafeRun.safeRun(() -> {
+        finalMl.getExecutor().execute(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
             finalMl.ledgerClosed(lh);
-        }));
+        });
     }
 
     void close() {

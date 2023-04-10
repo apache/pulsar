@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
@@ -407,7 +406,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     public void markDeletePositionMoveForward() {
         // Execute the notification in different thread to avoid a mutex chain here
         // from the delete operation that was completed
-        topic.getBrokerService().getTopicOrderedExecutor().execute(safeRun(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().execute(() -> {
             synchronized (PersistentStickyKeyDispatcherMultipleConsumers.this) {
                 if (recentlyJoinedConsumers != null && !recentlyJoinedConsumers.isEmpty()
                         && removeConsumersFromRecentJoinedConsumers()) {
@@ -416,7 +415,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     readMoreEntries();
                 }
             }
-        }));
+        });
     }
 
     private boolean removeConsumersFromRecentJoinedConsumers() {
