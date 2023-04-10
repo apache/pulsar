@@ -374,7 +374,7 @@ public class ProxyConnection extends PulsarHandler {
             // and we'll take care of just topics and
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = new LookupProxyHandler(service, this);
+            lookupProxyHandler = service.newLookupProxyHandler(this);
             final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
             writeAndFlush(msg);
         }

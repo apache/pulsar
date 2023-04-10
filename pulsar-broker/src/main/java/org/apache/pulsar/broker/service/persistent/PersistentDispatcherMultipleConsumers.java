@@ -75,6 +75,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,11 +154,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
             consumer.disconnect();
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
             if (havePendingRead || havePendingReplayRead) {
@@ -178,7 +179,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         if (isConsumersExceededOnSubscription()) {
             log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
-            throw new ConsumerBusyException("Subscription reached max consumers limit");
+            return FutureUtil.failedFuture(new ConsumerBusyException("Subscription reached max consumers limit"));
         }
 
         consumerList.add(consumer);
@@ -187,6 +188,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         }
         consumerSet.add(consumer);
+
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

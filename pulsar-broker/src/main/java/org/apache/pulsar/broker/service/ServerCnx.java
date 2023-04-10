@@ -164,6 +164,7 @@ import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
@@ -236,6 +237,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
 
+    private final long connectionLivenessCheckTimeoutMillis;
+
     // Number of bytes pending to be published from a single specific IO thread.
     private static final FastThreadLocal<MutableLong> pendingBytesPerThread = new FastThreadLocal<MutableLong>() {
         @Override
@@ -251,7 +254,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return Collections.newSetFromMap(new IdentityHashMap<>());
         }
     };
-
 
     enum State {
         Start, Connected, Failed, Connecting
@@ -271,6 +273,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.listenerName = listenerName;
         this.state = State.Start;
         ServiceConfiguration conf = pulsar.getConfiguration();
+
+        this.connectionLivenessCheckTimeoutMillis = conf.getConnectionLivenessCheckTimeoutMillis();
 
         // This maps are not heavily contended since most accesses are within the cnx thread
         this.producers = ConcurrentLongHashMap.<CompletableFuture<Producer>>newBuilder()
@@ -375,6 +379,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
         this.topicListService.inactivate();
         this.service.getPulsarStats().recordConnectionClose();
+
+        // complete possible pending connection check future
+        if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
+            connectionCheckInProgress.complete(false);
+        }
     }
 
     @Override
@@ -3322,6 +3331,43 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return inetAddress.getAddress().getHostAddress();
         } else {
             return null;
+        }
+    }
+
+    CompletableFuture<Boolean> connectionCheckInProgress;
+
+    @Override
+    public CompletableFuture<Boolean> checkConnectionLiveness() {
+        if (connectionLivenessCheckTimeoutMillis > 0) {
+            return NettyFutureUtil.toCompletableFuture(ctx.executor().submit(() -> {
+                if (connectionCheckInProgress != null) {
+                    return connectionCheckInProgress;
+                } else {
+                    final CompletableFuture<Boolean> finalConnectionCheckInProgress = new CompletableFuture<>();
+                    connectionCheckInProgress = finalConnectionCheckInProgress;
+                    ctx.executor().schedule(() -> {
+                        if (finalConnectionCheckInProgress == connectionCheckInProgress
+                                && !finalConnectionCheckInProgress.isDone()) {
+                            log.warn("[{}] Connection check timed out. Closing connection.", remoteAddress);
+                            ctx.close();
+                        }
+                    }, connectionLivenessCheckTimeoutMillis, TimeUnit.MILLISECONDS);
+                    sendPing();
+                    return finalConnectionCheckInProgress;
+                }
+            })).thenCompose(java.util.function.Function.identity());
+        } else {
+            // check is disabled
+            return CompletableFuture.completedFuture((Boolean) null);
+        }
+    }
+
+    @Override
+    protected void messageReceived() {
+        super.messageReceived();
+        if (connectionCheckInProgress != null && !connectionCheckInProgress.isDone()) {
+            connectionCheckInProgress.complete(true);
+            connectionCheckInProgress = null;
         }
     }
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 
 public interface TransportCnx {
@@ -78,4 +79,12 @@ public interface TransportCnx {
 
     String clientSourceAddress();
 
+    /***
+     * Check if the connection is still alive
+     * by actively sending a Ping message to the client.
+     *
+     * @return a completable future where the result is true if the connection is alive, false otherwise. The result
+     * is null if the connection liveness check is disabled.
+     */
+    CompletableFuture<Boolean> checkConnectionLiveness();
 }
