@@ -1201,7 +1201,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             if (msgId.getOwnerTopic().equals(topicName1)) {
                 assertEquals(numMessages, totalMessages * 2);
             } else if (msgId.getOwnerTopic().startsWith(topicName2)) {
-                assertEquals(numMessages, totalMessages / 2 * 2);
+                assertEquals(numMessages, totalMessages);
             } else {
                 assertEquals(numMessages, totalMessages / 3 * 2);
             }
