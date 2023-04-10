@@ -127,6 +127,7 @@ import org.apache.pulsar.client.impl.MessagesImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -143,6 +144,7 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
@@ -649,6 +651,17 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position2.getLedgerId(), messageId.getLedgerId());
         Assert.assertEquals(position2.getEntryId(), messageId.getEntryId());
         transaction.commit().get();
+        // open->committing after client finish commit(), need to wait for server committing->committed
+        Transaction finishTxn = transaction;
+        try {
+            Awaitility.await().until(() -> pulsarServiceList.get(0)
+                    .getTransactionMetadataStoreService().getTxnMeta(finishTxn.getTxnID()).get() == null);
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
+
         PositionImpl position3 = topicTransactionBuffer.getMaxReadPosition();
 
         Assert.assertEquals(position3.getLedgerId(), messageId2.getLedgerId());
@@ -1409,6 +1422,16 @@ public class TransactionTest extends TransactionTestBase {
         // abort the txn2
         txn2.abort().get();
 
+        Transaction finishTxn = txn2;
+        try {
+            Awaitility.await().until(() -> pulsarServiceList.get(0)
+                    .getTransactionMetadataStoreService().getTxnMeta(finishTxn.getTxnID()).get() == null);
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
+
         Transaction txn3 = pulsarClient.newTransaction()
                 .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
         // repeat ack the second message, can ack successful
@@ -1601,7 +1624,16 @@ public class TransactionTest extends TransactionTestBase {
         transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
                 .build().get();
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .endTransaction(transaction.getTxnID(), 0, false);
+                .endTransaction(transaction.getTxnID(), TxnAction.COMMIT_VALUE, false).get();
+        Transaction finishTxn = transaction;
+        try {
+            Awaitility.await().until(() -> pulsarServiceList.get(0)
+                    .getTransactionMetadataStoreService().getTxnMeta(finishTxn.getTxnID()).get() == null);
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
         transaction.commit();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);

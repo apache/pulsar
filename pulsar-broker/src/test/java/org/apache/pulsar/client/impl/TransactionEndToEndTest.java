@@ -78,6 +78,7 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -703,6 +704,43 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     }
 
     @Test
+    public void txnTestCommitTwice() throws Exception {
+        Transaction commitTxn = getTxn();
+
+        commitTxn.commit().get();
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(commitTxn, TransactionImpl.State.OPEN);
+        // since first commit not completely finish in server, second commit can succeed
+        try {
+            commitTxn.commit().get();
+        } catch (Exception reCommitError) {
+            fail("recommit one not-finished transaction should not be failed.");
+        }
+
+        // since first commit completely finish transaction in server, second commit would throw txnNotFoundException
+        Transaction finishTxn = commitTxn;
+        try {
+            Awaitility.await().until(() -> pulsarServiceList.get(0)
+                    .getTransactionMetadataStoreService().getTxnMeta(finishTxn.getTxnID()).get() == null);
+        } catch (Exception e) {
+            if (!(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+                fail();
+            }
+        }
+        field.setAccessible(true);
+        field.set(commitTxn, TransactionImpl.State.OPEN);
+        try {
+            commitTxn.commit().get();
+            fail("recommit one finished transaction should be failed.");
+        } catch (Exception reCommitError) {
+            log.info("expected exception for recommit one transaction.");
+            Assert.assertNotNull(reCommitError);
+            Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
+        }
+    }
+
+    @Test
     public void txnAckTestBatchAndCumulativeSub() throws Exception {
         txnCumulativeAckTest(true, 200, SubscriptionType.Failover);
     }
@@ -785,12 +823,21 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             commitTxn.commit().get();
+            Transaction finishTxn = commitTxn;
+            try {
+                Awaitility.await().until(() -> pulsarServiceList.get(0)
+                        .getTransactionMetadataStoreService().getTxnMeta(finishTxn.getTxnID()).get() == null);
+            } catch (Exception e) {
+                if (!(e.getCause() instanceof CoordinatorException.TransactionNotFoundException)) {
+                    fail();
+                }
+            }
             Field field = TransactionImpl.class.getDeclaredField("state");
             field.setAccessible(true);
             field.set(commitTxn, TransactionImpl.State.OPEN);
             try {
                 commitTxn.commit().get();
-                fail("recommit one transaction should be failed.");
+                fail("recommit one finished transaction should be failed.");
             } catch (Exception reCommitError) {
                 // recommit one transaction should be failed
                 log.info("expected exception for recommit one transaction.");

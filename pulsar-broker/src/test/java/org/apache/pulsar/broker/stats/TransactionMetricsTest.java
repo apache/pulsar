@@ -227,6 +227,10 @@ public class TransactionMetricsTest extends BrokerTestBase {
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, txnCount * 4 + 3));
 
+        metric = metrics.get("pulsar_txn_non_retryable_total");
+        assertEquals(metric.size(), 1);
+        metric.forEach(item -> assertEquals(item.value, 0));
+
         metric = metrics.get("pulsar_txn_execution_latency_le_5000");
         assertEquals(metric.size(), 1);
         metric.forEach(item -> assertEquals(item.value, 1));

@@ -362,12 +362,15 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
         CompletableFuture<Void> completableFuture = null;
         try {
+            // since server can respond to client when txn become committing, testcase:committing would not fail
             completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID, TxnAction.COMMIT.getValue(),
                     false);
             completableFuture.get(5, TimeUnit.SECONDS);
-            fail();
+            if (txnStatus != TxnStatus.COMMITTING) {
+                fail();
+            }
         } catch (Exception e) {
-            if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
+            if (txnStatus == TxnStatus.OPEN) {
                 assertTrue(e instanceof TimeoutException);
             } else if (txnStatus == TxnStatus.ABORTING) {
                 assertTrue(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException);

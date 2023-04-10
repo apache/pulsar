@@ -78,6 +78,7 @@ public class MLTransactionMetadataStore
     private final LongAdder abortedTransactionCount;
     private final LongAdder transactionTimeoutCount;
     private final LongAdder appendLogCount;
+    private final LongAdder nonRetryableCount;
     private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
     private final ExecutorService internalPinnedExecutor;
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
@@ -100,6 +101,7 @@ public class MLTransactionMetadataStore
         this.committedTransactionCount = new LongAdder();
         this.abortedTransactionCount = new LongAdder();
         this.transactionTimeoutCount = new LongAdder();
+        this.nonRetryableCount = new LongAdder();
         this.appendLogCount = new LongAdder();
         DefaultThreadFactory threadFactory = new DefaultThreadFactory("transaction_coordinator_"
                 + tcID.toString() + "thread_factory");
@@ -465,6 +467,11 @@ public class MLTransactionMetadataStore
         return transactionCoordinatorstats;
     }
 
+    @Override
+    public void incrementNonRetryableCount() {
+        nonRetryableCount.increment();
+    }
+
     private CompletableFuture<Pair<TxnMeta, List<Position>>> getTxnPositionPair(TxnID txnID) {
         CompletableFuture<Pair<TxnMeta, List<Position>>> completableFuture = new CompletableFuture<>();
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID.getLeastSigBits());
@@ -507,6 +514,7 @@ public class MLTransactionMetadataStore
         this.transactionMetadataStoreStats.setAbortedCount(this.abortedTransactionCount.longValue());
         this.transactionMetadataStoreStats.setTimeoutCount(this.transactionTimeoutCount.longValue());
         this.transactionMetadataStoreStats.setAppendLogCount(this.appendLogCount.longValue());
+        this.transactionMetadataStoreStats.setNonRetryableCount(this.nonRetryableCount.longValue());
         return transactionMetadataStoreStats;
     }
 

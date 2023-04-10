@@ -338,25 +338,50 @@ public class TransactionMetadataStoreService {
         getTxnMeta(txnID)
                 .thenCompose(txnMeta -> {
                     if (txnMeta.status() == TxnStatus.OPEN) {
-                        return updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout)
-                                .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
+                        return updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout);
                     }
-                    return fakeAsyncCheckTxnStatus(txnMeta.status(), txnAction, txnID, newStatus)
-                            .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
+                    return fakeAsyncCheckTxnStatus(txnMeta.status(), txnAction, txnID, newStatus);
                 }).whenComplete((__, ex)-> {
                     if (ex == null) {
                         future.complete(null);
+                        endTxnInTransactionBuffer(txnID, txnAction)
+                                .whenComplete((__2, ex2)-> {
+                                    if (ex2 == null) {
+                                        return;
+                                    }
+                                    Throwable realCause = FutureUtil.unwrapCompletionException(ex2);
+                                    if (!isRetryableException(realCause)) {
+                                        LOG.error("End transaction EndTxnInTransactionBuffer fail! TxnId : {}, "
+                                                + "TxnAction : {}", txnID, txnAction, realCause);
+                                        // error for committing -> committed, this case can not occur
+                                        // or this txn would stay in committing until TC restart.
+                                        // So add a metric for reminding this case.
+                                        TransactionMetadataStore store = getStore(txnID);
+                                        if (store != null) {
+                                            store.incrementNonRetryableCount();
+                                        }
+                                        return;
+                                    }
+                                    if (LOG.isDebugEnabled()) {
+                                        LOG.debug("End transaction EndTxnInTransactionBuffer retry! " +
+                                                "TxnId : {}, TxnAction : {}", txnID, txnAction, realCause);
+                                    }
+                                    transactionOpRetryTimer.newTimeout(timeout ->
+                                                    endTransaction(txnID, txnAction, isTimeout, future),
+                                            endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
+                                });
                         return;
                     }
-                    if (!isRetryableException(ex)) {
-                        LOG.error("End transaction fail! TxnId : {}, "
-                                + "TxnAction : {}", txnID, txnAction, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (!isRetryableException(realCause)) {
+                        LOG.error("End transaction UpdateTxnStatus fail! TxnId : {}, "
+                                + "TxnAction : {}", txnID, txnAction, realCause);
                         future.completeExceptionally(ex);
                         return;
                     }
                     if (LOG.isDebugEnabled()) {
-                        LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
-                                + "TxnAction : {}", txnID, txnAction, ex);
+                        LOG.debug("End transaction UpdateTxnStatus retry! TxnId : {}, "
+                                + "TxnAction : {}", txnID, txnAction, realCause);
                     }
                     transactionOpRetryTimer.newTimeout(timeout ->
                                     endTransaction(txnID, txnAction, isTimeout, future),
@@ -482,6 +507,10 @@ public class TransactionMetadataStoreService {
     @VisibleForTesting
     public Map<TransactionCoordinatorID, TransactionMetadataStore> getStores() {
         return Collections.unmodifiableMap(stores);
+    }
+
+    private TransactionMetadataStore getStore(TxnID txnID) {
+        return stores.get(new TransactionCoordinatorID(txnID.getMostSigBits()));
     }
 
     public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, String checkOwner) {

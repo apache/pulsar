@@ -139,4 +139,6 @@ public interface TransactionMetadataStore {
      * @return {@link TxnMeta} the txnMetas of slow transactions
      */
     List<TxnMeta> getSlowTransactions(long timeout);
+
+    void incrementNonRetryableCount();
 }

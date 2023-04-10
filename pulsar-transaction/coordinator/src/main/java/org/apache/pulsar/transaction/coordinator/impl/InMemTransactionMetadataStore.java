@@ -48,6 +48,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     private final LongAdder commitTransactionCount;
     private final LongAdder abortTransactionCount;
     private final LongAdder transactionTimeoutCount;
+    private final LongAdder nonRetryableCount;
 
     InMemTransactionMetadataStore(TransactionCoordinatorID tcID) {
         this.tcID = tcID;
@@ -58,7 +59,7 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
         this.commitTransactionCount = new LongAdder();
         this.abortTransactionCount = new LongAdder();
         this.transactionTimeoutCount = new LongAdder();
-
+        this.nonRetryableCount = new LongAdder();
     }
 
     @Override
@@ -164,5 +165,10 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
     @Override
     public List<TxnMeta> getSlowTransactions(long timeout) {
         return null;
+    }
+
+    @Override
+    public void incrementNonRetryableCount() {
+        nonRetryableCount.increment();
     }
 }

@@ -96,6 +96,8 @@ public class TransactionAggregator {
                             transactionMetadataStoreStats.getTimeoutCount();
                     transactionCoordinatorStats.appendLogCount =
                             transactionMetadataStoreStats.getAppendLogCount();
+                    transactionCoordinatorStats.nonRetryableCount =
+                            transactionMetadataStoreStats.getNonRetryableCount();
                     transactionMetadataStoreStats.executionLatencyBuckets.refresh();
                     transactionCoordinatorStats.executionLatency =
                             transactionMetadataStoreStats.executionLatencyBuckets.getBuckets();
@@ -250,6 +252,8 @@ public class TransactionAggregator {
         writeMetric(stream, "pulsar_txn_timeout_total", stats.timeoutCount, cluster,
                 coordinatorId);
         writeMetric(stream, "pulsar_txn_append_log_total", stats.appendLogCount, cluster,
+                coordinatorId);
+        writeMetric(stream, "pulsar_txn_non_retryable_total", stats.nonRetryableCount, cluster,
                 coordinatorId);
         long[] latencyBuckets = stats.executionLatency;
         writeMetric(stream, "pulsar_txn_execution_latency_le_10", latencyBuckets[0], cluster, coordinatorId);

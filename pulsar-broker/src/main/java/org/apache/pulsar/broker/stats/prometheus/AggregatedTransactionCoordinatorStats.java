@@ -32,6 +32,8 @@ public class AggregatedTransactionCoordinatorStats {
 
     public long appendLogCount;
 
+    public long nonRetryableCount;
+
     public long[] executionLatency;
 
     public void reset() {
@@ -41,6 +43,7 @@ public class AggregatedTransactionCoordinatorStats {
         createdCount = 0;
         timeoutCount = 0;
         appendLogCount = 0;
+        nonRetryableCount = 0;
         executionLatency = null;
     }
 }
