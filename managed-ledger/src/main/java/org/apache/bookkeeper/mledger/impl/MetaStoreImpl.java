@@ -258,16 +258,18 @@ public class MetaStoreImpl implements MetaStore {
                     }
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
-                .exceptionallyAsync(ex -> {
-                    Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-                    if (actEx instanceof MetadataStoreException.NotFoundException){
-                        log.info("[{}] [{}] cursor delete done because it did not exist.", ledgerName, cursorName);
-                        callback.operationComplete(null, null);
-                        return null;
-                    }
-                    SafeRunnable.safeRun(() -> callback.operationFailed(getException(ex)));
+                .exceptionally(ex -> {
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                        if (actEx instanceof MetadataStoreException.NotFoundException){
+                            log.info("[{}] [{}] cursor delete done because it did not exist.", ledgerName, cursorName);
+                            callback.operationComplete(null, null);
+                            return;
+                        }
+                        callback.operationFailed(getException(ex));
+                    }));
                     return null;
-                }, executor.chooseThread(ledgerName));
+                });
     }
 
     @Override
