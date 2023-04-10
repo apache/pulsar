@@ -1579,13 +1579,23 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             if (ex.getCause() instanceof BrokerServiceException.TopicMigratedException) {
                 Optional<ClusterUrl> clusterURL = getMigratedClusterUrl(service.getPulsar());
                 if (clusterURL.isPresent()) {
-                    log.info("[{}] redirect migrated producer to topic {}: producerId={}, {}", remoteAddress, topicName,
-                            producerId, ex.getCause().getMessage());
-                    commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
-                            clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
-                    closeProducer(producer);
-                    return null;
-
+                    if (topic.isReplicationBacklogExist()) {
+                        log.info("Topic {} is migrated but replication backlog exist: "
+                                        + "producerId = {}, producerName = {}, {}", topicName,
+                                producerId, producerName, ex.getCause().getMessage());
+                    } else {
+                        log.info("[{}] redirect migrated producer to topic {}: "
+                                        + "producerId={}, producerName = {}, {}", remoteAddress,
+                                topicName, producerId, producerName, ex.getCause().getMessage());
+                        boolean msgSent = commandSender.sendTopicMigrated(ResourceType.Producer, producerId,
+                                clusterURL.get().getBrokerServiceUrl(), clusterURL.get().getBrokerServiceUrlTls());
+                        if (!msgSent) {
+                            log.info("client doesn't support topic migration handling {}-{}-{}", topic,
+                                    remoteAddress, producerId);
+                        }
+                        closeProducer(producer);
+                        return null;
+                    }
                 } else {
                     log.warn("[{}] failed producer because migration url not configured topic {}: producerId={}, {}",
                             remoteAddress, topicName, producerId, ex.getCause().getMessage());
