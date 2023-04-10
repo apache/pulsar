@@ -302,22 +302,17 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                     }
                     callback.operationComplete(null, null);
                 }, executor.chooseThread(ledgerName))
-                .exceptionallyAsync(ex -> {
-                    try {
+                .exceptionally(ex -> {
+                    executor.executeOrdered(ledgerName, SafeRunnable.safeRun(() -> {
                         Throwable actEx = FutureUtil.unwrapCompletionException(ex);
                         if (actEx instanceof MetadataStoreException.NotFoundException){
                             log.info("[{}] [{}] cursor delete done because it did not exist.", ledgerName, cursorName);
                             callback.operationComplete(null, null);
-                            return null;
                         }
                         callback.operationFailed(getException(ex));
-                        return null;
-                    } catch (Exception ex2){
-                        // do try-catch is just for print log and do not throw error to "executor".
-                        log.error("Unexpected throwable caught when executing callback of async remove cursor", ex2);
-                        return null;
-                    }
-                }, executor.chooseThread(ledgerName));
+                    }));
+                    return null;
+                });
     }
 
     @Override
