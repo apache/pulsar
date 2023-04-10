@@ -35,7 +35,6 @@ import io.kubernetes.client.openapi.ApiCallback;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.WellKnownApi;
-import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,6 +54,8 @@ class OpenIDProviderMetadataCache {
     private final AsyncHttpClient httpClient;
     private final WellKnownApi wellKnownApi;
     private final AsyncLoadingCache<Optional<String>, OpenIDProviderMetadata> cache;
+    private static final String WELL_KNOWN_OPENID_CONFIG = ".well-known/openid-configuration";
+    private static final String SLASH_WELL_KNOWN_OPENID_CONFIG = "/" + WELL_KNOWN_OPENID_CONFIG;
 
     OpenIDProviderMetadataCache(ServiceConfiguration config, AsyncHttpClient httpClient, ApiClient apiClient) {
         int maxSize = getConfigValueAsInt(config, CACHE_SIZE, CACHE_SIZE_DEFAULT);
@@ -99,20 +100,18 @@ class OpenIDProviderMetadataCache {
      * AuthenticationException if the URL is malformed or there is an exception while opening the connection
      */
     private CompletableFuture<OpenIDProviderMetadata> loadOpenIDProviderMetadataForIssuer(String issuer) {
-        URI uri;
-        try {
-            // TODO URI's normalization follows RFC2396, whereas the spec
-            //  https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
-            //  calls for normalization according to RFC3986, which is supposed to obsolete RFC2396
-            uri = URI.create(issuer + "/.well-known/openid-configuration").normalize();
-        } catch (Exception e) {
-            incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PROVIDER_METADATA);
-            return CompletableFuture.failedFuture(new AuthenticationException(
-                    "Error retrieving OpenID Provider Metadata at " + issuer + ": " + e.getMessage()));
+        String url;
+        // TODO URI's normalization likely follows RFC2396 (library doesn't say so explicitly), whereas the spec
+        //  https://openid.net/specs/openid-connect-discovery-1_0.html#NormalizationSteps
+        //  calls for normalization according to RFC3986, which is supposed to obsolete RFC2396. Is this a problem?
+        if (issuer.endsWith("/")) {
+            url = issuer + WELL_KNOWN_OPENID_CONFIG;
+        } else {
+            url = issuer + SLASH_WELL_KNOWN_OPENID_CONFIG;
         }
 
         return httpClient
-                .prepareGet(uri.toString())
+                .prepareGet(url)
                 .execute()
                 .toCompletableFuture()
                 .thenCompose(result -> {
