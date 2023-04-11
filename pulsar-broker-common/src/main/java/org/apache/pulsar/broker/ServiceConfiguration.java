@@ -1585,6 +1585,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long httpMaxRequestSize = -1;
 
     @FieldContext(
+            category = CATEGORY_HTTP,
+            doc = """
+                The maximum size in bytes of the request header.
+                Larger headers will allow for more and/or larger cookies plus larger form content encoded in a URL.
+                However, larger headers consume more memory and can make a server more vulnerable to denial of service
+                attacks.
+              """
+    )
+    private int httpMaxRequestHeaderSize = 8 * 1024;
+
+    @FieldContext(
         category =  CATEGORY_HTTP,
         doc = "If true, the broker will reject all HTTP requests using the TRACE and TRACK verbs.\n"
         + " This setting may be necessary if the broker is deployed into an environment that uses http port\n"

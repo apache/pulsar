@@ -33,6 +33,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -100,8 +102,10 @@ public class WebService implements AutoCloseable {
         List<ServerConnector> connectors = new ArrayList<>();
 
         Optional<Integer> port = config.getWebServicePort();
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setRequestHeaderSize(pulsar.getConfig().getHttpMaxRequestHeaderSize());
         if (port.isPresent()) {
-            httpConnector = new ServerConnector(server);
+            httpConnector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
             httpConnector.setPort(port.get());
             httpConnector.setHost(pulsar.getBindAddress());
             connectors.add(httpConnector);
@@ -140,7 +144,7 @@ public class WebService implements AutoCloseable {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                httpsConnector = new ServerConnector(server, sslCtxFactory);
+                httpsConnector = new ServerConnector(server, sslCtxFactory, new HttpConnectionFactory(httpConfig));
                 httpsConnector.setPort(tlsPort.get());
                 httpsConnector.setHost(pulsar.getBindAddress());
                 connectors.add(httpsConnector);
