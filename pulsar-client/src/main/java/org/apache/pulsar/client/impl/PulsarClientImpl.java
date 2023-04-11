@@ -199,7 +199,7 @@ public class PulsarClientImpl implements PulsarClient {
                 lookup = new HttpLookupService(conf, this.eventLoopGroup);
             } else {
                 lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.getListenerName(),
-                        conf.isUseTls(), this.externalExecutorProvider.getExecutor());
+                        conf.isUseTls(), this.scheduledExecutorProvider.getExecutor());
             }
             if (timer == null) {
                 this.timer = new HashedWheelTimer(getThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
