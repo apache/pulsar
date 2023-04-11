@@ -531,6 +531,13 @@ public class ProxyConnection extends PulsarHandler {
         } else if (authChallengeSentTime != Long.MAX_VALUE) {
             // If the proxy sent a refresh but hasn't yet heard back, do not send another challenge.
             return;
+        } else if (service.getConfiguration().getAuthenticationRefreshCheckSeconds() < 1) {
+            // Without the refresh check enabled, there is no way to guarantee the ProxyConnection will close
+            // this connection if the client fails to respond to the auth challenge with valid auth data.
+            // The cost is minimal since the client can recreate the connection. This logic prevents a leak.
+            LOG.warn("[{}] Closing connection because auth credentials refresh is disabled", remoteAddress);
+            ctx.close();
+            return;
         }
 
         if (LOG.isDebugEnabled()) {
