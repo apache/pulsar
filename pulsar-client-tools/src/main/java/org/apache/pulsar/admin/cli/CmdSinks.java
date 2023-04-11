@@ -291,7 +291,8 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = { "-t", "--sink-type" }, description = "The sinks's connector provider")
         protected String sinkType;
 
-        @Parameter(names = { "--cleanup-subscription" }, description = "Whether delete the subscription when sink is deleted")
+        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
+                + "when sink is deleted")
         protected Boolean cleanupSubscription;
 
         @Parameter(names = { "-i",
