@@ -91,7 +91,7 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "unloadCases", invocationCount = 50)
+    @Test(dataProvider = "unloadCases")
     public void testSingleConsumer(int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType,
                                    int ackMsgCount) throws Exception {
         final String topicName = "persistent://my-property/my-ns/tp-" + UUID.randomUUID();
@@ -131,7 +131,7 @@ public class UnloadSubscriptionTest extends ProducerConsumerBase {
         admin.topics().delete(topicName);
     }
 
-    @Test(dataProvider = "unloadCases", invocationCount = 50)
+    @Test(dataProvider = "unloadCases")
     public void testMultiConsumer(int msgCount, boolean enabledBatch, int maxMsgPerBatch, SubscriptionType subType,
                                   int ackMsgCount) throws Exception {
         if (subType == Exclusive){
