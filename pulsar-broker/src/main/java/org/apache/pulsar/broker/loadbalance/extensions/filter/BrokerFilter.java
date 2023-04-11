@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -34,11 +33,6 @@ public interface BrokerFilter {
      * The broker filter name.
      */
     String name();
-
-    /**
-     * Initialize this broker filter using the given pulsar service.
-     */
-    void initialize(PulsarService pulsar);
 
     /**
      * Filter out unqualified brokers based on implementation.

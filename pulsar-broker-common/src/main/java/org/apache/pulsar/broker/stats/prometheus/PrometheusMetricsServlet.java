@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.EOFException;
 import java.io.IOException;
@@ -61,7 +60,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) {
         AsyncContext context = request.startAsync();
         context.setTimeout(metricsServletTimeoutMs);
-        executor.execute(safeRun(() -> {
+        executor.execute(() -> {
             long start = System.currentTimeMillis();
             HttpServletResponse res = (HttpServletResponse) context.getResponse();
             try {
@@ -92,7 +91,7 @@ public class PrometheusMetricsServlet extends HttpServlet {
                             + "this is likely due to metricsServletTimeoutMs: {} ms elapsed: {}", time, e + "");
                 }
             }
-        }));
+        });
     }
 
     protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {

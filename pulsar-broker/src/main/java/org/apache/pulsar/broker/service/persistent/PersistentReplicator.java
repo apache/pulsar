@@ -165,8 +165,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    protected long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog(false);
+    public long getNumberOfEntriesInBacklog() {
+        return cursor.getNumberOfEntriesInBacklog(true);
     }
 
     @Override

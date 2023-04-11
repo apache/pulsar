@@ -641,7 +641,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (reconsumeTimes > this.deadLetterPolicy.getMaxRedeliverCount()
                         && StringUtils.isNotBlank(deadLetterPolicy.getDeadLetterTopic())) {
                     initDeadLetterProducerIfNeeded();
-                    deadLetterProducer.thenAccept(dlqProducer -> {
+                    deadLetterProducer.thenAcceptAsync(dlqProducer -> {
                         TypedMessageBuilder<byte[]> typedMessageBuilderNew =
                                 dlqProducer.newMessage(Schema.AUTO_PRODUCE_BYTES(retryMessage.getReaderSchema().get()))
                                         .value(retryMessage.getData())
@@ -657,7 +657,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                             result.completeExceptionally(ex);
                             return null;
                         });
-                    }).exceptionally(ex -> {
+                    }, internalPinnedExecutor).exceptionally(ex -> {
                         result.completeExceptionally(ex);
                         deadLetterProducer = null;
                         return null;
@@ -1041,7 +1041,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         }
 
-        return closeFuture;
+        ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
+        closeFutures.add(closeFuture);
+        if (retryLetterProducer != null) {
+            closeFutures.add(retryLetterProducer.closeAsync().whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("Exception ignored in closing retryLetterProducer of consumer", ex);
+                }
+            }));
+        }
+        if (deadLetterProducer != null) {
+            closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+                if (ex != null) {
+                    log.warn("Exception ignored in closing deadLetterProducer of consumer", ex);
+                }
+            }));
+        }
+        return FutureUtil.waitForAll(closeFutures);
     }
 
     private void cleanupAtClose(CompletableFuture<Void> closeFuture, Throwable exception) {
@@ -2038,7 +2054,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 return null;
                     });
                 }
-            }).exceptionally(ex -> {
+            }, internalPinnedExecutor).exceptionally(ex -> {
                 log.error("Dead letter producer exception with topic: {}", deadLetterPolicy.getDeadLetterTopic(), ex);
                 deadLetterProducer = null;
                 result.complete(false);
@@ -2320,9 +2336,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    @Deprecated
     @Override
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         return internalGetLastMessageIdAsync().thenApply(r -> r.lastMessageId);
+    }
+
+    @Override
+    public CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync() {
+        return getLastMessageIdAsync()
+                .thenApply(msgId -> Collections.singletonList(TopicMessageId.create(topic, msgId)));
     }
 
     public CompletableFuture<GetLastMessageIdResponse> internalGetLastMessageIdAsync() {

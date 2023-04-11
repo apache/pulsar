@@ -575,6 +575,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public synchronized void addFailed(ManagedLedgerException exception, Object ctx) {
+        PublishContext callback = (PublishContext) ctx;
         if (exception instanceof ManagedLedgerFencedException) {
             // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
             close();
@@ -587,7 +588,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 // send migration url metadata to producers before disconnecting them
                 if (isMigrated()) {
-                    producers.forEach((__, producer) -> producer.topicMigrated(getMigratedClusterUrl()));
+                    if (isReplicationBacklogExist()) {
+                        log.info("Topic {} is migrated but replication backlog exists. Closing producers.", topic);
+                    } else {
+                        producers.forEach((__, producer) -> producer.topicMigrated(getMigratedClusterUrl()));
+                    }
                 }
                 producers.forEach((__, producer) -> futures.add(producer.disconnect()));
                 disconnectProducersFuture = FutureUtil.waitForAll(futures);
@@ -598,8 +603,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 decrementPendingWriteOpsAndCheck();
                 return null;
             });
-
-            PublishContext callback = (PublishContext) ctx;
 
             if (exception instanceof ManagedLedgerAlreadyClosedException) {
                 if (log.isDebugEnabled()) {
@@ -2508,6 +2511,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         } else {
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    public boolean isReplicationBacklogExist() {
+        ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
+        if (replicators != null) {
+            for (Replicator replicator : replicators.values()) {
+                if (replicator.getNumberOfEntriesInBacklog() != 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override

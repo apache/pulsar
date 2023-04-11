@@ -44,9 +44,11 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
@@ -60,6 +62,7 @@ import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
@@ -69,6 +72,9 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerIsolationPoliciesFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
@@ -86,6 +92,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -108,6 +115,7 @@ public class TransferShedderTest {
     ExtensibleLoadManagerImpl loadManager;
     ServiceUnitStateChannel channel;
     ServiceConfiguration conf;
+    IsolationPoliciesHelper isolationPoliciesHelper;
     AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
     LocalPoliciesResources localPoliciesResources;
     String bundleD1 = "my-tenant/my-namespaceD/0x00000000_0x0FFFFFFF";
@@ -129,6 +137,7 @@ public class TransferShedderTest {
         var factory = mock(NamespaceBundleFactory.class);
         namespaceService = mock(NamespaceService.class);
         localPoliciesResources = mock(LocalPoliciesResources.class);
+        isolationPoliciesHelper = mock(IsolationPoliciesHelper.class);
         antiAffinityGroupPolicyHelper = mock(AntiAffinityGroupPolicyHelper.class);
         doReturn(conf).when(pulsar).getConfiguration();
         doReturn(namespaceService).when(pulsar).getNamespaceService();
@@ -157,8 +166,6 @@ public class TransferShedderTest {
 
     public LoadManagerContext setupContext(){
         var ctx = getContext();
-
-
 
         var topBundlesLoadDataStore = ctx.topBundleLoadDataStore();
         topBundlesLoadDataStore.pushAsync("broker1", getTopBundlesLoad("my-tenant/my-namespaceA", 1000000, 2000000));
@@ -389,18 +396,25 @@ public class TransferShedderTest {
 
         BrokerRegistry brokerRegistry = mock(BrokerRegistry.class);
         doReturn(CompletableFuture.completedFuture(Map.of(
-                "broker1", mock(BrokerLookupData.class),
-                "broker2", mock(BrokerLookupData.class),
-                "broker3", mock(BrokerLookupData.class),
-                "broker4", mock(BrokerLookupData.class),
-                "broker5", mock(BrokerLookupData.class)
-        )))
-                .when(brokerRegistry).getAvailableBrokerLookupDataAsync();
+                "broker1", getMockBrokerLookupData(),
+                "broker2", getMockBrokerLookupData(),
+                "broker3", getMockBrokerLookupData(),
+                "broker4", getMockBrokerLookupData(),
+                "broker5", getMockBrokerLookupData()
+        ))).when(brokerRegistry).getAvailableBrokerLookupDataAsync();
         doReturn(conf).when(ctx).brokerConfiguration();
         doReturn(brokerLoadDataStore).when(ctx).brokerLoadDataStore();
         doReturn(topBundleLoadDataStore).when(ctx).topBundleLoadDataStore();
         doReturn(brokerRegistry).when(ctx).brokerRegistry();
         return ctx;
+    }
+
+
+    BrokerLookupData getMockBrokerLookupData() {
+        BrokerLookupData brokerLookupData = mock(BrokerLookupData.class);
+        doReturn(true).when(brokerLookupData).persistentTopicsEnabled();
+        doReturn(true).when(brokerLookupData).nonPersistentTopicsEnabled();
+        return brokerLookupData;
     }
 
     @Test
@@ -524,31 +538,33 @@ public class TransferShedderTest {
     @Test
     public void testGetAvailableBrokersFailed() {
         UnloadCounter counter = new UnloadCounter();
-        AntiAffinityGroupPolicyHelper affinityGroupPolicyHelper = mock(AntiAffinityGroupPolicyHelper.class);
-        TransferShedder transferShedder = new TransferShedder(pulsar, counter, affinityGroupPolicyHelper);
+        TransferShedder transferShedder = new TransferShedder(pulsar, counter, null,
+                isolationPoliciesHelper, antiAffinityGroupPolicyHelper);
         var ctx = setupContext();
         BrokerRegistry registry = ctx.brokerRegistry();
         doReturn(FutureUtil.failedFuture(new TimeoutException())).when(registry).getAvailableBrokerLookupDataAsync();
-        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+        transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         assertEquals(counter.getBreakdownCounters().get(Failure).get(Unknown).get(), 1);
         assertEquals(counter.getLoadAvg(), 0.0);
         assertEquals(counter.getLoadStd(), 0.0);
     }
 
     @Test(timeOut = 30 * 1000)
-    public void testBundlesWithIsolationPolicies() throws IllegalAccessException {
-        doReturn(true).when(antiAffinityGroupPolicyHelper).canUnload(any(), any(), any(), any());
-        UnloadCounter counter = new UnloadCounter();
-        TransferShedder transferShedder = spy(new TransferShedder(pulsar, counter, antiAffinityGroupPolicyHelper));
-        var allocationPoliciesSpy = (SimpleResourceAllocationPolicies)
-                spy(FieldUtils.readDeclaredField(transferShedder, "allocationPolicies", true));
-        FieldUtils.writeDeclaredField(transferShedder, "allocationPolicies", allocationPoliciesSpy, true);
+    public void testBundlesWithIsolationPolicies() {
+        List<BrokerFilter> filters = new ArrayList<>();
+        var allocationPoliciesSpy = mock(SimpleResourceAllocationPolicies.class);
         IsolationPoliciesHelper isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPoliciesSpy);
-        FieldUtils.writeDeclaredField(transferShedder, "isolationPoliciesHelper", isolationPoliciesHelper, true);
+        BrokerIsolationPoliciesFilter filter = new BrokerIsolationPoliciesFilter(isolationPoliciesHelper);
+        filters.add(filter);
+        UnloadCounter counter = new UnloadCounter();
+        TransferShedder transferShedder = spy(new TransferShedder(pulsar, counter, filters,
+                isolationPoliciesHelper, antiAffinityGroupPolicyHelper));
 
         setIsolationPolicies(allocationPoliciesSpy, "my-tenant/my-namespaceE",
                 Set.of("broker5"), Set.of(), Set.of(), 1);
         var ctx = setupContext();
+        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
+        doReturn(ctx.brokerConfiguration()).when(pulsar).getConfiguration();
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         var expected = new HashSet<UnloadDecision>();
         expected.add(new UnloadDecision(new Unload("broker4", bundleD1, Optional.of("broker1")),
@@ -641,22 +657,25 @@ public class TransferShedderTest {
 
 
     @Test
-    public void testBundlesWithAntiAffinityGroup() throws IllegalAccessException, MetadataStoreException {
+    public void testBundlesWithAntiAffinityGroup() throws MetadataStoreException {
+        var filters = new ArrayList<BrokerFilter>();
+        AntiAffinityGroupPolicyFilter filter = new AntiAffinityGroupPolicyFilter(antiAffinityGroupPolicyHelper);
+        filters.add(filter);
         var counter = new UnloadCounter();
-        TransferShedder transferShedder = new TransferShedder(pulsar, counter, antiAffinityGroupPolicyHelper);
-        var allocationPoliciesSpy = (SimpleResourceAllocationPolicies)
-                spy(FieldUtils.readDeclaredField(transferShedder, "allocationPolicies", true));
-        doReturn(false).when(allocationPoliciesSpy).areIsolationPoliciesPresent(any());
-        FieldUtils.writeDeclaredField(transferShedder, "allocationPolicies", allocationPoliciesSpy, true);
+        TransferShedder transferShedder = new TransferShedder(pulsar, counter, filters,
+                isolationPoliciesHelper, antiAffinityGroupPolicyHelper);
 
         LocalPolicies localPolicies = new LocalPolicies(null, null, "namespaceAntiAffinityGroup");
         doReturn(Optional.of(localPolicies)).when(localPoliciesResources).getLocalPolicies(any());
 
         var ctx = setupContext();
-        var antiAffinityGroupPolicyHelperSpy = (AntiAffinityGroupPolicyHelper)
-                spy(FieldUtils.readDeclaredField(transferShedder, "antiAffinityGroupPolicyHelper", true));
-        doReturn(false).when(antiAffinityGroupPolicyHelperSpy).canUnload(any(), any(), any(), any());
-        FieldUtils.writeDeclaredField(transferShedder, "antiAffinityGroupPolicyHelper", antiAffinityGroupPolicyHelperSpy, true);
+        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
+
+        doAnswer(invocationOnMock -> {
+            Map<String, BrokerLookupData> brokers = invocationOnMock.getArgument(0);
+            brokers.clear();
+            return brokers;
+        }).when(antiAffinityGroupPolicyHelper).filter(any(), any());
         var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
 
         assertTrue(res.isEmpty());
@@ -664,8 +683,16 @@ public class TransferShedderTest {
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
 
+        doAnswer(invocationOnMock -> {
+            Map<String, BrokerLookupData> brokers = invocationOnMock.getArgument(0);
+            String bundle = invocationOnMock.getArgument(1, String.class);
 
-        doReturn(true).when(antiAffinityGroupPolicyHelperSpy).canUnload(any(), eq(bundleE1), any(), any());
+            if (bundle.equalsIgnoreCase(bundleE1)) {
+                return brokers;
+            }
+            brokers.clear();
+            return brokers;
+        }).when(antiAffinityGroupPolicyHelper).filter(any(), any());
         var res2 = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
         var expected2 = new HashSet<>();
         expected2.add(new UnloadDecision(new Unload("broker5", bundleE1, Optional.of("broker1")),
@@ -673,6 +700,68 @@ public class TransferShedderTest {
         assertEquals(res2, expected2);
         assertEquals(counter.getLoadAvg(), setupLoadAvg);
         assertEquals(counter.getLoadStd(), setupLoadStd);
+    }
+
+    @Test
+    public void testFilterHasException() throws MetadataStoreException {
+        var filters = new ArrayList<BrokerFilter>();
+        BrokerFilter filter = new BrokerFilter() {
+            @Override
+            public String name() {
+                return "Test-Filter";
+            }
+
+            @Override
+            public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
+                                                        ServiceUnitId serviceUnit,
+                                                        LoadManagerContext context) throws BrokerFilterException {
+                throw new BrokerFilterException("test");
+            }
+        };
+        filters.add(filter);
+        var counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(pulsar, counter, filters,
+                isolationPoliciesHelper, antiAffinityGroupPolicyHelper);
+
+        var ctx = setupContext();
+        ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(true);
+        var res = transferShedder.findBundlesForUnloading(ctx, Map.of(), Map.of());
+
+        assertTrue(res.isEmpty());
+        assertEquals(counter.getBreakdownCounters().get(Skip).get(NoBundles).get(), 1);
+        assertEquals(counter.getLoadAvg(), setupLoadAvg);
+        assertEquals(counter.getLoadStd(), setupLoadStd);
+    }
+
+    @Test
+    public void testIsLoadBalancerSheddingBundlesWithPoliciesEnabled() {
+        var counter = new UnloadCounter();
+        TransferShedder transferShedder = new TransferShedder(pulsar, counter, new ArrayList<>(),
+                isolationPoliciesHelper, antiAffinityGroupPolicyHelper);
+
+        var ctx = setupContext();
+
+        NamespaceBundle namespaceBundle = mock(NamespaceBundle.class);
+        doReturn("bundle").when(namespaceBundle).toString();
+
+        boolean[][] expects = {
+                {true, true, true, true},
+                {true, true, false, false},
+                {true, false, true, true},
+                {true, false, false, false},
+                {false, true, true, true},
+                {false, true, false, false},
+                {false, false, true, true},
+                {false, false, false, true}
+        };
+
+        for (boolean[] expect : expects) {
+            doReturn(expect[0]).when(isolationPoliciesHelper).hasIsolationPolicy(any());
+            doReturn(expect[1]).when(antiAffinityGroupPolicyHelper).hasAntiAffinityGroupPolicy(any());
+            ctx.brokerConfiguration().setLoadBalancerSheddingBundlesWithPoliciesEnabled(expect[2]);
+            assertEquals(transferShedder.isLoadBalancerSheddingBundlesWithPoliciesEnabled(ctx, namespaceBundle),
+                    expect[3]);
+        }
     }
 
     @Test

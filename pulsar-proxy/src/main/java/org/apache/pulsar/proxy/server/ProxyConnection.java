@@ -263,6 +263,9 @@ public class ProxyConnection extends PulsarHandler {
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
+                        if (ctx.pipeline().get("readTimeoutHandler") != null) {
+                            ctx.pipeline().remove("readTimeoutHandler");
+                        }
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) directProxyHandler.outboundChannel, SPLICE_BYTES)
                                 .addListener(future -> {
@@ -371,7 +374,7 @@ public class ProxyConnection extends PulsarHandler {
             // and we'll take care of just topics and
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = new LookupProxyHandler(service, this);
+            lookupProxyHandler = service.newLookupProxyHandler(this);
             final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
             writeAndFlush(msg);
         }
