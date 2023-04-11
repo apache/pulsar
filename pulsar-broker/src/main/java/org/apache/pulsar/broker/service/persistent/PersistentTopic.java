@@ -102,8 +102,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyExceptio
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedSubscriptionException;
+import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Producer;
@@ -453,7 +453,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
         return sub.disconnect().thenCompose(ignore -> {
             if (!lock.writeLock().tryLock()) {
-                return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format( "Conflict"
+                return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
                         + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
                         topic, subName)));
             }
@@ -1057,15 +1057,17 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 }
 
                 Position startPosition = new PositionImpl(ledgerId, entryId);
+                ManagedCursor cursor = null;
                 try {
-                    final ManagedCursor cursor = ledger.newNonDurableCursor(startPosition, subscriptionName,
-                            initialPosition, isReadCompacted);
-                    subscriptions.computeIfAbsent(subscriptionName, k ->
-                            new PersistentSubscription(this, subscriptionName, cursor, false,
-                            subscriptionProperties));
+                    cursor = ledger.newNonDurableCursor(startPosition, subscriptionName, initialPosition,
+                            isReadCompacted);
                 } catch (ManagedLedgerException e) {
                     return FutureUtil.failedFuture(e);
                 }
+
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false,
+                        subscriptionProperties);
+                subscriptions.put(subscriptionName, subscription);
             } else {
                 // if subscription exists, check if it's a durable subscription
                 if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
