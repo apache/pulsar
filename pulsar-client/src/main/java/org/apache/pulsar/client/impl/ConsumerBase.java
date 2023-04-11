@@ -53,6 +53,7 @@ import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -730,6 +731,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public abstract CompletableFuture<Void> closeAsync();
 
 
+    @Deprecated
     @Override
     public MessageId getLastMessageId() throws PulsarClientException {
         try {
@@ -742,8 +744,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    @Deprecated
     @Override
     public abstract CompletableFuture<MessageId> getLastMessageIdAsync();
+
+    @Override
+    public List<TopicMessageId> getLastMessageIds() throws PulsarClientException {
+        try {
+            return getLastMessageIdsAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw PulsarClientException.unwrap(e);
+        } catch (ExecutionException e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
 
     private boolean isCumulativeAcknowledgementAllowed(SubscriptionType type) {
         return SubscriptionType.Shared != type && SubscriptionType.Key_Shared != type;

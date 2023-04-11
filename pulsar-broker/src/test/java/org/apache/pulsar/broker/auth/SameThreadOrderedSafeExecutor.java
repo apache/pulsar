@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.auth;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 import org.apache.bookkeeper.common.util.OrderedExecutor;
-import org.apache.bookkeeper.common.util.SafeRunnable;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 
 public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
@@ -46,12 +45,12 @@ public class SameThreadOrderedSafeExecutor extends OrderedExecutor {
     }
 
     @Override
-    public void executeOrdered(int orderingKey, SafeRunnable r) {
+    public void executeOrdered(int orderingKey, Runnable r) {
         r.run();
     }
 
     @Override
-    public void executeOrdered(long orderingKey, SafeRunnable r) {
+    public void executeOrdered(long orderingKey, Runnable r) {
         r.run();
     }
 

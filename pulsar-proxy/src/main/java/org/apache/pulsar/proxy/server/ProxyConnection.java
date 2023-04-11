@@ -393,7 +393,7 @@ public class ProxyConnection extends PulsarHandler {
             }
 
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = new LookupProxyHandler(service, this);
+            lookupProxyHandler = service.newLookupProxyHandler(this);
             if (service.getConfiguration().isAuthenticationEnabled()
                     && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
                 authRefreshTask = ctx.executor().scheduleAtFixedRate(() -> refreshAuthenticationCredentials(false),

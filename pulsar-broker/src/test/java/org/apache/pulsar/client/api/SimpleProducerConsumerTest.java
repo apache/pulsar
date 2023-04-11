@@ -83,10 +83,12 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -105,6 +107,8 @@ import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -4580,5 +4584,33 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // sendAsync should complete in time
         assertNotNull(producer.sendAsync(msg).get(timeoutSec, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testClientVersion() throws Exception {
+        String defaultClientVersion = "Pulsar-Java-v" + PulsarVersion.getVersion();
+        String topic = "persistent://my-property/my-ns/test-client-version";
+
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic)
+                .create();
+        TopicStats stats = admin.topics().getStats(topic);
+        assertEquals(stats.getPublishers().size(), 1);
+        assertEquals(stats.getPublishers().get(0).getClientVersion(), defaultClientVersion);
+
+        PulsarClient client = ((ClientBuilderImpl) PulsarClient.builder())
+                .description("my-java-client")
+                .serviceUrl(lookupUrl.toString())
+                .build();
+        Producer<byte[]> producer2 = client.newProducer().topic(topic).create();
+        stats = admin.topics().getStats(topic);
+        assertEquals(stats.getPublishers().size(), 2);
+
+        assertEquals(stats.getPublishers().stream().map(PublisherStats::getClientVersion).collect(Collectors.toSet()),
+                Sets.newHashSet(defaultClientVersion, defaultClientVersion + "-my-java-client"));
+
+        producer1.close();
+        producer2.close();
+        client.close();
     }
 }

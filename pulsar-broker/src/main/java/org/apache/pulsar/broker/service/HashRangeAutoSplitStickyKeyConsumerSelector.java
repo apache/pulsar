@@ -23,9 +23,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * This is a consumer selector based fixed hash range.
@@ -77,13 +79,18 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws ConsumerAssignException {
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (rangeMap.isEmpty()) {
             rangeMap.put(rangeSize, consumer);
             consumerRange.put(consumer, rangeSize);
         } else {
-            splitRange(findBiggestRange(), consumer);
+            try {
+                splitRange(findBiggestRange(), consumer);
+            } catch (ConsumerAssignException e) {
+                return FutureUtil.failedFuture(e);
+            }
         }
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
