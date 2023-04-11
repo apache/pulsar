@@ -73,6 +73,7 @@ import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
@@ -396,7 +397,8 @@ public class ProxyConnection extends PulsarHandler {
             lookupProxyHandler = service.newLookupProxyHandler(this);
             if (service.getConfiguration().isAuthenticationEnabled()
                     && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
-                authRefreshTask = ctx.executor().scheduleAtFixedRate(() -> refreshAuthenticationCredentials(false),
+                authRefreshTask = ctx.executor().scheduleAtFixedRate(
+                        Runnables.catchingAndLoggingThrowables(() -> refreshAuthenticationCredentials(false)),
                         service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
                         service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
                         TimeUnit.SECONDS);
@@ -521,7 +523,7 @@ public class ProxyConnection extends PulsarHandler {
         }
 
         if (LOG.isDebugEnabled()) {
-            LOG.info("[{}] Refreshing authentication credentials", remoteAddress);
+            LOG.debug("[{}] Refreshing authentication credentials", remoteAddress);
         }
 
         try {
@@ -810,7 +812,7 @@ public class ProxyConnection extends PulsarHandler {
 
     CompletableFuture<AuthData> getValidClientAuthData() {
         final CompletableFuture<AuthData> clientAuthDataFuture = new CompletableFuture<>();
-        ctx().executor().execute(() -> {
+        ctx().executor().execute(Runnables.catchingAndLoggingThrowables(() ->{
             // authState is not thread safe, so this must run on the ProxyConnection's event loop.
             if (!authState.isExpired()) {
                 clientAuthDataFuture.complete(clientAuthData);
@@ -824,7 +826,7 @@ public class ProxyConnection extends PulsarHandler {
                 }
                 pendingBrokerAuthChallenges.add(clientAuthDataFuture);
             }
-        });
+        }));
         return clientAuthDataFuture;
     }
 }
