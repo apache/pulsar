@@ -67,7 +67,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -1674,9 +1673,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 final long producerId = send.getProducerId();
                 final long sequenceId = send.getSequenceId();
                 final long highestSequenceId = send.getHighestSequenceId();
-                service.getTopicOrderedExecutor().executeOrdered(producer.getTopic().getName(), SafeRun.safeRun(() -> {
+                service.getTopicOrderedExecutor().executeOrdered(producer.getTopic().getName(), () -> {
                     commandSender.sendSendReceiptResponse(producerId, sequenceId, highestSequenceId, -1, -1);
-                }));
+                });
                 producer.recordMessageDrop(send.getNumMessages());
                 return;
             } else {
