@@ -364,6 +364,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "to take effect"
     )
     private boolean forwardAuthorizationCredentials = false;
+
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "Interval of time for checking for expired authentication credentials. Disable by setting to 0."
+    )
+    private int authenticationRefreshCheckSeconds = 60;
+
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."

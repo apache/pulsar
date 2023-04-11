@@ -29,13 +29,17 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -64,10 +68,12 @@ import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
@@ -92,10 +98,16 @@ public class ProxyConnection extends PulsarHandler {
     private LookupProxyHandler lookupProxyHandler = null;
     @Getter
     private DirectProxyHandler directProxyHandler = null;
+    private ScheduledFuture<?> authRefreshTask;
+    // When authChallengeSentTime is not Long.MAX_VALUE, it means the proxy is waiting for the client to respond
+    // to an auth challenge. When authChallengeSentTime is Long.MAX_VALUE, there are no pending auth challenges.
+    private long authChallengeSentTime = Long.MAX_VALUE;
+    private FeatureFlags features;
+    private Set<CompletableFuture<AuthData>> pendingBrokerAuthChallenges = null;
     private final BrokerProxyValidator brokerProxyValidator;
     private final ConnectionController connectionController;
     String clientAuthRole;
-    AuthData clientAuthData;
+    volatile AuthData clientAuthData;
     String clientAuthMethod;
     String clientVersion;
 
@@ -189,6 +201,15 @@ public class ProxyConnection extends PulsarHandler {
         if (directProxyHandler != null) {
             directProxyHandler.close();
             directProxyHandler = null;
+        }
+
+        if (authRefreshTask != null) {
+            authRefreshTask.cancel(false);
+        }
+
+        if (pendingBrokerAuthChallenges != null) {
+            pendingBrokerAuthChallenges.forEach(future -> future.cancel(true));
+            pendingBrokerAuthChallenges = null;
         }
 
         service.getClientCnxs().remove(this);
@@ -358,7 +379,7 @@ public class ProxyConnection extends PulsarHandler {
             Supplier<ClientCnx> clientCnxSupplier;
             if (service.getConfiguration().isAuthenticationEnabled()) {
                 clientCnxSupplier = () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), clientAuthRole,
-                        clientAuthData, clientAuthMethod, protocolVersionToAdvertise,
+                        clientAuthMethod, protocolVersionToAdvertise,
                         service.getConfiguration().isForwardAuthorizationCredentials(), this);
             } else {
                 clientCnxSupplier =
@@ -376,6 +397,15 @@ public class ProxyConnection extends PulsarHandler {
 
             state = State.ProxyLookupRequests;
             lookupProxyHandler = service.newLookupProxyHandler(this);
+            if (service.getConfiguration().isAuthenticationEnabled()
+                    && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
+                authRefreshTask = ctx.executor().scheduleAtFixedRate(
+                        Runnables.catchingAndLoggingThrowables(
+                                this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
+                        service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                        service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                        TimeUnit.SECONDS);
+            }
             final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
             writeAndFlush(msg);
         }
@@ -472,6 +502,61 @@ public class ProxyConnection extends PulsarHandler {
         }
     }
 
+    private void refreshAuthenticationCredentialsAndCloseIfTooExpired() {
+        assert ctx.executor().inEventLoop();
+        if (state != State.ProxyLookupRequests) {
+            // Happens when an exception is thrown that causes this connection to close.
+            return;
+        } else if (!authState.isExpired()) {
+            // Credentials are still valid. Nothing to do at this point
+            return;
+        }
+
+        if (System.nanoTime() - authChallengeSentTime
+                > TimeUnit.SECONDS.toNanos(service.getConfiguration().getAuthenticationRefreshCheckSeconds())) {
+            LOG.warn("[{}] Closing connection after timeout on refreshing auth credentials", remoteAddress);
+            ctx.close();
+        }
+
+        maybeSendAuthChallenge();
+    }
+
+    private void maybeSendAuthChallenge() {
+        assert ctx.executor().inEventLoop();
+
+        if (!supportsAuthenticationRefresh()) {
+            LOG.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
+            ctx.close();
+            return;
+        } else if (authChallengeSentTime != Long.MAX_VALUE) {
+            // If the proxy sent a refresh but hasn't yet heard back, do not send another challenge.
+            return;
+        } else if (service.getConfiguration().getAuthenticationRefreshCheckSeconds() < 1) {
+            // Without the refresh check enabled, there is no way to guarantee the ProxyConnection will close
+            // this connection if the client fails to respond to the auth challenge with valid auth data.
+            // The cost is minimal since the client can recreate the connection. This logic prevents a leak.
+            LOG.warn("[{}] Closing connection because auth credentials refresh is disabled", remoteAddress);
+            ctx.close();
+            return;
+        }
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("[{}] Refreshing authentication credentials", remoteAddress);
+        }
+        try {
+            AuthData challenge = authState.refreshAuthentication();
+            writeAndFlush(Commands.newAuthChallenge(authMethod, challenge, protocolVersionToAdvertise));
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
+                        remoteAddress, authMethod);
+            }
+            authChallengeSentTime = System.nanoTime();
+        } catch (AuthenticationException e) {
+            LOG.warn("[{}] Failed to refresh authentication: {}", remoteAddress, e);
+            ctx.close();
+        }
+    }
+
     @Override
     protected void handleConnect(CommandConnect connect) {
         checkArgument(state == State.Init);
@@ -481,6 +566,10 @@ public class ProxyConnection extends PulsarHandler {
         this.protocolVersionToAdvertise = getProtocolVersionToAdvertise(connect);
         this.proxyToBrokerUrl = connect.hasProxyToBrokerUrl() ? connect.getProxyToBrokerUrl() : "null";
         this.clientVersion = connect.getClientVersion();
+        features = new FeatureFlags();
+        if (connect.hasFeatureFlags()) {
+            features.copyFrom(connect.getFeatureFlags());
+        }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("Received CONNECT from {} proxyToBroker={}", remoteAddress, proxyToBrokerUrl);
@@ -574,53 +663,25 @@ public class ProxyConnection extends PulsarHandler {
         }
 
         try {
+            // Reset the auth challenge sent time to indicate we are not waiting on a client response.
+            authChallengeSentTime = Long.MAX_VALUE;
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
+            // Authenticate the client's auth data and send to the broker concurrently
+            // Note: this implementation relies on the current weakness that prevents multi-stage authentication
+            // from working when forwardAuthorizationCredentials is enabled. Here is an issue to fix the protocol:
+            // https://github.com/apache/pulsar/issues/19291.
             doAuthentication(clientData);
-            if (service.getConfiguration().isForwardAuthorizationCredentials()
-                    && connectionPool != null && state == State.ProxyLookupRequests) {
-                connectionPool.getConnections().forEach(toBrokerCnxFuture -> {
-                    String clientVersion;
-                    if (authResponse.hasClientVersion()) {
-                        clientVersion = authResponse.getClientVersion();
-                    } else {
-                        clientVersion = this.clientVersion;
+            if (service.getConfiguration().isForwardAuthorizationCredentials()) {
+                // Update the clientAuthData to be able to initialize future ProxyClientCnx.
+                this.clientAuthData = clientData;
+                // We only have pendingBrokerAuthChallenges when forwardAuthorizationCredentials is enabled.
+                if (pendingBrokerAuthChallenges != null && !pendingBrokerAuthChallenges.isEmpty()) {
+                    // Send auth data to pending challenges from the broker
+                    for (CompletableFuture<AuthData> challenge : pendingBrokerAuthChallenges) {
+                        challenge.complete(clientData);
                     }
-                    int protocolVersion;
-                    if (authResponse.hasProtocolVersion()) {
-                        protocolVersion = authResponse.getProtocolVersion();
-                    } else {
-                        protocolVersion = Commands.getCurrentProtocolVersion();
-                    }
-
-                    ByteBuf cmd =
-                            Commands.newAuthResponse(clientAuthMethod, clientData, protocolVersion, clientVersion);
-                    toBrokerCnxFuture.thenAccept(toBrokerCnx -> toBrokerCnx.ctx().writeAndFlush(cmd)
-                                    .addListener(writeFuture -> {
-                                        if (writeFuture.isSuccess()) {
-                                            if (LOG.isDebugEnabled()) {
-                                                LOG.debug("{} authentication is refreshed successfully by {}, "
-                                                                + "auth method: {} ",
-                                                        toBrokerCnx.ctx().channel(), ctx.channel(), clientAuthMethod);
-                                            }
-                                        } else {
-                                            LOG.error("Failed to forward the auth response "
-                                                            + "from the proxy to the broker through the proxy client, "
-                                                            + "proxy: {}, proxy client: {}",
-                                                    ctx.channel(),
-                                                    toBrokerCnx.ctx().channel(),
-                                                    writeFuture.cause());
-                                            toBrokerCnx.ctx().channel().pipeline()
-                                                    .fireExceptionCaught(writeFuture.cause());
-                                        }
-                                    }))
-                            .whenComplete((__, ex) -> {
-                                if (ex != null) {
-                                    LOG.error("Failed to forward the auth response from the proxy to "
-                                                    + "the broker through the proxy client, proxy: {}",
-                                            ctx().channel(), ex);
-                                }
-                            });
-                });
+                    pendingBrokerAuthChallenges.clear();
+                }
             }
         } catch (Exception e) {
             String errorMsg = "Unable to handleAuthResponse";
@@ -768,5 +829,37 @@ public class ProxyConnection extends PulsarHandler {
 
     private void writeAndFlushAndClose(ByteBuf cmd) {
         NettyChannelUtil.writeAndFlushWithClosePromise(ctx, cmd);
+    }
+
+    boolean supportsAuthenticationRefresh() {
+        return features != null && features.isSupportsAuthRefresh();
+    }
+
+    AuthData getClientAuthData() {
+        return clientAuthData;
+    }
+
+    /**
+     * Thread-safe method to retrieve unexpired client auth data. Due to inherent race conditions,
+     * the auth data may expire before it is used.
+     */
+    CompletableFuture<AuthData> getValidClientAuthData() {
+        final CompletableFuture<AuthData> clientAuthDataFuture = new CompletableFuture<>();
+        ctx().executor().execute(Runnables.catchingAndLoggingThrowables(() -> {
+            // authState is not thread safe, so this must run on the ProxyConnection's event loop.
+            if (!authState.isExpired()) {
+                clientAuthDataFuture.complete(clientAuthData);
+            } else if (state == State.ProxyLookupRequests) {
+                maybeSendAuthChallenge();
+                if (pendingBrokerAuthChallenges == null) {
+                    pendingBrokerAuthChallenges = new HashSet<>();
+                }
+                pendingBrokerAuthChallenges.add(clientAuthDataFuture);
+            } else {
+                clientAuthDataFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                        "ProxyConnection is not in a valid state to get client auth data for " + remoteAddress));
+            }
+        }));
+        return clientAuthDataFuture;
     }
 }

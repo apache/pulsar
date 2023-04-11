@@ -73,6 +73,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     // The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token, need contains this.
     static final String CONF_TOKEN_AUDIENCE = "tokenAudience";
+    // The amount of time in seconds that a token is allowed to be out of sync with the server's time when performing
+    // token validation.
+    static final String CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS = "tokenAllowedClockSkewSeconds";
 
     static final String TOKEN = "token";
 
@@ -101,6 +104,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenPublicAlgSettingName;
     private String confTokenAudienceClaimSettingName;
     private String confTokenAudienceSettingName;
+    private String confTokenAllowedClockSkewSecondsSettingName;
 
     @Override
     public void close() throws IOException {
@@ -125,6 +129,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.confTokenPublicAlgSettingName = prefix + CONF_TOKEN_PUBLIC_ALG;
         this.confTokenAudienceClaimSettingName = prefix + CONF_TOKEN_AUDIENCE_CLAIM;
         this.confTokenAudienceSettingName = prefix + CONF_TOKEN_AUDIENCE;
+        this.confTokenAllowedClockSkewSecondsSettingName = prefix + CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS;
 
         // we need to fetch the algorithm before we fetch the key
         this.publicKeyAlg = getPublicKeyAlgType(config);
@@ -133,7 +138,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         this.audienceClaim = getTokenAudienceClaim(config);
         this.audience = getTokenAudience(config);
 
-        this.parser = Jwts.parserBuilder().setSigningKey(this.validationKey).build();
+        long allowedSkew = getConfTokenAllowedClockSkewSeconds(config);
+
+        this.parser = Jwts.parserBuilder()
+                .setAllowedClockSkewSeconds(allowedSkew)
+                .setSigningKey(this.validationKey)
+                .build();
 
         if (audienceClaim != null && audience == null) {
             throw new IllegalArgumentException("Token Audience Claim [" + audienceClaim
@@ -326,6 +336,16 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             return tokenAudience;
         } else {
             return null;
+        }
+    }
+
+    // get Token's allowed clock skew in seconds. If not configured, defaults to 0.
+    private long getConfTokenAllowedClockSkewSeconds(ServiceConfiguration conf) throws IllegalArgumentException {
+        String allowedSkewStr = (String) conf.getProperty(confTokenAllowedClockSkewSecondsSettingName);
+        if (StringUtils.isNotBlank(allowedSkewStr)) {
+            return Long.parseLong(allowedSkewStr);
+        } else {
+            return 0;
         }
     }
 
