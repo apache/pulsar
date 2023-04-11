@@ -108,6 +108,7 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
         proxyConfig.setForwardAuthorizationCredentials(true);
+        proxyConfig.setAuthenticationRefreshCheckSeconds(1);
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setAdvertisedAddress(null);
 
