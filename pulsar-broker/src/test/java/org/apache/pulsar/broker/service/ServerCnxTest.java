@@ -512,6 +512,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test
     public void testAuthChallengePrincipalChangeFails() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
@@ -565,6 +566,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test
     public void testAuthChallengeOriginalPrincipalChangeFails() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
@@ -583,7 +585,7 @@ public class ServerCnxTest {
         // Don't want the keep alive task affecting which messages are handled
         serverCnx.cancelKeepAliveTask();
 
-        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", 1, null,
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.proxy", ProtocolVersion.v14.getValue(), null,
                 null, "pass.client", "pass.client", authMethodName);
         channel.writeInbound(clientCommand);
 
@@ -738,7 +740,8 @@ public class ServerCnxTest {
 
         // Trigger another AuthChallenge to verify that code path continues to challenge
         ByteBuf authResponse1 =
-                Commands.newAuthResponse(authMethodName, AuthData.of("challenge.client".getBytes()), 1, "1");
+                Commands.newAuthResponse(authMethodName, AuthData.of("challenge.client".getBytes()),
+                        ProtocolVersion.v14.getValue(), "1");
         channel.writeInbound(authResponse1);
 
         Object challenge2 = getResponse();
@@ -754,6 +757,67 @@ public class ServerCnxTest {
         assertEquals(((CommandError) response3).getMessage(), "Failed to authenticate");
         assertEquals(serverCnx.getState(), State.Failed);
         assertFalse(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test
+    public void testAuthChallengeWithOldClientResultsInErrorToClient() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockMultiStageAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // Trigger connect command to result in AuthChallenge
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "challenge.client", ProtocolVersion.v13.getValue(),
+                "1", null, null, null, null);
+        channel.writeInbound(clientCommand);
+
+        Object error = getResponse();
+        assertTrue(error instanceof CommandError);
+        assertEquals(serverCnx.getState(), State.Failed);
+        assertFalse(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test
+    public void testAuthRefreshWithOldClientResultsClosedConnection() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticationRefreshCheckSeconds(30);
+
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+        // Don't want the keep alive task affecting which messages are handled
+        serverCnx.cancelKeepAliveTask();
+
+        // Trigger connect command to result in AuthChallenge
+        ByteBuf clientCommand = Commands.newConnect(authMethodName, "pass.client", ProtocolVersion.v13.getValue(),
+                "1", null, null, null, null);
+        channel.writeInbound(clientCommand);
+        Object connected = getResponse();
+        assertTrue(connected instanceof CommandConnected);
+
+        // Trigger the ServerCnx to check if authentication is expired (it is because of our special implementation)
+        // and then force channel to run the task
+        channel.advanceTimeBy(30, TimeUnit.SECONDS);
+        assertTrue(channel.hasPendingTasks(), "This test assumes there are pending tasks to run.");
+        channel.runPendingTasks();
+        assertTrue(channel.outboundMessages().isEmpty());
+        // Then expect channel to close
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> !channel.isActive());
         channel.finish();
     }
 
