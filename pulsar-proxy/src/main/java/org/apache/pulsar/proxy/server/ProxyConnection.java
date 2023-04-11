@@ -537,8 +537,8 @@ public class ProxyConnection extends PulsarHandler {
             LOG.debug("[{}] Refreshing authentication credentials", remoteAddress);
         }
         try {
-            AuthData brokerData = authState.refreshAuthentication();
-            writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, getRemoteEndpointProtocolVersion()));
+            AuthData challenge = authState.refreshAuthentication();
+            writeAndFlush(Commands.newAuthChallenge(authMethod, challenge, protocolVersionToAdvertise));
             if (LOG.isDebugEnabled()) {
                 LOG.debug("[{}] Sent auth challenge to client to refresh credentials with method: {}.",
                         remoteAddress, authMethod);
