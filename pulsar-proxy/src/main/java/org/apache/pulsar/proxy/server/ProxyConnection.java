@@ -528,7 +528,7 @@ public class ProxyConnection extends PulsarHandler {
             LOG.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
             ctx.close();
             return;
-        } else if (authChallengeSentTime == Long.MAX_VALUE) {
+        } else if (authChallengeSentTime != Long.MAX_VALUE) {
             // If the proxy sent a refresh but hasn't yet heard back, do not send another challenge.
             return;
         }
