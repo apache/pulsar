@@ -647,6 +647,7 @@ public class ProxyConnection extends PulsarHandler {
         }
 
         try {
+            // Reset the auth challenge sent time to indicate we are not waiting on a client response.
             authChallengeSentTime = Long.MAX_VALUE;
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
             // Authenticate the client's auth data and send to the broker concurrently
@@ -654,15 +655,17 @@ public class ProxyConnection extends PulsarHandler {
             // from working when forwardAuthorizationCredentials is enabled. Here is an issue to fix the protocol:
             // https://github.com/apache/pulsar/issues/19291.
             doAuthentication(clientData);
-            // We only have pendingBrokerAuthChallenges when forwardAuthorizationCredentials is enabled.
-            if (pendingBrokerAuthChallenges != null && !pendingBrokerAuthChallenges.isEmpty()) {
-                // Must store the clientAuthData to be able to initialize future ProxyClientCnx.
+            if (service.getConfiguration().isForwardAuthorizationCredentials()) {
+                // Update the clientAuthData to be able to initialize future ProxyClientCnx.
                 this.clientAuthData = clientData;
-                // Send pending auth data requests to the broker
-                for (CompletableFuture<AuthData> challenge : pendingBrokerAuthChallenges) {
-                    challenge.complete(clientData);
+                // We only have pendingBrokerAuthChallenges when forwardAuthorizationCredentials is enabled.
+                if (pendingBrokerAuthChallenges != null && !pendingBrokerAuthChallenges.isEmpty()) {
+                    // Send auth data to pending challenges from the broker
+                    for (CompletableFuture<AuthData> challenge : pendingBrokerAuthChallenges) {
+                        challenge.complete(clientData);
+                    }
+                    pendingBrokerAuthChallenges.clear();
                 }
-                pendingBrokerAuthChallenges.clear();
             }
         } catch (Exception e) {
             String errorMsg = "Unable to handleAuthResponse";

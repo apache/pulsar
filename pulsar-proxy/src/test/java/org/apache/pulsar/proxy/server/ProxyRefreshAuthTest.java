@@ -78,7 +78,9 @@ public class ProxyRefreshAuthTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
         Properties properties = new Properties();
         properties.setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(SECRET_KEY));
-        properties.setProperty("tokenAllowedClockSkewSeconds", "3");
+        // The skew should be double the proxy's refresh interval to ensure the broker accepts auth data
+        // that the proxy might forward.
+        properties.setProperty("tokenAllowedClockSkewSeconds", "2");
         conf.setProperties(properties);
 
         conf.setClusterName("proxy-authorization");
