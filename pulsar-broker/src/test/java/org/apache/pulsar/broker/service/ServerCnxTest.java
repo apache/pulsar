@@ -524,6 +524,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test
     public void testConnectWithNonProxyRoleAndProxyVersion() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
@@ -548,6 +549,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test
     public void testAuthChallengePrincipalChangeFails() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = new MockAlwaysExpiredAuthenticationProvider();
