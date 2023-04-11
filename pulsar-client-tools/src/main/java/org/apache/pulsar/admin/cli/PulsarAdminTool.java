@@ -48,7 +48,7 @@ public class PulsarAdminTool {
 
     private static int lastExitCode = Integer.MIN_VALUE;
 
-    protected static List<CustomCommandFactory> customCommandFactories;
+    protected final List<CustomCommandFactory> customCommandFactories;
     protected Map<String, Class<?>> commandMap;
     protected JCommander jcommander;
     protected RootParams rootParams;
@@ -100,9 +100,7 @@ public class PulsarAdminTool {
 
     public PulsarAdminTool(Properties properties) throws Exception {
         this.properties = properties;
-        if (customCommandFactories == null) {
-            customCommandFactories = CustomCommandFactoryProvider.createCustomCommandFactories(properties);
-        }
+        customCommandFactories = CustomCommandFactoryProvider.createCustomCommandFactories(properties);
         rootParams = new RootParams();
         // fallback to previous-version serviceUrl property to maintain backward-compatibility
         initRootParamsFromProperties(properties);

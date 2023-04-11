@@ -2444,7 +2444,7 @@ public class PulsarAdminToolTest {
     }
 
     @Test
-    public void customCommandsFactorySingleton() throws Exception {
+    public void customCommandsFactoryImmutable() throws Exception {
         File narFile = new File(PulsarAdminTool.class.getClassLoader()
                 .getResource("cliextensions/customCommands-nar.nar").getFile());
         log.info("NAR FILE is {}", narFile);
@@ -2465,7 +2465,7 @@ public class PulsarAdminToolTest {
         PulsarAdminTool tool = new PulsarAdminTool(properties);
         List<CustomCommandFactory> customCommandFactories = tool.customCommandFactories;
         assertNotNull(customCommandFactories);
-        tool = new PulsarAdminTool(properties);
+        tool.run(split("-h"));
         assertSame(tool.customCommandFactories, customCommandFactories);
     }
 
