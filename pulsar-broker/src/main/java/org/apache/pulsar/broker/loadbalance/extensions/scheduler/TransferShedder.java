@@ -690,11 +690,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         if (brokerLoadDataOptional.isEmpty()) {
             return false;
         }
-        var overloadThreshold = context.brokerConfiguration()
-                .getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        var conf = context.brokerConfiguration();
+        var overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        var targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
         var brokerLoadData = brokerLoadDataOptional.get();
         var load = brokerLoadData.getWeightedMaxEMA();
-        return load > overloadThreshold && load > avgLoad * 2;
+        return load > overloadThreshold && load > avgLoad + targetStd;
     }
 
 
