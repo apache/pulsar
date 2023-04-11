@@ -23,6 +23,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.AuthData;
@@ -66,7 +67,7 @@ public class ProxyClientCnx extends ClientCnx {
         AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
         return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
                 proxyConnection.clientVersion, proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
-                clientAuthMethod);
+                clientAuthMethod, PulsarVersion.getVersion());
     }
 
     @Override
