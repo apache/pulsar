@@ -3262,6 +3262,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         return clientVersion;
     }
 
+    @Override
+    public String getProxyVersion() {
+        return proxyVersion;
+    }
+
     @VisibleForTesting
     void setAutoReadDisabledRateLimiting(boolean isLimiting) {
         this.autoReadDisabledRateLimiting = isLimiting;
