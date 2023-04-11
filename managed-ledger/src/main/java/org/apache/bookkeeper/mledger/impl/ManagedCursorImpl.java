@@ -113,8 +113,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             return e1.getEntryId() < e2.getEntryId() ? -1 : 1;
         }
 
-
-
         return 0;
     };
     protected final BookKeeper bookkeeper;
