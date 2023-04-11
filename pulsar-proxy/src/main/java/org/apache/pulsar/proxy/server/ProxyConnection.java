@@ -812,7 +812,12 @@ public class ProxyConnection extends PulsarHandler {
 
     CompletableFuture<AuthData> getValidClientAuthData() {
         final CompletableFuture<AuthData> clientAuthDataFuture = new CompletableFuture<>();
-        ctx().executor().execute(Runnables.catchingAndLoggingThrowables(() ->{
+        ctx().executor().execute(Runnables.catchingAndLoggingThrowables(() -> {
+            if (state != State.ProxyLookupRequests) {
+                clientAuthDataFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                        "ProxyConnection is not in a valid state to get client auth data"));
+                return;
+            }
             // authState is not thread safe, so this must run on the ProxyConnection's event loop.
             if (!authState.isExpired()) {
                 clientAuthDataFuture.complete(clientAuthData);

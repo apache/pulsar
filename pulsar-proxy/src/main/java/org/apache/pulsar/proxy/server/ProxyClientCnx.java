@@ -88,7 +88,12 @@ public class ProxyClientCnx extends ClientCnx {
                                 Commands.newAuthResponse(clientAuthMethod, authData, this.protocolVersion,
                                         String.format("Pulsar-Java-v%s", PulsarVersion.getVersion())));
                         return null;
-                        }, ctx.executor());
+                        }, ctx.executor())
+                    .exceptionally(ex -> {
+                        log.warn("Failed to get valid client auth data", ex);
+                        ctx.close();
+                        return null;
+                    });
         } else {
             super.handleAuthChallenge(authChallenge);
         }
