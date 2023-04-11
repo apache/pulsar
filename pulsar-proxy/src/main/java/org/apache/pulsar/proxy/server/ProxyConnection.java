@@ -642,7 +642,10 @@ public class ProxyConnection extends PulsarHandler {
             // from working when forwardAuthorizationCredentials is enabled. Here is an issue to fix the protocol:
             // https://github.com/apache/pulsar/issues/19291.
             doAuthentication(clientData);
+            // We only have pendingBrokerAuthChallenges when forwardAuthorizationCredentials is enabled.
             if (pendingBrokerAuthChallenges != null && !pendingBrokerAuthChallenges.isEmpty()) {
+                // Must store the clientAuthData to be able to initialize future ProxyClientCnx.
+                this.clientAuthData = clientData;
                 // Send pending auth data requests to the broker
                 for (CompletableFuture<AuthData> challenge : pendingBrokerAuthChallenges) {
                     challenge.complete(clientData);
