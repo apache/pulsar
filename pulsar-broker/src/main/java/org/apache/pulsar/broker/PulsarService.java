@@ -81,6 +81,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -1133,8 +1134,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         }
                     } else {
                         if (leaderElectionService != null) {
-                            LOG.info("This broker is a follower. Current leader is {}",
-                                    leaderElectionService.getCurrentLeader());
+                            final Optional<LeaderBroker> currentLeader = leaderElectionService.getCurrentLeader();
+                            if (currentLeader.isPresent()) {
+                                LOG.info("This broker is a follower. Current leader is {}",
+                                        currentLeader);
+                            } else {
+                                LOG.info("This broker is a follower. No leader has been elected yet");
+                            }
+
                         }
                         if (loadSheddingTask != null) {
                             loadSheddingTask.cancel();
