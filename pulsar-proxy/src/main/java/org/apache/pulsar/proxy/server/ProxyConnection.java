@@ -99,6 +99,8 @@ public class ProxyConnection extends PulsarHandler {
     @Getter
     private DirectProxyHandler directProxyHandler = null;
     private ScheduledFuture<?> authRefreshTask;
+    // When authChallengeSentTime is not Long.MAX_VALUE, it means the proxy is waiting for the client to respond
+    // to an auth challenge. When authChallengeSentTime is Long.MAX_VALUE, there are no pending auth challenges.
     private long authChallengeSentTime = Long.MAX_VALUE;
     private FeatureFlags features;
     private Set<CompletableFuture<AuthData>> pendingBrokerAuthChallenges = null;
@@ -398,7 +400,7 @@ public class ProxyConnection extends PulsarHandler {
             if (service.getConfiguration().isAuthenticationEnabled()
                     && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0) {
                 authRefreshTask = ctx.executor().scheduleAtFixedRate(
-                        Runnables.catchingAndLoggingThrowables(() -> refreshAuthenticationCredentials(false)),
+                        Runnables.catchingAndLoggingThrowables(this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
                         service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
                         service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
                         TimeUnit.SECONDS);
@@ -499,19 +501,13 @@ public class ProxyConnection extends PulsarHandler {
         }
     }
 
-    private void refreshAuthenticationCredentials(boolean force) {
+    private void refreshAuthenticationCredentialsAndCloseIfTooExpired() {
         assert ctx.executor().inEventLoop();
         if (state != State.ProxyLookupRequests) {
             // Happens when an exception is thrown that causes this connection to close.
             return;
-        } else if (!authState.isExpired() || !force) {
+        } else if (!authState.isExpired()) {
             // Credentials are still valid. Nothing to do at this point
-            return;
-        }
-
-        if (!supportsAuthenticationRefresh()) {
-            LOG.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
-            ctx.close();
             return;
         }
 
@@ -519,13 +515,26 @@ public class ProxyConnection extends PulsarHandler {
                 > TimeUnit.SECONDS.toNanos(service.getConfiguration().getAuthenticationRefreshCheckSeconds())) {
             LOG.warn("[{}] Closing connection after timeout on refreshing auth credentials", remoteAddress);
             ctx.close();
+        }
+
+        maybeSendAuthChallenge();
+    }
+
+    private void maybeSendAuthChallenge() {
+        assert ctx.executor().inEventLoop();
+
+        if (!supportsAuthenticationRefresh()) {
+            LOG.warn("[{}] Closing connection because client doesn't support auth credentials refresh", remoteAddress);
+            ctx.close();
+            return;
+        } else if (authChallengeSentTime == Long.MAX_VALUE) {
+            // If the proxy sent a refresh but hasn't yet heard back, do not send another challenge.
             return;
         }
 
         if (LOG.isDebugEnabled()) {
             LOG.debug("[{}] Refreshing authentication credentials", remoteAddress);
         }
-
         try {
             AuthData brokerData = authState.refreshAuthentication();
             writeAndFlush(Commands.newAuthChallenge(authMethod, brokerData, getRemoteEndpointProtocolVersion()));
@@ -810,26 +819,25 @@ public class ProxyConnection extends PulsarHandler {
         return clientAuthData;
     }
 
+    /**
+     * Thread-safe method to retrieve unexpired client auth data. Due to inherent race conditions,
+     * the auth data may expire before it is used.
+     */
     CompletableFuture<AuthData> getValidClientAuthData() {
         final CompletableFuture<AuthData> clientAuthDataFuture = new CompletableFuture<>();
         ctx().executor().execute(Runnables.catchingAndLoggingThrowables(() -> {
-            if (state != State.ProxyLookupRequests) {
-                clientAuthDataFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                        "ProxyConnection is not in a valid state to get client auth data for " + remoteAddress));
-                return;
-            }
             // authState is not thread safe, so this must run on the ProxyConnection's event loop.
             if (!authState.isExpired()) {
                 clientAuthDataFuture.complete(clientAuthData);
-            } else {
-                if (authChallengeSentTime == Long.MAX_VALUE) {
-                    // We only need to issue an auth challenge if we are not waiting on a response from the client.
-                    refreshAuthenticationCredentials(true);
-                }
+            } else if (state == State.ProxyLookupRequests) {
+                maybeSendAuthChallenge();
                 if (pendingBrokerAuthChallenges == null) {
                     pendingBrokerAuthChallenges = new HashSet<>();
                 }
                 pendingBrokerAuthChallenges.add(clientAuthDataFuture);
+            } else {
+                clientAuthDataFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                        "ProxyConnection is not in a valid state to get client auth data for " + remoteAddress));
             }
         }));
         return clientAuthDataFuture;

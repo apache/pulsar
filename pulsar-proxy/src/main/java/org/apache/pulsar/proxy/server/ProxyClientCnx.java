@@ -90,7 +90,7 @@ public class ProxyClientCnx extends ClientCnx {
                         return null;
                         }, ctx.executor())
                     .exceptionally(ex -> {
-                        log.warn("Failed to get valid client auth data", ex);
+                        log.warn("Failed to get valid client auth data. Closing connection.", ex);
                         ctx.close();
                         return null;
                     });
