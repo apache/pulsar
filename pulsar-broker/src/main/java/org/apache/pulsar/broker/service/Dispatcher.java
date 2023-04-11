@@ -27,7 +27,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 public interface Dispatcher {
-    void addConsumer(Consumer consumer) throws BrokerServiceException;
+    CompletableFuture<Void> addConsumer(Consumer consumer);
 
     void removeConsumer(Consumer consumer) throws BrokerServiceException;
 
@@ -110,8 +110,8 @@ public interface Dispatcher {
         return 0;
     }
 
-    default void clearDelayedMessages() {
-        //No-op
+    default CompletableFuture<Void> clearDelayedMessages() {
+        return CompletableFuture.completedFuture(null);
     }
 
     default void cursorIsReset() {

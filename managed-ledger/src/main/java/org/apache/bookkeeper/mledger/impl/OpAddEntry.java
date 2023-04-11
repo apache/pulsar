@@ -35,8 +35,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.bookkeeper.util.SafeRunnable;
 
 
 /**
@@ -44,7 +42,7 @@ import org.apache.bookkeeper.util.SafeRunnable;
  *
  */
 @Slf4j
-public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
+public class OpAddEntry implements AddCallback, CloseCallback, Runnable {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
     private long entryId;
@@ -125,17 +123,22 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     public void initiate() {
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
-
             ByteBuf duplicateBuffer = data.retainedDuplicate();
 
             // internally asyncAddEntry() will take the ownership of the buffer and release it at the end
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
             if (ml.getManagedLedgerInterceptor() != null) {
+                long originalDataLen = data.readableBytes();
                 payloadProcessorHandle = ml.getManagedLedgerInterceptor().processPayloadBeforeLedgerWrite(this,
                         duplicateBuffer);
                 if (payloadProcessorHandle != null) {
                     duplicateBuffer = payloadProcessorHandle.getProcessedPayload();
+                    // If data len of entry changes, correct "dataLength" and "currentLedgerSize".
+                    if (originalDataLen != duplicateBuffer.readableBytes()) {
+                        this.dataLength = duplicateBuffer.readableBytes();
+                        this.ml.currentLedgerSize += (dataLength - originalDataLen);
+                    }
                 }
             }
             ledger.asyncAddEntry(duplicateBuffer, this, addOpCount);
@@ -157,6 +160,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     public void failed(ManagedLedgerException e) {
         AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
+        ml.afterFailedAddEntry(this.getNumberOfMessages());
         if (cb != null) {
             ReferenceCountUtil.release(data);
             cb.addFailed(e, ctx);
@@ -206,7 +210,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     // Called in executor hashed on managed ledger name, once the add operation is complete
     @Override
-    public void safeRun() {
+    public void run() {
         if (payloadProcessorHandle != null) {
             payloadProcessorHandle.release();
         }
@@ -322,11 +326,11 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         ManagedLedgerImpl finalMl = this.ml;
         finalMl.mbean.recordAddEntryError();
 
-        finalMl.getExecutor().execute(SafeRun.safeRun(() -> {
+        finalMl.getExecutor().execute(() -> {
             // Force the creation of a new ledger. Doing it in a background thread to avoid acquiring ML lock
             // from a BK callback.
             finalMl.ledgerClosed(lh);
-        }));
+        });
     }
 
     void close() {

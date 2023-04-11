@@ -947,9 +947,14 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         ByteBuf payload = ((MessageImpl) msg).getPayload();
         assertNotEquals(payload.refCnt(), 0);
         consumer.redeliverUnacknowledgedMessages();
-        assertEquals(payload.refCnt(), 0);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(consumer.incomingMessages.size() >= 100);
+        });
         consumer.close();
         producer.close();
+        admin.topics().delete(topic, false);
+        assertEquals(consumer.incomingMessages.size(), 0);
+        assertEquals(payload.refCnt(), 0);
     }
 
     /**

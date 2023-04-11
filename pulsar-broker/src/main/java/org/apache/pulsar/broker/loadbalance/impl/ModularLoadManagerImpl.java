@@ -33,13 +33,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -56,15 +57,13 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
-import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -172,8 +171,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Pulsar service used to initialize this.
     private PulsarService pulsar;
 
-    // Executor service used to regularly update broker data.
-    private final ScheduledExecutorService scheduler;
+    // Executor service used to update broker data.
+    private final ExecutorService executors;
 
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
@@ -213,7 +212,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         loadData = new LoadData();
         loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        scheduler = Executors.newSingleThreadScheduledExecutor(
+        executors = Executors.newSingleThreadExecutor(
                 new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = new HashMap<>();
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
@@ -270,11 +269,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerVersionFilter());
 
-        refreshBrokerToFailureDomainMap();
+        LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
         pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
                 .registerListener(__ -> {
-                    scheduler.execute(() -> refreshBrokerToFailureDomainMap());
+                    executors.execute(
+                            () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
 
         loadSheddingPipeline.add(createLoadSheddingStrategy());
@@ -288,7 +288,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     });
 
             try {
-                scheduler.execute(ModularLoadManagerImpl.this::updateAll);
+                executors.execute(ModularLoadManagerImpl.this::updateAll);
             } catch (RejectedExecutionException e) {
                 // Executor is shutting down
             }
@@ -489,6 +489,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (pulsar.getLeaderElectionService() != null
                 && pulsar.getLeaderElectionService().isLeader()) {
             deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
+            for (LoadSheddingStrategy loadSheddingStrategy : loadSheddingPipeline) {
+                loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
+            }
+            placementStrategy.onActiveBrokersChange(activeBrokers);
         }
     }
 
@@ -568,29 +572,26 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
             // Remove all loaded bundles from the preallocated maps.
             final Map<String, BundleData> preallocatedBundleData = brokerData.getPreallocatedBundleData();
+            Set<String> ownedNsBundles = pulsar.getNamespaceService().getOwnedServiceUnits()
+                    .stream().map(NamespaceBundle::toString).collect(Collectors.toSet());
             synchronized (preallocatedBundleData) {
-                for (String preallocatedBundleName : brokerData.getPreallocatedBundleData().keySet()) {
-                    if (brokerData.getLocalData().getBundles().contains(preallocatedBundleName)) {
-                        final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
-                                preallocatedBundleData.entrySet()
-                                        .iterator();
-                        while (preallocatedIterator.hasNext()) {
-                            final String bundle = preallocatedIterator.next().getKey();
-
-                            if (bundleData.containsKey(bundle)) {
-                                preallocatedIterator.remove();
-                                preallocatedBundleToBroker.remove(bundle);
-                            }
-                        }
+                preallocatedBundleToBroker.keySet().removeAll(preallocatedBundleData.keySet());
+                final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
+                        preallocatedBundleData.entrySet().iterator();
+                while (preallocatedIterator.hasNext()) {
+                    final String bundle = preallocatedIterator.next().getKey();
+                    if (!ownedNsBundles.contains(bundle)
+                            || (brokerData.getLocalData().getBundles().contains(bundle)
+                            && bundleData.containsKey(bundle))) {
+                        preallocatedIterator.remove();
                     }
-
-                    // This is needed too in case a broker which was assigned a bundle dies and comes back up.
-                    preallocatedBundleToBroker.remove(preallocatedBundleName);
                 }
             }
 
             // Using the newest data, update the aggregated time-average data for the current broker.
-            brokerData.getTimeAverageData().reset(statsMap.keySet(), bundleData, defaultStats);
+            TimeAverageBrokerData timeAverageData = new TimeAverageBrokerData();
+            timeAverageData.reset(statsMap.keySet(), bundleData, defaultStats);
+            brokerData.setTimeAverageData(timeAverageData);
             final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
                     brokerToNamespaceToBundleRange
                             .computeIfAbsent(broker, k ->
@@ -712,9 +713,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {
         try {
-            Optional<LocalPolicies> nsPolicies = pulsar.getPulsarResources().getLocalPolicies()
-                    .getLocalPolicies(NamespaceName.get(namespace));
-            if (!nsPolicies.isPresent() || StringUtils.isBlank(nsPolicies.get().namespaceAntiAffinityGroup)) {
+            var antiAffinityGroupOptional = LoadManagerShared.getNamespaceAntiAffinityGroup(pulsar, namespace);
+            if (antiAffinityGroupOptional.isEmpty()) {
                 return true;
             }
 
@@ -985,7 +985,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
-        scheduler.shutdownNow();
+        executors.shutdownNow();
 
         try {
             brokersData.close();
@@ -1156,36 +1156,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         + "average data from metadata store", broker, ex);
             }
         });
-    }
-
-    private void refreshBrokerToFailureDomainMap() {
-        if (!pulsar.getConfiguration().isFailureDomainsEnabled()) {
-            return;
-        }
-        ClusterResources.FailureDomainResources fdr =
-                pulsar.getPulsarResources().getClusterResources().getFailureDomainResources();
-        String clusterName = pulsar.getConfiguration().getClusterName();
-        try {
-            synchronized (brokerToFailureDomainMap) {
-                Map<String, String> tempBrokerToFailureDomainMap = new HashMap<>();
-                for (String domainName : fdr.listFailureDomains(clusterName)) {
-                    try {
-                        Optional<FailureDomainImpl> domain = fdr.getFailureDomain(clusterName, domainName);
-                        if (domain.isPresent()) {
-                            for (String broker : domain.get().brokers) {
-                                tempBrokerToFailureDomainMap.put(broker, domainName);
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to get domain {}", domainName, e);
-                    }
-                }
-                this.brokerToFailureDomainMap = tempBrokerToFailureDomainMap;
-            }
-            log.info("Cluster domain refreshed {}", brokerToFailureDomainMap);
-        } catch (Exception e) {
-            log.warn("Failed to get domain-list for cluster {}", e.getMessage());
-        }
     }
 
     @Override

@@ -210,7 +210,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testAvroSchemaFunctionTest() throws Exception {
-        testAvroSchemaFunction();
+        testAvroSchemaFunction(Runtime.JAVA);
     }
 
 }

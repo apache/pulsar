@@ -62,7 +62,7 @@ public class ManagedLedgerConfig {
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
     private long retentionTimeMs = 0;
-    private int retentionSizeInMB = 0;
+    private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
     private boolean lazyCursorRecovery = false;
     private long metadataOperationsTimeoutSeconds = 60;
@@ -396,7 +396,7 @@ public class ManagedLedgerConfig {
     /**
      * Set the retention time for the ManagedLedger.
      * <p>
-     * Retention time and retention size ({@link #setRetentionSizeInMB(int)}) are together used to retain the
+     * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
      * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
@@ -438,7 +438,7 @@ public class ManagedLedgerConfig {
      * @param retentionSizeInMB
      *            quota for message retention
      */
-    public ManagedLedgerConfig setRetentionSizeInMB(int retentionSizeInMB) {
+    public ManagedLedgerConfig setRetentionSizeInMB(long retentionSizeInMB) {
         this.retentionSizeInMB = retentionSizeInMB;
         return this;
     }
@@ -447,7 +447,7 @@ public class ManagedLedgerConfig {
      * @return quota for message retention
      *
      */
-    public int getRetentionSizeInMB() {
+    public long getRetentionSizeInMB() {
         return retentionSizeInMB;
     }
 

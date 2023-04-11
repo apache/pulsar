@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -48,11 +47,13 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -82,8 +83,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ExecutorService externalPinnedExecutor;
     protected final ExecutorService internalPinnedExecutor;
     protected UnAckedMessageTracker unAckedMessageTracker;
-    final BlockingQueue<Message<T>> incomingMessages;
-    protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
+    final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
+    protected ConcurrentOpenHashMap<MessageIdAdv, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected final int maxReceiverQueueSize;
     private volatile int currentReceiverQueueSize;
@@ -129,7 +130,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         // Always use growable queue since items can exceed the advertised size
         this.incomingMessages = new GrowableArrayBlockingQueue<>();
         this.unAckedChunkedMessageIdSequenceMap =
-                ConcurrentOpenHashMap.<MessageIdImpl, MessageIdImpl[]>newBuilder().build();
+                ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
         this.executorProvider = executorProvider;
         this.externalPinnedExecutor = executorProvider.getExecutor();
         this.internalPinnedExecutor = client.getInternalExecutorService();
@@ -143,6 +144,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(this.maxReceiverQueueSize)
                         .maxNumBytes(userBatchReceivePolicy.getMaxNumBytes())
+                        .messagesFromMultiTopicsEnabled(userBatchReceivePolicy.isMessagesFromMultiTopicsEnabled())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
                 log.warn("BatchReceivePolicy maxNumMessages: {} is greater than maxReceiverQueueSize: {}, "
@@ -154,6 +156,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 this.batchReceivePolicy = BatchReceivePolicy.builder()
                         .maxNumMessages(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumMessages())
                         .maxNumBytes(BatchReceivePolicy.DEFAULT_POLICY.getMaxNumBytes())
+                        .messagesFromMultiTopicsEnabled(userBatchReceivePolicy.isMessagesFromMultiTopicsEnabled())
                         .timeout((int) userBatchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS)
                         .build();
                 log.warn("BatchReceivePolicy maxNumMessages: {} or maxNumBytes: {} is less than 0. "
@@ -220,14 +223,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         if (listener == null) {
             unAckedMessageTracker.add(messageId, redeliveryCount);
         }
-    }
-
-    protected MessageId normalizeMessageId(MessageId messageId) {
-        if (messageId instanceof BatchMessageIdImpl) {
-            // do not add each item in batch message into tracker
-            return ((BatchMessageIdImpl) messageId).toMessageIdImpl();
-        }
-        return messageId;
     }
 
     protected void reduceCurrentReceiverQueueSize() {
@@ -736,6 +731,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public abstract CompletableFuture<Void> closeAsync();
 
 
+    @Deprecated
     @Override
     public MessageId getLastMessageId() throws PulsarClientException {
         try {
@@ -748,8 +744,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    @Deprecated
     @Override
     public abstract CompletableFuture<MessageId> getLastMessageIdAsync();
+
+    @Override
+    public List<TopicMessageId> getLastMessageIds() throws PulsarClientException {
+        try {
+            return getLastMessageIdsAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw PulsarClientException.unwrap(e);
+        } catch (ExecutionException e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
 
     private boolean isCumulativeAcknowledgementAllowed(SubscriptionType type) {
         return SubscriptionType.Shared != type && SubscriptionType.Key_Shared != type;
@@ -979,7 +988,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final void notifyPendingBatchReceivedCallBack(CompletableFuture<Messages<T>> batchReceiveFuture) {
         MessagesImpl<T> messages = getNewMessagesImpl();
         Message<T> msgPeeked = incomingMessages.peek();
+        String topicName = null;
         while (msgPeeked != null && messages.canAdd(msgPeeked)) {
+            // one batch receive request only can receive the same topic partition
+            // messages to ensure cumulative ack is not lost.
+            if (!this.batchReceivePolicy.isMessagesFromMultiTopicsEnabled()) {
+                // get the first message's `topicName` to check if
+                // the following message peeked is the same topic message.
+                if (messages.size() == 1) {
+                    topicName = messages.getMessageList().get(0).getTopicName();
+                }
+                // if the peeked message is not the same topic as the first message, return the batch receive result
+                if (topicName != null && !topicName.equals(msgPeeked.getTopicName())) {
+                    break;
+                }
+            }
             Message<T> msg = incomingMessages.poll();
             if (msg != null) {
                 messageProcessed(msg);
@@ -1116,7 +1139,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                 ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
             MessageId id;
             if (this instanceof ConsumerImpl) {
-                id = normalizeMessageId(msg.getMessageId());
+                id = MessageIdAdvUtils.discardBatch(msg.getMessageId());
             } else {
                 id = msg.getMessageId();
             }

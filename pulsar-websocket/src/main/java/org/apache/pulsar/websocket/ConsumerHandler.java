@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -292,8 +293,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private void handleAck(ConsumerCommand command) throws IOException {
         // We should have received an ack
-        MessageId msgId = MessageId.fromByteArrayWithTopic(Base64.getDecoder().decode(command.messageId),
-                topic.toString());
+        TopicMessageId msgId = TopicMessageId.create(topic.toString(),
+                MessageId.fromByteArray(Base64.getDecoder().decode(command.messageId)));
         if (log.isDebugEnabled()) {
             log.debug("[{}/{}] Received ack request of message {} from {} ", consumer.getTopic(),
                     subscription, msgId, getRemote().getInetSocketAddress().toString());

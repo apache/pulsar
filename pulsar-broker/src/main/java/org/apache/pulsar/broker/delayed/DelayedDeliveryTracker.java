@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
 import java.util.NavigableSet;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
 /**
@@ -67,12 +68,6 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
     boolean shouldPauseAllDeliveries();
 
     /**
-     * Tells whether this DelayedDeliveryTracker contains this message index,
-     * if the tracker is not supported it or disabled this feature also will return false.
-     */
-    boolean containsMessage(long ledgerId, long entryId);
-
-    /**
      *  Reset tick time use zk policies cache.
      * @param tickTime
      *          The tick time for when retrying on delayed delivery messages
@@ -81,8 +76,10 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
 
     /**
      * Clear all delayed messages from the tracker.
+     *
+     * @return CompletableFuture<Void>
      */
-    void clear();
+    CompletableFuture<Void> clear();
 
     /**
      * Close the subscription tracker and release all resources.

@@ -43,12 +43,15 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
 
     private long delayedDeliveryMinIndexCountPerBucket;
 
-    private long delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds;
+    private int delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds;
+
+    private int delayedDeliveryMaxIndexesPerBucketSnapshotSegment;
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
         ServiceConfiguration config = pulsarService.getConfig();
         bucketSnapshotStorage = new BookkeeperBucketSnapshotStorage(pulsarService);
+        bucketSnapshotStorage.start();
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
@@ -57,14 +60,16 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         this.delayedDeliveryMaxNumBuckets = config.getDelayedDeliveryMaxNumBuckets();
         this.delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds =
                 config.getDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds();
+        this.delayedDeliveryMaxIndexesPerBucketSnapshotSegment =
+                config.getDelayedDeliveryMaxIndexesPerBucketSnapshotSegment();
     }
 
     @Override
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
         return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict,
                 bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
-                delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds,
-                delayedDeliveryMaxNumBuckets);
+                TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
+                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
     }
 
     @Override

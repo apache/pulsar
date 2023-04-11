@@ -165,8 +165,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    protected long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog(false);
+    public long getNumberOfEntriesInBacklog() {
+        return cursor.getNumberOfEntriesInBacklog(true);
     }
 
     @Override
@@ -558,6 +558,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void updateRates() {
         msgOut.calculateRate();
         msgExpired.calculateRate();
+        expiryMonitor.updateRates();
+
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();

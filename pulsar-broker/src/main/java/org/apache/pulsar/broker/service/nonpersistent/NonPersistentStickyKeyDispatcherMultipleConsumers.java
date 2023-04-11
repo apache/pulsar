@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -39,6 +40,9 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
@@ -83,15 +87,24 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
-        super.addConsumer(consumer);
-        try {
-            selector.addConsumer(consumer);
-        } catch (BrokerServiceException e) {
-            consumerSet.removeAll(consumer);
-            consumerList.remove(consumer);
-            throw e;
+    public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
+        if (IS_CLOSED_UPDATER.get(this) == TRUE) {
+            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
+            consumer.disconnect();
+            return CompletableFuture.completedFuture(null);
         }
+        return super.addConsumer(consumer).thenCompose(__ ->
+                selector.addConsumer(consumer).handle((value, ex) -> {
+                    if (ex != null) {
+                        synchronized (NonPersistentStickyKeyDispatcherMultipleConsumers.this) {
+                            consumerSet.removeAll(consumer);
+                            consumerList.remove(consumer);
+                        }
+                        throw FutureUtil.wrapToCompletionException(ex);
+                    } else {
+                        return value;
+                    }
+                }));
     }
 
     @Override
@@ -168,4 +181,6 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
         return (ksm.getKeySharedMode() == this.keySharedMode);
     }
+
+    private static final Logger log = LoggerFactory.getLogger(NonPersistentStickyKeyDispatcherMultipleConsumers.class);
 }

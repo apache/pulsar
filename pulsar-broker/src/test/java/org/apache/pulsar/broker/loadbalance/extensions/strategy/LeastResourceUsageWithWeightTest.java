@@ -24,9 +24,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
+import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStoreException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
@@ -78,7 +79,7 @@ public class LeastResourceUsageWithWeightTest {
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
         // Should choice broker from broker1 2 3.
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new HashSet<>();
         candidates.add("1");
         candidates.add("2");
         candidates.add("3");
@@ -125,7 +126,7 @@ public class LeastResourceUsageWithWeightTest {
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
         // Should choice broker from broker1 2 3.
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new HashSet<>();
         candidates.add("1");
         candidates.add("2");
         candidates.add("3");
@@ -141,7 +142,7 @@ public class LeastResourceUsageWithWeightTest {
 
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 
-        List<String> candidates = new ArrayList<>();
+        Set<String> candidates = new HashSet<>();
         var brokerLoadDataStore = ctx.brokerLoadDataStore();
         brokerLoadDataStore.pushAsync("1", createBrokerData(ctx,50, 100));
         brokerLoadDataStore.pushAsync("2", createBrokerData(ctx,100, 100));
@@ -169,7 +170,7 @@ public class LeastResourceUsageWithWeightTest {
     private BrokerLoadData createBrokerData(LoadManagerContext ctx, double usage, double limit) {
         var brokerLoadData = new BrokerLoadData();
         SystemResourceUsage usages = createUsage(usage, limit);
-        brokerLoadData.update(usages, 1, 1, 1, 1,
+        brokerLoadData.update(usages, 1, 1, 1, 1, 1, 1,
                 ctx.brokerConfiguration());
         return brokerLoadData;
     }
@@ -186,10 +187,10 @@ public class LeastResourceUsageWithWeightTest {
 
     private void updateLoad(LoadManagerContext ctx, String broker, double usage) {
         ctx.brokerLoadDataStore().get(broker).get().update(createUsage(usage, 100.0),
-                1, 1, 1, 1, ctx.brokerConfiguration());
+                1, 1, 1, 1, 1, 1, ctx.brokerConfiguration());
     }
 
-    public LoadManagerContext getContext() {
+    public static LoadManagerContext getContext() {
         var ctx = mock(LoadManagerContext.class);
         var conf = new ServiceConfiguration();
         conf.setLoadBalancerCPUResourceWeight(1.0);
@@ -217,6 +218,12 @@ public class LeastResourceUsageWithWeightTest {
             }
 
             @Override
+            public CompletableFuture<Void> removeAsync(String key) {
+                map.remove(key);
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
             public Optional<BrokerLoadData> get(String key) {
                 var val = map.get(key);
                 if (val == null) {
@@ -233,6 +240,21 @@ public class LeastResourceUsageWithWeightTest {
             @Override
             public Set<Map.Entry<String, BrokerLoadData>> entrySet() {
                 return map.entrySet();
+            }
+
+            @Override
+            public int size() {
+                return map.size();
+            }
+
+            @Override
+            public void closeTableView() throws IOException {
+
+            }
+
+            @Override
+            public void startTableView() throws LoadDataStoreException {
+
             }
         };
 

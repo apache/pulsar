@@ -82,7 +82,7 @@ public class OwnershipCacheTest {
         final int port = 8080;
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
-        config = mock(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
         zookeeperServer = new ZookeeperServerTest(0);
         zookeeperServer.start();
@@ -106,8 +106,8 @@ public class OwnershipCacheTest {
 
         doReturn(config).when(pulsar).getConfiguration();
         doReturn(nsService).when(pulsar).getNamespaceService();
-        doReturn(Optional.of(port)).when(config).getBrokerServicePort();
-        doReturn(Optional.empty()).when(config).getWebServicePort();
+        config.setBrokerServicePort(Optional.of(port));
+        config.setWebServicePort(Optional.empty());
         doReturn(brokerService).when(pulsar).getBrokerService();
         doReturn(selfBrokerUrl).when(pulsar).getBrokerServiceUrl();
     }

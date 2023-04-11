@@ -333,7 +333,7 @@ public class PulsarClusterMetadataSetup {
             resources.getClusterResources().createCluster("global", globalClusterData);
         }
 
-        // Create public tenant, whitelisted to use the this same cluster, along with other clusters
+        // Create public tenant, allowed to use this same cluster, along with other clusters
         createTenantIfAbsent(resources, TopicName.PUBLIC_TENANT, arguments.cluster);
 
         // Create system tenant
@@ -392,8 +392,8 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-            String cluster) throws IOException {
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster) throws IOException {
         createNamespaceIfAbsent(resources, namespaceName, cluster, DEFAULT_BUNDLE_NUMBER);
     }
 

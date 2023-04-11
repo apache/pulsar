@@ -67,7 +67,7 @@ public class URIPreconditions {
     public static void checkURIIfPresent(@Nullable String uri,
                                          @Nonnull Predicate<URI> predicate,
                                          @Nullable String errorMessage) throws IllegalArgumentException {
-        if (uri == null) {
+        if (uri == null || uri.length() == 0) {
             return;
         }
         checkURI(uri, predicate, errorMessage);

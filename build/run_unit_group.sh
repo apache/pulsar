@@ -34,6 +34,9 @@ function mvn_test() {
         shift
     fi
     local coverage_arg="-Pcoverage"
+    if [[ "${COLLECT_COVERAGE}" == "false" ]]; then
+      coverage_arg=""
+    fi
     local target="verify"
     if [[ "$1" == "--install" ]]; then
       target="install"
@@ -176,7 +179,6 @@ function test_group_other() {
 }
 
 function test_group_pulsar_io() {
-    $MVN_TEST_OPTIONS -pl kafka-connect-avro-converter-shaded clean install
     echo "::group::Running pulsar-io tests"
     mvn_test --install -Ppulsar-io-tests,-main
     echo "::endgroup::"

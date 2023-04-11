@@ -62,7 +62,7 @@
   </suppress>
   <suppress>
     <notes><![CDATA[
-   file name: netty-tcnative-boringssl-static-2.0.54.Final-osx-aarch_64.jar
+   file name: netty-tcnative-boringssl-static-2.0.56.Final-osx-aarch_64.jar
    ]]></notes>
     <packageUrl regex="true">^pkg:maven/io\.netty/netty\-tcnative\-boringssl\-static@.*$</packageUrl>
     <cpe>cpe:/a:chromium_project:chromium</cpe>
@@ -180,6 +180,16 @@
   <suppress>
     <notes>fredsmith utils library is not used at all. CVE-2021-4277 is a false positive.</notes>
     <cve>CVE-2021-4277</cve>
+  </suppress>
+
+  <suppress>
+    <notes>It treat pulsar-io-kafka-connect-adaptor as a lib of Kafka, CVE-2021-25194 is a false positive.</notes>
+    <cve>CVE-2023-25194</cve>
+  </suppress>
+
+  <suppress>
+    <notes>It treat pulsar-io-kafka-connect-adaptor as a lib of Kafka, CVE-2021-34917 is a false positive.</notes>
+    <cve>CVE-2022-34917</cve>
   </suppress>
 
   <suppress>

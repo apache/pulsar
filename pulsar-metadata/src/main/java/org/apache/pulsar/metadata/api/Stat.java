@@ -19,12 +19,19 @@
 package org.apache.pulsar.metadata.api;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Represent the information associated with a given value in the store.
  */
 @Data
+@RequiredArgsConstructor
 public class Stat {
+
+    public Stat(String path, long version, long creationTimestamp, long modificationTimestamp, boolean ephemeral,
+                boolean createdBySelf) {
+        this(path, version, creationTimestamp, modificationTimestamp, ephemeral, createdBySelf, version == 0);
+    }
 
     /**
      * The path of the value.
@@ -55,4 +62,9 @@ public class Stat {
      * Whether the key-value pair had been created within the current "session".
      */
     final boolean createdBySelf;
+
+    /**
+     * Whether this is the first version of the key-value pair since it has been last created.
+     */
+    final boolean firstVersion;
 }

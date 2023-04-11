@@ -60,8 +60,7 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
 
     @Test(groups = "source")
     public void testDebeziumMySqlSourceAvro() throws Exception {
-        testDebeziumMySqlConnect(
-                "org.apache.pulsar.kafka.shade.io.confluent.connect.avro.AvroConverter", false, false);
+        testDebeziumMySqlConnect("io.confluent.connect.avro.AvroConverter", false, false);
     }
 
     @Test(groups = "source")

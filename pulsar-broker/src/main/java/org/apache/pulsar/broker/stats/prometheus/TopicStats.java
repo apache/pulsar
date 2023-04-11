@@ -25,6 +25,7 @@ import java.util.Optional;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
@@ -68,7 +69,9 @@ class TopicStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
-    public int delayedTrackerMemoryUsage;
+    public long delayedMessageIndexSizeInBytes;
+
+    Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
 
     public void reset() {
         subscriptionsCount = 0;
@@ -106,7 +109,8 @@ class TopicStats {
         compactionCompactedEntriesCount = 0;
         compactionCompactedEntriesSize = 0;
         compactionLatencyBuckets.reset();
-        delayedTrackerMemoryUsage = 0;
+        delayedMessageIndexSizeInBytes = 0;
+        bucketDelayedIndexStats.clear();
     }
 
     public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
@@ -148,6 +152,9 @@ class TopicStats {
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_read_rate", stats.managedLedgerStats.storageReadRate,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_read_cache_misses_rate",
+                stats.managedLedgerStats.storageReadCacheMissesRate,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
         writeMetric(stream, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
@@ -159,8 +166,13 @@ class TopicStats {
         writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedTrackerMemoryUsage,
+        writeMetric(stream, "pulsar_delayed_message_index_size_bytes", stats.delayedMessageIndexSizeInBytes,
                 cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+
+        for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
+            writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                    topic, splitTopicAndPartitionIndexLabel, topicMetricBean.labelsAndValues);
+        }
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
         writeMetric(stream, "pulsar_storage_write_latency_le_0_5",
@@ -306,6 +318,16 @@ class TopicStats {
             writeSubscriptionMetric(stream, "pulsar_subscription_filter_rescheduled_msg_count",
                     subsStats.filterRescheduledMsgCount, cluster, namespace, topic, sub,
                     splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_delayed_message_index_size_bytes",
+                    subsStats.delayedMessageIndexSizeInBytes, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+
+            final String[] subscriptionLabel = {"subscription", sub};
+            for (TopicMetricBean topicMetricBean : subsStats.bucketDelayedIndexStats.values()) {
+                String[] labelsAndValues = ArrayUtils.addAll(subscriptionLabel, topicMetricBean.labelsAndValues);
+                writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                        topic, splitTopicAndPartitionIndexLabel, labelsAndValues);
+            }
 
             subsStats.consumerStat.forEach((c, consumerStats) -> {
                 writeConsumerMetric(stream, "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,
@@ -406,6 +428,12 @@ class TopicStats {
             writeMetric(stream, "pulsar_compaction_latency_count",
                     stats.compactionLatencyBuckets.getCount(), cluster, namespace, topic,
                     splitTopicAndPartitionIndexLabel);
+
+            for (TopicMetricBean topicMetricBean : stats.bucketDelayedIndexStats.values()) {
+                String[] labelsAndValues = topicMetricBean.labelsAndValues;
+                writeTopicMetric(stream, topicMetricBean.name, topicMetricBean.value, cluster, namespace,
+                        topic, splitTopicAndPartitionIndexLabel, labelsAndValues);
+            }
         }
     }
 
