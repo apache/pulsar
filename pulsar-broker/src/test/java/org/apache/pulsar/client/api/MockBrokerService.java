@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerH
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandConnectHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandFlowHook;
+import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandGetOrCreateSchemaHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandPartitionLookupHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandProducerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
@@ -55,6 +56,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
@@ -77,6 +79,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ *
  */
 public class MockBrokerService {
     private LookupData lookupData;
@@ -245,6 +248,19 @@ public class MockBrokerService {
         }
 
         @Override
+        protected void handleGetOrCreateSchema(CommandGetOrCreateSchema commandGetOrCreateSchema) {
+            if (handleGetOrCreateSchema != null) {
+                handleGetOrCreateSchema.apply(ctx, commandGetOrCreateSchema);
+                return;
+            }
+
+            // default
+            ctx.writeAndFlush(
+                    Commands.newGetOrCreateSchemaResponse(commandGetOrCreateSchema.getRequestId(),
+                            SchemaVersion.Empty));
+        }
+
+        @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
             log.warn("Got exception", cause);
             ctx.close();
@@ -276,6 +292,7 @@ public class MockBrokerService {
     private CommandUnsubscribeHook handleUnsubscribe = null;
     private CommandCloseProducerHook handleCloseProducer = null;
     private CommandCloseConsumerHook handleCloseConsumer = null;
+    private CommandGetOrCreateSchemaHook handleGetOrCreateSchema = null;
 
     public MockBrokerService() {
         server = new Server(0);
@@ -414,6 +431,10 @@ public class MockBrokerService {
 
     public void setHandleCloseConsumer(CommandCloseConsumerHook hook) {
         handleCloseConsumer = hook;
+    }
+
+    public void setHandleGetOrCreateSchema(CommandGetOrCreateSchemaHook hook) {
+        handleGetOrCreateSchema = hook;
     }
 
     public void resetHandleCloseConsumer() {
