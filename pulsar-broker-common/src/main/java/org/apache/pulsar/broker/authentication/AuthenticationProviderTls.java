@@ -23,7 +23,8 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public class AuthenticationProviderTls implements AuthenticationProvider {

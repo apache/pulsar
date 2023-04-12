@@ -37,7 +37,8 @@ import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
 
@@ -105,11 +106,10 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         String userId = authParams.getUserId();
         String password = authParams.getPassword();
         String msg = "Unknown user or invalid password";
-        ErrorCode errorCode = ErrorCode.BASIC_INVALID_AUTH_DATA;
 
         try {
             if (users.get(userId) == null) {
-                throw new PulsarAuthenticationException(msg, errorCode);
+                throw new PulsarAuthenticationException(msg, ErrorCode.BASIC_INVALID_AUTH_DATA);
             }
 
             String encryptedPassword = users.get(userId);
@@ -119,11 +119,11 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
                 if (splitEncryptedPassword.size() != 4 || !encryptedPassword
                         .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
-                    throw new PulsarAuthenticationException(msg, errorCode);
+                    throw new PulsarAuthenticationException(msg, ErrorCode.BASIC_INVALID_AUTH_DATA);
                 }
                 // For crypt algorithm
             } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
-                throw new PulsarAuthenticationException(msg, errorCode);
+                throw new PulsarAuthenticationException(msg, ErrorCode.BASIC_INVALID_AUTH_DATA);
             }
         } catch (AuthenticationException exception) {
             AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);

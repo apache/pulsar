@@ -29,7 +29,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 

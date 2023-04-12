@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.authentication.metrics;
 
 import io.prometheus.client.Counter;
 import javax.naming.AuthenticationException;
-import org.apache.pulsar.broker.authentication.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.PulsarAuthenticationException.ErrorCode;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
+import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 
 public class AuthenticationMetrics {
     private static final Counter authSuccessMetrics = Counter.build()
