@@ -180,6 +180,11 @@
       <artifactId>ipaddress</artifactId>
       <version>${seancfoley.ipaddress.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.testcontainers</groupId>
+      <artifactId>testcontainers</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
   <build>
     <plugins>

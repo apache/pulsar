@@ -101,8 +101,25 @@ public class DelayedIndexQueueTest {
         segmentListB.add(snapshotSegmentB);
         segmentListB.add(SnapshotSegment.newBuilder().build());
 
+        List<DelayedIndex> listC = new ArrayList<>();
+        for (int i = 10; i < 30; i+=2) {
+            DelayedIndex delayedIndex =
+                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(2L).setEntryId(1L)
+                            .build();
+
+            DelayedIndex delayedIndex2 =
+                    DelayedIndex.newBuilder().setTimestamp(i).setLedgerId(2L).setEntryId(2L)
+                            .build();
+            listC.add(delayedIndex);
+            listC.add(delayedIndex2);
+        }
+
+        SnapshotSegment snapshotSegmentC = SnapshotSegment.newBuilder().addAllIndexes(listC).build();
+        List<SnapshotSegment> segmentListC = new ArrayList<>();
+        segmentListC.add(snapshotSegmentC);
+
         CombinedSegmentDelayedIndexQueue delayedIndexQueue =
-                CombinedSegmentDelayedIndexQueue.wrap(segmentListA, segmentListB);
+                CombinedSegmentDelayedIndexQueue.wrap(List.of(segmentListA, segmentListB, segmentListC));
 
         int count = 0;
         while (!delayedIndexQueue.isEmpty()) {
@@ -114,7 +131,7 @@ public class DelayedIndexQueueTest {
                 Assert.assertTrue(COMPARATOR.compare(peek, pop) >= 0);
             }
         }
-        Assert.assertEquals(38, count);
+        Assert.assertEquals(58, count);
     }
 
     @Test

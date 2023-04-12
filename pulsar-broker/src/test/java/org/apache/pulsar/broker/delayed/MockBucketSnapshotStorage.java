@@ -80,7 +80,8 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Long> createBucketSnapshot(
-            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey) {
+            SnapshotMetadata snapshotMetadata, List<SnapshotSegment> bucketSnapshotSegments, String bucketKey,
+            String topicName, String cursorName) {
         Throwable throwable = createExceptionQueue.poll();
         if (throwable != null) {
             return FutureUtil.failedFuture(throwable);
@@ -173,7 +174,7 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             long length = 0;
             List<ByteBuf> bufList = this.bucketSnapshots.get(bucketId);
             for (ByteBuf byteBuf : bufList) {
-                length += byteBuf.array().length;
+                length += byteBuf.readableBytes();
             }
             return length;
         }, executorService);

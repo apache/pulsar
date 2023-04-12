@@ -62,6 +62,15 @@ body:
       required: true
   - type: textarea
     attributes:
+      label: Security Considerations
+      description: |
+        A detailed description of the security details that ought to be considered for the PIP. This is most relevant for any new HTTP endpoints, new Pulsar Protocol Commands, and new security features. The goal is to describe details like which role will have permission to perform an action.
+
+        If there is uncertainty for this section, please submit the PIP and request for feedback on the mailing list.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
       label: Alternatives
       description: |
         If there are alternatives that were already considered by the authors or, after the discussion, by the community, and were rejected, please list them here along with the reason why they were rejected.

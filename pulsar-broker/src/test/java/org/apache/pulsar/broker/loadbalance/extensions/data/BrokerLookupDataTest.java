@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.data;
 
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.junit.Assert;
@@ -41,7 +42,8 @@ public class BrokerLookupDataTest {
         }};
         BrokerLookupData lookupData = new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
-                pulsarServiceUrlTls, advertisedListeners, protocols, true, true, "3.0");
+                pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
+                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(),"3.0");
         Assert.assertEquals(webServiceUrl, lookupData.webServiceUrl());
         Assert.assertEquals(webServiceUrlTls, lookupData.webServiceUrlTls());
         Assert.assertEquals(pulsarServiceUrl, lookupData.pulsarServiceUrl());

@@ -38,17 +38,25 @@ import com.google.common.collect.Sets;
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -57,6 +65,7 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -66,7 +75,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
@@ -75,6 +86,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Slf4j
 @Test(groups = "broker")
 public class PersistentTopicTest extends BrokerTestBase {
 
@@ -524,5 +536,71 @@ public class PersistentTopicTest extends BrokerTestBase {
         // Make delete success.
         makeDeletedFailed.set(false);
         persistentTopic.delete().get();
+    }
+
+    @DataProvider(name = "topicLevelPolicy")
+    public static Object[][] topicLevelPolicy() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test(dataProvider = "topicLevelPolicy")
+    public void testCreateTopicWithZombieReplicatorCursor(boolean topicLevelPolicy) throws Exception {
+        final String namespace = "prop/ns-abc";
+        final String topicName = "persistent://" + namespace
+                + "/testCreateTopicWithZombieReplicatorCursor" + topicLevelPolicy;
+        final String remoteCluster = "remote";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, conf.getReplicatorPrefix() + "." + remoteCluster,
+                MessageId.earliest, true);
+
+        admin.clusters().createCluster(remoteCluster, ClusterData.builder()
+                .serviceUrl("http://localhost:11112")
+                .brokerServiceUrl("pulsar://localhost:11111")
+                .build());
+        TenantInfo tenantInfo = admin.tenants().getTenantInfo("prop");
+        tenantInfo.getAllowedClusters().add(remoteCluster);
+        admin.tenants().updateTenant("prop", tenantInfo);
+
+        if (topicLevelPolicy) {
+            admin.topics().setReplicationClusters(topicName, Arrays.asList("test", remoteCluster));
+        } else {
+            admin.namespaces().setNamespaceReplicationClustersAsync(
+                    namespace, Sets.newHashSet("test", remoteCluster)).get();
+        }
+
+        final PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false)
+                .get(3, TimeUnit.SECONDS).orElse(null);
+        assertNotNull(topic);
+
+        final Supplier<Set<String>> getCursors = () -> {
+            final Set<String> cursors = new HashSet<>();
+            final Iterable<ManagedCursor> iterable = topic.getManagedLedger().getCursors();
+            iterable.forEach(c -> cursors.add(c.getName()));
+            return cursors;
+        };
+        assertEquals(getCursors.get(), Collections.singleton(conf.getReplicatorPrefix() + "." + remoteCluster));
+
+        // PersistentTopics#onPoliciesUpdate might happen in different threads, so there might be a race between two
+        // updates of the replication clusters. So here we sleep for a while to reduce the flakiness.
+        Thread.sleep(100);
+
+        // Configure the local cluster to avoid the topic being deleted in PersistentTopics#checkReplication
+        if (topicLevelPolicy) {
+            admin.topics().setReplicationClusters(topicName, Collections.singletonList("test"));
+        } else {
+            admin.namespaces().setNamespaceReplicationClustersAsync(namespace, Collections.singleton("test")).get();
+        }
+        admin.clusters().deleteCluster(remoteCluster);
+        // Now the cluster and its related policy has been removed but the replicator cursor still exists
+
+        Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> {
+            log.info("Before initialize...");
+            try {
+                topic.initialize().get(3, TimeUnit.SECONDS);
+            } catch (ExecutionException e) {
+                log.warn("Failed to initialize: {}", e.getCause().getMessage());
+            }
+            return !topic.getManagedLedger().getCursors().iterator().hasNext();
+        });
     }
 }

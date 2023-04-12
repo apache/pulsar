@@ -16,32 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.broker.authentication.oidc;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
-import org.testng.annotations.Test;
-
-public class BatchMessageAckerDisabledTest {
-
-    @Test
-    public void testAckIndividual() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
-        }
-    }
-
-    @Test
-    public void testAckCumulative() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
-        }
-    }
-
-    @Test
-    public void testGetOutstandingAcks() {
-        assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
-    }
-
+/**
+ * Enum used to classify the types of exceptions encountered
+ * when attempting JWT verification.
+ */
+public enum AuthenticationExceptionCode {
+    UNSUPPORTED_ISSUER,
+    UNSUPPORTED_ALGORITHM,
+    ISSUER_MISMATCH,
+    ALGORITHM_MISMATCH,
+    INVALID_PUBLIC_KEY,
+    ERROR_RETRIEVING_PROVIDER_METADATA,
+    ERROR_RETRIEVING_PUBLIC_KEY,
+    ERROR_DECODING_JWT,
+    ERROR_VERIFYING_JWT,
+    ERROR_VERIFYING_JWT_SIGNATURE,
+    INVALID_JWT_CLAIM,
+    EXPIRED_JWT,
 }

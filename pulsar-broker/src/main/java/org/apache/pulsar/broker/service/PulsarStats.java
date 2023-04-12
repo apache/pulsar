@@ -233,7 +233,7 @@ public class PulsarStats implements Closeable {
         updatedAt = System.currentTimeMillis();
     }
 
-    public NamespaceBundleStats invalidBundleStats(String bundleName) {
+    public synchronized NamespaceBundleStats invalidBundleStats(String bundleName) {
         return bundleStats.remove(bundleName);
     }
 
@@ -254,7 +254,7 @@ public class PulsarStats implements Closeable {
         return brokerOperabilityMetrics;
     }
 
-    public Map<String, NamespaceBundleStats> getBundleStats() {
+    public synchronized Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
 

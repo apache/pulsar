@@ -56,8 +56,8 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     @Override
     public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
                                                         List<SnapshotSegment> bucketSnapshotSegments,
-                                                        String bucketKey) {
-        return createLedger(bucketKey)
+                                                        String bucketKey, String topicName, String cursorName) {
+        return createLedger(bucketKey, topicName, cursorName)
                 .thenCompose(ledgerHandle -> addEntry(ledgerHandle, snapshotMetadata.toByteArray())
                         .thenCompose(__ -> addSnapshotSegments(ledgerHandle, bucketSnapshotSegments))
                         .thenCompose(__ -> closeLedger(ledgerHandle))
@@ -67,7 +67,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
         return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, 0, 0).
+                ledgerHandle -> getLedgerEntry(ledgerHandle, 0, 0).
                         thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
     }
 
@@ -75,17 +75,13 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
         return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntryThenCloseLedger(ledgerHandle, firstSegmentEntryId,
+                ledgerHandle -> getLedgerEntry(ledgerHandle, firstSegmentEntryId,
                         lastSegmentEntryId).thenApply(this::parseSnapshotSegmentEntries));
     }
 
     @Override
     public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
-        return openLedger(bucketId).thenApply(ledgerHandle -> {
-            long length = ledgerHandle.getLength();
-            closeLedger(ledgerHandle);
-            return length;
-        });
+        return openLedger(bucketId).thenApply(LedgerHandle::getLength);
     }
 
     @Override
@@ -143,9 +139,10 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     @NotNull
-    private CompletableFuture<LedgerHandle> createLedger(String bucketKey) {
+    private CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey);
+        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
+                topicName, cursorName);
         bookKeeper.asyncCreateLedger(
                 config.getManagedLedgerDefaultEnsembleSize(),
                 config.getManagedLedgerDefaultWriteQuorum(),
@@ -211,8 +208,8 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         });
     }
 
-    CompletableFuture<Enumeration<LedgerEntry>> getLedgerEntryThenCloseLedger(LedgerHandle ledger,
-                                                                              long firstEntryId, long lastEntryId) {
+    CompletableFuture<Enumeration<LedgerEntry>> getLedgerEntry(LedgerHandle ledger,
+                                                               long firstEntryId, long lastEntryId) {
         final CompletableFuture<Enumeration<LedgerEntry>> future = new CompletableFuture<>();
         ledger.asyncReadEntries(firstEntryId, lastEntryId,
                 (rc, handle, entries, ctx) -> {
@@ -221,7 +218,6 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     } else {
                         future.complete(entries);
                     }
-                    closeLedger(handle);
                 }, null
         );
         return future;

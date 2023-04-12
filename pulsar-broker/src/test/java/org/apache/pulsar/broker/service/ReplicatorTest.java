@@ -70,6 +70,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -96,8 +97,10 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.schema.Schemas;
@@ -867,6 +870,56 @@ public class ReplicatorTest extends ReplicatorTestBase {
         field.setAccessible(true);
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) field.get(replicator);
         assertNull(producer);
+    }
+
+    @Test(priority = 5, timeOut = 30000)
+    public void testReplicatorConnected() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/tp_" + UUID.randomUUID());
+        final TopicName dest = TopicName.get(topicName);
+        admin1.topics().createPartitionedTopic(topicName, 1);
+
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+
+        Awaitility.await().until(() -> {
+            TopicStats topicStats = admin1.topics().getStats(topicName + "-partition-0");
+            return topicStats.getReplication().values().stream()
+                    .map(ReplicatorStats::isConnected).reduce((a, b) -> a & b).get();
+        });
+
+        PartitionedTopicStats
+                partitionedTopicStats = admin1.topics().getPartitionedStats(topicName, true);
+
+        for (ReplicatorStats replicatorStats : partitionedTopicStats.getReplication().values()){
+            assertTrue(replicatorStats.isConnected());
+        }
+    }
+
+    @Test
+    public void testDeleteTopicFailure() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/tp_" + UUID.randomUUID());
+        admin1.topics().createNonPartitionedTopic(topicName);
+        try {
+            admin1.topics().delete(topicName);
+            fail("Delete topic should fail if enabled replicator");
+        } catch (Exception ex) {
+            assertTrue(ex instanceof PulsarAdminException);
+            assertEquals(((PulsarAdminException) ex).getStatusCode(), 422/* Unprocessable entity*/);
+        }
+    }
+
+    @Test
+    public void testDeletePartitionedTopicFailure() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/tp_" + UUID.randomUUID());
+        admin1.topics().createPartitionedTopic(topicName, 2);
+        admin1.topics().createSubscription(topicName, "sub1", MessageId.earliest);
+        try {
+            admin1.topics().deletePartitionedTopic(topicName);
+            fail("Delete topic should fail if enabled replicator");
+        } catch (Exception ex) {
+            assertTrue(ex instanceof PulsarAdminException);
+            assertEquals(((PulsarAdminException) ex).getStatusCode(), 422/* Unprocessable entity*/);
+        }
     }
 
     @Test(priority = 4, timeOut = 30000)

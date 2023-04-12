@@ -904,7 +904,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                             .maxPendingMessagesAcrossPartitions(conf.getMaxPendingMessagesAcrossPartitions())
                             .batchBuilder(conf.getBatchBuilder())
                             .useThreadLocalProducers(conf.getUseThreadLocalProducers())
-                            .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()));
+                            .cryptoConfig(CryptoUtils.convertFromSpec(conf.getCryptoSpec()))
+                            .compressionType(FunctionCommon.convertFromFunctionDetailsCompressionType(
+                                    conf.getCompressionType()));
                     pulsarSinkConfig.setProducerConfig(builder.build());
                 }
 
