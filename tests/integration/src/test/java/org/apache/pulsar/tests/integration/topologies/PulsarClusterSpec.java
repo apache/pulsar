@@ -151,6 +151,11 @@ public class PulsarClusterSpec {
     Map<String, String> brokerEnvs;
 
     /**
+     * Specify envs for bookkeeper.
+     */
+    Map<String, String> bookkeperEnvs;
+
+    /**
      * Specify mount files.
      */
     Map<String, String> proxyMountFiles;
