@@ -61,10 +61,14 @@ type Conf struct {
 	//source input specs
 	SourceInputSpecs map[string]string `json:"sourceInputSpecs" yaml:"sourceInputSpecs"`
 	// for backward compatibility
-	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
-	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
-	IsRegexPatternSubscription bool   `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
-	ReceiverQueueSize          int32  `json:"receiverQueueSize" yaml:"receiverQueueSize"`
+	// Deprecated
+	SourceSpecTopic string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
+	// Deprecated
+	SourceSchemaType string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
+	// Deprecated
+	IsRegexPatternSubscription bool `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
+	// Deprecated
+	ReceiverQueueSize int32 `json:"receiverQueueSize" yaml:"receiverQueueSize"`
 	//sink spec config
 	SinkSpecTopic  string `json:"sinkSpecsTopic" yaml:"sinkSpecsTopic"`
 	SinkSchemaType string `json:"sinkSchemaType" yaml:"sinkSchemaType"`

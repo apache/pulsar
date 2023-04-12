@@ -689,12 +689,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             admin.topics().createNonPartitionedTopic(inputTopicName);
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
-        if (isTopicPattern || multipleInput) {
-            if (isTopicPattern) {
-                inputTopicName = inputTopicName + ".*";
-            } else {
-                inputTopicName = inputTopicName + "1," + inputTopicName + "2";
-            }
+        if (isTopicPattern) {
+            inputTopicName = inputTopicName + ".*";
+        } else if (multipleInput) {
+            inputTopicName = inputTopicName + "1," + inputTopicName + "2";
         }
         String functionName = "test-exclamation-fn-" + randomName(8);
         final int numMessages = 10;
