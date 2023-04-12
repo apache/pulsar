@@ -85,9 +85,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
         return validateTenantAdminAccess(topicName.getTenant(), role, authenticationData)
-                .thenComposeAsync(isSuperUserOrAdmin -> {
+                .thenCompose(isSuperUserOrAdmin -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("Verify if role {} is allowed to consume topic {}: isSuperUserOrAdmin={}",
+                        log.debug("Verify if role {} is allowed to produce topic {}: isSuperUserOrAdmin={}",
                                 role, topicName, isSuperUserOrAdmin);
                     }
                     if (isSuperUserOrAdmin) {
@@ -112,57 +112,59 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Override
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData, String subscription) {
-        return validateTenantAdminAccess(topicName.getTenant(), role, authenticationData).exceptionally(ex -> {
-            log.warn("Client with Role - {} failed to check tenant admin for topic - {}. {}", role, topicName,
-                    ex.getMessage());
-            return false;
-        }).thenComposeAsync(isSuperUserOrAdmin -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Verify if role {} is allowed to consume topic {}: isSuperUserOrAdmin={}",
-                        role, topicName, isSuperUserOrAdmin);
-            }
-            if (isSuperUserOrAdmin) {
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
-                        .thenCompose(policies -> {
-                            if (!policies.isPresent()) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("Policies node couldn't be found for topic : {}", topicName);
-                                }
-                            } else {
-                                if (isNotBlank(subscription)) {
-                                    // validate if role is authorized to access subscription. (skip validation if authorization
-                                    // list is empty)
-                                    Set<String> roles = policies.get().auth_policies
-                                            .getSubscriptionAuthentication().get(subscription);
-                                    if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
-                                        log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
-                                        return CompletableFuture.completedFuture(false);
-                                    }
+        return validateTenantAdminAccess(topicName.getTenant(), role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Verify if role {} is allowed to consume topic {}: isSuperUserOrAdmin={}",
+                                role, topicName, isSuperUserOrAdmin);
+                    }
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    } else {
+                        return pulsarResources.getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
+                                .thenCompose(policies -> {
+                                    if (!policies.isPresent()) {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("Policies node couldn't be found for topic : {}", topicName);
+                                        }
+                                    } else {
+                                        if (isNotBlank(subscription)) {
+                                            // validate if role is authorized to access subscription.
+                                            // (skip validation if authorization list is empty)
+                                            Set<String> roles = policies.get().auth_policies
+                                                    .getSubscriptionAuthentication().get(subscription);
+                                            if (roles != null && !roles.isEmpty() && !roles.contains(role)) {
+                                                log.warn("[{}] is not authorized to subscribe on {}-{}",
+                                                        role, topicName, subscription);
+                                                return CompletableFuture.completedFuture(false);
+                                            }
 
-                                    // validate if subscription-auth mode is configured
-                                    if (policies.get().subscription_auth_mode != null) {
-                                        switch (policies.get().subscription_auth_mode) {
-                                            case Prefix:
-                                                if (!subscription.startsWith(role)) {
-                                                    PulsarServerException ex = new PulsarServerException(String.format(
-                                                            "Failed to create consumer - The subscription name needs to be"
-                                                                    + " prefixed by the authentication role, like %s-xxxx for topic: %s",
-                                                            role, topicName));
-                                                    return FutureUtil.failedFuture(ex);
+                                            // validate if subscription-auth mode is configured
+                                            if (policies.get().subscription_auth_mode != null) {
+                                                switch (policies.get().subscription_auth_mode) {
+                                                    case Prefix:
+                                                        if (!subscription.startsWith(role)) {
+                                                            PulsarServerException ex =
+                                                                    new PulsarServerException(String.format(
+                                                                            "Failed to create consumer - The "
+                                                                                    + "subscription name needs to be"
+                                                                                    + " prefixed by the "
+                                                                                    + "authentication role, like "
+                                                                                    + "%s-xxxx for topic: %s",
+                                                                            role, topicName));
+                                                            return FutureUtil.failedFuture(ex);
+                                                        }
+                                                        break;
+                                                    default:
+                                                        break;
                                                 }
-                                                break;
-                                            default:
-                                                break;
+                                            }
                                         }
                                     }
-                                }
-                            }
-                            return checkAuthorization(topicName, role, AuthAction.consume);
-                        });
-            }
-        });
+                                    return checkAuthorization(topicName, role, AuthAction.consume);
+                                });
+                    }
+                });
     }
 
     /**

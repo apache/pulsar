@@ -79,8 +79,10 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     public void simple() throws Exception {
         AuthorizationService auth = pulsar.getBrokerService().getAuthorizationService();
 
-        assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
-
+        try {
+            assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
+            fail("Should throw exception while tenant not exist");
+        } catch (Exception ignored) {}
         admin.clusters().createCluster("c1", ClusterData.builder().build());
         String tenantAdmin = "role1";
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet(tenantAdmin), Sets.newHashSet("c1")));
