@@ -1101,9 +1101,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (delayedDeliveryTracker.isEmpty() && topic.getBrokerService()
                 .getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory) {
             synchronized (this) {
-                if (delayedDeliveryTracker.isEmpty()) {
-                    delayedDeliveryTracker = Optional
-                            .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                try {
+                    if (delayedDeliveryTracker.isEmpty()) {
+                        delayedDeliveryTracker = Optional
+                                .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
+                    }
+                } catch (Exception e) {
+                    return FutureUtil.failedFuture(e);
                 }
             }
         }
