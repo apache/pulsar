@@ -89,10 +89,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
                     new BucketDelayedDeliveryTracker(dispatcher, timer, 1, clock,
                             false, bucketSnapshotStorage, 5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50)
             }};
-            case "testWithTimer" -> {
+            case "testWithTimer", "testRetry" -> {
                 Timer timer = mock(Timer.class);
 
-                AtomicLong clockTime = new AtomicLong();
                 Clock clock = mock(Clock.class);
                 when(clock.millis()).then(x -> clockTime.get());
 
@@ -445,5 +444,30 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       assertEquals(tracker.getSharedBucketPriorityQueue().size(), 0);
 
       tracker.close();
+    }
+
+    @Test(dataProvider = "delayedTracker")
+    public void testRetry(BucketDelayedDeliveryTracker tracker, NavigableMap<Long, TimerTask> tasks) {
+        for (int i = 1; i <= 11; i++) {
+            tracker.addMessage(i, i, i * 10);
+        }
+        MockBucketSnapshotStorage mockBucketSnapshotStorage = (MockBucketSnapshotStorage) bucketSnapshotStorage;
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout1, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout2, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout3, op: Get entry"));
+        mockBucketSnapshotStorage.injectGetSegmentException(
+                new BucketSnapshotPersistenceException("Bookie operation timeout4, op: Get entry"));
+
+        clockTime.set(1000);
+
+        NavigableSet<PositionImpl> scheduledMessages = tracker.getScheduledMessages(1000);
+        assertTrue(scheduledMessages.size() < 1000);
+        assertTrue(tasks.size() > 0);
+        assertEquals(tasks.firstKey(), clockTime.get() + 1);
+
+        tracker.close();
     }
 }

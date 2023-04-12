@@ -545,6 +545,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         NavigableSet<PositionImpl> positions = new TreeSet<>();
         int n = maxMessages;
 
+        boolean needRetry = false;
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
             long timestamp = sharedBucketPriorityQueue.peekN1();
             if (timestamp > cutoffTime) {
@@ -559,6 +560,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 if (bucket.merging) {
                     log.info("[{}] Skip load to wait for bucket snapshot merge finish, bucketKey:{}",
                             dispatcher.getName(), bucket.bucketKey());
+                    needRetry = true;
                     break;
                 }
 
@@ -575,6 +577,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     if (!createFutureDone) {
                         log.info("[{}] Skip load to wait for bucket snapshot create finish, bucketKey:{}",
                                 dispatcher.getName(), bucket.bucketKey());
+                        needRetry = true;
                         break;
                     }
 
@@ -622,6 +625,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     // Ignore exception to reload this segment on the next schedule.
                     log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{}",
                             dispatcher.getName(), bucket.bucketKey(), e);
+                    needRetry = true;
                     break;
                 }
             }
@@ -636,7 +640,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             --numberDelayedMessages;
         }
 
-        updateTimer();
+        if (needRetry) {
+            if (timeout != null) {
+                timeout.cancel();
+            }
+            timeout = timer.newTimeout(this, tickTimeMillis, TimeUnit.MILLISECONDS);
+        } else {
+            updateTimer();
+        }
 
         return positions;
     }
