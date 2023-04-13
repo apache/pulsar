@@ -618,7 +618,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                             stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
                                     System.currentTimeMillis() - loadStartTime);
                         }
-                    }).get(AsyncOperationTimeoutSeconds * (MaxRetryTimes + 1), TimeUnit.SECONDS);
+                    }).get(AsyncOperationTimeoutSeconds * (MaxRetryTimes + 2), TimeUnit.SECONDS);
                 } catch (Exception e) {
                     // Ignore exception to reload this segment on the next schedule.
                     log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{},segmentEntryId:{}",
