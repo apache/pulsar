@@ -18,18 +18,7 @@
  */
 package org.apache.pulsar.functions.source;
 
-import java.security.Security;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
@@ -39,6 +28,13 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.io.core.Source;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
+import java.security.Security;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public abstract class PulsarSource<T> implements Source<T> {
     protected final PulsarClient pulsarClient;
@@ -53,7 +49,7 @@ public abstract class PulsarSource<T> implements Source<T> {
                            ClassLoader functionClassLoader) {
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
-        this.topicSchema = new TopicSchema(pulsarClient);
+        this.topicSchema = new TopicSchema(pulsarClient, functionClassLoader);
         this.properties = properties;
         this.functionClassLoader = functionClassLoader;
     }

@@ -18,42 +18,14 @@
  */
 package org.apache.pulsar.functions.instance;
 
-import static com.google.common.base.Preconditions.checkState;
-import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import io.prometheus.client.Summary;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.BatcherBuilder;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -66,11 +38,7 @@ import org.apache.pulsar.functions.api.StateStore;
 import org.apache.pulsar.functions.api.utils.FunctionRecord;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.instance.state.StateManager;
-import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
-import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
-import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
-import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.instance.stats.*;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
@@ -82,6 +50,17 @@ import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
+
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+
+import static com.google.common.base.Preconditions.checkState;
+import static org.apache.pulsar.functions.instance.stats.FunctionStatsManager.USER_METRIC_PREFIX;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -148,7 +127,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         this.clientBuilder = clientBuilder;
         this.client = client;
         this.pulsarAdmin = pulsarAdmin;
-        this.topicSchema = new TopicSchema(client);
+        this.topicSchema = new TopicSchema(client, Thread.currentThread().getContextClassLoader());
         this.statsManager = statsManager;
 
         this.producerBuilder = (ProducerBuilderImpl<?>) client.newProducer().blockIfQueueFull(true).enableBatching(true)
