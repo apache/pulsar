@@ -21,13 +21,19 @@ package org.apache.pulsar.broker.delayed;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
 
@@ -70,6 +76,21 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
                 bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
                 TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
                 delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+    }
+
+    /**
+     * Clean up residual snapshot data.
+     */
+    public CompletableFuture<Void> cleanResidualSnapshots(ManagedCursor cursor) {
+        Map<String, String> cursorProperties = cursor.getCursorProperties();
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        cursorProperties.forEach((k, v) -> {
+            if (k != null && v != null && k.startsWith(BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX)) {
+                futures.add(bucketSnapshotStorage.deleteBucketSnapshot(Long.parseLong(v)));
+            }
+        });
+
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override

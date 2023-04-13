@@ -305,4 +305,52 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         assertTrue(namespaceMetric.isPresent());
         assertEquals(6, namespaceMetric.get().value);
     }
+
+    @Test
+    public void testDelete() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelete");
+
+        @Cleanup
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1000));
+
+        Map<String, String> cursorProperties =
+                ((PersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties();
+        List<Long> bucketIds = cursorProperties.entrySet().stream()
+                .filter(x -> x.getKey().startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).map(
+                        x -> Long.valueOf(x.getValue())).toList();
+
+        assertTrue(bucketIds.size() > 0);
+
+        admin.topics().delete(topic, true);
+
+        for (Long bucketId : bucketIds) {
+            try {
+                LedgerHandle ledgerHandle =
+                        pulsarTestContext.getBookKeeperClient()
+                                .openLedger(bucketId, BookKeeper.DigestType.CRC32C, new byte[]{});
+                Assert.fail("Should fail");
+            } catch (BKException.BKNoSuchLedgerExistsException e) {
+                // ignore it
+            }
+        }
+    }
 }
