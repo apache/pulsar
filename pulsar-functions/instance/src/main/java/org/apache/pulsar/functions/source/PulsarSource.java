@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -18,7 +18,18 @@
  */
 package org.apache.pulsar.functions.source;
 
-import org.apache.pulsar.client.api.*;
+import java.security.Security;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
@@ -28,13 +39,6 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.io.core.Source;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
-
-import java.security.Security;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public abstract class PulsarSource<T> implements Source<T> {
     protected final PulsarClient pulsarClient;
@@ -164,8 +168,8 @@ public abstract class PulsarSource<T> implements Source<T> {
                                                                             Class<?> typeArg) {
         PulsarSourceConsumerConfig.PulsarSourceConsumerConfigBuilder<T> consumerConfBuilder =
                 PulsarSourceConsumerConfig.<T>builder().isRegexPattern(conf.isRegexPattern())
-                .receiverQueueSize(conf.getReceiverQueueSize())
-                .consumerProperties(conf.getConsumerProperties());
+                        .receiverQueueSize(conf.getReceiverQueueSize())
+                        .consumerProperties(conf.getConsumerProperties());
 
         Schema<T> schema;
         if (conf.getSerdeClassName() != null && !conf.getSerdeClassName().isEmpty()) {

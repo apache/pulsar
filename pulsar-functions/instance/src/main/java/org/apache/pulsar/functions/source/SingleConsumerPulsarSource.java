@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.functions.source;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -27,12 +31,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
-
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Slf4j
 public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
@@ -45,10 +43,8 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     private Consumer<T> consumer;
     private final List<Consumer<T>> inputConsumers = new LinkedList<>();
 
-    public SingleConsumerPulsarSource(PulsarClient pulsarClient,
-                                      SingleConsumerPulsarSourceConfig pulsarSourceConfig,
-                                      Map<String, String> properties,
-                                      ClassLoader functionClassLoader) {
+    public SingleConsumerPulsarSource(PulsarClient pulsarClient, SingleConsumerPulsarSourceConfig pulsarSourceConfig,
+                                      Map<String, String> properties, ClassLoader functionClassLoader) {
         super(pulsarClient, pulsarSourceConfig, properties, functionClassLoader);
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
@@ -61,8 +57,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
 
-        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(),
-                this.functionClassLoader);
+        Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(), this.functionClassLoader);
 
         checkArgument(!Void.class.equals(typeArg), "Input type of Pulsar Function cannot be Void");
 
