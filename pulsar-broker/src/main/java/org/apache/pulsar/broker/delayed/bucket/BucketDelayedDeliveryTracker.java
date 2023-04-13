@@ -595,6 +595,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         }
                         DelayedMessageIndexBucketSnapshotFormat.DelayedIndex
                                 lastDelayedIndex = indexList.get(indexList.size() - 1);
+                        this.snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
                         this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
                                 lastDelayedIndex.getEntryId(), bucket);
                         for (DelayedMessageIndexBucketSnapshotFormat.DelayedIndex index : indexList) {
@@ -620,8 +621,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     }).get(AsyncOperationTimeoutSeconds * (MaxRetryTimes + 1), TimeUnit.SECONDS);
                 } catch (Exception e) {
                     // Ignore exception to reload this segment on the next schedule.
-                    log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{}",
-                            dispatcher.getName(), bucket.bucketKey(), e);
+                    log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{},segmentEntryId:{}",
+                            dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1, e);
                     break;
                 }
             }
