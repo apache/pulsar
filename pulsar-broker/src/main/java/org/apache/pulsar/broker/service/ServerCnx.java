@@ -189,6 +189,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final TopicListService topicListService;
     private final BrokerInterceptor brokerInterceptor;
     private State state;
+    private int clientMinVersionAllowed;
     private volatile boolean isActive = true;
     private String authRole = null;
     private volatile AuthenticationDataSource authenticationData;
@@ -307,6 +308,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.topicListService = new TopicListService(pulsar, this,
                 enableSubscriptionPatternEvaluation, maxSubscriptionPatternLength);
         this.brokerInterceptor = this.service != null ? this.service.getInterceptor() : null;
+        this.clientMinVersionAllowed = conf.getClientMinVersionAllowed() > 0 ? conf.getClientMinVersionAllowed() : -1;
     }
 
     @Override
@@ -684,6 +686,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // complete the connect and sent newConnected command
     private void completeConnect(int clientProtoVersion, String clientVersion) {
+        if (clientMinVersionAllowed >= 0 && clientMinVersionAllowed > clientProtoVersion) {
+            log.info("[{}] client with version {} must be upgraded to {}", remoteAddress, clientProtoVersion,
+                    clientMinVersionAllowed);
+            final ByteBuf msg = Commands.newError(-1, ServerError.UnsupportedVersionError,
+                    "Upgrade version to " + clientMinVersionAllowed + " or higher");
+            NettyChannelUtil.writeAndFlushWithClosePromise(ctx, msg);
+            return;
+        }
         if (service.isAuthenticationEnabled()) {
             if (service.isAuthorizationEnabled()) {
                 if (!service.getAuthorizationService()
