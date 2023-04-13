@@ -19,6 +19,14 @@
 package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -36,15 +44,6 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
-
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 @Slf4j
 public class TopicSchema {
