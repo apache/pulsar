@@ -95,10 +95,6 @@
           <artifactId>bcprov-jdk18on</artifactId>
           <groupId>org.bouncycastle</groupId>
         </exclusion>
-        <exclusion>
-          <artifactId>jose4j</artifactId>
-          <groupId>org.bitbucket.b_c</groupId>
-        </exclusion>
       </exclusions>
     </dependency>
 
