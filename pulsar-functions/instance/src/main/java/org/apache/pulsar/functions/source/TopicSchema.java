@@ -19,10 +19,6 @@
 package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -41,6 +37,15 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.ByteBuffer;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
 @Slf4j
 public class TopicSchema {
 
@@ -49,8 +54,13 @@ public class TopicSchema {
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
-    public TopicSchema(PulsarClient client) {
+    private final ClassLoader functionsClassloader;
+
+    public TopicSchema(PulsarClient client, ClassLoader functionsClassloader) {
         this.client = client;
+        this.functionsClassloader = AccessController.doPrivileged(
+                (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[0], functionsClassloader)
+        );
     }
 
     /**
@@ -244,11 +254,11 @@ public class TopicSchema {
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input,
-                Thread.currentThread().getContextClassLoader());
+                functionsClassloader);
     }
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input) {
-        return newSchemaInstance(topic, clazz, conf, input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, conf, input, functionsClassloader);
     }
 }

@@ -18,11 +18,7 @@
  */
 package org.apache.pulsar.functions.source;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.annotations.VisibleForTesting;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -32,6 +28,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
+
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 @Slf4j
 public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
@@ -51,7 +53,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
         super(pulsarClient, pulsarSourceConfig, properties, functionClassLoader);
         this.pulsarClient = pulsarClient;
         this.pulsarSourceConfig = pulsarSourceConfig;
-        this.topicSchema = new TopicSchema(pulsarClient);
+        this.topicSchema = new TopicSchema(pulsarClient, functionClassLoader);
         this.properties = properties;
         this.functionClassLoader = functionClassLoader;
     }
