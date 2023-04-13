@@ -587,20 +587,22 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     long loadStartTime = System.currentTimeMillis();
                     stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
                     bucket.asyncLoadNextBucketSnapshotEntry().thenAccept(indexList -> {
-                        if (CollectionUtils.isEmpty(indexList)) {
-                            immutableBuckets.asMapOfRanges()
-                                    .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                            bucket.asyncDeleteBucketSnapshot(stats);
-                            return;
-                        }
-                        DelayedMessageIndexBucketSnapshotFormat.DelayedIndex
-                                lastDelayedIndex = indexList.get(indexList.size() - 1);
-                        this.snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
-                        this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
-                                lastDelayedIndex.getEntryId(), bucket);
-                        for (DelayedMessageIndexBucketSnapshotFormat.DelayedIndex index : indexList) {
-                            sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
-                                    index.getEntryId());
+                        synchronized (BucketDelayedDeliveryTracker.this) {
+                            this.snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
+                            if (CollectionUtils.isEmpty(indexList)) {
+                                immutableBuckets.asMapOfRanges()
+                                        .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
+                                bucket.asyncDeleteBucketSnapshot(stats);
+                                return;
+                            }
+                            DelayedMessageIndexBucketSnapshotFormat.DelayedIndex
+                                    lastDelayedIndex = indexList.get(indexList.size() - 1);
+                            this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
+                                    lastDelayedIndex.getEntryId(), bucket);
+                            for (DelayedMessageIndexBucketSnapshotFormat.DelayedIndex index : indexList) {
+                                sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
+                                        index.getEntryId());
+                            }
                         }
                     }).whenComplete((__, ex) -> {
                         if (ex != null) {
