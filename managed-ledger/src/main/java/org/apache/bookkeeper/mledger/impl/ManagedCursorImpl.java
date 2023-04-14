@@ -59,6 +59,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import javax.annotation.Nonnull;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -2985,7 +2986,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void persistPositionToLedger(final LedgerHandle lh, MarkDeleteEntry mdEntry, final VoidCallback callback) {
+    void persistPositionToLedger(@Nonnull LedgerHandle lh, MarkDeleteEntry mdEntry, VoidCallback callback) {
+        requireNonNull(lh, "LedgerHandle should not be null");
+
         PositionImpl position = mdEntry.newPosition;
         PositionInfo pi = PositionInfo.newBuilder().setLedgerId(position.getLedgerId())
                 .setEntryId(position.getEntryId())
@@ -2999,7 +3002,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                     position);
         }
 
-        requireNonNull(lh);
         byte[] data = pi.toByteArray();
         lh.asyncAddEntry(data, (rc, lh1, entryId, ctx) -> {
             if (rc == BKException.Code.OK) {
@@ -3066,21 +3068,25 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
-    void switchToNewLedger(final LedgerHandle lh, final VoidCallback callback) {
+    void switchToNewLedger(@Nonnull LedgerHandle lh, VoidCallback callback) {
+        requireNonNull(lh, "LedgerHandle should not be null");
+
         if (log.isDebugEnabled()) {
             log.debug("[{}] Switching cursor {} to ledger {}", ledger.getName(), name, lh.getId());
         }
+
         persistPositionMetaStore(lh.getId(), lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
-                new MetaStoreCallback<Void>() {
+                new MetaStoreCallback<>() {
             @Override
             public void operationComplete(Void result, Stat stat) {
-                log.info("[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}", ledger.getName(),
-                        name, lh.getId(), markDeletePosition, readPosition);
+                log.info(
+                        "[{}] Updated cursor {} with ledger id {} md-position={} rd-position={}",
+                        ledger.getName(), name, lh.getId(), markDeletePosition, readPosition);
                 final LedgerHandle oldLedger = cursorLedger;
                 cursorLedger = lh;
                 isCursorLedgerReadOnly = false;
 
-                // At this point the position had already been safely markdeleted
+                // At this point the position had already been safely mark-deleted
                 callback.operationComplete();
 
                 asyncDeleteLedger(oldLedger);
