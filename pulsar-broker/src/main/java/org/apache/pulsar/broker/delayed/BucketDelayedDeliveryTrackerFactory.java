@@ -80,6 +80,8 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
 
     /**
      * Clean up residual snapshot data.
+     * If tracker has not been created or has been closed, then we can't clean up the snapshot with `tracker.clear`,
+     * this method can clean up the residual snapshots without creating a tracker.
      */
     public CompletableFuture<Void> cleanResidualSnapshots(ManagedCursor cursor) {
         Map<String, String> cursorProperties = cursor.getCursorProperties();
