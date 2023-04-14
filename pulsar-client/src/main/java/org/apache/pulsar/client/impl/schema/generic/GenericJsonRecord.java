@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.dataformat.avro.AvroMapper;
+import com.fasterxml.jackson.dataformat.avro.AvroSchema;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -39,17 +42,20 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     private final JsonNode jn;
     private final SchemaInfo schemaInfo;
 
-    GenericJsonRecord(byte[] schemaVersion,
-                      List<Field> fields,
-                      JsonNode jn) {
+    GenericJsonRecord(byte[] schemaVersion, List<Field> fields, JsonNode jn) {
         this(schemaVersion, fields, jn, null);
     }
 
-    public GenericJsonRecord(byte[] schemaVersion,
-                      List<Field> fields,
-                      JsonNode jn, SchemaInfo schemaInfo) {
+    @SneakyThrows
+    public GenericJsonRecord(byte[] schemaVersion, List<Field> fields, JsonNode jn, SchemaInfo schemaInfo) {
         super(schemaVersion, fields);
-        this.jn = jn;
+        if (schemaInfo == null) {
+            this.jn = jn;
+        } else {
+            final AvroSchema schema = new AvroSchema(parseAvroSchema(schemaInfo.getSchemaDefinition()));
+            final AvroMapper avroMapper = new AvroMapper();
+            this.jn = avroMapper.reader(schema).readTree(avroMapper.writer(schema).writeValueAsBytes(jn));
+        }
         this.schemaInfo = schemaInfo;
     }
 

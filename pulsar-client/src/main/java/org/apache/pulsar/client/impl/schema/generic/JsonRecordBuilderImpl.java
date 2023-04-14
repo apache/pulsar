@@ -100,7 +100,6 @@ public class JsonRecordBuilderImpl implements GenericRecordBuilder {
                 null,
                 genericSchema.getFields(),
                 jn,
-                null
-                );
+                genericSchema.getSchemaInfo());
     }
 }

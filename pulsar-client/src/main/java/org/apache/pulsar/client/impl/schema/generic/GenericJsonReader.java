@@ -39,7 +39,7 @@ public class GenericJsonReader implements SchemaReader<GenericRecord> {
     private final ObjectReader objectReader;
     private final byte[] schemaVersion;
     private final List<Field> fields;
-    private SchemaInfo schemaInfo;
+    private final SchemaInfo schemaInfo;
 
     public GenericJsonReader(List<Field> fields, SchemaInfo schemaInfo){
         this(null, fields, schemaInfo);
