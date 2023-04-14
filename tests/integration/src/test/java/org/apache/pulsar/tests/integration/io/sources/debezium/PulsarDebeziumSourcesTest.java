@@ -269,8 +269,8 @@ public class PulsarDebeziumSourcesTest extends PulsarIOTestBase {
         admin.topics().createNonPartitionedTopic(consumeTopicName);
         admin.topics().createNonPartitionedTopic(outputTopicName);
 
-        admin.namespaces().setRetention("debezium/db2", new RetentionPolicies(0, 1));
-        admin.namespaces().setRetention("public/default", new RetentionPolicies(0, 1));
+        admin.namespaces().setRetention("debezium/db2", new RetentionPolicies(-1, 1));
+        admin.namespaces().setRetention("public/default", new RetentionPolicies(-1, 1));
         @Cleanup
         DebeziumDB2DbSourceTester sourceTester = new DebeziumDB2DbSourceTester(pulsarCluster);
         sourceTester.getSourceConfig().put("json-with-envelope", jsonWithEnvelope);
