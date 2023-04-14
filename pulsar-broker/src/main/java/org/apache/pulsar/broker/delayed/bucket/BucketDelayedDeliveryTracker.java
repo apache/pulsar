@@ -268,7 +268,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     if (ex == null) {
                         immutableBucket.setSnapshotSegments(null);
                         immutableBucket.asyncUpdateSnapshotLength();
-                        log.info("[{}] Creat bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
+                        log.info("[{}] Create bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
                                 immutableBucket.bucketKey());
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
@@ -540,7 +540,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     @Override
     public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
         if (!checkPendingOpDone()) {
-            return new TreeSet<>();
+            log.info("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.", dispatcher.getName());
+            return Collections.emptyNavigableSet();
         }
 
         long cutoffTime = getCutoffTime();
