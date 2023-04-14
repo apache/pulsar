@@ -581,12 +581,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     break;
                 }
 
-                if (bucket.currentSegmentEntryId == bucket.lastSegmentEntryId) {
-                    immutableBuckets.asMapOfRanges().remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                    bucket.asyncDeleteBucketSnapshot(stats);
-                    continue;
-                }
-
                 long loadStartTime = System.currentTimeMillis();
                 stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
                 CompletableFuture<Void> loadFuture = pendingLoad = bucket.asyncLoadNextBucketSnapshotEntry()
@@ -636,7 +630,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     break;
                 }
             }
-            snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
 
             positions.add(new PositionImpl(ledgerId, entryId));
 
