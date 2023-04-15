@@ -1533,7 +1533,8 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic, createIfMissing, topicFuture, properties));
+                        pendingTopicLoadingQueue.add(new TopicLoadingContext(topic,
+                                createIfMissing, topicFuture, properties));
                         if (log.isDebugEnabled()) {
                             log.debug("topic-loading for {} added into pending queue", topic);
                         }
