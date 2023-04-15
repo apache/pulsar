@@ -126,7 +126,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.16.0</bookkeeper.version>
+    <bookkeeper.version>4.16.1</bookkeeper.version>
     <zookeeper.version>3.8.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
@@ -2454,6 +2454,14 @@ flexible messaging model and an intuitive client API.</description>
       <id>maven.restlet.org</id>
       <name>maven.restlet.org</name>
       <url>https://maven.restlet.talend.com</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+    <repository>
+      <id>bk-staging</id>
+      <name>bk-staging</name>
+      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1084/</url>
       <snapshots>
         <enabled>false</enabled>
       </snapshots>

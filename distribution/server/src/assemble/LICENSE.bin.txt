@@ -346,34 +346,34 @@ The Apache Software License, Version 2.0
     - net.java.dev.jna-jna-jpms-5.12.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.12.1.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.16.0.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.16.0.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.16.0.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.16.0.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.16.0.jar
-    - org.apache.bookkeeper-circe-checksum-4.16.0.jar
-    - org.apache.bookkeeper-cpu-affinity-4.16.0.jar
-    - org.apache.bookkeeper-statelib-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-api-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-common-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-server-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.16.0.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.16.0.jar
-    - org.apache.bookkeeper.http-http-server-4.16.0.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.16.0.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.16.0.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.16.0.jar
-    - org.apache.distributedlog-distributedlog-common-4.16.0.jar
-    - org.apache.distributedlog-distributedlog-core-4.16.0-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.16.0.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.16.0.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.16.0.jar
-    - org.apache.bookkeeper-bookkeeper-slogger-api-4.16.0.jar
-    - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.16.0.jar
-    - org.apache.bookkeeper-native-io-4.16.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.16.1.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.16.1.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.16.1.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.16.1.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.16.1.jar
+    - org.apache.bookkeeper-circe-checksum-4.16.1.jar
+    - org.apache.bookkeeper-cpu-affinity-4.16.1.jar
+    - org.apache.bookkeeper-statelib-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-api-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-common-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-server-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.16.1.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.16.1.jar
+    - org.apache.bookkeeper.http-http-server-4.16.1.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.16.1.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.16.1.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.16.1.jar
+    - org.apache.distributedlog-distributedlog-common-4.16.1.jar
+    - org.apache.distributedlog-distributedlog-core-4.16.1-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.16.1.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.16.1.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.16.1.jar
+    - org.apache.bookkeeper-bookkeeper-slogger-api-4.16.1.jar
+    - org.apache.bookkeeper-bookkeeper-slogger-slf4j-4.16.1.jar
+    - org.apache.bookkeeper-native-io-4.16.1.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.15.jar
