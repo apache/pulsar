@@ -385,10 +385,19 @@ public class PulsarClusterMetadataSetup {
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
             log.info("Namespace {} already exists.", namespaceName);
-            namespaceResources.setPolicies(namespaceName, policies -> {
-                policies.replication_clusters.add(cluster);
-                return policies;
-            });
+            var replicaClusterFound = false;
+            var policiesOptional = namespaceResources.getPolicies(namespaceName);
+            if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
+                replicaClusterFound = true;
+            }
+            if (!replicaClusterFound) {
+                namespaceResources.setPolicies(namespaceName, policies -> {
+                    policies.replication_clusters.add(cluster);
+                    return policies;
+                });
+                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
+                        namespaceName, cluster);
+            }
         }
     }
 
