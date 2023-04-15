@@ -81,6 +81,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -1169,15 +1170,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         Dispatcher dispatcher = persistentSubscription.getDispatcher();
-        final Dispatcher temporaryDispatcher;
         if (dispatcher == null) {
-            log.info("[{}][{}] Dispatcher is null, try to create temporary dispatcher to clear delayed message", topic,
-                    subscriptionName);
-            dispatcher = temporaryDispatcher =
-                    new PersistentDispatcherMultipleConsumers(this, persistentSubscription.cursor,
-                            persistentSubscription);
-        } else {
-            temporaryDispatcher = null;
+            DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
+                    brokerService.getDelayedDeliveryTrackerFactory();
+            if (delayedDeliveryTrackerFactory instanceof BucketDelayedDeliveryTrackerFactory
+                    bucketDelayedDeliveryTrackerFactory) {
+                ManagedCursor cursor = persistentSubscription.getCursor();
+                bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        unsubscribeFuture.completeExceptionally(ex);
+                    } else {
+                        asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                    }
+                });
+            }
+            return;
         }
 
         dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
@@ -1185,9 +1192,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
                 asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-            }
-            if (temporaryDispatcher != null) {
-                temporaryDispatcher.close();
             }
         });
     }
