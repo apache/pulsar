@@ -49,6 +49,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
@@ -1098,19 +1099,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return CompletableFuture.completedFuture(null);
         }
 
-        if (delayedDeliveryTracker.isEmpty() && topic.getBrokerService()
-                .getDelayedDeliveryTrackerFactory() instanceof BucketDelayedDeliveryTrackerFactory) {
-            synchronized (this) {
-                if (delayedDeliveryTracker.isEmpty()) {
-                    delayedDeliveryTracker = Optional
-                            .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
-                }
-            }
-        }
-
         if (delayedDeliveryTracker.isPresent()) {
             return this.delayedDeliveryTracker.get().clear();
         } else {
+            DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
+                    topic.getBrokerService().getDelayedDeliveryTrackerFactory();
+            if (delayedDeliveryTrackerFactory instanceof BucketDelayedDeliveryTrackerFactory
+                    bucketDelayedDeliveryTrackerFactory) {
+                return bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor);
+            }
             return CompletableFuture.completedFuture(null);
         }
     }
