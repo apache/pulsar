@@ -81,7 +81,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     }
 
     // task that runs every TICK_TIME to check zk connection
-    private synchronized void checkConnectionStatus() {
+    private void checkConnectionStatus() {
         try {
             CompletableFuture<Watcher.Event.KeeperState> future = new CompletableFuture<>();
             zk.exists("/", false, (StatCallback) (rc, path, ctx, stat) -> {
@@ -126,7 +126,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
         currentStatus = SessionEvent.SessionLost;
     }
 
-    private void checkState(Watcher.Event.KeeperState zkClientState) {
+    private synchronized void checkState(Watcher.Event.KeeperState zkClientState) {
         switch (zkClientState) {
         case Expired:
             if (currentStatus != SessionEvent.SessionLost) {
