@@ -67,9 +67,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
         return openLedger(bucketId).thenCompose(ledgerHandle -> {
-            CompletableFuture<SnapshotMetadata> snapshotFuture
-                    = getLedgerEntry(ledgerHandle, 0, 0)
-                    .thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement()));
+            CompletableFuture<SnapshotMetadata> snapshotFuture =
+                    getLedgerEntry(ledgerHandle, 0, 0)
+                            .thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement()));
 
             snapshotFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
 
@@ -81,9 +81,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
         return openLedger(bucketId).thenCompose(ledgerHandle -> {
-            CompletableFuture<List<SnapshotSegment>> parseFuture
-                    = getLedgerEntry(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId)
-                    .thenApply(this::parseSnapshotSegmentEntries);
+            CompletableFuture<List<SnapshotSegment>> parseFuture =
+                    getLedgerEntry(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId)
+                            .thenApply(this::parseSnapshotSegmentEntries);
 
             parseFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
 
