@@ -46,7 +46,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
@@ -1089,7 +1088,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
@@ -1169,15 +1168,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
 
     public long getDelayedTrackerMemoryUsage() {
-        if (delayedDeliveryTracker.isEmpty()) {
-            return 0;
-        }
-
-        if (delayedDeliveryTracker.get() instanceof AbstractDelayedDeliveryTracker) {
-            return delayedDeliveryTracker.get().getBufferMemoryUsage();
-        }
-
-        return 0;
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
     public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
