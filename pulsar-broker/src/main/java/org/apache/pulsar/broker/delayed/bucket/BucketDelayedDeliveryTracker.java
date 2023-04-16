@@ -81,7 +81,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final int maxNumBuckets;
 
-    private long numberDelayedMessages;
+    private volatile long numberDelayedMessages;
 
     @Getter
     @VisibleForTesting
@@ -540,7 +540,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     @Override
     public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
         if (!checkPendingOpDone()) {
-            log.info("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.", dispatcher.getName());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.",
+                        dispatcher.getName());
+            }
             return Collections.emptyNavigableSet();
         }
 
