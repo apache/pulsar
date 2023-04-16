@@ -19,6 +19,8 @@
 package org.apache.pulsar.metadata.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -81,6 +83,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     }
 
     // task that runs every TICK_TIME to check zk connection
+    @VisibleForTesting
     private void checkConnectionStatus() {
         try {
             CompletableFuture<Watcher.Event.KeeperState> future = new CompletableFuture<>();
