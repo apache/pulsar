@@ -150,7 +150,9 @@ public class JavaInstanceStarter implements AutoCloseable {
             + "exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
-    @Parameter(names = "--ignore_unknown_config_fields", description = "Whether to ignore unknown properties when deserializing the connector configuration.", required = false)
+    @Parameter(names = "--ignore_unknown_config_fields",
+            description = "Whether to ignore unknown properties when deserializing the connector configuration.",
+            required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
 
