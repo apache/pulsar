@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.instance;
 
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
@@ -37,7 +36,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -881,7 +879,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     static Map<String, Object> parseComponentConfig(String connectorConfigs,
                                                     InstanceConfig instanceConfig,
                                                     ClassLoader componentClassLoader,
-                                                    org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType componentType) throws IOException {
+                                                    org.apache.pulsar.functions.proto.Function
+                                                            .FunctionDetails.ComponentType componentType)
+            throws IOException {
         final Map<String, Object> config = ObjectMapperFactory
                 .getMapper()
                 .reader()
