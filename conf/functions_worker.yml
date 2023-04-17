@@ -135,15 +135,15 @@ exposeAdminClientEnabled: false
 # Pulsar function instances are launched as processes
 
 functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.process.ProcessRuntimeFactory
-#functionRuntimeFactoryConfigs:
-#    # location of log files for functions
-#    logDirectory: logs/
-#    # change the jar location only when you put the java instance jar in a different location
-#    javaInstanceJarLocation:
-#    # change the python instance location only when you put the python instance jar in a different location
-#    pythonInstanceLocation:
-#    # change the extra dependencies location:
-#    extraFunctionDependenciesDir:
+functionRuntimeFactoryConfigs:
+    # location of log files for functions
+    logDirectory: logs/
+    # change the jar location only when you put the java instance jar in a different location
+    javaInstanceJarLocation:
+    # change the python instance location only when you put the python instance jar in a different location
+    pythonInstanceLocation:
+    # change the extra dependencies location:
+    extraFunctionDependenciesDir:
 
 #### Additional JVM tuning (only process and Kubernetes runtime) ####
 #   This arguments will be added to the command line execution of 'java'
