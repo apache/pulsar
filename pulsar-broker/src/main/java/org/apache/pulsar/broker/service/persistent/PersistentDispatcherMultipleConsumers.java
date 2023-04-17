@@ -263,7 +263,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
      *
      */
     public void readMoreEntriesAsync() {
-        topic.getBrokerService().executor().execute(this::readMoreEntries);
+        dispatchMessagesThread.execute(this::readMoreEntries);
     }
 
     public synchronized void readMoreEntries() {
