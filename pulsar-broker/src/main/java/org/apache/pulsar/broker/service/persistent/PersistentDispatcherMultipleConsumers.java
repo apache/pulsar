@@ -127,12 +127,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
-            Subscription subscription) {
+                                                 Subscription subscription) {
         this(topic, cursor, subscription, true);
     }
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription,
-            boolean allowOutOfOrderDelivery) {
+                                                 boolean allowOutOfOrderDelivery) {
         super(subscription, topic.getBrokerService().pulsar().getConfiguration());
         this.cursor = cursor;
         this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
@@ -235,7 +235,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
+        topic.getOrderedExecutor().execute(() -> {
             internalConsumerFlow(consumer, additionalNumberOfMessages);
         });
     }
@@ -260,10 +260,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     /**
      * We should not call readMoreEntries() recursively in the same thread as there is a risk of StackOverflowError.
-     *
      */
     public void readMoreEntriesAsync() {
-        dispatchMessagesThread.execute(this::readMoreEntries);
+        topic.getOrderedExecutor().execute(this::readMoreEntries);
     }
 
     public synchronized void readMoreEntries() {
@@ -360,11 +359,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
             }
-            topic.getBrokerService().executor().schedule(
+            topic.getBrokerService().getTopicOrderedExecutor().scheduleOrdered(topic.getName(),
                     () -> {
                         isRescheduleReadInProgress.set(false);
                         readMoreEntries();
-                        },
+                    },
                     MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
         }
     }
@@ -627,6 +626,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     /**
      * Dispatch the messages to the Consumers.
+     *
      * @return true if you want to trigger a new read.
      * This method is overridden by other classes, please take a look to other implementations
      * if you need to change it.
@@ -861,7 +861,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
-        topic.getBrokerService().executor().schedule(() -> {
+        topic.getBrokerService().getTopicOrderedExecutor().scheduleOrdered(topic.getName(), () -> {
             synchronized (PersistentDispatcherMultipleConsumers.this) {
                 // If it's a replay read we need to retry even if there's already
                 // another scheduled read, otherwise we'd be stuck until
