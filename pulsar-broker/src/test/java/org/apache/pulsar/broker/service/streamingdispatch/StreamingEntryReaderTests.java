@@ -70,7 +70,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
     private StreamingDispatcher mockDispatcher;
     private BrokerService mockBrokerService;
     private EventLoopGroup eventLoopGroup;
-    private OrderedExecutor orderedExecutor;
+    private OrderedScheduler orderedExecutor;
     private ManagedLedgerConfig config;
     private ManagedLedgerImpl ledger;
     private ManagedCursor cursor;
