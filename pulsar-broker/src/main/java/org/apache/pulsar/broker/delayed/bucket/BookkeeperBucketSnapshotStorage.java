@@ -66,22 +66,41 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
-        return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntry(ledgerHandle, 0, 0).
-                        thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
+        return openLedger(bucketId).thenCompose(ledgerHandle -> {
+            CompletableFuture<SnapshotMetadata> snapshotFuture =
+                    getLedgerEntry(ledgerHandle, 0, 0)
+                            .thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement()));
+
+            snapshotFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
+
+            return snapshotFuture;
+        });
     }
 
     @Override
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
-        return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntry(ledgerHandle, firstSegmentEntryId,
-                        lastSegmentEntryId).thenApply(this::parseSnapshotSegmentEntries));
+        return openLedger(bucketId).thenCompose(ledgerHandle -> {
+            CompletableFuture<List<SnapshotSegment>> parseFuture =
+                    getLedgerEntry(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId)
+                            .thenApply(this::parseSnapshotSegmentEntries);
+
+            parseFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
+
+            return parseFuture;
+        });
     }
 
     @Override
     public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
-        return openLedger(bucketId).thenApply(LedgerHandle::getLength);
+        return openLedger(bucketId).thenCompose(ledgerHandle -> {
+            CompletableFuture<Long> lengthFuture =
+                    CompletableFuture.completedFuture(ledgerHandle.getLength());
+
+            lengthFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
+
+            return lengthFuture;
+        });
     }
 
     @Override
