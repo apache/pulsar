@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.lang.Thread.sleep;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -67,6 +68,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -229,7 +231,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         for (int i = 0; i < 3; i++) {
             admin.topics().createNonPartitionedTopic(baseTopic2 + UUID.randomUUID());
         }
-        Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
+        sleep(ASYNC_EVENT_COMPLETION_WAIT);
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
@@ -1664,6 +1666,20 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         compareBrokerConnectionStateCount(cm, 2.0);
     }
 
+    @Test
+    public void testBrokerHealthCheckMetric() throws Exception {
+        conf.setHealthCheckMetricsUpdateTimeInSeconds(60);
+        BrokerService brokerService = pulsar.getBrokerService();
+        brokerService.checkHealth().get();
+        brokerService.updateRates();
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        List<Metric> cm = (List<Metric>) metrics.get("pulsar_health");
+        compareBrokerConnectionStateCount(cm, 1);
+    }
+
     private void compareBrokerConnectionStateCount(List<Metric> cm, double count) {
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
@@ -1780,7 +1796,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 Multimap<String, Metric> metrics = parseMetrics(metricsStr1);
             }
 
-            Thread.sleep(TimeUnit.SECONDS.toMillis(period / 2));
+            sleep(TimeUnit.SECONDS.toMillis(period / 2));
         }
     }
 
