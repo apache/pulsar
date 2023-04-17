@@ -246,21 +246,21 @@ The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.82.jar
  * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
-     - com.fasterxml.jackson.core-jackson-annotations-2.13.4.jar
-     - com.fasterxml.jackson.core-jackson-core-2.13.4.jar
-     - com.fasterxml.jackson.core-jackson-databind-2.13.4.2.jar
-     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.13.4.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.13.4.jar
-     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.13.4.jar
-     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.13.4.jar
-     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.13.4.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.13.4.jar
-     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.13.4.jar
-     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.13.4.jar
+     - com.fasterxml.jackson.core-jackson-annotations-2.14.2.jar
+     - com.fasterxml.jackson.core-jackson-core-2.14.2.jar
+     - com.fasterxml.jackson.core-jackson-databind-2.14.2.jar
+     - com.fasterxml.jackson.dataformat-jackson-dataformat-yaml-2.14.2.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-base-2.14.2.jar
+     - com.fasterxml.jackson.jaxrs-jackson-jaxrs-json-provider-2.14.2.jar
+     - com.fasterxml.jackson.module-jackson-module-jaxb-annotations-2.14.2.jar
+     - com.fasterxml.jackson.module-jackson-module-jsonSchema-2.14.2.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.14.2.jar
+     - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.14.2.jar
+     - com.fasterxml.jackson.module-jackson-module-parameter-names-2.14.2.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-2.9.1.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.5.2.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.0.1.jar
- * Bitbucket -- org.bitbucket.b_c-jose4j-0.7.6.jar
+ * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.3.jar
  * Gson
     - com.google.code.gson-gson-2.8.9.jar
     - io.gsonfire-gson-fire-1.8.5.jar
@@ -402,7 +402,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty.websocket-websocket-servlet-9.4.48.v20220622.jar
     - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.48.v20220622.jar
     - org.eclipse.jetty-jetty-alpn-server-9.4.48.v20220622.jar
- * SnakeYaml -- org.yaml-snakeyaml-1.32.jar
+ * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-7.9.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
@@ -453,9 +453,9 @@ The Apache Software License, Version 2.0
   * Apache Yetus
     - org.apache.yetus-audience-annotations-0.12.0.jar
   * Kubernetes Client
-    - io.kubernetes-client-java-12.0.1.jar
-    - io.kubernetes-client-java-api-12.0.1.jar
-    - io.kubernetes-client-java-proto-12.0.1.jar
+    - io.kubernetes-client-java-18.0.0.jar
+    - io.kubernetes-client-java-api-18.0.0.jar
+    - io.kubernetes-client-java-proto-18.0.0.jar
   * Dropwizard
     - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar

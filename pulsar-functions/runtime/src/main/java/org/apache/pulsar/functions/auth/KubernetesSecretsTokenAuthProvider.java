@@ -205,8 +205,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     try {
-                        coreClient.readNamespacedSecret(secretName, kubeNamespace,
-                                null, null, null);
+                        coreClient.readNamespacedSecret(secretName, kubeNamespace, null);
 
                     } catch (ApiException e) {
                         // statefulset is gone
@@ -305,12 +304,13 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .data(buildSecretMap(token));
 
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null, null);
                     } catch (ApiException e) {
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
                                 coreClient
-                                        .replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, null, null);
+                                        .replaceNamespacedSecret(secretName, kubeNamespace, v1Secret,
+                                                null, null, null, null);
                                 return Actions.ActionResult.builder().success(true).build();
 
                             } catch (ApiException e1) {
@@ -366,7 +366,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
                             .data(buildSecretMap(token));
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
