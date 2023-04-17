@@ -101,7 +101,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final BucketDelayedMessageIndexStats stats;
 
-    private CompletableFuture<Void> pendingLoad = null;
+    private State state = State.READY;
+
+    enum State {
+        RECOVERING,
+        LOADING,
+        READY,
+        ClOSE
+    }
 
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
@@ -136,6 +143,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private synchronized long recoverBucketSnapshot() throws RuntimeException {
+        state = State.RECOVERING;
         ManagedCursor cursor = this.lastMutableBucket.getCursor();
         FutureUtil.Sequencer<Void> sequencer = this.lastMutableBucket.getSequencer();
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
@@ -316,6 +324,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         if (deliverAt < 0 || deliverAt <= getCutoffTime()) {
+            return false;
+        }
+
+        if (state == State.RECOVERING) {
             return false;
         }
 
@@ -541,7 +553,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
-        if (!checkPendingOpDone()) {
+        if (state != State.READY) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.",
                         dispatcher.getName());
@@ -588,7 +600,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
                 long loadStartTime = System.currentTimeMillis();
                 stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
-                CompletableFuture<Void> loadFuture = pendingLoad = bucket.asyncLoadNextBucketSnapshotEntry()
+                CompletableFuture<Void> loadFuture = bucket.asyncLoadNextBucketSnapshotEntry()
                         .thenAccept(indexList -> {
                     synchronized (BucketDelayedDeliveryTracker.this) {
                         this.snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
@@ -632,7 +644,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     }
                 });
 
-                if (!checkPendingOpDone() || loadFuture.isCompletedExceptionally()) {
+                if (!loadFuture.isDone() || loadFuture.isCompletedExceptionally()) {
                     break;
                 }
             }
@@ -651,17 +663,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return positions;
     }
 
-    private synchronized boolean checkPendingOpDone() {
-        if (pendingLoad == null || pendingLoad.isDone()) {
-            pendingLoad = null;
-            return true;
-        }
-        return false;
-    }
+//    private synchronized boolean checkPendingOpDone() {
+//        if (pendingLoad == null || pendingLoad.isDone()) {
+//            pendingLoad = null;
+//            return true;
+//        }
+//        return false;
+//    }
 
     @Override
     public boolean shouldPauseAllDeliveries() {
-        return false;
+        return state == State.READY;
     }
 
     @Override
