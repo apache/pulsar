@@ -186,7 +186,7 @@ public class AuthorizationService {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
-                return provider.canProduceAsync(topicName, role, authenticationData);
+                return provider.allowTopicOperationAsync(topicName, role, TopicOperation.PRODUCE, authenticationData);
             }
         });
     }
@@ -211,7 +211,7 @@ public class AuthorizationService {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
-                return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
+                return provider.allowTopicOperationAsync(topicName, role, TopicOperation.CONSUME, authenticationData);
             }
         });
     }
@@ -293,7 +293,7 @@ public class AuthorizationService {
             if (isSuperUser) {
                 return CompletableFuture.completedFuture(true);
             } else {
-                return provider.canLookupAsync(topicName, role, authenticationData);
+                return provider.allowTopicOperationAsync(topicName, role, TopicOperation.LOOKUP, authenticationData);
             }
         });
     }
