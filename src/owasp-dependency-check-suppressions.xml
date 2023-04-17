@@ -36,14 +36,6 @@
         <gav>org.apache.thrift:libthrift:0.12.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: snakeyaml-1.32.jar
-       ]]></notes>
-        <sha1>e80612549feb5c9191c498de628c1aa80693cf0b</sha1>
-        <cve>CVE-2022-1471</cve>
-    </suppress>
-
     <!-- influxdb dependencies -->
     <suppress>
         <notes><![CDATA[

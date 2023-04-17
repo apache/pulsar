@@ -391,7 +391,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                String changeConfigMapNamespace,
                                KubernetesRuntimeFactory kubernetesRuntimeFactory) {
         try {
-            V1ConfigMap v1ConfigMap = coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null, true, false);
+            V1ConfigMap v1ConfigMap = coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null);
             Map<String, String> data = v1ConfigMap.getData();
             if (data != null) {
                 overRideKubernetesConfig(data, kubernetesRuntimeFactory);
