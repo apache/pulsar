@@ -120,7 +120,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             return;
         }
 
-        readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
+        readOnActiveConsumerTask = topic.getBrokerService()
+                .getTopicOrderedExecutor().scheduleOrdered(topic.getName(), () -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Rewind cursor and read more entries after {} ms delay", name,
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
@@ -369,7 +370,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
             }
-            topic.getBrokerService().executor().schedule(() -> {
+            topic.getBrokerService().getTopicOrderedExecutor().scheduleOrdered(topic.getName(), () -> {
                 isRescheduleReadInProgress.set(false);
                 Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
                 readMoreEntries(currentConsumer);
@@ -504,27 +505,23 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         // Reduce read batch size to avoid flooding bookies with retries
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
 
-        topic.getBrokerService().executor().schedule(() -> {
-
-            // Jump again into dispatcher dedicated thread
-            topicExecutor.execute(() -> {
-                synchronized (PersistentDispatcherSingleActiveConsumer.this) {
-                    Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-                    // we should retry the read if we have an active consumer and there is no pending read
-                    if (currentConsumer != null && !havePendingRead) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}-{}] Retrying read operation", name, c);
-                        }
-                        if (currentConsumer != c) {
-                            notifyActiveConsumerChanged(currentConsumer);
-                        }
-                        readMoreEntries(currentConsumer);
-                    } else {
-                        log.info("[{}-{}] Skipping read retry: Current Consumer {}, havePendingRead {}", name, c,
-                                currentConsumer, havePendingRead);
+        topic.getBrokerService().getTopicOrderedExecutor().scheduleOrdered(topic.getName(), () -> {
+            synchronized (PersistentDispatcherSingleActiveConsumer.this) {
+                Consumer currentConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+                // we should retry the read if we have an active consumer and there is no pending read
+                if (currentConsumer != null && !havePendingRead) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}-{}] Retrying read operation", name, c);
                     }
+                    if (currentConsumer != c) {
+                        notifyActiveConsumerChanged(currentConsumer);
+                    }
+                    readMoreEntries(currentConsumer);
+                } else {
+                    log.info("[{}-{}] Skipping read retry: Current Consumer {}, havePendingRead {}", name, c,
+                            currentConsumer, havePendingRead);
                 }
-            });
+            }
         }, waitTimeMillis, TimeUnit.MILLISECONDS);
 
     }
