@@ -73,6 +73,7 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
     public void testGetSnapshot() throws ExecutionException, InterruptedException {
         DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata segmentMetadata =
                 DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata.newBuilder()
+                        .setMinScheduleTimestamp(System.currentTimeMillis())
                         .setMaxScheduleTimestamp(System.currentTimeMillis())
                         .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1])).build();
 
@@ -122,6 +123,7 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata segmentMetadata =
                 DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata.newBuilder()
                         .setMaxScheduleTimestamp(timeMillis)
+                        .setMinScheduleTimestamp(timeMillis)
                         .putAllDelayedIndexBitMap(map).build();
 
         DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata =
@@ -172,6 +174,7 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
     public void testGetBucketSnapshotLength() throws ExecutionException, InterruptedException {
         DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata segmentMetadata =
                 DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata.newBuilder()
+                        .setMinScheduleTimestamp(System.currentTimeMillis())
                         .setMaxScheduleTimestamp(System.currentTimeMillis())
                         .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1])).build();
 

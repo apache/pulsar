@@ -51,6 +51,7 @@ import javax.ws.rs.core.Response;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Packages;
@@ -488,7 +489,7 @@ public class SourceApiV3ResourceTest {
                 details,
                 pkgUrl,
                 sourceConfig,
-                null, null);
+                null);
 
     }
 
@@ -502,7 +503,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
@@ -516,7 +517,7 @@ public class SourceApiV3ResourceTest {
                 mockedFormData,
                 null,
                 null,
-                null, null, null);
+                null, null);
     }
 
     private void registerDefaultSource() throws IOException {
@@ -533,7 +534,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 packageUrl,
                 sourceConfig,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already "
@@ -634,7 +635,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     null,
                     sourceConfig,
-                    null, null);
+                    null);
         }
     }
 
@@ -937,7 +938,7 @@ public class SourceApiV3ResourceTest {
                 details,
                 null,
                 sourceConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -983,7 +984,7 @@ public class SourceApiV3ResourceTest {
                     mockedFormData,
                     packageUrl,
                     sourceConfig,
-                    null, null, null);
+                    null, null);
         }
     }
 
@@ -1069,7 +1070,7 @@ public class SourceApiV3ResourceTest {
                 null,
                 filePackageUrl,
                 sourceConfig,
-                null, null, null);
+                null, null);
 
     }
 
@@ -1182,7 +1183,7 @@ public class SourceApiV3ResourceTest {
                 tenant,
                 namespace,
                 function,
-                null, null);
+                null);
 
     }
 
@@ -1191,7 +1192,7 @@ public class SourceApiV3ResourceTest {
                 tenant,
                 namespace,
                 source,
-                null, null);
+                null);
     }
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't " +
@@ -1385,7 +1386,8 @@ public class SourceApiV3ResourceTest {
         resource.getFunctionInfo(
                 tenant,
                 namespace,
-                source, null, null
+                source,
+                AuthenticationParameters.builder().build()
         );
     }
 
@@ -1393,7 +1395,8 @@ public class SourceApiV3ResourceTest {
         return resource.getSourceInfo(
                 tenant,
                 namespace,
-                source
+                source,
+                AuthenticationParameters.builder().build()
         );
     }
 
@@ -1476,14 +1479,17 @@ public class SourceApiV3ResourceTest {
     ) {
         resource.listFunctions(
                 tenant,
-                namespace, null, null
+                namespace,
+                AuthenticationParameters.builder().build()
         );
     }
 
     private List<String> listDefaultSources() {
         return resource.listFunctions(
                 tenant,
-                namespace, null, null);
+                namespace,
+                AuthenticationParameters.builder().build()
+        );
     }
 
     @Test

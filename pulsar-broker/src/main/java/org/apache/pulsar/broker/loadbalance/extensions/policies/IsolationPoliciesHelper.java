@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
 @Slf4j
@@ -63,6 +64,10 @@ public class IsolationPoliciesHelper {
                     }
                 });
         return brokerCandidateCache;
+    }
+
+    public boolean hasIsolationPolicy(NamespaceName namespaceName) {
+        return policies.areIsolationPoliciesPresent(namespaceName);
     }
 
 }

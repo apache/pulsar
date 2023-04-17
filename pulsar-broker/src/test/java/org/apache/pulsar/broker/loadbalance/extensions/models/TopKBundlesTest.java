@@ -87,15 +87,15 @@ public class TopKBundlesTest {
         Map<String, NamespaceBundleStats> bundleStats = new HashMap<>();
         var topKBundles = new TopKBundles(pulsar);
         NamespaceBundleStats stats1 = new NamespaceBundleStats();
-        stats1.msgRateIn = 500;
+        stats1.msgRateIn = 100000;
         bundleStats.put(bundle1, stats1);
 
         NamespaceBundleStats stats2 = new NamespaceBundleStats();
-        stats2.msgRateIn = 10000;
+        stats2.msgRateIn = 500;
         bundleStats.put(bundle2, stats2);
 
         NamespaceBundleStats stats3 = new NamespaceBundleStats();
-        stats3.msgRateIn = 100000;
+        stats3.msgRateIn = 10000;
         bundleStats.put(bundle3, stats3);
 
         NamespaceBundleStats stats4 = new NamespaceBundleStats();
@@ -107,8 +107,8 @@ public class TopKBundlesTest {
         var top1 = topKBundles.getLoadData().getTopBundlesLoadData().get(1);
         var top2 = topKBundles.getLoadData().getTopBundlesLoadData().get(2);
 
-        assertEquals(top0.bundleName(), bundle3);
-        assertEquals(top1.bundleName(), bundle2);
+        assertEquals(top0.bundleName(), bundle2);
+        assertEquals(top1.bundleName(), bundle3);
         assertEquals(top2.bundleName(), bundle1);
     }
 
@@ -225,8 +225,8 @@ public class TopKBundlesTest {
         var top0 = topKBundles.getLoadData().getTopBundlesLoadData().get(0);
         var top1 = topKBundles.getLoadData().getTopBundlesLoadData().get(1);
 
-        assertEquals(top0.bundleName(), bundle2);
-        assertEquals(top1.bundleName(), bundle1);
+        assertEquals(top0.bundleName(), bundle1);
+        assertEquals(top1.bundleName(), bundle2);
 
         configuration.setLoadBalancerSheddingBundlesWithPoliciesEnabled(false);
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.pulsar.proxy.server.AdminProxyHandler.INIT_PARAM_REQUEST_BUFFER_SIZE;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
@@ -93,6 +94,7 @@ public class WebServer {
 
         HttpConfiguration httpConfig = new HttpConfiguration();
         httpConfig.setOutputBufferSize(config.getHttpOutputBufferSize());
+        httpConfig.setRequestHeaderSize(config.getHttpMaxRequestHeaderSize());
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
@@ -131,7 +133,7 @@ public class WebServer {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                connectorTls = new ServerConnector(server, sslCtxFactory);
+                connectorTls = new ServerConnector(server, sslCtxFactory, new HttpConnectionFactory(httpConfig));
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
@@ -195,6 +197,8 @@ public class WebServer {
 
     public void addServlet(String basePath, ServletHolder servletHolder,
                            List<Pair<String, Object>> attributes, boolean requireAuthentication) {
+        popularServletParams(servletHolder, config);
+
         Optional<String> existingPath = servletPaths.stream().filter(p -> p.startsWith(basePath)).findFirst();
         if (existingPath.isPresent()) {
             throw new IllegalArgumentException(
@@ -212,6 +216,19 @@ public class WebServer {
         filterInitializer.addFilters(context, requireAuthentication);
 
         handlers.add(context);
+    }
+
+    private static void popularServletParams(ServletHolder servletHolder, ProxyConfiguration config) {
+        int requestBufferSize = -1;
+        try {
+            requestBufferSize = Integer.parseInt(servletHolder.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE));
+        } catch (NumberFormatException nfe){
+            log.warn("The init-param {} is invalidated, because it is not a number", INIT_PARAM_REQUEST_BUFFER_SIZE);
+        }
+        if (requestBufferSize > 0 || config.getHttpMaxRequestHeaderSize() > 0) {
+            int v = Math.max(requestBufferSize, config.getHttpMaxRequestHeaderSize());
+            servletHolder.setInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE, String.valueOf(v));
+        }
     }
 
     public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {

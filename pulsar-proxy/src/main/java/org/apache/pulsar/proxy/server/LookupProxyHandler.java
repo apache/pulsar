@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.Semaphore;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
@@ -155,7 +156,7 @@ public class LookupProxyHandler {
                     writeAndFlush(
                         Commands.newLookupErrorResponse(getServerError(t), t.getMessage(), clientRequestId));
                 } else {
-                    String brokerUrl = connectWithTLS ? r.brokerUrlTls : r.brokerUrl;
+                    String brokerUrl = resolveBrokerUrlFromLookupDataResult(r);
                     if (r.redirect) {
                         // Need to try the lookup again on a different broker
                         performLookup(clientRequestId, topic, brokerUrl, r.authoritative, numberOfRetries - 1);
@@ -184,6 +185,10 @@ public class LookupProxyHandler {
                     Commands.newLookupErrorResponse(getServerError(ex), ex.getMessage(), clientRequestId));
             return null;
         });
+    }
+
+    protected String resolveBrokerUrlFromLookupDataResult(BinaryProtoLookupService.LookupDataResult r) {
+        return connectWithTLS ? r.brokerUrlTls : r.brokerUrl;
     }
 
     public void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata) {

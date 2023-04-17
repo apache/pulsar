@@ -112,12 +112,18 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected URI lookupUrl;
 
     protected boolean isTcpLookup = false;
-    protected static final String configClusterName = "test";
+    protected String configClusterName = "test";
 
     protected boolean enableBrokerInterceptor = false;
 
     public MockedPulsarServiceBaseTest() {
         resetConfig();
+    }
+
+    protected void setupWithClusterName(String clusterName) throws Exception {
+        this.conf.setClusterName(clusterName);
+        this.configClusterName = clusterName;
+        this.internalSetup();
     }
 
     protected PulsarService getPulsar() {

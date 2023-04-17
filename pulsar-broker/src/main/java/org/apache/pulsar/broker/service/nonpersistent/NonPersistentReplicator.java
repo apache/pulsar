@@ -248,7 +248,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    protected long getNumberOfEntriesInBacklog() {
+    public long getNumberOfEntriesInBacklog() {
         // No-op
         return 0;
     }

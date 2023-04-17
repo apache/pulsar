@@ -36,7 +36,7 @@
         <okhttp3.version>3.14.9</okhttp3.version>
         <!-- use okio version that matches the okhttp3 version -->
         <okio.version>1.17.2</okio.version>
-        <airlift.version>208</airlift.version>
+        <airlift.version>213</airlift.version>
     </properties>
 
     <dependencyManagement>

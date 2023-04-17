@@ -237,6 +237,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     }
 
     @Override
+    public boolean isReplicationBacklogExist() {
+        return false;
+    }
+
+    @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
         if (producers.remove(producer.getProducerName(), producer)) {
