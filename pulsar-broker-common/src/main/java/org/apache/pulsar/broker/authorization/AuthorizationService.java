@@ -464,7 +464,7 @@ public class AuthorizationService {
         }
     }
 
-    private boolean isProxyRole(String role) {
+    public boolean isProxyRole(String role) {
         return role != null && conf.getProxyRoles().contains(role);
     }
 
@@ -746,6 +746,13 @@ public class AuthorizationService {
         } else {
             return allowFuture;
         }
+    }
+
+    public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
+                                                               TopicOperation operation,
+                                                               AuthenticationParameters authParams) {
+        return allowTopicOperationAsync(topicName, operation, authParams.getOriginalPrincipal(),
+                authParams.getClientRole(), authParams.getClientAuthenticationDataSource());
     }
 
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,

@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerIsolationPoliciesFilter;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerLoadManagerClassFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerMaxTopicCountFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerVersionFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
@@ -105,6 +106,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private static final long MAX_ROLE_CHANGE_RETRY_DELAY_IN_MILLIS = 200;
 
     private static final long MONITOR_INTERVAL_IN_MILLIS = 120_000;
+
+    private static final String ELECTION_ROOT = "/loadbalance/extension/leader";
 
     private PulsarService pulsar;
 
@@ -187,6 +190,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
      */
     public ExtensibleLoadManagerImpl() {
         this.brokerFilterPipeline = new ArrayList<>();
+        this.brokerFilterPipeline.add(new BrokerLoadManagerClassFilter());
         this.brokerFilterPipeline.add(new BrokerMaxTopicCountFilter());
         this.brokerFilterPipeline.add(new BrokerVersionFilter());
         // TODO: Make brokerSelectionStrategy configurable.
@@ -215,7 +219,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         }
         this.brokerRegistry = new BrokerRegistryImpl(pulsar);
         this.leaderElectionService = new LeaderElectionService(
-                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(),
+                pulsar.getCoordinationService(), pulsar.getSafeWebServiceAddress(), ELECTION_ROOT,
                 state -> {
                     pulsar.getLoadManagerExecutor().execute(() -> {
                         if (state == LeaderElectionState.Leading) {

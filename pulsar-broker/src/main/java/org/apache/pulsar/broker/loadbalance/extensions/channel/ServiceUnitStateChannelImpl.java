@@ -81,6 +81,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -106,6 +107,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             TopicDomain.persistent.value(),
             SYSTEM_NAMESPACE,
             "loadbalancer-service-unit-state").toString();
+
+    public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
     public static final long VERSION_ID_INIT = 1; // initial versionId
     private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
@@ -285,6 +288,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
+                    .compressionType(MSG_COMPRESSION_TYPE)
                     .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
                     .blockIfQueueFull(true)
                     .topic(TOPIC)

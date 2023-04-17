@@ -473,7 +473,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testStartOldLoadManager() throws Exception {
+    public void testDeployAndRollbackLoadManager() throws Exception {
+        // Test rollback to modular load manager.
         ServiceConfiguration defaultConf = getDefaultConf();
         defaultConf.setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
@@ -482,20 +483,86 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
             // start pulsar3 with old load manager
             var pulsar3 = additionalPulsarTestContext.getPulsarService();
+            String topic = "persistent://public/default/test";
 
-            var availableBrokers = pulsar3.getLoadManager().get().getAvailableBrokers();
-            assertEquals(availableBrokers.size(), 1);
-            assertEquals(availableBrokers.iterator().next(), pulsar3.getLookupServiceAddress());
+            String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
+            assertEquals(lookupResult1, pulsar3.getBrokerServiceUrl());
 
-            availableBrokers = pulsar1.getLoadManager().get().getAvailableBrokers();
-            assertEquals(availableBrokers.size(), 2);
-            assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
-            assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
+            String lookupResult2 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
+            String lookupResult3 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
+            assertEquals(lookupResult1, lookupResult2);
+            assertEquals(lookupResult1, lookupResult3);
 
-            availableBrokers = pulsar2.getLoadManager().get().getAvailableBrokers();
-            assertEquals(availableBrokers.size(), 2);
-            assertTrue(availableBrokers.contains(pulsar1.getLookupServiceAddress()));
-            assertTrue(availableBrokers.contains(pulsar2.getLookupServiceAddress()));
+            NamespaceBundle bundle = getBundleAsync(pulsar1, TopicName.get("test")).get();
+            LookupOptions options = LookupOptions.builder()
+                    .authoritative(false)
+                    .requestHttps(false)
+                    .readOnly(false)
+                    .loadTopicsInBundle(false).build();
+            Optional<URL> webServiceUrl1 =
+                    pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+            assertTrue(webServiceUrl1.isPresent());
+            assertEquals(webServiceUrl1.get().toString(), pulsar3.getWebServiceAddress());
+
+            Optional<URL> webServiceUrl2 =
+                    pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+            assertTrue(webServiceUrl2.isPresent());
+            assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+
+            Optional<URL> webServiceUrl3 =
+                    pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+            assertTrue(webServiceUrl3.isPresent());
+            assertEquals(webServiceUrl3.get().toString(), webServiceUrl1.get().toString());
+
+            // Test deploy new broker with new load manager
+            ServiceConfiguration conf = getDefaultConf();
+            conf.setAllowAutoTopicCreation(true);
+            conf.setForceDeleteNamespaceAllowed(true);
+            conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+            conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
+            try (var additionPulsarTestContext = createAdditionalPulsarTestContext(conf)) {
+                var pulsar4 = additionPulsarTestContext.getPulsarService();
+
+                Set<String> availableCandidates = Sets.newHashSet(pulsar1.getBrokerServiceUrl(),
+                        pulsar2.getBrokerServiceUrl(),
+                        pulsar4.getBrokerServiceUrl());
+                String lookupResult4 = pulsar4.getAdminClient().lookups().lookupTopic(topic);
+                assertTrue(availableCandidates.contains(lookupResult4));
+
+                String lookupResult5 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
+                String lookupResult6 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
+                String lookupResult7 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
+                assertEquals(lookupResult4, lookupResult5);
+                assertEquals(lookupResult4, lookupResult6);
+                assertEquals(lookupResult4, lookupResult7);
+
+                Set<String> availableWebUrlCandidates = Sets.newHashSet(pulsar1.getWebServiceAddress(),
+                        pulsar2.getWebServiceAddress(),
+                        pulsar4.getWebServiceAddress());
+
+                webServiceUrl1 =
+                        pulsar1.getNamespaceService().getWebServiceUrl(bundle, options);
+                assertTrue(webServiceUrl1.isPresent());
+                assertTrue(availableWebUrlCandidates.contains(webServiceUrl1.get().toString()));
+
+                webServiceUrl2 =
+                        pulsar2.getNamespaceService().getWebServiceUrl(bundle, options);
+                assertTrue(webServiceUrl2.isPresent());
+                assertEquals(webServiceUrl2.get().toString(), webServiceUrl1.get().toString());
+
+                // The pulsar3 will redirect to pulsar4
+                webServiceUrl3 =
+                        pulsar3.getNamespaceService().getWebServiceUrl(bundle, options);
+                assertTrue(webServiceUrl3.isPresent());
+                // It will redirect to pulsar4
+                assertTrue(availableWebUrlCandidates.contains(webServiceUrl3.get().toString()));
+
+                var webServiceUrl4 =
+                        pulsar4.getNamespaceService().getWebServiceUrl(bundle, options);
+                assertTrue(webServiceUrl4.isPresent());
+                assertEquals(webServiceUrl4.get().toString(), webServiceUrl1.get().toString());
+
+            }
         }
     }
 

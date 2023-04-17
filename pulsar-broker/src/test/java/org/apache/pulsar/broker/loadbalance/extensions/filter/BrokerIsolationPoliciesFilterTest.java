@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
@@ -211,7 +212,8 @@ public class BrokerIsolationPoliciesFilterTest {
         return new BrokerLookupData(
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols,
-                persistentTopicsEnabled, nonPersistentTopicsEnabled, "3.0.0");
+                persistentTopicsEnabled, nonPersistentTopicsEnabled,
+                ExtensibleLoadManagerImpl.class.getName(), System.currentTimeMillis(), "3.0.0");
     }
 
     public LoadManagerContext getContext() {

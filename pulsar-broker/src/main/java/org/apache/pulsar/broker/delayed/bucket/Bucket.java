@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
-import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
+import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,6 @@ import org.roaringbitmap.RoaringBitmap;
 @AllArgsConstructor
 abstract class Bucket {
 
-    static final String DELAYED_BUCKET_KEY_PREFIX = CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket";
     static final String DELIMITER = "_";
     static final int MaxRetryTimes = 3;
 

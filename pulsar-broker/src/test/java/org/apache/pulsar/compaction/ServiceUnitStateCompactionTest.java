@@ -25,6 +25,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Releasing;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Splitting;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isValidTransition;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MSG_COMPRESSION_TYPE;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -185,6 +186,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -352,12 +354,13 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         compactor.compact(topic, strategy).get();
 
         // consumer with readCompacted enabled only get compacted entries
-        var tableview = pulsar.getClient().newTableViewBuilder(schema)
+        var tableview = pulsar.getClient().newTableView(schema)
                 .topic(topic)
                 .loadConf(Map.of(
                         "topicCompactionStrategyClassName",
                         ServiceUnitStateCompactionStrategy.class.getName()))
                 .create();
+
         for(var etr : tableview.entrySet()){
             Assert.assertEquals(expected.remove(etr.getKey()), etr.getValue());
             if (expected.isEmpty()) {
@@ -376,6 +379,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -420,6 +424,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -460,6 +465,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -557,6 +563,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition)
                 .create();
@@ -627,6 +634,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
         String key = "key0";
@@ -672,6 +680,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema)
                 .topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
                 .enableBatching(true)
                 .create();
 
@@ -733,7 +742,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     public void testCompactionWithLastDeletedKey() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic).enableBatching(true)
+        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
+                .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -761,7 +772,9 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
     public void testEmptyCompactionLedger() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic).enableBatching(true)
+        Producer<ServiceUnitStateData> producer = pulsarClient.newProducer(schema).topic(topic)
+                .compressionType(MSG_COMPRESSION_TYPE)
+                .enableBatching(true)
                 .messageRoutingMode(MessageRoutingMode.SinglePartition).create();
 
         pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1").readCompacted(true).subscribe().close();
@@ -791,7 +804,8 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         final int messages = 10;
 
         // 1.create producer and publish message to the topic.
-        ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema).topic(topic);
+        ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema)
+                .compressionType(MSG_COMPRESSION_TYPE).topic(topic);
         builder.batchingMaxMessages(messages / 5);
 
         Producer<ServiceUnitStateData> producer = builder.create();
@@ -828,6 +842,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         // 1.create producer and publish message to the topic.
         ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema).topic(topic);
+        builder.compressionType(MSG_COMPRESSION_TYPE);
         builder.enableBatching(true);
 
 
@@ -876,6 +891,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
 
         // 1.create producer and publish message to the topic.
         ProducerBuilder<ServiceUnitStateData> builder = pulsarClient.newProducer(schema).topic(topic);
+        builder.compressionType(MSG_COMPRESSION_TYPE);
         builder.batchingMaxMessages(messages / 5);
 
         Producer<ServiceUnitStateData> producer = builder.create();
