@@ -127,12 +127,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
-                                                 Subscription subscription) {
+            Subscription subscription) {
         this(topic, cursor, subscription, true);
     }
 
     public PersistentDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor, Subscription subscription,
-                                                 boolean allowOutOfOrderDelivery) {
+            boolean allowOutOfOrderDelivery) {
         super(subscription, topic.getBrokerService().pulsar().getConfiguration());
         this.cursor = cursor;
         this.lastIndividualDeletedRangeFromCursorRecovery = cursor.getLastIndividualDeletedRange();
@@ -626,7 +626,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     /**
      * Dispatch the messages to the Consumers.
-     *
      * @return true if you want to trigger a new read.
      * This method is overridden by other classes, please take a look to other implementations
      * if you need to change it.
