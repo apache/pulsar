@@ -130,7 +130,7 @@ public class ManagedLedgerInterceptorImpl implements ManagedLedgerInterceptor {
                             if (ledgerEntry != null) {
                                 BrokerEntryMetadata brokerEntryMetadata =
                                         Commands.parseBrokerEntryMetadataIfExist(ledgerEntry.getEntryBuffer());
-                                if (brokerEntryMetadata != null) {
+                                if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
                                     appendIndexMetadataInterceptor.recoveryIndexGenerator(
                                             brokerEntryMetadata.getIndex());
                                 }
