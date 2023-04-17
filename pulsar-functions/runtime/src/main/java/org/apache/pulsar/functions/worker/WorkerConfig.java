@@ -738,6 +738,17 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private List<String> additionalJavaRuntimeArguments = new ArrayList<>();
 
+    @FieldContext(
+            category = CATEGORY_CONNECTORS,
+            doc = "Whether to ignore unknown properties when deserializing the connector configuration. "
+                    + "After upgrading a connector to a new version with a new configuration, "
+                    + "the new configuration may not be compatible with the old connector. "
+                    + "In case of rollback, it's required to also rollback the connector configuration. "
+                    + "Ignoring unknown fields makes possible to keep the new configuration and "
+                    + "only rollback the connector."
+    )
+    private boolean ignoreUnknownConfigFields = false;
+
     public String getFunctionMetadataTopic() {
         return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
     }
