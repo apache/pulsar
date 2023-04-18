@@ -135,7 +135,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.89.Final</netty.version>
     <netty-iouring.version>0.0.18.Final</netty-iouring.version>
-    <jetty.version>9.4.48.v20220622</jetty.version>
+    <jetty.version>10.0.14</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
