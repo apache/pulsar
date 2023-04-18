@@ -426,21 +426,21 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.16.0.jar
-    - bookkeeper-common-allocator-4.16.0.jar
-    - bookkeeper-proto-4.16.0.jar
-    - bookkeeper-server-4.16.0.jar
-    - bookkeeper-stats-api-4.16.0.jar
-    - bookkeeper-tools-framework-4.16.0.jar
-    - circe-checksum-4.16.0.jar
-    - codahale-metrics-provider-4.16.0.jar
-    - cpu-affinity-4.16.0.jar
-    - http-server-4.16.0.jar
-    - prometheus-metrics-provider-4.16.0.jar
-    - codahale-metrics-provider-4.16.0.jar
-    - bookkeeper-slogger-api-4.16.0.jar
-    - bookkeeper-slogger-slf4j-4.16.0.jar
-    - native-io-4.16.0.jar
+    - bookkeeper-common-4.16.1.jar
+    - bookkeeper-common-allocator-4.16.1.jar
+    - bookkeeper-proto-4.16.1.jar
+    - bookkeeper-server-4.16.1.jar
+    - bookkeeper-stats-api-4.16.1.jar
+    - bookkeeper-tools-framework-4.16.1.jar
+    - circe-checksum-4.16.1.jar
+    - codahale-metrics-provider-4.16.1.jar
+    - cpu-affinity-4.16.1.jar
+    - http-server-4.16.1.jar
+    - prometheus-metrics-provider-4.16.1.jar
+    - codahale-metrics-provider-4.16.1.jar
+    - bookkeeper-slogger-api-4.16.1.jar
+    - bookkeeper-slogger-slf4j-4.16.1.jar
+    - native-io-4.16.1.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
