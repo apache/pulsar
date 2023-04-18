@@ -49,7 +49,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
 
-    private final Map<Long, CompletableFuture<LedgerHandle>> ledgerHandleCache = new ConcurrentHashMap<>();
+    private final Map<Long, CompletableFuture<LedgerHandle>> ledgerHandleFutureCache = new ConcurrentHashMap<>();
 
     public BookkeeperBucketSnapshotStorage(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -89,7 +89,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
-        CompletableFuture<LedgerHandle> ledgerHandleFuture = ledgerHandleCache.remove(bucketId);
+        CompletableFuture<LedgerHandle> ledgerHandleFuture = ledgerHandleFutureCache.remove(bucketId);
         if (ledgerHandleFuture != null) {
             ledgerHandleFuture.whenComplete((lh, ex) -> closeLedger(lh));
         }
@@ -167,7 +167,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     private CompletableFuture<LedgerHandle> getLedgerHandle(Long ledgerId) {
-        return ledgerHandleCache.computeIfAbsent(ledgerId, k -> openLedger(ledgerId));
+        return ledgerHandleFutureCache.computeIfAbsent(ledgerId, k -> openLedger(ledgerId));
     }
 
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
@@ -178,7 +178,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 LedgerPassword,
                 (rc, handle, ctx) -> {
                     if (rc != BKException.Code.OK) {
-                        ledgerHandleCache.remove(ledgerId, future);
+                        ledgerHandleFutureCache.remove(ledgerId, future);
                         if (handle != null) {
                             closeLedger(handle);
                         }
