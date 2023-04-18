@@ -710,6 +710,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
         private CompletableFuture<Void> updateSnapshotIndex(TransactionBufferSnapshotIndexesMetadata snapshotSegment) {
             TransactionBufferSnapshotIndexes snapshotIndexes = new TransactionBufferSnapshotIndexes();
+            txnSnapshotSegmentStats.setSnapshotSegmentTotal(indexes.size());
             CompletableFuture<Void> res = snapshotIndexWriter.getFuture()
                     .thenCompose((indexesWriter) -> {
                         snapshotIndexes.setIndexList(indexes.values().stream().toList());

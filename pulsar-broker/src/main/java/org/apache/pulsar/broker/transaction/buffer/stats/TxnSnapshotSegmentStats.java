@@ -41,9 +41,9 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
             .labelNames(NAMESPACE_LABEL_NAME, TOPIC_NAME_LABEL_NAME, OPERATION_LABEL_NAME, STATUS_LABEL_NAME)
             .register();
 
-    private static final Gauge SNAPSHOT_INDEX_TOTAL = Gauge
+    private static final Gauge SNAPSHOT_SEGMENT_TOTAL = Gauge
             .build(PREFIX + "index_total",
-                    "Number of snapshot indexes maintained in the Pulsar transaction buffer.")
+                    "Number of snapshot segments maintained in the Pulsar transaction buffer.")
             .labelNames("namespace", "topic")
             .register();
 
@@ -66,7 +66,7 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
     private final Counter.Child indexOpAddFailedChild;
     private final Counter.Child indexOpDelFailedChild;
     private final Counter.Child indexOpReadFailedChild;
-    private final Gauge.Child snapshotIndexTotalChild;
+    private final Gauge.Child snapshotSegmentTotalChild;
     private final Histogram.Child snapshotIndexEntryBytesChild;
 
     private final String namespace;
@@ -101,7 +101,7 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
                 .labels(namespace, topicName, "del", "fail");
         this.indexOpReadFailedChild = SNAPSHOT_INDEX_OP_TOTAL
                 .labels(namespace, topicName, "read", "fail");
-        this.snapshotIndexTotalChild = SNAPSHOT_INDEX_TOTAL
+        this.snapshotSegmentTotalChild = SNAPSHOT_SEGMENT_TOTAL
                 .labels(namespace, topicName);
         this.snapshotIndexEntryBytesChild = SNAPSHOT_INDEX_ENTRY_BYTES
                 .labels(namespace, topicName);
@@ -155,8 +155,8 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
         this.indexOpReadFailedChild.inc();
     }
 
-    public void setSnapshotIndexTotal(double value) {
-        snapshotIndexTotalChild.set(value);
+    public void setSnapshotSegmentTotal(double value) {
+        snapshotSegmentTotalChild.set(value);
     }
 
     public void observeSnapshotIndexEntryBytes(double value) {
@@ -168,7 +168,7 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
         if (this.closed.compareAndSet(false, true)) {
             SNAPSHOT_SEGMENT_OP_TOTAL.clear();
             SNAPSHOT_INDEX_OP_TOTAL.clear();
-            SNAPSHOT_INDEX_TOTAL.remove(namespace, topicName);
+            SNAPSHOT_SEGMENT_TOTAL.remove(namespace, topicName);
             SNAPSHOT_INDEX_ENTRY_BYTES.remove(namespace, topicName);
         }
     }
