@@ -412,10 +412,10 @@ The Apache Software License, Version 2.0
  * Okio - com.squareup.okio-okio-2.8.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
-     - org.jetbrains.kotlin-kotlin-stdlib-1.4.32.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-common-1.4.32.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.4.32.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.4.32.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-common-1.8.20.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.8.20.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.45.1.jar
