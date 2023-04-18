@@ -167,7 +167,15 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     private CompletableFuture<LedgerHandle> getLedgerHandle(Long ledgerId) {
-        return ledgerHandleFutureCache.computeIfAbsent(ledgerId, k -> openLedger(ledgerId));
+        CompletableFuture<LedgerHandle> ledgerHandleCompletableFuture =
+                ledgerHandleFutureCache.computeIfAbsent(ledgerId, k -> openLedger(ledgerId));
+        // remove future of completed exceptionally
+        ledgerHandleCompletableFuture.whenComplete((__, ex) -> {
+            if (ex != null) {
+                ledgerHandleFutureCache.remove(ledgerId, ledgerHandleCompletableFuture);
+            }
+        });
+        return ledgerHandleCompletableFuture;
     }
 
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
@@ -178,7 +186,6 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 LedgerPassword,
                 (rc, handle, ctx) -> {
                     if (rc != BKException.Code.OK) {
-                        ledgerHandleFutureCache.remove(ledgerId, future);
                         if (handle != null) {
                             closeLedger(handle);
                         }
