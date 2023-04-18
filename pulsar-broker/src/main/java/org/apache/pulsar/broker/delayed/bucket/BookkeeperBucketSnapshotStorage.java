@@ -179,6 +179,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 (rc, handle, ctx) -> {
                     if (rc != BKException.Code.OK) {
                         ledgerHandleCache.remove(ledgerId, future);
+                        if (handle != null) {
+                            closeLedger(handle);
+                        }
                         future.completeExceptionally(bkException("Open ledger", rc, ledgerId));
                     } else {
                         future.complete(handle);
