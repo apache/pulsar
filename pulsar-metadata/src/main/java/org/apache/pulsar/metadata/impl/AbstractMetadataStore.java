@@ -41,6 +41,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -117,14 +118,16 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
                     @Override
                     public CompletableFuture<Boolean> asyncLoad(String key, Executor executor) {
-                        return existsFromStore(key);
+                        // force jump to forkJoinThread to avoid callback execute on the metadataThread
+                        return existsFromStore(key).thenApplyAsync(Function.identity());
                     }
 
                     @Override
                     public CompletableFuture<Boolean> asyncReload(String key, Boolean oldValue,
                             Executor executor) {
                         if (isConnected) {
-                            return existsFromStore(key);
+                            // force jump to forkJoinThread to avoid callback execute on the metadataThread
+                            return existsFromStore(key).thenApplyAsync(Function.identity());
                         } else {
                             // Do not refresh if we're not connected
                             return CompletableFuture.completedFuture(oldValue);
@@ -292,6 +295,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
+        log.info("exists {}", path);
         return existsCache.get(path);
     }
 
