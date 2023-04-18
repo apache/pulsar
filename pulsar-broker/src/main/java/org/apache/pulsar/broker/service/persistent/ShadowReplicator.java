@@ -24,6 +24,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -58,6 +59,10 @@ public class ShadowReplicator extends PersistentReplicator {
         boolean atLeastOneMessageSentForReplication = false;
 
         try {
+            if (!isMessageContinuousAndRewindIfNot(entries)) {
+                return false;
+            }
+
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
@@ -113,6 +118,7 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                lastSent = entry.getPosition();
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                 atLeastOneMessageSentForReplication = true;
             }

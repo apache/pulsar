@@ -42,7 +42,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -70,6 +72,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
+    protected final ManagedLedgerImpl managedLedger;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private final Object dispatchRateLimiterLock = new Object();
@@ -108,6 +111,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected volatile boolean fetchSchemaInProgress = false;
 
+    protected volatile Position lastSent = PositionImpl.EARLIEST;
+
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
                                    String remoteCluster, String remoteTopic,
                                    BrokerService brokerService, PulsarClientImpl replicationClient)
@@ -116,6 +121,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 brokerService, replicationClient);
         this.topic = localTopic;
         this.cursor = cursor;
+        this.managedLedger = (ManagedLedgerImpl) localTopic.getManagedLedger();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(localTopicName,
                 Codec.decode(cursor.getName()), cursor, null);
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
@@ -266,6 +272,35 @@ public abstract class PersistentReplicator extends AbstractReplicator
                         replicatorId, availablePermits);
             }
         }
+    }
+
+    /**
+     * Determine if the messages are continuous, if they are not, the messages are discarded and rewind is called.
+     * Why are the messages discontinuous, for example: if there has something wrong when Replicator is processing
+     * messages "[1:1 ~ 3:3]", Replicator discards the unprocessed message. But a new batch messages "[4:1 ~ 6:6]"
+     * is received later, then these messages will be sent.
+     */
+    protected boolean isMessageContinuousAndRewindIfNot(List<Entry> entries) {
+        if (CollectionUtils.isEmpty(entries)){
+            return true;
+        }
+
+        PositionImpl markDeletedPos = (PositionImpl) cursor.getMarkDeletedPosition();
+        PositionImpl lastSentPos = (PositionImpl) lastSent;
+        PositionImpl lastProcessedPos = markDeletedPos.compareTo(lastSentPos) > 0 ? markDeletedPos : lastSentPos;
+
+        PositionImpl firstMessageReceived = (PositionImpl) entries.get(0).getPosition();
+        PositionImpl expectedFirstMessage = managedLedger.getNextValidPosition(lastProcessedPos);
+        if (expectedFirstMessage.compareTo(firstMessageReceived) >= 0) {
+            return true;
+        }
+
+        log.warn("[{}] discontinuous messages was aborted. first message received: {}, expected first message: {}",
+                replicatorId, firstMessageReceived, expectedFirstMessage);
+        entries.forEach(Entry::release);
+        cursor.cancelPendingReadRequest();
+        cursor.rewind();
+        return false;
     }
 
     @Override
