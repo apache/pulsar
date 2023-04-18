@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -88,7 +89,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     private PersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
     private ChannelPromise channelMock;
-    private OrderedExecutor orderedExecutor;
+    private OrderedScheduler orderedExecutor;
 
     private PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher;
 
@@ -113,7 +114,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         HierarchyTopicPolicies topicPolicies = new HierarchyTopicPolicies();
         topicPolicies.getMaxConsumersPerSubscription().updateBrokerValue(0);
 
-        orderedExecutor = OrderedExecutor.newBuilder().build();
+        orderedExecutor = OrderedScheduler.newSchedulerBuilder().build();
         doReturn(orderedExecutor).when(brokerMock).getTopicOrderedExecutor();
 
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
@@ -127,6 +128,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(brokerMock).when(topicMock).getBrokerService();
         doReturn(topicName).when(topicMock).getName();
         doReturn(topicPolicies).when(topicMock).getHierarchyTopicPolicies();
+        doReturn(orderedExecutor).when(topicMock).getOrderedExecutor();
 
         cursorMock = mock(ManagedCursorImpl.class);
         doReturn(null).when(cursorMock).getLastIndividualDeletedRange();
