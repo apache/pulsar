@@ -49,7 +49,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
 
-    private final Map<Long, LedgerHandle> ledgerHandleCache = new ConcurrentHashMap<>();
+    private final Map<Long, CompletableFuture<LedgerHandle>> ledgerHandleCache = new ConcurrentHashMap<>();
 
     public BookkeeperBucketSnapshotStorage(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -89,7 +89,10 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
-        ledgerHandleCache.remove(bucketId);
+        CompletableFuture<LedgerHandle> ledgerHandleFuture = ledgerHandleCache.remove(bucketId);
+        if (ledgerHandleFuture != null) {
+            ledgerHandleFuture.whenComplete((lh, ex) -> closeLedger(lh));
+        }
         return deleteLedger(bucketId);
     }
 
@@ -157,7 +160,6 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     if (rc != BKException.Code.OK) {
                         future.completeExceptionally(bkException("Create ledger", rc, -1));
                     } else {
-                        ledgerHandleCache.put(handle.getId(), handle);
                         future.complete(handle);
                     }
                 }, null, metadata);
@@ -165,15 +167,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     private CompletableFuture<LedgerHandle> getLedgerHandle(Long ledgerId) {
-        LedgerHandle ledgerHandle = ledgerHandleCache.get(ledgerId);
-        if (ledgerHandle != null) {
-            return CompletableFuture.completedFuture(ledgerHandle);
-        } else {
-            return openLedger(ledgerId).thenApply(ledgerHandle_ -> {
-                ledgerHandleCache.put(ledgerId, ledgerHandle_);
-                return ledgerHandle_;
-            });
-        }
+        return ledgerHandleCache.computeIfAbsent(ledgerId, k -> openLedger(ledgerId));
     }
 
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
@@ -184,6 +178,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 LedgerPassword,
                 (rc, handle, ctx) -> {
                     if (rc != BKException.Code.OK) {
+                        ledgerHandleCache.remove(ledgerId, future);
                         future.completeExceptionally(bkException("Open ledger", rc, ledgerId));
                     } else {
                         future.complete(handle);
