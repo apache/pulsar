@@ -31,6 +31,7 @@ public class AggregatedBrokerStats {
     public long storageLogicalSize;
     public double storageWriteRate;
     public double storageReadRate;
+    public double storageReadCacheMissesRate;
     public long msgBacklog;
 
     void updateStats(TopicStats stats) {
@@ -46,6 +47,7 @@ public class AggregatedBrokerStats {
         storageLogicalSize += stats.managedLedgerStats.storageLogicalSize;
         storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         storageReadRate += stats.managedLedgerStats.storageReadRate;
+        storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
         msgBacklog += stats.msgBacklog;
     }
 
@@ -62,6 +64,7 @@ public class AggregatedBrokerStats {
         storageLogicalSize = 0;
         storageWriteRate = 0;
         storageReadRate = 0;
+        storageReadCacheMissesRate = 0;
         msgBacklog = 0;
     }
 }

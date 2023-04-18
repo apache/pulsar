@@ -35,7 +35,6 @@ import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.impl.Backoff;
@@ -157,9 +156,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     @Override
     public void readEntryComplete(Entry entry, Object ctx) {
         // Don't block caller thread, complete read entry with dispatcher dedicated thread.
-        dispatcherExecutor.execute(SafeRun.safeRun(() -> {
-            internalReadEntryComplete(entry, ctx);
-        }));
+        dispatcherExecutor.execute(() -> internalReadEntryComplete(entry, ctx));
     }
 
     private void internalReadEntryComplete(Entry entry, Object ctx) {
@@ -198,9 +195,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     @Override
     public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
         // Don't block caller thread, complete read entry fail with dispatcher dedicated thread.
-        dispatcherExecutor.execute(SafeRun.safeRun(() -> {
-            internalReadEntryFailed(exception, ctx);
-        }));
+        dispatcherExecutor.execute(() -> internalReadEntryFailed(exception, ctx));
     }
 
     private void internalReadEntryFailed(ManagedLedgerException exception, Object ctx) {
@@ -257,13 +252,13 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     public boolean cancelReadRequests() {
         if (STATE_UPDATER.compareAndSet(this, State.Issued, State.Canceling)) {
             // Don't block caller thread, complete cancel read with dispatcher dedicated thread.
-             topicExecutor.execute(SafeRun.safeRun(() -> {
+             topicExecutor.execute(() -> {
                 synchronized (StreamingEntryReader.this) {
                     if (STATE_UPDATER.compareAndSet(this, State.Canceling, State.Canceled)) {
                         internalCancelReadRequests();
                     }
                 }
-            }));
+            });
             return true;
         }
         return false;
@@ -282,16 +277,16 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
     private void retryReadRequest(PendingReadEntryRequest pendingReadEntryRequest, long delay) {
         topic.getBrokerService().executor().schedule(() -> {
             // Jump again into dispatcher dedicated thread
-            dispatcherExecutor.execute(SafeRun.safeRun(() -> {
+            dispatcherExecutor.execute(() -> {
                 ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) cursor.getManagedLedger();
                 managedLedger.asyncReadEntry(pendingReadEntryRequest.position, this, pendingReadEntryRequest);
-            }));
+            });
         }, delay, TimeUnit.MILLISECONDS);
     }
 
     @Override
     public void entriesAvailable() {
-        dispatcherExecutor.execute(SafeRun.safeRun(this::internalEntriesAvailable));
+        dispatcherExecutor.execute(this::internalEntriesAvailable);
     }
 
     private synchronized void internalEntriesAvailable() {

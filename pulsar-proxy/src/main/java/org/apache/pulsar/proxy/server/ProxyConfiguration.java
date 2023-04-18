@@ -364,6 +364,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "to take effect"
     )
     private boolean forwardAuthorizationCredentials = false;
+
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "Interval of time for checking for expired authentication credentials. Disable by setting to 0."
+    )
+    private int authenticationRefreshCheckSeconds = 60;
+
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
@@ -660,6 +667,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "see the data as soon as possible."
     )
     private int httpOutputBufferSize = 32 * 1024;
+
+    @FieldContext(
+        minValue = 1,
+        category = CATEGORY_HTTP,
+        doc = """
+                The maximum size in bytes of the request header.
+                Larger headers will allow for more and/or larger cookies plus larger form content encoded in a URL.
+                However, larger headers consume more memory and can make a server more vulnerable to denial of service
+                attacks.
+              """
+    )
+    private int httpMaxRequestHeaderSize = 8 * 1024;
 
     @FieldContext(
             minValue = 1,

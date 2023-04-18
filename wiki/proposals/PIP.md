@@ -80,7 +80,7 @@ The process works in the following way:
 1. The author(s) of the proposal will create a GitHub issue ticket choosing the
    template for PIP proposals. The issue title should be "PIP-xxx: title", where
    the "xxx" number should be chosen to be the next number from the existing PIP 
-   issues, listed [here]([url](https://github.com/apache/pulsar/labels/PIP)).
+   issues, listed [here](https://github.com/apache/pulsar/issues?q=is%3Aissue+label%3APIP+)
 2. The author(s) will send a note to the dev@pulsar.apache.org mailing list
    to start the discussion, using subject prefix `[DISCUSS] PIP-xxx: {PIP TITLE}`. The discussion
    need to happen in the mailing list. Please avoid discussing it using

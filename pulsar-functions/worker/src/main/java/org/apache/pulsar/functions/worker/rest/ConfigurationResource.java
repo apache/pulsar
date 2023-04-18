@@ -19,30 +19,25 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.PulsarVersion;
 
 @Path("/")
 public class ConfigurationResource {
+
+    private static final String VERSION = "{\"version\":\"" + PulsarVersion.getVersion() + "\"}";
+
     @Path("version")
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response release() throws JsonProcessingException {
-        final ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
-        final ObjectNode node = mapper.createObjectNode();
-        node.put("version", "version.number");
-
         return Response.ok()
                 .type(MediaType.APPLICATION_JSON)
-                .entity(mapper
-                        .writerWithDefaultPrettyPrinter()
-                        .writeValueAsString(node))
+                .entity(VERSION)
                 .build();
     }
 }

@@ -32,6 +32,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecis
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +47,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
@@ -53,6 +55,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.extensions.filter.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadCounter;
 import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
@@ -60,7 +63,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGrou
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,9 +98,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     private static final String CANNOT_UNLOAD_BUNDLE_MSG = "Can't unload bundle:%s.";
     private final LoadStats stats = new LoadStats();
     private PulsarService pulsar;
-    private SimpleResourceAllocationPolicies allocationPolicies;
     private IsolationPoliciesHelper isolationPoliciesHelper;
     private AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper;
+    private List<BrokerFilter> brokerFilterPipeline;
+
     private Set<UnloadDecision> decisionCache;
     @Getter
     private UnloadCounter counter;
@@ -109,7 +112,6 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     public TransferShedder(UnloadCounter counter){
         this.pulsar = null;
         this.decisionCache = new HashSet<>();
-        this.allocationPolicies = null;
         this.counter = counter;
         this.isolationPoliciesHelper = null;
         this.antiAffinityGroupPolicyHelper = null;
@@ -117,26 +119,28 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
     public TransferShedder(PulsarService pulsar,
                            UnloadCounter counter,
+                           List<BrokerFilter> brokerFilterPipeline,
+                           IsolationPoliciesHelper isolationPoliciesHelper,
                            AntiAffinityGroupPolicyHelper antiAffinityGroupPolicyHelper){
         this.pulsar = pulsar;
         this.decisionCache = new HashSet<>();
-        this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
         this.counter = counter;
-        this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
-        this.channel = ServiceUnitStateChannelImpl.get(pulsar);
+        this.isolationPoliciesHelper = isolationPoliciesHelper;
         this.antiAffinityGroupPolicyHelper = antiAffinityGroupPolicyHelper;
+        this.channel = ServiceUnitStateChannelImpl.get(pulsar);
+        this.brokerFilterPipeline = brokerFilterPipeline;
     }
 
     @Override
     public void initialize(PulsarService pulsar){
         this.pulsar = pulsar;
         this.decisionCache = new HashSet<>();
-        this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
         var manager = ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get());
         this.counter = manager.getUnloadCounter();
-        this.isolationPoliciesHelper = new IsolationPoliciesHelper(allocationPolicies);
-        this.channel = ServiceUnitStateChannelImpl.get(pulsar);
+        this.isolationPoliciesHelper = manager.getIsolationPoliciesHelper();
         this.antiAffinityGroupPolicyHelper = manager.getAntiAffinityGroupPolicyHelper();
+        this.channel = ServiceUnitStateChannelImpl.get(pulsar);
+        this.brokerFilterPipeline = manager.getBrokerFilterPipeline();
     }
 
 
@@ -287,6 +291,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return brokersSortedByLoad.get(minBrokerIndex).getKey();
         }
 
+        String peekMaxBroker() {
+            return brokersSortedByLoad.get(maxBrokerIndex).getKey();
+        }
+
         String pollMaxBroker() {
             return brokersSortedByLoad.get(maxBrokerIndex--).getKey();
         }
@@ -354,7 +362,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
             final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
             boolean transfer = conf.isLoadBalancerTransferEnabled();
-            if (stats.std() > targetStd || isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
+            if (stats.std() > targetStd
+                    || isUnderLoaded(context, stats.peekMinBroker(), stats.avg)
+                    || isOverLoaded(context, stats.peekMaxBroker(), stats.avg)) {
                 unloadConditionHitCount++;
             } else {
                 unloadConditionHitCount = 0;
@@ -379,28 +389,36 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     break;
                 }
                 UnloadDecision.Reason reason;
-                if (stats.std() <= targetStd) {
-                    if (!isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
-                        if (debugMode) {
-                            log.info(CANNOT_CONTINUE_UNLOAD_MSG
-                                            + "The overall cluster load meets the target, std:{} <= targetStd:{},"
-                                            + " and minBroker:{} is not underloaded.",
-                                    stats.std(), targetStd, stats.peekMinBroker());
-                        }
-                        break;
-                    } else {
-                        reason = Underloaded;
-                        if (debugMode) {
-                            log.info(String.format("broker:%s is underloaded:%s although "
-                                            + "load std:%.2f <= targetStd:%.2f. "
-                                            + "Continuing unload for this underloaded broker.",
-                                    stats.peekMinBroker(),
-                                    context.brokerLoadDataStore().get(stats.peekMinBroker()).get(),
-                                    stats.std(), targetStd));
-                        }
+                if (stats.std() > targetStd) {
+                    reason = Overloaded;
+                } else if (isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
+                    reason = Underloaded;
+                    if (debugMode) {
+                        log.info(String.format("broker:%s is underloaded:%s although "
+                                        + "load std:%.2f <= targetStd:%.2f. "
+                                        + "Continuing unload for this underloaded broker.",
+                                stats.peekMinBroker(),
+                                context.brokerLoadDataStore().get(stats.peekMinBroker()).get(),
+                                stats.std(), targetStd));
+                    }
+                } else if (isOverLoaded(context, stats.peekMaxBroker(), stats.avg)) {
+                    reason = Overloaded;
+                    if (debugMode) {
+                        log.info(String.format("broker:%s is overloaded:%s although "
+                                        + "load std:%.2f <= targetStd:%.2f. "
+                                        + "Continuing unload for this overloaded broker.",
+                                stats.peekMaxBroker(),
+                                context.brokerLoadDataStore().get(stats.peekMaxBroker()).get(),
+                                stats.std(), targetStd));
                     }
                 } else {
-                    reason = Overloaded;
+                    if (debugMode) {
+                        log.info(CANNOT_CONTINUE_UNLOAD_MSG
+                                        + "The overall cluster load meets the target, std:{} <= targetStd:{}."
+                                        + "minBroker:{} is not underloaded. maxBroker:{} is not overloaded.",
+                                stats.std(), targetStd, stats.peekMinBroker(), stats.peekMaxBroker());
+                    }
+                    break;
                 }
 
                 String maxBroker = stats.pollMaxBroker();
@@ -667,13 +685,26 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
     }
 
+    private boolean isOverLoaded(LoadManagerContext context, String broker, double avgLoad) {
+        var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
+        if (brokerLoadDataOptional.isEmpty()) {
+            return false;
+        }
+        var conf = context.brokerConfiguration();
+        var overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        var targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
+        var brokerLoadData = brokerLoadDataOptional.get();
+        var load = brokerLoadData.getWeightedMaxEMA();
+        return load > overloadThreshold && load > avgLoad + targetStd;
+    }
+
 
     private boolean isTransferable(LoadManagerContext context,
                                    Map<String, BrokerLookupData> availableBrokers,
                                    String bundle,
                                    String srcBroker,
                                    Optional<String> dstBroker) {
-        if (pulsar == null || allocationPolicies == null) {
+        if (pulsar == null) {
             return true;
         }
 
@@ -682,54 +713,50 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespace, bundleRange);
 
-        if (!canTransferWithIsolationPoliciesToBroker(
-                context, availableBrokers, namespaceBundle, srcBroker, dstBroker)) {
+        if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled(context, namespaceBundle)) {
             return false;
         }
 
-        if (antiAffinityGroupPolicyHelper != null
-                && !antiAffinityGroupPolicyHelper.canUnload(availableBrokers, bundle, srcBroker, dstBroker)) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Check the gave bundle and broker can be transfer or unload with isolation policies applied.
-     *
-     * @param context The load manager context.
-     * @param availableBrokers The available brokers.
-     * @param namespaceBundle The bundle try to unload or transfer.
-     * @param currentBroker The current broker.
-     * @param targetBroker The broker will be transfer to.
-     * @return Can be transfer/unload or not.
-     */
-    private boolean canTransferWithIsolationPoliciesToBroker(LoadManagerContext context,
-                                                             Map<String, BrokerLookupData> availableBrokers,
-                                                             NamespaceBundle namespaceBundle,
-                                                             String currentBroker,
-                                                             Optional<String> targetBroker) {
-        if (isolationPoliciesHelper == null
-                || !allocationPolicies.areIsolationPoliciesPresent(namespaceBundle.getNamespaceObject())) {
-            return true;
+        Map<String, BrokerLookupData> candidates = new HashMap<>(availableBrokers);
+        for (var filter : brokerFilterPipeline) {
+            try {
+                filter.filter(candidates, namespaceBundle, context);
+            } catch (BrokerFilterException e) {
+                log.error("Failed to filter brokers with filter: {}", filter.getClass().getName(), e);
+                return false;
+            }
         }
 
-        // bundle has isolation policies.
-        if (!context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled()) {
-            return false;
+        if (dstBroker.isPresent()) {
+            if (!candidates.containsKey(dstBroker.get())) {
+                return false;
+            }
         }
-
-        boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
-        Set<String> candidates = isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, namespaceBundle);
 
         // Remove the current bundle owner broker.
-        candidates.remove(currentBroker);
+        candidates.remove(srcBroker);
+        boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
 
         // Unload: Check if there are any more candidates available for selection.
-        if (targetBroker.isEmpty() || !transfer) {
+        if (dstBroker.isEmpty() || !transfer) {
             return !candidates.isEmpty();
         }
         // Transfer: Check if this broker is among the candidates.
-        return candidates.contains(targetBroker.get());
+        return candidates.containsKey(dstBroker.get());
+    }
+
+    protected boolean isLoadBalancerSheddingBundlesWithPoliciesEnabled(LoadManagerContext context,
+                                                                       NamespaceBundle namespaceBundle) {
+        if (isolationPoliciesHelper != null
+                && isolationPoliciesHelper.hasIsolationPolicy(namespaceBundle.getNamespaceObject())) {
+            return context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+        }
+
+        if (antiAffinityGroupPolicyHelper != null
+                && antiAffinityGroupPolicyHelper.hasAntiAffinityGroupPolicy(namespaceBundle.toString())) {
+            return context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+        }
+
+        return true;
     }
 }

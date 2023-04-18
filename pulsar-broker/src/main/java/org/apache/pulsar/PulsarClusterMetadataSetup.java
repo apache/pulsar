@@ -385,15 +385,24 @@ public class PulsarClusterMetadataSetup {
             namespaceResources.createPolicies(namespaceName, policies);
         } else {
             log.info("Namespace {} already exists.", namespaceName);
-            namespaceResources.setPolicies(namespaceName, policies -> {
-                policies.replication_clusters.add(cluster);
-                return policies;
-            });
+            var replicaClusterFound = false;
+            var policiesOptional = namespaceResources.getPolicies(namespaceName);
+            if (policiesOptional.isPresent() && policiesOptional.get().replication_clusters.contains(cluster)) {
+                replicaClusterFound = true;
+            }
+            if (!replicaClusterFound) {
+                namespaceResources.setPolicies(namespaceName, policies -> {
+                    policies.replication_clusters.add(cluster);
+                    return policies;
+                });
+                log.info("Updated namespace:{} policies. Added the replication cluster:{}",
+                        namespaceName, cluster);
+            }
         }
     }
 
-    static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
-            String cluster) throws IOException {
+    public static void createNamespaceIfAbsent(PulsarResources resources, NamespaceName namespaceName,
+                                               String cluster) throws IOException {
         createNamespaceIfAbsent(resources, namespaceName, cluster, DEFAULT_BUNDLE_NUMBER);
     }
 
