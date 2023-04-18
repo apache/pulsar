@@ -819,7 +819,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         NamespaceBundle bundle = getNamespaceBundle(serviceUnit);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
-                        false,
+                        true,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
                         TimeUnit.MILLISECONDS)
                 .thenApply(numUnloadedTopics -> {
