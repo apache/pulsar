@@ -310,7 +310,8 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
                                 coreClient
-                                        .replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, null, null, null);
+                                        .replaceNamespacedSecret(secretName, kubeNamespace, v1Secret,
+                                                null, null, null, null);
                                 return Actions.ActionResult.builder().success(true).build();
 
                             } catch (ApiException e1) {

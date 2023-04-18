@@ -557,7 +557,8 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet,
+                                null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
