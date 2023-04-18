@@ -1036,6 +1036,22 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
+        public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic, String role,
+                                                                   TopicOperation operation,
+                                                                   AuthenticationDataSource authData) {
+            switch (operation) {
+
+                case PRODUCE:
+                    return canProduceAsync(topic, role, authData);
+                case CONSUME:
+                    return canConsumeAsync(topic, role, authData, authData.getSubscription());
+                case LOOKUP:
+                    return canLookupAsync(topic, role, authData);
+            }
+            return super.allowTopicOperationAsync(topic, role, operation, authData);
+        }
+
+        @Override
         public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions,
                 String role, String authData) {
             this.authDataJson = authData;
