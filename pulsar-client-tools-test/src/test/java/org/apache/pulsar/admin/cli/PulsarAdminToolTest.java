@@ -2361,7 +2361,7 @@ public class PulsarAdminToolTest {
         verify(schemas).createSchema("persistent://tn1/ns1/tp1", input);
 
         cmdSchemas = new CmdSchemas(() -> admin);
-        cmdSchemas.run(split("test-compatibility -f " + schemaFile + " persistent://tn1/ns1/tp1"));
+        cmdSchemas.run(split("compatibility -f " + schemaFile + " persistent://tn1/ns1/tp1"));
         input = new ObjectMapper().readValue(new File(schemaFile), PostSchemaPayload.class);
         verify(schemas).testCompatibility("persistent://tn1/ns1/tp1", input);
 
