@@ -468,7 +468,7 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1Service response;
                     try {
-                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null);
+                        response = coreClient.createNamespacedService(jobNamespace, service, null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -557,7 +557,8 @@ public class KubernetesRuntime implements Runtime {
                 .supplier(() -> {
                     final V1StatefulSet response;
                     try {
-                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet, null, null, null);
+                        response = appsClient.createNamespacedStatefulSet(jobNamespace, statefulSet,
+                                null, null, null, null);
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -654,7 +655,7 @@ public class KubernetesRuntime implements Runtime {
                     V1StatefulSet response;
                     try {
                         response = appsClient.readNamespacedStatefulSet(statefulSetName, jobNamespace,
-                                null, null, null);
+                                null);
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -802,7 +803,7 @@ public class KubernetesRuntime implements Runtime {
                     V1Service response;
                     try {
                         response = coreClient.readNamespacedService(serviceName, jobNamespace,
-                                null, null, null);
+                                null);
 
                     } catch (ApiException e) {
                         // service is gone
