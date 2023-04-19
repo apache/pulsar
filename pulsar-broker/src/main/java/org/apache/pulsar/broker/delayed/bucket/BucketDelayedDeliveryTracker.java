@@ -541,7 +541,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     @Override
     public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
-        if (!checkPendingOpDone()) {
+        if (!checkPendingLoadDone()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.",
                         dispatcher.getName());
@@ -628,11 +628,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         if (timeout != null) {
                             timeout.cancel();
                         }
-                        timeout = timer.newTimeout(this, tickTimeMillis, TimeUnit.MILLISECONDS);
+                        timeout = timer.newTimeout(this, 0, TimeUnit.MILLISECONDS);
                     }
                 });
 
-                if (!checkPendingOpDone() || loadFuture.isCompletedExceptionally()) {
+                if (!checkPendingLoadDone() || loadFuture.isCompletedExceptionally()) {
                     break;
                 }
             }
@@ -651,7 +651,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return positions;
     }
 
-    private synchronized boolean checkPendingOpDone() {
+    private synchronized boolean checkPendingLoadDone() {
         if (pendingLoad == null || pendingLoad.isDone()) {
             pendingLoad = null;
             return true;
