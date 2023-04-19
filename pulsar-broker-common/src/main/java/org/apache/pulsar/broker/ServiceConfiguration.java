@@ -363,17 +363,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The delayed message index time step(in seconds) in per bucket snapshot segment, \
             after reaching the max time step limitation, the snapshot segment will be cut off.""")
-    private int delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 300;
+    private int delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds = 600;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max number of delayed message index in per bucket snapshot segment, -1 means no limitation, \
             after reaching the max number limitation, the snapshot segment will be cut off.""")
-    private int delayedDeliveryMaxIndexesPerBucketSnapshotSegment = 5000;
+    private int delayedDeliveryMaxIndexesPerBucketSnapshotSegment = 20000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max number of delayed message index bucket, \
             after reaching the max buckets limitation, the adjacent buckets will be merged.""")
-    private int delayedDeliveryMaxNumBuckets = 50;
+    private int delayedDeliveryMaxNumBuckets = 1000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay. "
