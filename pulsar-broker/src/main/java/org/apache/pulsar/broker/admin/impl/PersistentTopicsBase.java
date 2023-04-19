@@ -1172,7 +1172,12 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force));
     }
 
-    private boolean hitsTheIssue18149(PartitionedTopicMetadata topicMetadata) {
+    /**
+     * There has a known bug will make Pulsar misidentifies "tp-partition-0-DLQ-partition-0" as "tp-partition-0-DLQ".
+     * You can see the details from PR https://github.com/apache/pulsar/pull/19841.
+     * This method is a quick fix and will be removed in master branch after #19841 and PIP 263 are done.
+     */
+    private boolean isUnexpectedTopicName(PartitionedTopicMetadata topicMetadata) {
         if (!topicName.toString().contains(PARTITIONED_TOPIC_SUFFIX)){
             return false;
         }
@@ -1199,7 +1204,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                                 .thenAccept(partitionMetadata -> {
-                            if (partitionMetadata.partitions > 0 && !hitsTheIssue18149(partitionMetadata)) {
+                            if (partitionMetadata.partitions > 0 && !isUnexpectedTopicName(partitionMetadata)) {
                                 try {
                                     final Set<String> subscriptions =
                                             Collections.newSetFromMap(
