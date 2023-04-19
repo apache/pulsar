@@ -120,7 +120,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
                     final var lId = entry.getKey();
                     final var bm = entry.getValue();
                     bm.runOptimize();
-                    final byte[] array = new byte[bm.serializedSizeInBytes()];
+                    final var array = new byte[bm.serializedSizeInBytes()];
                     bm.serialize(ByteBuffer.wrap(array));
                     segmentMetadataBuilder.putDelayedIndexBitMap(lId, ByteString.copyFrom(array));
                     iterator.remove();
