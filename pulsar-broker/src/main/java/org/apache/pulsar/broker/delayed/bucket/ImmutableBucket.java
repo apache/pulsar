@@ -138,6 +138,10 @@ class ImmutableBucket extends Bucket {
         });
     }
 
+    /**
+     * Recover delayed index bit map and message numbers.
+     * @throws InvalidRoaringFormat invalid bitmap serialization format
+     */
     private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
                                                     List<SnapshotSegmentMetadata> segmentMetaList) {
         delayedIndexBitMap.clear(); // cleanup dirty bm
