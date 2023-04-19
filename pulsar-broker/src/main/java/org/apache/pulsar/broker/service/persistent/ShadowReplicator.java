@@ -58,7 +58,7 @@ public class ShadowReplicator extends PersistentReplicator {
         boolean atLeastOneMessageSentForReplication = false;
 
         try {
-            if (!noMessageSkipped(entries)) {
+            if (!checkNoMessageSkipped(entries)) {
                 return false;
             }
 
