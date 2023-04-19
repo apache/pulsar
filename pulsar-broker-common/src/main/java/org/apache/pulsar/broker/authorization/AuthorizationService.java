@@ -28,6 +28,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -182,13 +183,7 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
-            if (isSuperUser) {
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return provider.canProduceAsync(topicName, role, authenticationData);
-            }
-        });
+        return provider.allowTopicOperationAsync(topicName, role, TopicOperation.PRODUCE, authenticationData);
     }
 
     /**
@@ -207,13 +202,9 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
-            if (isSuperUser) {
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
-            }
-        });
+
+        return provider.allowTopicOperationAsync(topicName, role, TopicOperation.CONSUME,
+                new AuthenticationDataSubscription(authenticationData, subscription));
     }
 
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
@@ -289,13 +280,7 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.isSuperUser(role, authenticationData, conf).thenComposeAsync(isSuperUser -> {
-            if (isSuperUser) {
-                return CompletableFuture.completedFuture(true);
-            } else {
-                return provider.canLookupAsync(topicName, role, authenticationData);
-            }
-        });
+        return provider.allowTopicOperationAsync(topicName, role, TopicOperation.LOOKUP, authenticationData);
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
