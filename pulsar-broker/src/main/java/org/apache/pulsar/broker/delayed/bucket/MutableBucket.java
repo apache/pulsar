@@ -102,7 +102,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             delayedIndexQueue.pop();
             numMessages++;
-
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
 
             snapshotSegmentBuilder.addIndexes(delayedIndex);
@@ -116,8 +115,10 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
                 Iterator<Map.Entry<Long, RoaringBitmap>> iterator = bitMap.entrySet().iterator();
                 while (iterator.hasNext()) {
-                    Map.Entry<Long, RoaringBitmap> entry = iterator.next();
-                    byte[] array = new byte[entry.getValue().serializedSizeInBytes()];
+                    var entry = iterator.next();
+                    var bm = entry.getValue();
+                    bm.runOptimize();
+                    byte[] array = new byte[bm.serializedSizeInBytes()];
                     entry.getValue().serialize(ByteBuffer.wrap(array));
                     segmentMetadataBuilder.putDelayedIndexBitMap(entry.getKey(), ByteString.copyFrom(array));
                     iterator.remove();
