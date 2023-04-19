@@ -132,8 +132,8 @@ public class JwksCache {
                     incrementFailureMetric(AuthenticationExceptionCode.ERROR_RETRIEVING_PUBLIC_KEY);
                     // We want the message and responseBody here: https://github.com/kubernetes-client/java/issues/2066.
                     future.completeExceptionally(
-                            new AuthenticationException("Failed to retrieve public key from Kubernetes API server. " +
-                                    "Message: " + e.getMessage() + " Response body: " + e.getResponseBody()));
+                            new AuthenticationException("Failed to retrieve public key from Kubernetes API server. "
+                                    + "Message: " + e.getMessage() + " Response body: " + e.getResponseBody()));
                 }
 
                 @Override
