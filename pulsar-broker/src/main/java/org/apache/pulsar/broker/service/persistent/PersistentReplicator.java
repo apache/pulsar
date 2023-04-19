@@ -281,7 +281,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
      * messages "[1:1 ~ 3:3]", Replicator discards the unprocessed message. But a new batch messages "[4:1 ~ 6:6]"
      * is received later, then these messages will be sent.
      */
-    protected boolean hasMessageSkipped(List<Entry> entries) {
+    protected boolean checkNoMessageSkipped(List<Entry> entries) {
         if (CollectionUtils.isEmpty(entries)){
             return true;
         }
