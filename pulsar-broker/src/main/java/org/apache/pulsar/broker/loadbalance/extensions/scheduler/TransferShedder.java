@@ -291,6 +291,10 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             return brokersSortedByLoad.get(minBrokerIndex).getKey();
         }
 
+        String peekMaxBroker() {
+            return brokersSortedByLoad.get(maxBrokerIndex).getKey();
+        }
+
         String pollMaxBroker() {
             return brokersSortedByLoad.get(maxBrokerIndex--).getKey();
         }
@@ -358,7 +362,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
             final double targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
             boolean transfer = conf.isLoadBalancerTransferEnabled();
-            if (stats.std() > targetStd || isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
+            if (stats.std() > targetStd
+                    || isUnderLoaded(context, stats.peekMinBroker(), stats.avg)
+                    || isOverLoaded(context, stats.peekMaxBroker(), stats.avg)) {
                 unloadConditionHitCount++;
             } else {
                 unloadConditionHitCount = 0;
@@ -383,28 +389,36 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     break;
                 }
                 UnloadDecision.Reason reason;
-                if (stats.std() <= targetStd) {
-                    if (!isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
-                        if (debugMode) {
-                            log.info(CANNOT_CONTINUE_UNLOAD_MSG
-                                            + "The overall cluster load meets the target, std:{} <= targetStd:{},"
-                                            + " and minBroker:{} is not underloaded.",
-                                    stats.std(), targetStd, stats.peekMinBroker());
-                        }
-                        break;
-                    } else {
-                        reason = Underloaded;
-                        if (debugMode) {
-                            log.info(String.format("broker:%s is underloaded:%s although "
-                                            + "load std:%.2f <= targetStd:%.2f. "
-                                            + "Continuing unload for this underloaded broker.",
-                                    stats.peekMinBroker(),
-                                    context.brokerLoadDataStore().get(stats.peekMinBroker()).get(),
-                                    stats.std(), targetStd));
-                        }
+                if (stats.std() > targetStd) {
+                    reason = Overloaded;
+                } else if (isUnderLoaded(context, stats.peekMinBroker(), stats.avg)) {
+                    reason = Underloaded;
+                    if (debugMode) {
+                        log.info(String.format("broker:%s is underloaded:%s although "
+                                        + "load std:%.2f <= targetStd:%.2f. "
+                                        + "Continuing unload for this underloaded broker.",
+                                stats.peekMinBroker(),
+                                context.brokerLoadDataStore().get(stats.peekMinBroker()).get(),
+                                stats.std(), targetStd));
+                    }
+                } else if (isOverLoaded(context, stats.peekMaxBroker(), stats.avg)) {
+                    reason = Overloaded;
+                    if (debugMode) {
+                        log.info(String.format("broker:%s is overloaded:%s although "
+                                        + "load std:%.2f <= targetStd:%.2f. "
+                                        + "Continuing unload for this overloaded broker.",
+                                stats.peekMaxBroker(),
+                                context.brokerLoadDataStore().get(stats.peekMaxBroker()).get(),
+                                stats.std(), targetStd));
                     }
                 } else {
-                    reason = Overloaded;
+                    if (debugMode) {
+                        log.info(CANNOT_CONTINUE_UNLOAD_MSG
+                                        + "The overall cluster load meets the target, std:{} <= targetStd:{}."
+                                        + "minBroker:{} is not underloaded. maxBroker:{} is not overloaded.",
+                                stats.std(), targetStd, stats.peekMinBroker(), stats.peekMaxBroker());
+                    }
+                    break;
                 }
 
                 String maxBroker = stats.pollMaxBroker();
@@ -669,6 +683,19 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         return brokerLoadData.getWeightedMaxEMA()
                 < avgLoad * Math.min(0.5, Math.max(0.0,
                 context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
+    }
+
+    private boolean isOverLoaded(LoadManagerContext context, String broker, double avgLoad) {
+        var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
+        if (brokerLoadDataOptional.isEmpty()) {
+            return false;
+        }
+        var conf = context.brokerConfiguration();
+        var overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        var targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
+        var brokerLoadData = brokerLoadDataOptional.get();
+        var load = brokerLoadData.getWeightedMaxEMA();
+        return load > overloadThreshold && load > avgLoad + targetStd;
     }
 
 

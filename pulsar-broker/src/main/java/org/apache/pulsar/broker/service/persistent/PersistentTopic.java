@@ -49,6 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import javax.annotation.Nonnull;
 import lombok.Getter;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -80,6 +81,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
+import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateCompactionStrategy;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -94,12 +96,14 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionConflictUnloadException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBacklogQuotaExceededException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedSubscriptionException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
@@ -428,6 +432,51 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @VisibleForTesting
     public AtomicLong getPendingWriteOps() {
         return pendingWriteOps;
+    }
+
+    /**
+     * Unload a subscriber.
+     * @throws SubscriptionNotFoundException If subscription not founded.
+     * @throws UnsupportedSubscriptionException If the subscription is typed compaction.
+     * @throws SubscriptionConflictUnloadException Conflict topic-close, topic-delete, another-subscribe-unload,
+     *     cannot unload subscription now
+     */
+    public CompletableFuture<Void> unloadSubscription(@Nonnull String subName) {
+        final PersistentSubscription sub = subscriptions.get(subName);
+        if (sub == null) {
+            return CompletableFuture.failedFuture(
+                    new SubscriptionNotFoundException(String.format("Subscription %s not found", subName)));
+        }
+        if (Compactor.COMPACTION_SUBSCRIPTION.equals(sub.getName())){
+            return CompletableFuture.failedFuture(
+                    new UnsupportedSubscriptionException(String.format("Unsupported subscription: %s", subName)));
+        }
+        // Fence old subscription -> Rewind cursor -> Replace with a new subscription.
+        return sub.disconnect().thenCompose(ignore -> {
+            if (!lock.writeLock().tryLock()) {
+                return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format("Conflict"
+                        + " topic-close, topic-delete, another-subscribe-unload, cannot unload subscription %s now",
+                        topic, subName)));
+            }
+            try {
+                if (isFenced) {
+                    return CompletableFuture.failedFuture(new TopicFencedException(String.format(
+                            "Topic[%s] is fenced, can not unload subscription %s now", topic, subName)));
+                }
+                if (sub != subscriptions.get(subName)) {
+                    // Another task already finished.
+                    return CompletableFuture.failedFuture(new SubscriptionConflictUnloadException(String.format(
+                            "Another unload subscriber[%s] has been finished, do not repeat call.", subName)));
+                }
+                sub.getCursor().rewind();
+                PersistentSubscription subNew = PersistentTopic.this.createPersistentSubscription(sub.getName(),
+                        sub.getCursor(), sub.isReplicated(), sub.getSubscriptionProperties());
+                subscriptions.put(subName, subNew);
+                return CompletableFuture.completedFuture(null);
+            } finally {
+                lock.writeLock().unlock();
+            }
+        });
     }
 
     private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
@@ -1121,15 +1170,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         Dispatcher dispatcher = persistentSubscription.getDispatcher();
-        final Dispatcher temporaryDispatcher;
         if (dispatcher == null) {
-            log.info("[{}][{}] Dispatcher is null, try to create temporary dispatcher to clear delayed message", topic,
-                    subscriptionName);
-            dispatcher = temporaryDispatcher =
-                    new PersistentDispatcherMultipleConsumers(this, persistentSubscription.cursor,
-                            persistentSubscription);
-        } else {
-            temporaryDispatcher = null;
+            DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory =
+                    brokerService.getDelayedDeliveryTrackerFactory();
+            if (delayedDeliveryTrackerFactory instanceof BucketDelayedDeliveryTrackerFactory
+                    bucketDelayedDeliveryTrackerFactory) {
+                ManagedCursor cursor = persistentSubscription.getCursor();
+                bucketDelayedDeliveryTrackerFactory.cleanResidualSnapshots(cursor).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        unsubscribeFuture.completeExceptionally(ex);
+                    } else {
+                        asyncDeleteCursor(subscriptionName, unsubscribeFuture);
+                    }
+                });
+            }
+            return;
         }
 
         dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
@@ -1137,9 +1192,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 unsubscribeFuture.completeExceptionally(ex);
             } else {
                 asyncDeleteCursor(subscriptionName, unsubscribeFuture);
-            }
-            if (temporaryDispatcher != null) {
-                temporaryDispatcher.close();
             }
         });
     }

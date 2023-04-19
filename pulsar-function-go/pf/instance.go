@@ -669,6 +669,9 @@ func (gi *goInstance) getTotalReceived1min() float32 {
 func (gi *goInstance) getUserMetricsMap() map[string]float64 {
 	userMetricMap := map[string]float64{}
 	filteredMetricFamilies := gi.getFilteredMetricFamilies(PulsarFunctionMetricsPrefix + UserMetric)
+	if len(filteredMetricFamilies) == 0 {
+		return userMetricMap
+	}
 	for _, m := range filteredMetricFamilies[0].GetMetric() {
 		var isFuncMetric bool
 		var userLabelName string
