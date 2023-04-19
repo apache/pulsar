@@ -83,7 +83,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     // task that runs every TICK_TIME to check zk connection
     // NOT ThreadSafe:
     // If zk client can't ensure the order, it may lead to problems.
-    // Currently,we can it in single thread, it will be fine. but we shouldn't leave any potential problems
+    // Currently,we only use it in single thread, it will be fine. but we shouldn't leave any potential problems
     // in the future.
     private void checkConnectionStatus() {
         try {
