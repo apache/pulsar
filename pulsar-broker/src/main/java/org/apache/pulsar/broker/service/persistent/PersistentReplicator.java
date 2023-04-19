@@ -276,12 +276,12 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     /**
-     * Determine if the messages are continuous, if they are not, the messages are discarded and rewind is called.
-     * Why are the messages discontinuous, for example: if there has something wrong when Replicator is processing
+     * Check if some messages are skipped, if yes, the messages will be discarded and rewind is called.
+     * Why are messages are skipped, for example: if there has something wrong when Replicator is processing
      * messages "[1:1 ~ 3:3]", Replicator discards the unprocessed message. But a new batch messages "[4:1 ~ 6:6]"
      * is received later, then these messages will be sent.
      */
-    protected boolean isMessageContinuousAndRewindIfNot(List<Entry> entries) {
+    protected boolean hasMessageSkipped(List<Entry> entries) {
         if (CollectionUtils.isEmpty(entries)){
             return true;
         }
@@ -296,7 +296,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             return true;
         }
 
-        log.warn("[{}] discontinuous messages was aborted. first message received: {}, expected first message: {}",
+        log.warn("[{}] Detected messages are skipped. first received: {}, last processed: {}",
                 replicatorId, firstMessageReceived, expectedFirstMessage);
         entries.forEach(Entry::release);
         cursor.cancelPendingReadRequest();

@@ -58,7 +58,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
 
         try {
-            if (!isMessageContinuousAndRewindIfNot(entries)) {
+            if (!hasMessageSkipped(entries)) {
                 return false;
             }
 
