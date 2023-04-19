@@ -53,12 +53,13 @@ public class BookkeeperSetupTest extends PulsarClusterTestBase {
         final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
                 .filter(s -> !s.isEmpty())
                 .collect(joining("-"));
-        Map<String, String> bookkeeperEnvs = new HashMap<>();
-        bookkeeperEnvs.put("PULSAR_PREFIX_httpServerEnabled", "true");
+        bookkeeperEnvs.put("httpServerEnabled", "true");
+        bookieAdditionalPorts.add(8000);
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
                 .numBrokers(1)
                 .bookkeperEnvs(bookkeeperEnvs)
+                .bookieAdditionalPorts(bookieAdditionalPorts)
                 .clusterName(clusterName)
                 .build();
 

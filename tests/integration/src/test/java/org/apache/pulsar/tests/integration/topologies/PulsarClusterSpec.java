@@ -172,4 +172,9 @@ public class PulsarClusterSpec {
      * Additional ports to expose on broker containers.
      */
     List<Integer> brokerAdditionalPorts;
+
+    /**
+     * Additional ports to expose on bookie containers.
+     */
+    List<Integer> bookieAdditionalPorts;
 }
