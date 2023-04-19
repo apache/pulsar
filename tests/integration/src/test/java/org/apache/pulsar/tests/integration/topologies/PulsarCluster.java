@@ -748,4 +748,8 @@ public class PulsarCluster {
     private String appendClusterName(String name) {
         return sharedCsContainer ? clusterName + "-" + name : name;
     }
+
+    public BKContainer getAnyBookie() {
+        return getAnyContainer(bookieContainers, "bookie");
+    }
 }

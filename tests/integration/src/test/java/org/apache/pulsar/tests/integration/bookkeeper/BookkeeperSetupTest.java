@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.bookkeeper;
 
-import com.google.common.collect.ImmutableMap;
-import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterTestBase;
@@ -29,16 +27,13 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.joining;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Test downgrading ZK from 3.5.x to 3.4.x. This is part of the upgrade from Pulsar 2.1.0 to 2.1.1.
+ * Test bookkeeper setup with http server enabled.
  */
 @Slf4j
 public class BookkeeperSetupTest extends PulsarClusterTestBase {
@@ -78,36 +73,14 @@ public class BookkeeperSetupTest extends PulsarClusterTestBase {
         super.tearDownCluster();
     }
 
-    @Test(dataProvider = "ServiceUrlAndTopics")
-    public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
-        String topicName = generateTopicName("testpubconsume", isPersistent);
-
-        int numMessages = 10;
-
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(serviceUrl.get())
-                .build();
-
-        @Cleanup
-        Consumer<String> consumer = client.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("my-sub")
-                .subscribe();
-
-        @Cleanup
-        Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic(topicName)
-                .create();
-
-        for (int i = 0; i < numMessages; i++) {
-            producer.send("smoke-message-" + i);
-        }
-
-        for (int i = 0; i < numMessages; i++) {
-            Message<String> m = consumer.receive();
-            assertEquals("smoke-message-" + i, m.getValue());
-        }
-
+    @Test
+    public void testBookieHttpServerIsRunning() throws Exception {
+        ContainerExecResult result = pulsarCluster.getAnyBookie().execCmd(
+                PulsarCluster.CURL,
+                "-X",
+                "GET",
+                "http://localhost:8000/heartbeat");
+        assertEquals(result.getExitCode(), 0);
+        assertEquals(result.getStdout(), "OK\n");
     }
 }
