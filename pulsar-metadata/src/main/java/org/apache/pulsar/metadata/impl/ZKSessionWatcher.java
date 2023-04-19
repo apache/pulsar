@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.metadata.impl;
 
-import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-
-import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.zookeeper.AsyncCallback.StatCallback;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -30,13 +35,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.zookeeper.AsyncCallback.StatCallback;
-import org.apache.zookeeper.KeeperException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
+
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 
 /**
  * Monitor the ZK session state every few seconds and send notifications.
@@ -83,7 +83,9 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     }
 
     // task that runs every TICK_TIME to check zk connection
-    @VisibleForTesting
+    // NOT ThreadSafe:
+    //  If zk client can't ensure the order, it may lead to problems.
+    //  Currently,we can it in single thread, it will be fine. but we shouldn't leave any potential problems in the future.
     private void checkConnectionStatus() {
         try {
             CompletableFuture<Watcher.Event.KeeperState> future = new CompletableFuture<>();
