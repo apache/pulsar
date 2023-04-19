@@ -116,12 +116,13 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
                 Iterator<Map.Entry<Long, RoaringBitmap>> iterator = bitMap.entrySet().iterator();
                 while (iterator.hasNext()) {
-                    var entry = iterator.next();
-                    var bm = entry.getValue();
+                    final var entry = iterator.next();
+                    final var bucketId = entry.getKey();
+                    final var bm = entry.getValue();
                     bm.runOptimize();
-                    byte[] array = new byte[bm.serializedSizeInBytes()];
-                    entry.getValue().serialize(ByteBuffer.wrap(array));
-                    segmentMetadataBuilder.putDelayedIndexBitMap(entry.getKey(), ByteString.copyFrom(array));
+                    final byte[] array = new byte[bm.serializedSizeInBytes()];
+                    bm.serialize(ByteBuffer.wrap(array));
+                    segmentMetadataBuilder.putDelayedIndexBitMap(bucketId, ByteString.copyFrom(array));
                     iterator.remove();
                 }
 
