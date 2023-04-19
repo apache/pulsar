@@ -197,18 +197,18 @@ class ImmutableBucket extends Bucket {
         return removeBucketCursorProperty(bucketKey).thenCompose(__ ->
                 executeWithRetry(() -> bucketSnapshotStorage.deleteBucketSnapshot(bucketId),
                         BucketSnapshotPersistenceException.class, MaxRetryTimes)).whenComplete((__, ex) -> {
-            if (ex != null) {
-                log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
-                        dispatcherName, bucketId, bucketKey, ex);
+                    if (ex != null) {
+                        log.error("[{}] Failed to delete bucket snapshot, bucketId: {}, bucketKey: {}",
+                                dispatcherName, bucketId, bucketKey, ex);
 
-                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
-            } else {
-                log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
-                        dispatcherName, bucketId, bucketKey);
+                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
+                    } else {
+                        log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
+                                dispatcherName, bucketId, bucketKey);
 
-                stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
-                        System.currentTimeMillis() - deleteStartTime);
-            }
+                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
+                                System.currentTimeMillis() - deleteStartTime);
+                    }
         });
     }
 
