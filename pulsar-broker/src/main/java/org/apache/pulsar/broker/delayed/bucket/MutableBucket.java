@@ -102,6 +102,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             delayedIndexQueue.pop();
             numMessages++;
+
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
 
             snapshotSegmentBuilder.addIndexes(delayedIndex);
