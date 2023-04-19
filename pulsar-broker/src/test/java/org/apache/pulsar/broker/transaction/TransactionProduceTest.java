@@ -382,6 +382,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         producer.newMessage(txn).value(new byte[1024 * 1024 * 10]).sendAsync();
         try {
             txn.commit().get();
+            Assert.fail();
         } catch (ExecutionException e) {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionHasOperationFailedException);
             Assert.assertEquals(txn.getState(), Transaction.State.ABORTED);
@@ -389,6 +390,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         try {
             getPulsarServiceList().get(0).getTransactionMetadataStoreService().getTxnMeta(txn.getTxnID())
                     .getNow(null);
+            Assert.fail();
         } catch (CompletionException e) {
             Assert.assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
         }

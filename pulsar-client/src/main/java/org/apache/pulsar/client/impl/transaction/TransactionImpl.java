@@ -192,7 +192,6 @@ public class TransactionImpl implements Transaction , TimerTask {
             this.state = State.COMMITTING;
             opFuture.whenComplete((v, e) -> {
                 if (hasOpsFailed) {
-                    timeout.cancel();
                     checkState(State.COMMITTING).thenCompose(__ -> internalAbort()).whenComplete((vx, ex) ->
                             commitFuture.completeExceptionally(
                                     new PulsarClientException.TransactionHasOperationFailedException()));
