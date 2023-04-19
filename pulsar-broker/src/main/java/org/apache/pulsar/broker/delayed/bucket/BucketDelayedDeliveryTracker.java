@@ -27,8 +27,6 @@ import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.Table;
 import com.google.common.collect.TreeRangeMap;
-import io.netty.util.Timeout;
-import io.netty.util.Timer;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +43,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.annotation.concurrent.ThreadSafe;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -485,6 +485,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                     });
                                 });
                             }
+
+                            // optimize bm
+                            delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
                             immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
 
                             afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
