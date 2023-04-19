@@ -177,6 +177,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                     replicatorId, e);
                         }
                         log.info("[{}] Resume the data replication after the schema fetching done", replicatorId);
+                        lastSent = PositionImpl.EARLIEST;
                         cursor.rewind();
                         fetchSchemaInProgress = false;
                         readMoreEntries();

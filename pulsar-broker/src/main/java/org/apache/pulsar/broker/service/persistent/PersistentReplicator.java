@@ -141,6 +141,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
     @Override
     protected void readEntries(Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
+        lastSent = PositionImpl.EARLIEST;
         cursor.rewind();
 
         cursor.cancelPendingReadRequest();
@@ -299,6 +300,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 replicatorId, firstMessageReceived, expectedFirstMessage);
         entries.forEach(Entry::release);
         cursor.cancelPendingReadRequest();
+        this.lastSent = PositionImpl.EARLIEST;
         cursor.rewind();
         return false;
     }
@@ -367,6 +369,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
                 log.error("[{}] Error producing on remote broker", replicator.replicatorId, exception);
                 // cursor should be rewinded since it was incremented when readMoreEntries
+                replicator.lastSent = PositionImpl.EARLIEST;
                 replicator.cursor.rewind();
             } else {
                 if (log.isDebugEnabled()) {
