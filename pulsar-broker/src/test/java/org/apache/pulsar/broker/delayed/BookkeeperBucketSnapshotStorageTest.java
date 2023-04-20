@@ -30,6 +30,7 @@ import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -202,6 +203,48 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         Long bucketSnapshotLength = bucketSnapshotStorage.getBucketSnapshotLength(bucketId).get();
         System.out.println(bucketSnapshotLength);
         Assert.assertTrue(bucketSnapshotLength > 0L);
+    }
+
+    @Test
+    public void testConcurrencyGet() throws ExecutionException, InterruptedException {
+        DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata segmentMetadata =
+                DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata.newBuilder()
+                        .setMinScheduleTimestamp(System.currentTimeMillis())
+                        .setMaxScheduleTimestamp(System.currentTimeMillis())
+                        .putDelayedIndexBitMap(100L, ByteString.copyFrom(new byte[1])).build();
+
+        DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata =
+                DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata.newBuilder()
+                        .addMetadataList(segmentMetadata)
+                        .build();
+        List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
+
+        long timeMillis = System.currentTimeMillis();
+        DelayedMessageIndexBucketSnapshotFormat.DelayedIndex delayedIndex =
+                DelayedMessageIndexBucketSnapshotFormat.DelayedIndex.newBuilder().setLedgerId(100L).setEntryId(10L)
+                        .setTimestamp(timeMillis).build();
+        DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment snapshotSegment =
+                DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment.newBuilder().addIndexes(delayedIndex).build();
+        bucketSnapshotSegments.add(snapshotSegment);
+        bucketSnapshotSegments.add(snapshotSegment);
+
+        CompletableFuture<Long> future =
+                bucketSnapshotStorage.createBucketSnapshot(snapshotMetadata,
+                        bucketSnapshotSegments, UUID.randomUUID().toString(), TOPIC_NAME, CURSOR_NAME);
+        Long bucketId = future.get();
+        Assert.assertNotNull(bucketId);
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            CompletableFuture<Void> future0 = CompletableFuture.runAsync(() -> {
+                List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> list =
+                        bucketSnapshotStorage.getBucketSnapshotSegment(bucketId, 1, 3).join();
+                Assert.assertTrue(list.size() > 0);
+            });
+            futures.add(future0);
+        }
+
+        FutureUtil.waitForAll(futures).join();
     }
 
 }

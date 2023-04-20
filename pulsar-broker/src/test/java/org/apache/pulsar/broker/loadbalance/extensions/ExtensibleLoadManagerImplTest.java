@@ -592,6 +592,8 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         restartBroker();
         pulsar1 = pulsar;
         setPrimaryLoadManager();
+        admin.namespaces().setNamespaceReplicationClusters("public/default",
+                Sets.newHashSet(this.conf.getClusterName()));
 
         var serviceUnitStateChannelPrimaryNew =
                 (ServiceUnitStateChannelImpl) FieldUtils.readDeclaredField(primaryLoadManager,
