@@ -363,6 +363,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     private synchronized List<ImmutableBucket> selectMergedBuckets(final List<ImmutableBucket> values, int mergeNum) {
         checkArgument(mergeNum < values.size());
         long minNumberMessages = Long.MAX_VALUE;
+        long minScheduleTimestamp = Long.MAX_VALUE;
         int minIndex = -1;
         for (int i = 0; i + (mergeNum - 1) < values.size(); i++) {
             List<ImmutableBucket> immutableBuckets = values.subList(i, i + mergeNum);
@@ -376,7 +377,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         .sum();
                 if (numberMessages <= minNumberMessages) {
                     minNumberMessages = numberMessages;
-                    minIndex = i;
+                    long scheduleTimestamp = immutableBuckets.stream()
+                            .mapToLong(bucket -> bucket.firstScheduleTimestamps.get(bucket.currentSegmentEntryId + 1))
+                            .min().getAsLong();
+                    if (scheduleTimestamp < minScheduleTimestamp) {
+                        minScheduleTimestamp = scheduleTimestamp;
+                        minIndex = i;
+                    }
                 }
             }
         }
