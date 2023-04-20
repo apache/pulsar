@@ -28,7 +28,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -189,8 +188,7 @@ public class AuthorizationService {
                     if (isSuperUserOrAdmin) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    return provider.allowTopicOperationAsync(topicName, role, TopicOperation.PRODUCE,
-                            authenticationData);
+                    return provider.canProduceAsync(topicName, role, authenticationData);
                 });
     }
 
@@ -211,14 +209,12 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
 
-
         return isSuperUserOrAdmin(topicName.getNamespaceObject(), role, authenticationData)
                 .thenCompose(isSuperUserOrAdmin -> {
                     if (isSuperUserOrAdmin) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    return provider.allowTopicOperationAsync(topicName, role, TopicOperation.CONSUME,
-                            new AuthenticationDataSubscription(authenticationData, subscription));
+                    return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
                 });
     }
 
@@ -301,8 +297,7 @@ public class AuthorizationService {
                     if (isSuperUserOrAdmin) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    return provider.allowTopicOperationAsync(topicName, role, TopicOperation.LOOKUP,
-                            authenticationData);
+                    return provider.canLookupAsync(topicName, role, authenticationData);
                 });
     }
 

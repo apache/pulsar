@@ -1572,7 +1572,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertNull(ref);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
-                        new TopicMessageIdImpl("topic-0", "topic", new MessageIdImpl(ledgerId, entryId, 0))
+                        new TopicMessageIdImpl("topic-0", new MessageIdImpl(ledgerId, entryId, 0))
         );
         assertNull(ref);
 
@@ -1584,7 +1584,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase {
         assertEquals(ref.getBatchIdx(), batchIdx);
 
         ref = KafkaConnectSink.getMessageSequenceRefForBatchMessage(
-                new TopicMessageIdImpl("topic-0", "topic", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
+                new TopicMessageIdImpl("topic-0", new BatchMessageIdImpl(ledgerId, entryId, 0, batchIdx))
         );
 
         assertEquals(ref.getLedgerId(), ledgerId);
