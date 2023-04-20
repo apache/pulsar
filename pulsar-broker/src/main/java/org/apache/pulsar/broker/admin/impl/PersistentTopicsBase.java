@@ -3043,13 +3043,18 @@ public class PersistentTopicsBase extends AdminResource {
                                 "Examine messages on a non-persistent topic is not allowed");
                     }
                     try {
+                        CompletableFuture<Entry> future = new CompletableFuture<>();
                         PersistentTopic persistentTopic = (PersistentTopic) topic;
                         long totalMessage = persistentTopic.getNumberOfEntries();
+                        if(totalMessage == 0) {
+                            throw new RestException(Status.INTERNAL_SERVER_ERROR,
+                                    "Could not examine messages due to the total message is zero");
+                        }
                         PositionImpl startPosition = persistentTopic.getFirstPosition();
 
                         long messageToSkip = initialPositionLocal.equals("earliest") ? messagePositionLocal :
                                 totalMessage - messagePositionLocal + 1;
-                        CompletableFuture<Entry> future = new CompletableFuture<>();
+
                         PositionImpl readPosition = persistentTopic.getPositionAfterN(startPosition, messageToSkip);
                         persistentTopic.asyncReadEntry(readPosition, new AsyncCallbacks.ReadEntryCallback() {
                             @Override
