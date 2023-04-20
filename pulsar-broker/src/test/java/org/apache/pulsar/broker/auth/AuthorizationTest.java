@@ -82,8 +82,8 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
 
         admin.clusters().createCluster("c1", ClusterData.builder().build());
-        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
-        waitForChange();
+        String tenantAdmin = "role1";
+        admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet(tenantAdmin), Sets.newHashSet("c1"))); waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
         waitForChange();
 
@@ -215,20 +215,21 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
                 SubscriptionAuthMode.Prefix);
         waitForChange();
 
-        assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null));
+        assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), tenantAdmin, null));
         assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null));
-        try {
-            assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"));
-            fail();
-        } catch (Exception ignored) {}
+        // tenant admin can consume all topics, even if SubscriptionAuthMode.Prefix mode
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), tenantAdmin, null, "sub1"));
         try {
             assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"));
             fail();
         } catch (Exception ignored) {}
 
-        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"));
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), tenantAdmin, null, "role1-sub1"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"));
         assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"));
+
+        // tenant admin can produce all topics
+        assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), tenantAdmin, null));
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.tenants().deleteTenant("p1");
