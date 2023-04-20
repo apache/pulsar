@@ -60,6 +60,10 @@ public interface TopicMessageId extends MessageId {
             this.messageId = (MessageIdAdv) messageId;
         }
 
+        protected MessageId getMessageId() {
+            return messageId;
+        }
+
         @Override
         public byte[] toByteArray() {
             return messageId.toByteArray();
