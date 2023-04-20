@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.EncryptionContext;
 
@@ -42,7 +43,7 @@ public class TopicMessageImpl<T> implements Message<T> {
         this.receivedByconsumer = receivedByConsumer;
 
         this.msg = msg;
-        this.messageId = new TopicMessageIdImpl(topicPartitionName, topicPartitionName, msg.getMessageId());
+        this.messageId = new TopicMessageIdImpl(topicPartitionName, (MessageIdAdv) msg.getMessageId());
     }
 
     /**
