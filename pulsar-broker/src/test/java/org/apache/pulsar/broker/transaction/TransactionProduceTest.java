@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
@@ -43,6 +45,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -51,10 +54,11 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
@@ -70,7 +74,7 @@ public class TransactionProduceTest extends TransactionTestBase {
     private static final String ACK_COMMIT_TOPIC = NAMESPACE1 + "/ack-commit";
     private static final String ACK_ABORT_TOPIC = NAMESPACE1 + "/ack-abort";
     private static final int NUM_PARTITIONS = 16;
-    @BeforeMethod
+    @BeforeClass
     protected void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, PRODUCE_COMMIT_TOPIC, TOPIC_PARTITION);
         admin.topics().createPartitionedTopic(PRODUCE_ABORT_TOPIC, TOPIC_PARTITION);
@@ -78,7 +82,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         admin.topics().createPartitionedTopic(ACK_ABORT_TOPIC, TOPIC_PARTITION);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -369,5 +373,26 @@ public class TransactionProduceTest extends TransactionTestBase {
         return pendingAckCount;
     }
 
-
+    @Test
+    public void testCommitFailure() throws Exception {
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        final String topic = NAMESPACE1 + "/test-commit-failure";
+        @Cleanup
+        final Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.newMessage(txn).value(new byte[1024 * 1024 * 10]).sendAsync();
+        try {
+            txn.commit().get();
+            Assert.fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.TransactionHasOperationFailedException);
+            Assert.assertEquals(txn.getState(), Transaction.State.ABORTED);
+        }
+        try {
+            getPulsarServiceList().get(0).getTransactionMetadataStoreService().getTxnMeta(txn.getTxnID())
+                    .getNow(null);
+            Assert.fail();
+        } catch (CompletionException e) {
+            Assert.assertTrue(e.getCause() instanceof CoordinatorException.TransactionNotFoundException);
+        }
+    }
 }
