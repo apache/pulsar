@@ -28,9 +28,9 @@ public class TopicMessageIdImplTest {
     public void hashCodeTest() {
         MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
         MessageIdImpl msgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
-        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", "topic", msgId1);
-        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", "topic2", msgId1);
-        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", "topic", msgId2);
+        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", msgId1);
+        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", msgId1);
+        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", msgId2);
 
         assertEquals(topicMsgId1.hashCode(), topicMsgId1.hashCode());
         assertEquals(topic2MsgId1.hashCode(), topic2MsgId1.hashCode());
@@ -43,9 +43,9 @@ public class TopicMessageIdImplTest {
     public void equalsTest() {
         MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
         MessageIdImpl msgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
-        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", "topic", msgId1);
-        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", "topic2", msgId1);
-        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", "topic", msgId2);
+        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", msgId1);
+        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", msgId1);
+        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", msgId2);
 
         assertEquals(topicMsgId1, topicMsgId1);
         assertEquals(topicMsgId1, topic2MsgId1);

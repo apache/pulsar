@@ -2345,7 +2345,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync() {
         return getLastMessageIdAsync()
-                .thenApply(msgId -> Collections.singletonList(TopicMessageId.create(topic, msgId)));
+                .thenApply(msgId -> Collections.singletonList(new TopicMessageIdImpl(topic, (MessageIdAdv) msgId)));
     }
 
     public CompletableFuture<GetLastMessageIdResponse> internalGetLastMessageIdAsync() {
