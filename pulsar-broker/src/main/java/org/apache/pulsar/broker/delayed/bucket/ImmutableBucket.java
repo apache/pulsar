@@ -32,9 +32,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
+import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.InvalidRoaringFormat;
 import org.roaringbitmap.RoaringBitmap;
@@ -43,7 +43,7 @@ import org.roaringbitmap.RoaringBitmap;
 class ImmutableBucket extends Bucket {
 
     @Setter
-    private List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> snapshotSegments;
+    private List<SnapshotSegment> snapshotSegments;
 
     boolean merging = false;
 
@@ -55,7 +55,7 @@ class ImmutableBucket extends Bucket {
         super(dispatcherName, cursor, sequencer, storage, startLedgerId, endLedgerId);
     }
 
-    public Optional<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getSnapshotSegments() {
+    public Optional<List<SnapshotSegment>> getSnapshotSegments() {
         return Optional.ofNullable(snapshotSegments);
     }
 
@@ -84,7 +84,7 @@ class ImmutableBucket extends Bucket {
                         }
                     }), BucketSnapshotPersistenceException.class, MaxRetryTimes)
                     .thenApply(snapshotMetadata -> {
-                        List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata> metadataList =
+                        List<SnapshotSegmentMetadata> metadataList =
                                 snapshotMetadata.getMetadataListList();
 
                         // Skip all already reach schedule time snapshot segments
@@ -125,10 +125,9 @@ class ImmutableBucket extends Bucket {
                             return Collections.emptyList();
                         }
 
-                        DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment snapshotSegment =
+                        SnapshotSegment snapshotSegment =
                                 bucketSnapshotSegments.get(0);
-                        List<DelayedMessageIndexBucketSnapshotFormat.DelayedIndex> indexList =
-                                snapshotSegment.getIndexesList();
+                        List<DelayedIndex> indexList = snapshotSegment.getIndexesList();
                         this.setCurrentSegmentEntryId(nextSegmentEntryId);
                         if (isRecover) {
                             this.asyncUpdateSnapshotLength();
@@ -171,7 +170,7 @@ class ImmutableBucket extends Bucket {
         setNumberBucketDelayedMessages(numberMessages.getValue());
     }
 
-    CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
+    CompletableFuture<List<SnapshotSegment>> getRemainSnapshotSegment() {
         int nextSegmentEntryId = currentSegmentEntryId + 1;
         if (nextSegmentEntryId > lastSegmentEntryId) {
             return CompletableFuture.completedFuture(Collections.emptyList());
