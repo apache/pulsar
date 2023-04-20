@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -35,6 +36,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
  * cause cluster fluctuations due to short-term load jitter.
  */
 @Slf4j
+@ThreadSafe
 public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
     // Maintain this list to reduce object creation.
     private final ThreadLocal<ArrayList<String>> bestBrokers;
@@ -70,7 +72,6 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
 
     /**
      * Find a suitable broker to assign the given bundle to.
-     * This method is not thread safety.
      *
      * @param candidates     The candidates for which the bundle may be assigned.
      * @param bundleToAssign The data for the bundle to assign.
