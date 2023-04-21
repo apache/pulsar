@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,30 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.delayed.bucket;
+syntax = "proto2";
 
-import java.util.Comparator;
-import java.util.Objects;
-import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+package pulsar.delay;
+option java_package = "org.apache.pulsar.broker.delayed.proto";
+option optimize_for = SPEED;
+option java_multiple_files = true;
 
-interface DelayedIndexQueue {
-    Comparator<DelayedIndex> COMPARATOR = (o1, o2) ->  {
-        if (!Objects.equals(o1.getTimestamp(), o2.getTimestamp())) {
-            return Long.compare(o1.getTimestamp(), o2.getTimestamp());
-        } else if (!Objects.equals(o1.getLedgerId(), o2.getLedgerId())) {
-            return Long.compare(o1.getLedgerId(), o2.getLedgerId());
-        } else {
-            return Long.compare(o1.getEntryId(), o2.getEntryId());
-        }
-    };
+message DelayedIndex {
+    required uint64 timestamp = 1;
+    required uint64 ledger_id = 2;
+    required uint64 entry_id = 3;
+}
 
-    boolean isEmpty();
-
-    DelayedIndex peek();
-
-    DelayedIndex pop();
-
-    void popToObject(DelayedIndex delayedIndex);
-
-    long peekTimestamp();
+message SnapshotSegment {
+    repeated DelayedIndex indexes = 1;
+    map<uint64, bytes> delayed_index_bit_map = 2;
 }
