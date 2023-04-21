@@ -168,7 +168,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         try {
-            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds * 2, TimeUnit.SECONDS);
+            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds * 5, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             log.error("[{}] Failed to recover delayed message index bucket snapshot.", dispatcher.getName(), e);
             if (e instanceof InterruptedException) {
@@ -343,6 +343,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             // If (ledgerId < startLedgerId || existBucket) means that message index belong to previous bucket range,
             // enter sharedBucketPriorityQueue directly
             sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
+            lastMutableBucket.putIndexBit(ledgerId, entryId);
         } else {
             checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
             lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
