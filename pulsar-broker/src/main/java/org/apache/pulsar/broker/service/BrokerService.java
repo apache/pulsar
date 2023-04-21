@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_
 import static org.apache.commons.collections4.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.bootstrap.ServerBootstrap;
@@ -131,6 +132,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.CommandTopicStats.StatsType;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
@@ -161,6 +163,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -226,6 +229,7 @@ public class BrokerService implements Closeable {
     private final ScheduledExecutorService backlogQuotaChecker;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
+    protected final AtomicReference<Semaphore> statsRequestSemaphore;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
     private final ObserverGauge pendingLookupRequests;
@@ -367,6 +371,8 @@ public class BrokerService implements Closeable {
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();
         this.lookupRequestSemaphore = new AtomicReference<Semaphore>(
+                new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
+        this.statsRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
@@ -1224,6 +1230,44 @@ public class BrokerService implements Closeable {
         });
     }
 
+    public CompletableFuture<String> getTopicStats(String topicName, StatsType statType) {
+        CompletableFuture<String> statsFuture = new CompletableFuture<>();
+        checkTopicNsOwnership(topicName).thenAccept(__ -> {
+            getTopicIfExists(topicName).thenAccept(topic -> {
+                if (topic.isEmpty()) {
+                    statsFuture.completeExceptionally(
+                            new ServiceUnitNotReadyException("topic is not loaded " + topicName));
+                    return;
+                }
+                CompletableFuture<?> statsResult = StatsType.STATS == statType
+                        ? topic.get().asyncGetStats(true, true, true)
+                        : topic.get().getInternalStats(false);
+                statsResult.thenAccept(stats -> {
+                    try {
+                        String content = ObjectMapperFactory.getMapper().writer().writeValueAsString(stats);
+                        statsFuture.complete(content);
+                    } catch (JsonProcessingException je) {
+                        log.warn("{} Failed serialize stats {}", topicName, je.getMessage());
+                        statsFuture.completeExceptionally(je);
+                    }
+                }).exceptionally(ex -> {
+                    log.warn("Failed to retrieve stats {}", topicName, ex.getCause());
+                    statsFuture.completeExceptionally(ex.getCause());
+                    return null;
+                });
+            }).exceptionally(ex -> {
+                log.warn("Failed to get topic {}", topicName, ex.getCause());
+                statsFuture.completeExceptionally(ex.getCause());
+                return null;
+            });
+        }).exceptionally(e -> {
+            log.warn("CheckTopicNsOwnership fail when fetching topic stats {}", topicName, e.getCause());
+            statsFuture.completeExceptionally(e.getCause());
+            return null;
+        });
+        return statsFuture;
+    }
+
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         if (!pulsar.getConfiguration().isEnableNonPersistentTopics()) {
@@ -2016,6 +2060,10 @@ public class BrokerService implements Closeable {
 
     public Semaphore getLookupRequestSemaphore() {
         return lookupRequestSemaphore.get();
+    }
+
+    public Semaphore getStatsRequestSemaphore() {
+        return statsRequestSemaphore.get();
     }
 
     public void checkGC() {

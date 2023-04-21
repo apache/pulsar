@@ -56,6 +56,21 @@
     </Match>
 
     <Match>
+        <Class name="org.apache.pulsar.client.impl.MultiTopicsConsumerImpl"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PartitionedProducerImpl"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.TopicStatsProviderImpl"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <Match>
         <Class name="org.apache.pulsar.client.impl.auth.AuthenticationDataTls"/>
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>

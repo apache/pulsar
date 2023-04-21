@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -32,6 +35,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -41,8 +45,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.policies.data.TopicInternalStatsInfo;
+import org.apache.pulsar.common.policies.data.TopicStatsInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +98,11 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batchingEnabled")
     public Object[][] batchingEnabled() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @DataProvider(name = "is_persistent_topic")
+    public Object[][] isPersistentTopic() {
         return new Object[][] { { true }, { false } };
     }
 
@@ -558,6 +572,236 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
                 0.001);
         assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getTotalMsgExpired(),
                 numMessages);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider = "is_persistent_topic")
+    public void testTopicStatsAndInternal(boolean isPersistentTopic) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        String topicName = (isPersistentTopic ? "persistent" : "non-persistent")
+                + "://my-property/my-ns/testTopicStatsAndInternal";
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name");
+
+        Consumer<byte[]> consumer = consumerBuilder.subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().enableBatching(false).topic(topicName);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        int numMessages = 10;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message<byte[]> msg = null;
+        Set<String> messageSet = new HashSet<>();
+        for (int i = 0; i < numMessages; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            messageSet.add(receivedMessage);
+        }
+        assertEquals(messageSet.size(), numMessages);
+
+        // validate producer topic-stats
+        TopicStatsInfo statsInfo = producer.getTopicStatsProvider().getStats();
+        assertEquals(statsInfo.getPartitions().size(), 1);
+        assertEquals(statsInfo.getPartitions().get(topicName).getMsgInCounter(), numMessages);
+        
+        TopicInternalStatsInfo internalStatsInfo = producer.getTopicStatsProvider().getInternalStats();
+        assertEquals(internalStatsInfo.getPartitions().size(), 1);
+        assertEquals(internalStatsInfo.getPartitions().get(topicName).entriesAddedCounter, numMessages);
+    
+        
+        // validate consumer topic-stats
+        statsInfo = consumer.getTopicStatsProvider().getStats();
+        assertEquals(statsInfo.getPartitions().size(), 1);
+        assertEquals(statsInfo.getPartitions().get(topicName).getMsgInCounter(), numMessages);
+    
+        
+        internalStatsInfo = consumer.getTopicStatsProvider().getInternalStats();
+        assertEquals(internalStatsInfo.getPartitions().size(), 1);
+        assertEquals(internalStatsInfo.getPartitions().get(topicName).entriesAddedCounter, numMessages);
+    
+
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+
+        consumer.close();
+        producer.close();
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testFailedTopicStatsAndInternal() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        String topicName = "persistent://my-property/my-ns/testFailedTopicStatsAndInternal";
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name");
+
+        Consumer<byte[]> consumer = consumerBuilder.subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().enableBatching(false).topic(topicName);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        int numMessages = 10;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message<byte[]> msg = null;
+        Set<String> messageSet = new HashSet<>();
+        for (int i = 0; i < numMessages; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            messageSet.add(receivedMessage);
+        }
+        assertEquals(messageSet.size(), numMessages);
+
+        Topic topic = mock(Topic.class);
+        doReturn(
+                FutureUtil.failedFuture(new ServiceUnitNotReadyException("topic is not loaded")))
+                        .when(topic).asyncGetStats(anyBoolean(), anyBoolean(), anyBoolean());
+        doReturn(
+                FutureUtil.failedFuture(new ServiceUnitNotReadyException("topic is not loaded")))
+                        .when(topic).getInternalStats(anyBoolean());
+        CompletableFuture<Optional<Topic>> failedFuture = CompletableFuture.completedFuture(Optional.of(topic));
+        pulsar.getBrokerService().getTopics().put(topicName, failedFuture);
+
+        // validate producer topic-stats
+        try {
+            producer.getTopicStatsProvider().getStats();
+            fail("stats call should have failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+        
+        try {
+            producer.getTopicStatsProvider().getInternalStats();
+            fail("stats call should have failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+        
+        // validate consumer topic-stats
+        try {
+            consumer.getTopicStatsProvider().getStats();
+            fail("stats call should have failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+        
+        try {
+            consumer.getTopicStatsProvider().getInternalStats();
+            fail("stats call should have failed");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException);
+        }
+        
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+
+        consumer.close();
+        producer.close();
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testPartitionTopicStatsAndInternal() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        String topicName = "persistent://my-property/my-ns/testPartitionTopicStatsAndInternal";
+        int numPartitions = 10;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name");
+
+        Consumer<byte[]> consumer = consumerBuilder.subscribe();
+
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().enableBatching(false).topic(topicName);
+
+        Producer<byte[]> producer = producerBuilder.create();
+
+        int numMessages = 100;
+        for (int i = 0; i < numMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        Message<byte[]> msg = null;
+        Set<String> messageSet = new HashSet<>();
+        for (int i = 0; i < numMessages; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            String receivedMessage = new String(msg.getData());
+            messageSet.add(receivedMessage);
+        }
+        assertEquals(messageSet.size(), numMessages);
+
+        // validate producer topic-stats
+        TopicStatsInfo statsInfo = producer.getTopicStatsProvider().getStats();
+        assertEquals(statsInfo.getPartitions().size(), numPartitions);
+        for (int i = 0; i < numPartitions; i++) {
+            assertEquals(statsInfo.getPartitions().get(topicName + "-partition-" + i).getMsgInCounter(),
+                    (numMessages / numPartitions));
+        }
+        
+        TopicInternalStatsInfo internalStatsInfo = producer.getTopicStatsProvider().getInternalStats();
+        assertEquals(internalStatsInfo.getPartitions().size(), numPartitions);
+        for (int i = 0; i < numPartitions; i++) {
+            assertEquals(internalStatsInfo.getPartitions().get(topicName + "-partition-" + i).entriesAddedCounter,
+                    (numMessages / numPartitions));
+        }
+        
+        // validate consumer topic-stats
+        statsInfo = consumer.getTopicStatsProvider().getStats();
+        assertEquals(statsInfo.getPartitions().size(), numPartitions);
+        for (int i = 0; i < numPartitions; i++) {
+            assertEquals(statsInfo.getPartitions().get(topicName + "-partition-" + i).getMsgInCounter(),
+                    (numMessages / numPartitions));
+        }
+        
+        internalStatsInfo = consumer.getTopicStatsProvider().getInternalStats();
+        assertEquals(internalStatsInfo.getPartitions().size(), numPartitions);
+        for (int i = 0; i < numPartitions; i++) {
+            assertEquals(internalStatsInfo.getPartitions().get(topicName + "-partition-" + i).entriesAddedCounter,
+                    (numMessages / numPartitions));
+        }
+
+        // Acknowledge the consumption of all messages at once
+        consumer.acknowledgeCumulative(msg);
+
+        // increment partitions
+        int newNumPartitions = numPartitions + 5;
+        admin.topics().updatePartitionedTopic(topicName, newNumPartitions);
+
+        retryStrategically((test) -> {
+            try {
+                return producer.getTopicStatsProvider().getStats().getPartitions().size() == newNumPartitions;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
+        retryStrategically((test) -> {
+            try {
+                return consumer.getTopicStatsProvider().getStats().getPartitions().size() == newNumPartitions;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 5, 200);
+
+        consumer.close();
+        producer.close();
 
         log.info("-- Exiting {} test --", methodName);
     }

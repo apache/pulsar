@@ -91,6 +91,7 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
+import org.apache.pulsar.common.api.proto.CommandTopicStatsResponse;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -158,6 +159,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
+    private final Semaphore pendingStatsRequestSemaphore;
     private final EventLoopGroup eventLoopGroup;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
@@ -224,7 +226,8 @@ public class ClientCnx extends PulsarHandler {
         GetSchema,
         GetOrCreateSchema,
         AckResponse,
-        Lookup;
+        Lookup,
+        Stats;
 
         String getDescription() {
             if (this == Command) {
@@ -244,6 +247,7 @@ public class ClientCnx extends PulsarHandler {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
+        this.pendingStatsRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
         this.maxLookupRequestSemaphore =
                 new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
@@ -631,6 +635,41 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
+    protected void handleTopicStatsResponse(CommandTopicStatsResponse topicStatsResult) {
+        if (log.isDebugEnabled()) {
+            log.debug("Received topic stats response: {} {}", topicStatsResult.getRequestId(),
+                    topicStatsResult.getStatsJson());
+        }
+
+        long requestId = topicStatsResult.getRequestId();
+        CompletableFuture<String> requestFuture = (CompletableFuture<String>) pendingRequests.remove(requestId);
+        pendingStatsRequestSemaphore.release();
+
+        if (requestFuture != null) {
+            if (requestFuture.isCompletedExceptionally()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("{} Request {} already timed-out", ctx.channel(), topicStatsResult.getRequestId());
+                }
+                return;
+            }
+            // Complete future with exception if : Result.response=fail/null
+            if (!topicStatsResult.hasStatsJson()) {
+                if (topicStatsResult.hasErrorCode()) {
+                    requestFuture.completeExceptionally(getPulsarClientException(topicStatsResult.getErrorCode(),
+                            buildError(topicStatsResult.getRequestId(), topicStatsResult.getErrorMessage())));
+                } else {
+                    requestFuture
+                            .completeExceptionally(new PulsarClientException.NotFoundException("Empty stats response"));
+                }
+            } else {
+                requestFuture.complete(topicStatsResult.getStatsJson());
+            }
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), topicStatsResult.getRequestId());
+        }
+    }
+
+    @Override
     protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
         if (log.isDebugEnabled()) {
             CommandPartitionedTopicMetadataResponse.LookupType response =
@@ -825,6 +864,51 @@ public class ClientCnx extends PulsarHandler {
     @Override
     protected boolean isHandshakeCompleted() {
         return state == State.Ready;
+    }
+
+    public CompletableFuture<String> newStatsRequest(ByteBuf request, long requestId) {
+        TimedCompletableFuture<String> future = new TimedCompletableFuture<>();
+
+        if (pendingStatsRequestSemaphore.tryAcquire()) {
+            future.whenComplete((statsResult, throwable) -> {
+                if (throwable instanceof ConnectException
+                        || throwable instanceof TimeoutException) {
+                    pendingStatsRequestSemaphore.release();
+                }
+            });
+            addPendingStatsRequests(requestId, future);
+            ctx.writeAndFlush(request).addListener(writeFuture -> {
+                if (!writeFuture.isSuccess()) {
+                    log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
+                        writeFuture.cause().getMessage());
+                    pendingStatsRequestSemaphore.release();
+                    getAndRemovePendingStatsRequest(requestId, writeFuture.cause().getMessage());
+                    future.completeExceptionally(writeFuture.cause());
+                }
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("{} Failed to add stats-request with too many requests", requestId);
+            }
+            future.completeExceptionally(new PulsarClientException.TooManyRequestsException(String.format(
+                "Too many {%s} pending stats request.",
+                pendingLookupRequestSemaphore.getQueueLength()
+                )));
+        }
+        return future;
+    }
+
+    private void getAndRemovePendingStatsRequest(long requestId, String msg) {
+        CompletableFuture<String> result = (CompletableFuture<String>) pendingRequests.remove(requestId);
+        if (result != null) {
+            result.completeExceptionally(new PulsarClientException(msg));
+        }
+    }
+
+    // caller of this method needs to be protected under pendingStatsRequestSemaphore
+    private void addPendingStatsRequests(long requestId, TimedCompletableFuture<String> future) {
+        pendingRequests.put(requestId, future);
+        requestTimeoutQueue.add(new RequestTime(requestId, RequestType.Stats));
     }
 
     public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {

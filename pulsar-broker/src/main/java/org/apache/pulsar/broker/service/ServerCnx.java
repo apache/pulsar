@@ -126,6 +126,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
+import org.apache.pulsar.common.api.proto.CommandTopicStats;
+import org.apache.pulsar.common.api.proto.CommandTopicStats.StatsType;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
@@ -627,6 +629,36 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             commandSender.sendPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId);
+        }
+    }
+
+    @Override
+    protected void handleTopicStats(CommandTopicStats commandTopicStats) {
+        checkArgument(state == State.Connected);
+        final long requestId = commandTopicStats.getRequestId();
+        final String topicName = commandTopicStats.getTopicName();
+        final StatsType type = commandTopicStats.getStatsType();
+        if (log.isDebugEnabled()) {
+            log.debug("{}-{} Received CommandTopicStats call for {}/{}", remoteAddress, requestId, topicName, type);
+        }
+
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
+            getBrokerService().getTopicStats(topicName, type).thenAccept(stats -> {
+                lookupSemaphore.release();
+                writeAndFlush(Commands.newStatsResponse(requestId, topicName, stats));
+            }).exceptionally(ex -> {
+                lookupSemaphore.release();
+                writeAndFlush(Commands.newStatsResponse(requestId,
+                        BrokerServiceException.getClientErrorCode(ex.getCause()), ex.getCause().getMessage()));
+                return null;
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed stats due to too many lookup-requests {}", remoteAddress, topicName);
+            }
+            writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
+                    "Failed due to too many pending stats requests", requestId));
         }
     }
 
