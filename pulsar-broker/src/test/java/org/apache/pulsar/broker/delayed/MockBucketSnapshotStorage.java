@@ -36,8 +36,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -139,13 +139,9 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             long lastEntryId = Math.min(lastSegmentEntryId, this.bucketSnapshots.get(bucketId).size());
             for (int i = (int) firstSegmentEntryId; i <= lastEntryId ; i++) {
                 ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
-                SnapshotSegment snapshotSegment;
-                try {
-                    snapshotSegment = SnapshotSegment.parseFrom(byteBuf.nioBuffer());
-                    snapshotSegments.add(snapshotSegment);
-                } catch (InvalidProtocolBufferException e) {
-                    throw new RuntimeException(e);
-                }
+                SnapshotSegment snapshotSegment = new SnapshotSegment();
+                snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());
+                snapshotSegments.add(snapshotSegment);
             }
             return snapshotSegments;
         }, executorService);

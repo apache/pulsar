@@ -372,8 +372,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max number of delayed message index bucket, \
-            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
-    private int delayedDeliveryMaxNumBuckets = 50;
+            after reaching the max buckets limitation, the adjacent buckets will be merged.\
+            (disable with value -1)""")
+    private int delayedDeliveryMaxNumBuckets = -1;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay. "
