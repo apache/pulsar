@@ -566,6 +566,7 @@
           <excludes>
             <exclude>**/ResourceUsage.proto</exclude>
             <exclude>**/TransactionPendingAck.proto</exclude>
+            <exclude>**/DelayedMessageIndexBucketSegment.proto</exclude>
           </excludes>
         </configuration>
         <executions>
@@ -610,6 +611,7 @@
           <sources>
             <source>${project.basedir}/src/main/proto/TransactionPendingAck.proto</source>
             <source>${project.basedir}/src/main/proto/ResourceUsage.proto</source>
+            <source>${project.basedir}/src/main/proto/DelayedMessageIndexBucketSegment.proto</source>
           </sources>
           <targetSourcesSubDir>generated-sources/lightproto/java</targetSourcesSubDir>
           <targetTestSourcesSubDir>generated-sources/lightproto/java</targetTestSourcesSubDir>
