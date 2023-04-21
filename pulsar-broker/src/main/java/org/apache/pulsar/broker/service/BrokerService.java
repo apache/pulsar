@@ -473,8 +473,12 @@ public class BrokerService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
+        int minReceiveByteBuf = pulsar().getConfiguration().getMinReceiveByteBuf();
+        int initReceiveByteBuf = pulsar().getConfiguration().getInitReceiveByteBuf();
+        int maxReceiveByteBuf = pulsar().getConfiguration().getMaxReceiveByteBuf();
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
-            new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
+                new AdaptiveRecvByteBufAllocator(minReceiveByteBuf,
+                        initReceiveByteBuf, maxReceiveByteBuf));
         bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
         EventLoopUtil.enableTriggeredMode(bootstrap);
         return bootstrap;
