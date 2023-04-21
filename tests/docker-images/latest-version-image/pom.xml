@@ -158,7 +158,12 @@
                           <tag>latest</tag>
                           <tag>${project.version}</tag>
                         </tags>
-                        <noCache>true</noCache>
+                        <buildx>
+                          <platforms>
+                            <platform>linux/amd64</platform>
+                            <platform>linux/arm64</platform>
+                          </platforms>
+                        </buildx>
                       </build>
                     </image>
                   </images>
