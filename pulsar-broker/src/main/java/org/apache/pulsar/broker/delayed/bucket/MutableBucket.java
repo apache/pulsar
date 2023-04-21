@@ -84,7 +84,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
         long currentTimestampUpperLimit = 0;
         long currentFirstTimestamp = 0L;
         while (!delayedIndexQueue.isEmpty()) {
-            long timestamp = delayedIndex.peekTimestamp();
+            final long timestamp = delayedIndex.peekTimestamp();
             if (currentTimestampUpperLimit == 0) {
                 currentFirstTimestamp = timestamp;
                 firstScheduleTimestamps.add(currentFirstTimestamp);
@@ -94,8 +94,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
             DelayedIndex delayedIndex = snapshotSegment.addIndexe();
             delayedIndexQueue.popToObject(delayedIndex);
 
-            long ledgerId = delayedIndex.getLedgerId();
-            long entryId = delayedIndex.getEntryId();
+            final long ledgerId = delayedIndex.getLedgerId();
+            final long entryId = delayedIndex.getEntryId();
             
             removeIndexBit(ledgerId, entryId);
 
