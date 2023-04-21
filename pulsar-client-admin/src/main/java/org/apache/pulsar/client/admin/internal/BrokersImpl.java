@@ -97,8 +97,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
     public CompletableFuture<Void> updateDynamicConfigurationAsync(String configName,
                                                                    String configValue, String scope) {
         String value = Codec.encode(configValue);
-        WebTarget path = adminBrokers.path("configuration").path(configName).path(value).path(scope);
-        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        WebTarget path = adminBrokers.path("configuration").path(configName).path(value);
+        return asyncPostRequest(path, Entity.entity(scope, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -108,7 +108,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Void> deleteDynamicConfigurationAsync(String configName, String scope) {
-        WebTarget path = adminBrokers.path("configuration").path(configName).path(scope);
+        WebTarget path = adminBrokers.path("configuration").path(configName).queryParam("scope", scope);
         return asyncDeleteRequest(path);
     }
 
@@ -119,7 +119,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Map<String, String>> getAllDynamicConfigurationsAsync(String scope) {
-        WebTarget path = adminBrokers.path("configuration").path("values").path(scope);
+        WebTarget path = adminBrokers.path("configuration").path("values").queryParam("scope", scope);
         return asyncGetRequest(path, new FutureCallback<Map<String, String>>(){});
     }
 

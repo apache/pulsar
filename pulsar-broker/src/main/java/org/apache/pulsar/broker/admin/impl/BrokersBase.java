@@ -184,7 +184,7 @@ public class BrokersBase extends AdminResource {
     }
 
     @POST
-    @Path("/configuration/{configName}/{configValue}/{scope}")
+    @Path("/configuration/{configName}/{configValue}")
     @ApiOperation(value =
             "Update dynamic serviceconfiguration into zk only. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = {
@@ -196,7 +196,7 @@ public class BrokersBase extends AdminResource {
     public void updateDynamicConfiguration(@Suspended AsyncResponse asyncResponse,
                                            @PathParam("configName") String configName,
                                            @PathParam("configValue") String configValue,
-                                           @PathParam("scope") String scope) {
+                                           String scope) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> persistDynamicConfigurationAsync(configName, configValue, scope))
                 .thenAccept(__ -> {
@@ -210,7 +210,7 @@ public class BrokersBase extends AdminResource {
     }
 
     @DELETE
-    @Path("/configuration/{configName}/{scope}")
+    @Path("/configuration/{configName}")
     @ApiOperation(value =
             "Delete dynamic ServiceConfiguration into metadata only."
                     + " This operation requires Pulsar super-user privileges.")
@@ -221,7 +221,7 @@ public class BrokersBase extends AdminResource {
     public void deleteDynamicConfiguration(
             @Suspended AsyncResponse asyncResponse,
             @PathParam("configName") String configName,
-            @PathParam("scope") String scope) {
+            @QueryParam("scope") @DefaultValue("cluster") String scope) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> internalDeleteDynamicConfigurationOnMetadataAsync(scope, configName))
                 .thenAccept(__ -> {
@@ -235,14 +235,14 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
-    @Path("/configuration/values/{scope}")
+    @Path("/configuration/values")
     @ApiOperation(value = "Get value of all dynamic configurations' value overridden on local config")
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
     public void getAllDynamicConfigurations(@Suspended AsyncResponse asyncResponse,
-                                            @PathParam("scope") String scope) {
+                                            @QueryParam("scope") @DefaultValue("cluster") String scope) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> {
                     if (DYNAMIC_CONFIGURATIONS_DEFAULT_SCOPE.equals(scope)) {
