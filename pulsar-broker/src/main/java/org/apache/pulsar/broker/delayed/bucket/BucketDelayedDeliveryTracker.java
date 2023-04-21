@@ -335,7 +335,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
             lastMutableBucket.resetLastMutableBucketRange();
 
-            if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
+            if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
                 asyncMergeBucketSnapshot();
             }
         }
