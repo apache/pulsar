@@ -96,6 +96,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
             long ledgerId = delayedIndex.getLedgerId();
             long entryId = delayedIndex.getEntryId();
+            
+            removeIndexBit(ledgerId, entryId);
 
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
@@ -104,8 +106,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 sharedQueue.add(timestamp, ledgerId, entryId);
             }
 
-            
-            removeIndexBit(ledgerId, entryId);
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
             
             numMessages++;
