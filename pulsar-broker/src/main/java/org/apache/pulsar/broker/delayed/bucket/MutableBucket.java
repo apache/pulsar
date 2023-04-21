@@ -84,19 +84,19 @@ class MutableBucket extends Bucket implements AutoCloseable {
         long currentTimestampUpperLimit = 0;
         long currentFirstTimestamp = 0L;
         while (!delayedIndexQueue.isEmpty()) {
-            final long timestamp = delayedIndex.peekTimestamp();
+            final long timestamp = delayedIndexQueue.peekTimestamp();
             if (currentTimestampUpperLimit == 0) {
                 currentFirstTimestamp = timestamp;
                 firstScheduleTimestamps.add(currentFirstTimestamp);
                 currentTimestampUpperLimit = timestamp + timeStepPerBucketSnapshotSegment - 1;
             }
-            
+
             DelayedIndex delayedIndex = snapshotSegment.addIndexe();
             delayedIndexQueue.popToObject(delayedIndex);
 
             final long ledgerId = delayedIndex.getLedgerId();
             final long entryId = delayedIndex.getEntryId();
-            
+
             removeIndexBit(ledgerId, entryId);
 
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
@@ -107,7 +107,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
             }
 
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
-            
+
             numMessages++;
 
             if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peekTimestamp() > currentTimestampUpperLimit
