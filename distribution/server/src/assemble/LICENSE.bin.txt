@@ -430,25 +430,25 @@ The Apache Software License, Version 2.0
     - org.asynchttpclient-async-http-client-2.12.1.jar
     - org.asynchttpclient-async-http-client-netty-utils-2.12.1.jar
  * Jetty
-    - org.eclipse.jetty-jetty-client-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-continuation-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-http-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-io-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-proxy-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-security-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-servlet-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-servlets-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-util-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-util-ajax-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-api-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-client-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-common-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty.websocket-websocket-servlet-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.48.v20220622.jar
-    - org.eclipse.jetty-jetty-alpn-server-9.4.48.v20220622.jar
+    - org.eclipse.jetty-jetty-client-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-continuation-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-http-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-io-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-proxy-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-security-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-servlet-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-servlets-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-util-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-util-ajax-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-javax-websocket-client-impl-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-api-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-client-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-common-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty.websocket-websocket-servlet-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.51.v20230217.jar
+    - org.eclipse.jetty-jetty-alpn-server-9.4.51.v20230217.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.0.jar
  * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
@@ -459,10 +459,10 @@ The Apache Software License, Version 2.0
  * Okio - com.squareup.okio-okio-2.8.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
-     - org.jetbrains.kotlin-kotlin-stdlib-1.4.32.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-common-1.4.32.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.4.32.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.4.32.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-1.6.0.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-common-1.6.0.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.6.0.jar
+     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.6.0.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.45.1.jar
