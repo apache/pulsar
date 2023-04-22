@@ -128,7 +128,7 @@ function ci_docker_save_image_to_github_actions_artifacts() {
 }
 
 # upload an image from a local tar.gz archive to the GitHub Actions Artifacts with the given name (2nd parameter)
-function ci_docker_save_image_to_github_actions_artifacts() {
+function ci_docker_upload_tarball_to_github_actions_artifacts() {
   local tarball=$1
   local artifactname="${2}.zst"
   ci_install_tool pv
