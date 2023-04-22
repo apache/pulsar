@@ -127,6 +127,18 @@ function ci_docker_save_image_to_github_actions_artifacts() {
   echo "::endgroup::"
 }
 
+# upload an image from a local tar.gz archive to the GitHub Actions Artifacts with the given name (2nd parameter)
+function ci_docker_save_image_to_github_actions_artifacts() {
+  local tarball=$1
+  local artifactname="${2}.zst"
+  ci_install_tool pv
+  echo "::group::Uploading docker image from tarball ${tarball} with name ${artifactname} in GitHub Actions Artifacts"
+  # delete possible previous artifact that might exist when re-running
+  timeout 1m gh-actions-artifact-client.js delete "${artifactname}" &>/dev/null || true
+  gunzip -c ${tarball} | zstd | pv -ft -i 5 | pv -Wbaf -i 5 | timeout 20m gh-actions-artifact-client.js upload --retentionDays=$ARTIFACT_RETENTION_DAYS "${artifactname}"
+  echo "::endgroup::"
+}
+
 # loads a docker image from the GitHub Actions Artifacts with the given name (1st parameter)
 function ci_docker_load_image_from_github_actions_artifacts() {
   local artifactname="${1}.zst"

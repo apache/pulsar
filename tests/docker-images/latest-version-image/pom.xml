@@ -148,6 +148,7 @@
                 <goals>
                   <goal>build</goal>
                   <goal>tag</goal>
+                  <goal>save</goal>
                 </goals>
                 <configuration>
                   <images>
