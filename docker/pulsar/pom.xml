@@ -47,15 +47,14 @@
     </dependency>
   </dependencies>
 
+  <properties>
+      <UBUNTU_MIRROR>mirror://mirrors.ubuntu.com/mirrors.txt</UBUNTU_MIRROR>
+      <UBUNTU_SECURITY_MIRROR>http://security.ubuntu.com/ubuntu/</UBUNTU_SECURITY_MIRROR>
+  </properties>
+
   <profiles>
     <profile>
       <id>docker</id>
-      <properties>
-        <docker.buildArg.PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</docker.buildArg.PULSAR_TARBALL>
-        <docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</docker.buildArg.PULSAR_CLIENT_PYTHON_VERSION>
-        <docker.buildArg.UBUNTU_MIRROR>${env.UBUNTU_MIRROR}</docker.buildArg.UBUNTU_MIRROR>
-        <docker.buildArg.UBUNTU_SECURITY_MIRROR>${env.UBUNTU_SECURITY_MIRROR}</docker.buildArg.UBUNTU_SECURITY_MIRROR>
-      </properties>
       <build>
         <plugins>
           <plugin>
@@ -72,17 +71,27 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>pulsar</name>
+                      <name>${docker.organization}/pulsar</name>
                       <build>
+                        <args>
+                          <PULSAR_TARBALL>target/pulsar-server-distribution-${project.version}-bin.tar.gz</PULSAR_TARBALL>
+                          <PULSAR_CLIENT_PYTHON_VERSION>${pulsar.client.python.version}</PULSAR_CLIENT_PYTHON_VERSION>
+                          <UBUNTU_MIRROR>${UBUNTU_MIRROR}</UBUNTU_MIRROR>
+                          <UBUNTU_SECURITY_MIRROR>${UBUNTU_SECURITY_MIRROR}</UBUNTU_SECURITY_MIRROR>
+                        </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
+                          <tag>${project.version}</tag>
                         </tags>
+                        <buildx>
+                          <platforms>
+                            <platform>${docker.platforms}</platform>
+                          </platforms>
+                        </buildx>
                       </build>
                     </image>
                   </images>
-                  <tagName>latest</tagName>
-                  <repo>${docker.organization}</repo>
                 </configuration>
               </execution>
             </executions>
@@ -108,5 +117,29 @@
         </plugins>
       </build>
     </profile>
+
+    <profile>
+      <id>docker-push</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>io.fabric8</groupId>
+            <artifactId>docker-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>build</goal>
+                  <goal>tag</goal>
+                  <goal>push</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
   </profiles>
 </project>
