@@ -94,6 +94,12 @@ flexible messaging model and an intuitive client API.</description>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+
+    <!-- By default build for local Docker platform.
+         To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
+    -->
+    <docker.platforms></docker.platforms>
+
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
