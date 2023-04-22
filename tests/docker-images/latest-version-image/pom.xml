@@ -152,12 +152,11 @@
                 <configuration>
                   <images>
                     <image>
-                      <name>${docker.organization}/pulsar-test-latest-version</name>
+                      <name>pulsar-test-latest-version</name>
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
                           <tag>latest</tag>
-                          <tag>${project.version}</tag>
                         </tags>
                         <buildx>
                           <platforms>
