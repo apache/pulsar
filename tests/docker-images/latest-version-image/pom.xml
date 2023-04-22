@@ -147,6 +147,7 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
+                  <goal>tag</goal>
                 </goals>
                 <configuration>
                   <images>
