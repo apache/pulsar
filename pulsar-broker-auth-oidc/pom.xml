@@ -83,6 +83,18 @@
           <groupId>io.prometheus</groupId>
           <artifactId>simpleclient_httpserver</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>bcpkix-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcutil-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcprov-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
 

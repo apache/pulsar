@@ -16,21 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.protocol.schema;
-
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 /**
- * Response defining if a schema is compatible with existing topic's schema.
+ * Additional helper classes to the pulsar-client-api module.
  */
-@Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class IsCompatibilityResponse {
-    boolean isCompatibility;
-    String schemaCompatibilityStrategy;
-}
+package org.apache.pulsar.client.api;

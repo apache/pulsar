@@ -16,21 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.protocol.schema;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+package org.apache.pulsar.io.kafka.connect;
 
-/**
- * Response defining if a schema is compatible with existing topic's schema.
- */
-@Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class IsCompatibilityResponse {
-    boolean isCompatibility;
-    String schemaCompatibilityStrategy;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.connect.file.FileStreamSourceTask;
+import org.apache.kafka.connect.source.SourceRecord;
+
+public class ErrRecFileStreamSourceTask extends FileStreamSourceTask {
+
+    @Override
+    public void commitRecord(SourceRecord record, RecordMetadata metadata) throws InterruptedException {
+        throw new org.apache.kafka.connect.errors.ConnectException("blah");
+    }
+
 }

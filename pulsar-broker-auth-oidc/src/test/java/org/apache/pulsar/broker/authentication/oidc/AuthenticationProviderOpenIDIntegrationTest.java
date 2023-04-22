@@ -31,6 +31,7 @@ import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -41,13 +42,19 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import javax.naming.AuthenticationException;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -436,6 +443,56 @@ public class AuthenticationProviderOpenIDIntegrationTest {
         assertEquals(state.getAuthRole(), role);
         assertEquals(state.getAuthDataSource().getCommandData(), token);
         assertTrue(state.isExpired());
+    }
+
+    /**
+     * This test covers the migration scenario where you have both the Token and OpenID providers. It ensures
+     * both kinds of authentication work.
+     * @throws Exception
+     */
+    @Test
+    public void testAuthenticationProviderListStateSuccess() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        conf.setAuthenticationProviders(Set.of(AuthenticationProviderOpenID.class.getName(),
+                AuthenticationProviderToken.class.getName()));
+        Properties props = conf.getProperties();
+        props.setProperty(AuthenticationProviderOpenID.REQUIRE_HTTPS, "false");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        props.setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+
+        // Set up static token
+        KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
+        // Use public key for validation
+        String publicKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
+        props.setProperty("tokenPublicKey", publicKeyStr);
+        // Use private key to generate token
+        String privateKeyStr = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
+        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr),
+                SignatureAlgorithm.RS256);
+        String staticToken = AuthTokenUtils.createToken(privateKey, "superuser", Optional.empty());
+
+        @Cleanup
+        AuthenticationService service = new AuthenticationService(conf);
+        AuthenticationProvider provider = service.getAuthenticationProvider("token");
+
+        // First, authenticate using OIDC
+        String role = "superuser";
+        String oidcToken = generateToken(validJwk, issuer, role, "allowed-audience", 0L, 0L, 10000L);
+        assertEquals(role, provider.authenticateAsync(new AuthenticationDataCommand(oidcToken)).get());
+
+        // Authenticate using the static token
+        assertEquals("superuser", provider.authenticateAsync(new AuthenticationDataCommand(staticToken)).get());
+
+        // Use authenticationState to authentication using OIDC
+        AuthenticationState state1 = service.getAuthenticationProvider("token").newAuthState(null, null, null);
+        assertNull(state1.authenticateAsync(AuthData.of(oidcToken.getBytes())).get());
+        assertEquals(state1.getAuthRole(), role);
+
+        // Use authenticationState to authentication using static token
+        AuthenticationState state2 = service.getAuthenticationProvider("token").newAuthState(null, null, null);
+        assertNull(state2.authenticateAsync(AuthData.of(staticToken.getBytes())).get());
+        assertEquals(state1.getAuthRole(), role);
     }
 
     @Test

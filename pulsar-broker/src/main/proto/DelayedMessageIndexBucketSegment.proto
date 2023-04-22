@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,21 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.protocol.schema;
+syntax = "proto2";
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+package pulsar.delay;
+option java_package = "org.apache.pulsar.broker.delayed.proto";
+option optimize_for = SPEED;
+option java_multiple_files = true;
 
-/**
- * Response defining if a schema is compatible with existing topic's schema.
- */
-@Data
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class IsCompatibilityResponse {
-    boolean isCompatibility;
-    String schemaCompatibilityStrategy;
+message DelayedIndex {
+    required uint64 timestamp = 1;
+    required uint64 ledger_id = 2;
+    required uint64 entry_id = 3;
+}
+
+message SnapshotSegment {
+    repeated DelayedIndex indexes = 1;
+    map<uint64, bytes> delayed_index_bit_map = 2;
 }
