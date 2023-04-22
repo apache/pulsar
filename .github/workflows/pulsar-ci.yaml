@@ -388,7 +388,7 @@ jobs:
   pulsar-java-test-image:
     name: Build Pulsar java-test-image docker image
     runs-on: ubuntu-20.04
-    timeout-minutes: 120
+    timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
     steps:
@@ -735,8 +735,8 @@ jobs:
 
   pulsar-test-latest-version-image:
     name: Build Pulsar docker image
-    runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
@@ -797,7 +797,7 @@ jobs:
         run: |
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
-          mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,docker/pulsar,docker/pulsar-all,tests/docker-images/latest-version-image install \
+          mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \
           -DUBUNTU_MIRROR="${UBUNTU_MIRROR}" -DUBUNTU_SECURITY_MIRROR="${UBUNTU_SECURITY_MIRROR}" \
           -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
           -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
@@ -1080,7 +1080,7 @@ jobs:
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
       JOB_NAME: CI Flaky - System - ${{ matrix.name }}
-      PULSAR_TEST_IMAGE_NAME: pulsar-test-latest-version:latest
+      PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
     strategy:
       fail-fast: false
       matrix:
