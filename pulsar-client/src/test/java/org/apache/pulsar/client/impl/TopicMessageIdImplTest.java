@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertSame;
 
 import org.testng.annotations.Test;
 
@@ -54,4 +55,12 @@ public class TopicMessageIdImplTest {
         assertNotEquals(topicMsgId1, topicMsgId2);
     }
 
+    @Test
+    public void testDeprecatedMethods() {
+        BatchMessageIdImpl msgId = new BatchMessageIdImpl(1, 2, 3, 4);
+        TopicMessageIdImpl topicMsgId = new TopicMessageIdImpl("topic-partition-0", "topic", msgId);
+        assertSame(topicMsgId.getInnerMessageId(), msgId);
+        assertEquals(topicMsgId.getTopicPartitionName(), topicMsgId.getOwnerTopic());
+        assertEquals(topicMsgId.getTopicName(), "topic");
+    }
 }
