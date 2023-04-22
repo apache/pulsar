@@ -735,7 +735,7 @@ jobs:
 
   pulsar-test-latest-version-image:
     name: Build Pulsar docker image
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
