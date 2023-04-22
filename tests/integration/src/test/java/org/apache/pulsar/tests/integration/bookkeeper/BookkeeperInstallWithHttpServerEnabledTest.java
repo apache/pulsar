@@ -36,7 +36,7 @@ import static org.testng.Assert.assertEquals;
  * Test bookkeeper setup with http server enabled.
  */
 @Slf4j
-public class BookkeeperSetupTestWithHttpServerEnabled extends PulsarClusterTestBase {
+public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTestBase {
 
     @BeforeClass(alwaysRun = true)
     @Override
