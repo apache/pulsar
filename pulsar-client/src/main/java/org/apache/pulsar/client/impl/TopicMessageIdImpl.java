@@ -62,7 +62,7 @@ public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId {
 
     @Deprecated
     public MessageId getInnerMessageId() {
-        return new MessageIdImpl(getLedgerId(), getEntryId(), getPartitionIndex());
+        return msgId;
     }
 
     @Override
