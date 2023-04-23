@@ -69,6 +69,18 @@ public class ConcurrentBitmapSortedLongPairSet {
         }
     }
 
+    public long getLongSizeInBytes() {
+        lock.readLock().lock();
+        try {
+            long valuesSize = map.values().stream().map(RoaringBitmap::getLongSizeInBytes)
+                    .reduce((l1, l2) -> l1 + l2).orElse(0L);
+            long keysSize = map.size() * 8L;
+            return valuesSize + keysSize;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
     public void removeUpTo(long item1, long item2) {
         lock.writeLock().lock();
         try {

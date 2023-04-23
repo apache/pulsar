@@ -55,6 +55,12 @@ public class MessageRedeliveryController {
         }
     }
 
+    public long getLongSizeInBytes() {
+        // TODO add method `getLongSizeInBytes` for `hashesRefCount`.
+        // TODO add test for method `getLongSizeInBytes`.
+        return messagesToRedeliver.getLongSizeInBytes() + hashesToBeBlocked.getLongSizeInBytes();
+    }
+
     public void add(long ledgerId, long entryId) {
         messagesToRedeliver.add(ledgerId, entryId);
     }

@@ -159,6 +159,14 @@ public class ConcurrentLongLongPairHashMap {
         }
     }
 
+    public long getLongSizeInBytes() {
+        long result = 0;
+        for (Section section : sections) {
+            result += section.getLongSizeInBytes();
+        }
+        return result;
+    }
+
     public long size() {
         long size = 0;
         for (Section s : sections) {
@@ -317,6 +325,11 @@ public class ConcurrentLongLongPairHashMap {
             this.resizeThresholdUp = (int) (this.capacity * mapFillFactor);
             this.resizeThresholdBelow = (int) (this.capacity * mapIdleFactor);
             Arrays.fill(table, EmptyKey);
+        }
+
+        long getLongSizeInBytes() {
+            int baseSize = 4 * 6 + 2 * 5;
+            return (capacity << 6) + baseSize;
         }
 
         LongPair get(long key1, long key2, int keyHash) {

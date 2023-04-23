@@ -874,6 +874,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " can dispatch messages without any restriction")
     private int maxUnackedMessagesPerSubscription = 4 * 50000;
     @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Max memory usage of the replay queue each subscription in bytes, Pulsar will stop dispatching"
+                    + " messages to client if memory usage is larger than expected. If this value is less than zero,"
+                    + " it means disabled this limitation. default: 5m.")
+    // TODO There needs to be a minimum limit.
+    private long maxMemoryUsageOfReplayQueueInBytesPerSubscription = 5 * 1024 * 1024;
+    @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Max number of unacknowledged messages allowed per broker. \n\n"
             + " Once this limit reaches, broker will stop dispatching messages to all shared subscription "

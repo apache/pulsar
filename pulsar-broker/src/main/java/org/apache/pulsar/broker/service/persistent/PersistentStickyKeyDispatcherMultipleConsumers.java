@@ -60,6 +60,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private final boolean allowOutOfOrderDelivery;
     private final StickyKeyConsumerSelector selector;
+    private final long maxMemoryUsageOfReplayQueueInBytes;
 
     private boolean isDispatcherStuckOnReplays = false;
     private final KeySharedMode keySharedMode;
@@ -83,6 +84,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         this.stuckConsumers = new HashSet<>();
         this.nextStuckConsumers = new HashSet<>();
         this.keySharedMode = ksm.getKeySharedMode();
+        this.maxMemoryUsageOfReplayQueueInBytes = conf.getMaxMemoryUsageOfReplayQueueInBytesPerSubscription();
         switch (this.keySharedMode) {
         case AUTO_SPLIT:
             if (conf.isSubscriptionKeySharedUseConsistentHashing()) {
@@ -100,6 +102,15 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         default:
             throw new IllegalArgumentException("Invalid key-shared mode: " + keySharedMode);
         }
+    }
+
+    @Override
+    public synchronized void readMoreEntries() {
+        if (isDispatcherStuckOnReplays && maxMemoryUsageOfReplayQueueInBytes > 0
+                && redeliveryMessages.getLongSizeInBytes() > maxMemoryUsageOfReplayQueueInBytes) {
+            return;
+        }
+        super.readMoreEntries();
     }
 
     @VisibleForTesting
