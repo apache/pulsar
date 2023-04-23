@@ -30,10 +30,10 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
-import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
-import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
-import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
@@ -75,16 +75,14 @@ class MutableBucket extends Bucket implements AutoCloseable {
         List<SnapshotSegment> bucketSnapshotSegments = new ArrayList<>();
         List<SnapshotSegmentMetadata> segmentMetadataList = new ArrayList<>();
         Map<Long, RoaringBitmap> bitMap = new HashMap<>();
-        SnapshotSegment snapshotSegment = new SnapshotSegment();
+        SnapshotSegment.Builder snapshotSegmentBuilder = SnapshotSegment.newBuilder();
         SnapshotSegmentMetadata.Builder segmentMetadataBuilder = SnapshotSegmentMetadata.newBuilder();
 
         List<Long> firstScheduleTimestamps = new ArrayList<>();
         long currentTimestampUpperLimit = 0;
         long currentFirstTimestamp = 0L;
         while (!delayedIndexQueue.isEmpty()) {
-            DelayedIndex delayedIndex = snapshotSegment.addIndexe();
-            delayedIndexQueue.popToObject(delayedIndex);
-
+            DelayedIndex delayedIndex = delayedIndexQueue.peek();
             long timestamp = delayedIndex.getTimestamp();
             if (currentTimestampUpperLimit == 0) {
                 currentFirstTimestamp = timestamp;
@@ -102,13 +100,16 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 sharedQueue.add(timestamp, ledgerId, entryId);
             }
 
+            delayedIndexQueue.pop();
             numMessages++;
 
             bitMap.computeIfAbsent(ledgerId, k -> new RoaringBitmap()).add(entryId, entryId + 1);
 
-            if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peekTimestamp() > currentTimestampUpperLimit
+            snapshotSegmentBuilder.addIndexes(delayedIndex);
+
+            if (delayedIndexQueue.isEmpty() || delayedIndexQueue.peek().getTimestamp() > currentTimestampUpperLimit
                     || (maxIndexesPerBucketSnapshotSegment != -1
-                    && snapshotSegment.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
+                    && snapshotSegmentBuilder.getIndexesCount() >= maxIndexesPerBucketSnapshotSegment)) {
                 segmentMetadataBuilder.setMaxScheduleTimestamp(timestamp);
                 segmentMetadataBuilder.setMinScheduleTimestamp(currentFirstTimestamp);
                 currentTimestampUpperLimit = 0;
@@ -128,8 +129,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 segmentMetadataList.add(segmentMetadataBuilder.build());
                 segmentMetadataBuilder.clear();
 
-                bucketSnapshotSegments.add(snapshotSegment);
-                snapshotSegment = new SnapshotSegment();
+                bucketSnapshotSegments.add(snapshotSegmentBuilder.build());
+                snapshotSegmentBuilder.clear();
             }
         }
 
@@ -152,8 +153,8 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         // Add the first snapshot segment last message to snapshotSegmentLastMessageTable
         checkArgument(!bucketSnapshotSegments.isEmpty());
-        SnapshotSegment firstSnapshotSegment = bucketSnapshotSegments.get(0);
-        DelayedIndex lastDelayedIndex = firstSnapshotSegment.getIndexeAt(firstSnapshotSegment.getIndexesCount() - 1);
+        SnapshotSegment snapshotSegment = bucketSnapshotSegments.get(0);
+        DelayedIndex lastDelayedIndex = snapshotSegment.getIndexes(snapshotSegment.getIndexesCount() - 1);
         Pair<ImmutableBucket, DelayedIndex> result = Pair.of(bucket, lastDelayedIndex);
 
         CompletableFuture<Long> future = asyncSaveBucketSnapshot(bucket,

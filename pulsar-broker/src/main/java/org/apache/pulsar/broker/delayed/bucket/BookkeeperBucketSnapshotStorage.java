@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.netty.buffer.ByteBuf;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -36,8 +36,8 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
-import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -126,8 +126,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
         try {
-            ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
-            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
+            return SnapshotMetadata.parseFrom(ledgerEntry.getEntry());
         } catch (InvalidProtocolBufferException e) {
             throw new BucketSnapshotSerializationException(e);
         }
@@ -135,14 +134,15 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private List<SnapshotSegment> parseSnapshotSegmentEntries(Enumeration<LedgerEntry> entryEnumeration) {
         List<SnapshotSegment> snapshotMetadataList = new ArrayList<>();
-        while (entryEnumeration.hasMoreElements()) {
-            LedgerEntry ledgerEntry = entryEnumeration.nextElement();
-            SnapshotSegment snapshotSegment = new SnapshotSegment();
-            ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
-            snapshotSegment.parseFrom(entryBuffer, entryBuffer.readableBytes());
-            snapshotMetadataList.add(snapshotSegment);
+        try {
+            while (entryEnumeration.hasMoreElements()) {
+                LedgerEntry ledgerEntry = entryEnumeration.nextElement();
+                snapshotMetadataList.add(SnapshotSegment.parseFrom(ledgerEntry.getEntry()));
+            }
+            return snapshotMetadataList;
+        } catch (IOException e) {
+            throw new BucketSnapshotSerializationException(e);
         }
-        return snapshotMetadataList;
     }
 
     @NotNull

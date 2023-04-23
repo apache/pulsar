@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import javax.annotation.concurrent.NotThreadSafe;
-import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @NotThreadSafe
@@ -41,28 +41,17 @@ class TripleLongPriorityDelayedIndexQueue implements DelayedIndexQueue {
     }
 
     @Override
-    public DelayedIndex peek() {
-        DelayedIndex delayedIndex = new DelayedIndex().setTimestamp(queue.peekN1())
-                .setLedgerId(queue.peekN2()).setEntryId(queue.peekN3());
+    public DelayedMessageIndexBucketSnapshotFormat.DelayedIndex peek() {
+        DelayedMessageIndexBucketSnapshotFormat.DelayedIndex delayedIndex =
+                DelayedMessageIndexBucketSnapshotFormat.DelayedIndex.newBuilder().setTimestamp(queue.peekN1())
+                        .setLedgerId(queue.peekN2()).setEntryId(queue.peekN3()).build();
         return delayedIndex;
     }
 
     @Override
-    public DelayedIndex pop() {
-        DelayedIndex peek = peek();
+    public DelayedMessageIndexBucketSnapshotFormat.DelayedIndex pop() {
+        DelayedMessageIndexBucketSnapshotFormat.DelayedIndex peek = peek();
         queue.pop();
         return peek;
-    }
-
-    @Override
-    public void popToObject(DelayedIndex delayedIndex) {
-        delayedIndex.setTimestamp(queue.peekN1())
-                .setLedgerId(queue.peekN2()).setEntryId(queue.peekN3());
-        queue.pop();
-    }
-
-    @Override
-    public long peekTimestamp() {
-        return queue.peekN1();
     }
 }

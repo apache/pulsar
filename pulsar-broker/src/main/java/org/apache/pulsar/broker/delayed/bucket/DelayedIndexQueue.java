@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import java.util.Comparator;
 import java.util.Objects;
-import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
 
 interface DelayedIndexQueue {
-    Comparator<DelayedIndex> COMPARATOR = (o1, o2) ->  {
+    Comparator<DelayedMessageIndexBucketSnapshotFormat.DelayedIndex> COMPARATOR = (o1, o2) ->  {
         if (!Objects.equals(o1.getTimestamp(), o2.getTimestamp())) {
             return Long.compare(o1.getTimestamp(), o2.getTimestamp());
         } else if (!Objects.equals(o1.getLedgerId(), o2.getLedgerId())) {
@@ -35,11 +35,7 @@ interface DelayedIndexQueue {
 
     boolean isEmpty();
 
-    DelayedIndex peek();
+    DelayedMessageIndexBucketSnapshotFormat.DelayedIndex peek();
 
-    DelayedIndex pop();
-
-    void popToObject(DelayedIndex delayedIndex);
-
-    long peekTimestamp();
+    DelayedMessageIndexBucketSnapshotFormat.DelayedIndex pop();
 }
