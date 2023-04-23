@@ -31,5 +31,4 @@ message DelayedIndex {
 
 message SnapshotSegment {
     repeated DelayedIndex indexes = 1;
-    map<uint64, bytes> delayed_index_bit_map = 2;
 }
