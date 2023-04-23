@@ -26,7 +26,6 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
