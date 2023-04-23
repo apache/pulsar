@@ -62,7 +62,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
                     overloadThreshold * 100,
                     brokerLoadData.toString(conf));
         } else if (debugMode) {
-            log.info("Broker {} load data:{{}}", broker, brokerLoadData.toString(conf));
+            log.debug("Broker {} load data:{{}}", broker, brokerLoadData.toString(conf));
         }
 
 
@@ -118,7 +118,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             final double diffThreshold =
                     conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
             if (debugMode) {
-                log.info("Computed avgUsage:{}, diffThreshold:{}", avgUsage, diffThreshold);
+                log.debug("Computed avgUsage:{}, diffThreshold:{}", avgUsage, diffThreshold);
             }
             for (String broker : candidates) {
                 var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
@@ -136,14 +136,14 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         if (bestBrokers.isEmpty()) {
             // Assign randomly as all brokers are overloaded.
             if (debugMode) {
-                log.info("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
+                log.debug("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
                         + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
             }
             bestBrokers.addAll(candidates);
         }
 
         if (debugMode) {
-            log.info("Selected {} best brokers: {} from candidate brokers: {}, noLoadDataBrokers:{}",
+            log.debug("Selected {} best brokers: {} from candidate brokers: {}, noLoadDataBrokers:{}",
                     bestBrokers.size(), bestBrokers,
                     candidates,
                     noLoadDataBrokers);
