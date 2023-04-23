@@ -125,13 +125,16 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
+        ByteBuf entryBuffer = null;
         try {
-            ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
-            SnapshotMetadata snapshotMetadata = SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
-            entryBuffer.release();
-            return snapshotMetadata;
+            entryBuffer = ledgerEntry.getEntryBuffer();
+            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
         } catch (InvalidProtocolBufferException e) {
             throw new BucketSnapshotSerializationException(e);
+        } finally {
+            if (entryBuffer != null) {
+                entryBuffer.release();
+            }
         }
     }
 
@@ -141,8 +144,11 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
             LedgerEntry ledgerEntry = entryEnumeration.nextElement();
             SnapshotSegment snapshotSegment = new SnapshotSegment();
             ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
-            snapshotSegment.parseFrom(entryBuffer, entryBuffer.readableBytes());
-            entryBuffer.release();
+            try {
+                snapshotSegment.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            } finally {
+                entryBuffer.release();
+            }
             snapshotMetadataList.add(snapshotSegment);
         }
         return snapshotMetadataList;
