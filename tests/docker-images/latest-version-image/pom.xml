@@ -147,6 +147,7 @@
                 <phase>package</phase>
                 <goals>
                   <goal>build</goal>
+                  <goal>tag</goal>
                 </goals>
                 <configuration>
                   <images>
@@ -159,6 +160,11 @@
                           <tag>${project.version}</tag>
                         </tags>
                         <noCache>true</noCache>
+                        <buildx>
+                          <platforms>
+                            <platform>${docker.platforms}</platform>
+                          </platforms>
+                        </buildx>
                       </build>
                     </image>
                   </images>

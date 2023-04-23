@@ -91,6 +91,9 @@ public class LocalBrokerData implements LoadManagerReport {
     //
     private Map<String, AdvertisedListener> advertisedListeners;
 
+    private String loadManagerClassName;
+    private long startTimestamp;
+
     // For JSON only.
     public LocalBrokerData() {
         this(null, null, null, null);
@@ -113,6 +116,7 @@ public class LocalBrokerData implements LoadManagerReport {
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
         lastStats = new ConcurrentHashMap<>();
         lastUpdate = System.currentTimeMillis();
+        startTimestamp = System.currentTimeMillis();
         cpu = new ResourceUsage();
         memory = new ResourceUsage();
         directMemory = new ResourceUsage();
@@ -528,5 +532,17 @@ public class LocalBrokerData implements LoadManagerReport {
 
     public void setAdvertisedListeners(Map<String, AdvertisedListener> advertisedListeners) {
         this.advertisedListeners = advertisedListeners;
+    }
+
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
+
+    public long getStartTimestamp() {
+        return this.startTimestamp;
     }
 }

@@ -268,7 +268,7 @@ enum ProtocolVersion {
 }
 
 message CommandConnect {
-    required string client_version = 1;
+    required string client_version = 1; // The version of the client. Proxy should forward client's client_version.
     optional AuthMethod auth_method = 2; // Deprecated. Use "auth_method_name" instead.
     optional string auth_method_name = 5;
     optional bytes auth_data = 3;
@@ -291,6 +291,8 @@ message CommandConnect {
 
     // Feature flags
     optional FeatureFlags feature_flags = 10;
+
+    optional string proxy_version = 11; // Version of the proxy. Should only be forwarded by a proxy.
 }
 
 message FeatureFlags {
@@ -308,7 +310,7 @@ message CommandConnected {
 }
 
 message CommandAuthResponse {
-    optional string client_version = 1;
+    optional string client_version = 1; // The version of the client. Proxy should forward client's client_version.
     optional AuthData response = 2;
     optional int32 protocol_version = 3 [default = 0];
 }

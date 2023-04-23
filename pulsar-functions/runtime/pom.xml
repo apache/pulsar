@@ -64,6 +64,20 @@
       <groupId>io.kubernetes</groupId>
       <artifactId>client-java</artifactId>
       <version>${kubernetesclient.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>bcpkix-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcutil-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>bcprov-jdk18on</artifactId>
+          <groupId>org.bouncycastle</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>

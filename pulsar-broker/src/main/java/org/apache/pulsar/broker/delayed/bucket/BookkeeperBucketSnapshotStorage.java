@@ -19,13 +19,14 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.io.IOException;
+import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -35,8 +36,8 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -47,6 +48,8 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private BookKeeper bookKeeper;
+
+    private final Map<Long, CompletableFuture<LedgerHandle>> ledgerHandleFutureCache = new ConcurrentHashMap<>();
 
     public BookkeeperBucketSnapshotStorage(PulsarService pulsar) {
         this.pulsar = pulsar;
@@ -66,26 +69,30 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
-        return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntry(ledgerHandle, 0, 0).
-                        thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
+        return getLedgerHandle(bucketId).thenCompose(ledgerHandle -> getLedgerEntry(ledgerHandle, 0, 0)
+                .thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
     }
 
     @Override
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
-        return openLedger(bucketId).thenCompose(
-                ledgerHandle -> getLedgerEntry(ledgerHandle, firstSegmentEntryId,
-                        lastSegmentEntryId).thenApply(this::parseSnapshotSegmentEntries));
+        return getLedgerHandle(bucketId).thenCompose(
+                ledgerHandle -> getLedgerEntry(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId)
+                        .thenApply(this::parseSnapshotSegmentEntries));
     }
 
     @Override
     public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
-        return openLedger(bucketId).thenApply(LedgerHandle::getLength);
+        return getLedgerHandle(bucketId).thenCompose(
+                ledgerHandle -> CompletableFuture.completedFuture(ledgerHandle.getLength()));
     }
 
     @Override
     public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
+        CompletableFuture<LedgerHandle> ledgerHandleFuture = ledgerHandleFutureCache.remove(bucketId);
+        if (ledgerHandleFuture != null) {
+            ledgerHandleFuture.whenComplete((lh, ex) -> closeLedger(lh));
+        }
         return deleteLedger(bucketId);
     }
 
@@ -119,7 +126,8 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
         try {
-            return SnapshotMetadata.parseFrom(ledgerEntry.getEntry());
+            ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
+            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
         } catch (InvalidProtocolBufferException e) {
             throw new BucketSnapshotSerializationException(e);
         }
@@ -127,15 +135,14 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private List<SnapshotSegment> parseSnapshotSegmentEntries(Enumeration<LedgerEntry> entryEnumeration) {
         List<SnapshotSegment> snapshotMetadataList = new ArrayList<>();
-        try {
-            while (entryEnumeration.hasMoreElements()) {
-                LedgerEntry ledgerEntry = entryEnumeration.nextElement();
-                snapshotMetadataList.add(SnapshotSegment.parseFrom(ledgerEntry.getEntry()));
-            }
-            return snapshotMetadataList;
-        } catch (IOException e) {
-            throw new BucketSnapshotSerializationException(e);
+        while (entryEnumeration.hasMoreElements()) {
+            LedgerEntry ledgerEntry = entryEnumeration.nextElement();
+            SnapshotSegment snapshotSegment = new SnapshotSegment();
+            ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
+            snapshotSegment.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            snapshotMetadataList.add(snapshotSegment);
         }
+        return snapshotMetadataList;
     }
 
     @NotNull
@@ -157,6 +164,18 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                     }
                 }, null, metadata);
         return future;
+    }
+
+    private CompletableFuture<LedgerHandle> getLedgerHandle(Long ledgerId) {
+        CompletableFuture<LedgerHandle> ledgerHandleCompletableFuture =
+                ledgerHandleFutureCache.computeIfAbsent(ledgerId, k -> openLedger(ledgerId));
+        // remove future of completed exceptionally
+        ledgerHandleCompletableFuture.whenComplete((__, ex) -> {
+            if (ex != null) {
+                ledgerHandleFutureCache.remove(ledgerId, ledgerHandleCompletableFuture);
+            }
+        });
+        return ledgerHandleCompletableFuture;
     }
 
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {

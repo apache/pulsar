@@ -36,6 +36,8 @@ public record BrokerLookupData (String webServiceUrl,
                                 Map<String, String> protocols,
                                 boolean persistentTopicsEnabled,
                                 boolean nonPersistentTopicsEnabled,
+                                String loadManagerClassName,
+                                long startTimestamp,
                                 String brokerVersion) implements ServiceLookupData {
     @Override
     public String getWebServiceUrl() {
@@ -65,6 +67,16 @@ public record BrokerLookupData (String webServiceUrl,
     @Override
     public Optional<String> getProtocol(String protocol) {
         return Optional.ofNullable(this.protocols().get(protocol));
+    }
+
+    @Override
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    @Override
+    public long getStartTimestamp() {
+        return this.startTimestamp;
     }
 
     public LookupResult toLookupResult() {
