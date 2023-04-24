@@ -139,7 +139,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
     <jackson.version>2.14.2</jackson.version>
     <reflections.version>0.9.11</reflections.version>
-    <swagger.version>1.6.2</swagger.version>
+    <swagger.version>1.6.10</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
