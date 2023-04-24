@@ -44,8 +44,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
@@ -108,6 +106,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenAudienceSettingName;
     private String confTokenAllowedClockSkewSecondsSettingName;
 
+    private enum ErrorCode {
+        INVALID_AUTH_DATA,
+        INVALID_TOKEN,
+        INVALID_AUDIENCES,
+    }
+
     @Override
     public void close() throws IOException {
         // noop
@@ -160,18 +164,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        String token;
         try {
             // Get Token
-            String token;
             token = getToken(authData);
-            // Parse Token by validating
-            String role = getPrincipal(authenticateToken(token));
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-            return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);
+            incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
             throw exception;
         }
+        // Parse Token by validating
+        String role = getPrincipal(authenticateToken(token));
+        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        return role;
     }
 
     @Override
@@ -208,15 +212,14 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
             String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                throw new PulsarAuthenticationException("Invalid HTTP Authorization header",
-                        ErrorCode.TOKEN_INVALID_HEADER);
+                throw new AuthenticationException("Invalid HTTP Authorization header");
             }
 
             // Remove prefix
             String token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
             return validateToken(token);
         } else {
-            throw new PulsarAuthenticationException("No token credentials passed", ErrorCode.TOKEN_NO_AUTH_DATA);
+            throw new AuthenticationException("No token credentials passed");
         }
     }
 
@@ -224,7 +227,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         if (StringUtils.isNotBlank(token)) {
             return token;
         } else {
-            throw new PulsarAuthenticationException("Blank token found", ErrorCode.TOKEN_EMPTY_TOKEN);
+            throw new AuthenticationException("Blank token found");
         }
     }
 
@@ -243,20 +246,20 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
-                        throw new PulsarAuthenticationException("Audiences in token: ["
-                                + String.join(", ", audiences) + "] not contains this broker: " + audience,
-                                ErrorCode.TOKEN_INVALID_AUDIENCES);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException("Audiences in token: ["
+                                + String.join(", ", audiences) + "] not contains this broker: " + audience);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
-                        throw new PulsarAuthenticationException(
-                                "Audiences in token: [" + object + "] not contains this broker: " + audience,
-                                ErrorCode.TOKEN_INVALID_AUDIENCES);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException(
+                                "Audiences in token: [" + object + "] not contains this broker: " + audience);
                     }
                 } else {
                     // should not reach here.
-                    throw new PulsarAuthenticationException("Audiences in token is not in expected format: " + object,
-                            ErrorCode.TOKEN_INVALID_AUDIENCES);
+                    incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                    throw new AuthenticationException("Audiences in token is not in expected format: " + object);
                 }
             }
 
@@ -269,8 +272,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             if (e instanceof ExpiredJwtException) {
                 expiredTokenMetrics.inc();
             }
-            throw new PulsarAuthenticationException("Failed to authentication token: " + e.getMessage(),
-                    ErrorCode.TOKEN_INVALID_TOKEN);
+            incrementFailureMetric(ErrorCode.INVALID_TOKEN);
+            throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
 

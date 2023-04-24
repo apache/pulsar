@@ -29,8 +29,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 
@@ -46,9 +44,15 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     }
 
+    private enum ErrorCode {
+        UNKNOWN,
+        AUTH_REQUIRED,
+    }
+
     static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
         AuthenticationException authenticationException = null;
+        String errorCode = ErrorCode.UNKNOWN.name();
         for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
@@ -58,20 +62,19 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 }
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = ae;
+                errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
             }
         }
 
         if (null == authenticationException) {
             AuthenticationMetrics.authenticateFailure(
                     AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list", ErrorCode.PROVIDER_LIST_AUTH_REQUIRED);
+                    "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             throw new AuthenticationException("Authentication required");
         } else {
-            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list",
-                    authenticationException instanceof PulsarAuthenticationException
-                            ? ((PulsarAuthenticationException) authenticationException).getErrorCode() :
-                            ErrorCode.PROVIDER_LIST_AUTH_REQUIRED);
+            AuthenticationMetrics.authenticateFailure(
+                    AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", errorCode);
             throw authenticationException;
         }
 
@@ -132,7 +135,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                     previousException = new AuthenticationException("Authentication required");
                 }
                 AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                        "authentication-provider-list", "Authentication required");
+                        "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
                 authChallengeFuture.completeExceptionally(previousException);
                 return;
             }
@@ -238,7 +241,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 previousException = new AuthenticationException("Authentication required");
             }
             AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list", "Authentication required");
+                    "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             roleFuture.completeExceptionally(previousException);
             return;
         }

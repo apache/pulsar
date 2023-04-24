@@ -23,11 +23,15 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
 public class AuthenticationProviderTls implements AuthenticationProvider {
+
+    private enum ErrorCode {
+        UNKNOWN,
+        INVALID_CERTS,
+        INVALID_CN, // invalid common name
+    }
 
     @Override
     public void close() throws IOException {
@@ -47,6 +51,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         String commonName = null;
+        ErrorCode errorCode = ErrorCode.UNKNOWN;
         try {
             if (authData.hasDataFromTls()) {
                 /**
@@ -74,8 +79,8 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 // CN=Steve Kille,O=Isode Limited,C=GB
                 Certificate[] certs = authData.getTlsCertificates();
                 if (null == certs) {
-                    throw new PulsarAuthenticationException("Failed to get TLS certificates from client",
-                            ErrorCode.TLS_NO_CERTS);
+                    errorCode = ErrorCode.INVALID_CERTS;
+                    throw new AuthenticationException("Failed to get TLS certificates from client");
                 }
                 String distinguishedName = ((X509Certificate) certs[0]).getSubjectX500Principal().getName();
                 for (String keyValueStr : distinguishedName.split(",")) {
@@ -88,12 +93,12 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
             }
 
             if (commonName == null) {
-                throw new PulsarAuthenticationException("Client unable to authenticate with TLS certificate",
-                        ErrorCode.TLS_NO_CN);
+                errorCode = ErrorCode.INVALID_CN;
+                throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
             AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);
+            incrementFailureMetric(errorCode);
             throw exception;
         }
         return commonName;

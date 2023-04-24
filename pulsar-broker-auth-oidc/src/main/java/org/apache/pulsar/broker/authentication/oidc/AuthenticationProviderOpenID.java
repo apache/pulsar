@@ -89,7 +89,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     private static final String SIMPLE_NAME = AuthenticationProviderOpenID.class.getSimpleName();
 
     // Must match the value used by the OAuth2 Client Plugin.
-    private static final String AUTH_METHOD_NAME = "token";
+    private static final String AUTH_METHOD_NAME = "openid";
 
     // This is backed by an ObjectMapper, which is thread safe. It is an optimization
     // to share this for decoding JWTs for all connections to this broker.
@@ -447,7 +447,7 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     }
 
     static void incrementFailureMetric(AuthenticationExceptionCode code) {
-        AuthenticationMetrics.authenticateFailure(SIMPLE_NAME, "token", code.toString());
+        AuthenticationMetrics.authenticateFailure(SIMPLE_NAME, AUTH_METHOD_NAME, code);
     }
 
     /**

@@ -19,9 +19,6 @@
 package org.apache.pulsar.broker.authentication.metrics;
 
 import io.prometheus.client.Counter;
-import javax.naming.AuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 
 public class AuthenticationMetrics {
     private static final Counter authSuccessMetrics = Counter.build()
@@ -48,8 +45,7 @@ public class AuthenticationMetrics {
      * Log authenticate failure event to the authentication metrics.
      *
      * This method is deprecated due to the label "reason" is a potential infinite value.
-     * @deprecated See {@link #authenticateFailure(String, String, ErrorCode)} ()}
-     * or {@link #authenticateFailure(String, String, AuthenticationException)}
+     * @deprecated See {@link #authenticateFailure(String, String, Enum)} ()}
      *
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
@@ -60,22 +56,14 @@ public class AuthenticationMetrics {
         authFailuresMetrics.labels(providerName, authMethod, reason).inc();
     }
 
-    public static void authenticateFailure(String providerName, String authMethod,
-                                           AuthenticationException exception) {
-        ErrorCode errorCode = exception instanceof PulsarAuthenticationException
-                ? ((PulsarAuthenticationException) exception).getErrorCode() : ErrorCode.UNKNOWN;
-        authenticateFailure(providerName, authMethod, errorCode);
-    }
-
     /**
      * Log authenticate failure event to the authentication metrics.
      * @param providerName The short class name of the provider
      * @param authMethod Authentication method name.
      * @param errorCode Error code.
      */
-    public static void authenticateFailure(String providerName, String authMethod, ErrorCode errorCode) {
+    public static void authenticateFailure(String providerName, String authMethod, Enum<?> errorCode) {
         authFailuresMetrics.labels(providerName, authMethod, errorCode.name()).inc();
     }
-
 
 }

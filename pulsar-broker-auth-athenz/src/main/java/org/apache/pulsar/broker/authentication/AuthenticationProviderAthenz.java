@@ -29,8 +29,6 @@ import java.util.List;
 import javax.naming.AuthenticationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +42,15 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     private List<String> domainNameList = null;
     private int allowedOffset = 30;
+
+    public enum ErrorCode {
+        UNKNOWN,
+        NO_CLIENT,
+        NO_TOKEN,
+        NO_PUBLIC_KEY,
+        DOMAIN_MISMATCH,
+        INVALID_TOKEN,
+    }
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
@@ -83,13 +90,14 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         SocketAddress clientAddress;
         String roleToken;
+        ErrorCode errorCode = ErrorCode.UNKNOWN;
         try {
 
             if (authData.hasDataFromPeer()) {
                 clientAddress = authData.getPeerAddress();
             } else {
-                throw new PulsarAuthenticationException("Authentication data source does not have a client address",
-                        ErrorCode.AUTHZ_NO_CLIENT);
+                errorCode = ErrorCode.NO_CLIENT;
+                throw new AuthenticationException("Authentication data source does not have a client address");
             }
 
             if (authData.hasDataFromCommand()) {
@@ -97,17 +105,17 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
             } else if (authData.hasDataFromHttp()) {
                 roleToken = authData.getHttpHeader(AuthZpeClient.ZPE_TOKEN_HDR);
             } else {
-                throw new PulsarAuthenticationException("Authentication data source does not have a role token",
-                        ErrorCode.AUTHZ_NO_TOKEN);
+                errorCode = ErrorCode.NO_TOKEN;
+                throw new AuthenticationException("Authentication data source does not have a role token");
             }
 
             if (roleToken == null) {
-                throw new PulsarAuthenticationException("Athenz token is null, can't authenticate",
-                        ErrorCode.AUTHZ_NO_TOKEN);
+                errorCode = ErrorCode.NO_TOKEN;
+                throw new AuthenticationException("Athenz token is null, can't authenticate");
             }
             if (roleToken.isEmpty()) {
-                throw new PulsarAuthenticationException(
-                        "Athenz RoleToken is empty, Server is Using Athenz Authentication", ErrorCode.AUTHZ_NO_TOKEN);
+                errorCode = ErrorCode.NO_TOKEN;
+                throw new AuthenticationException("Athenz RoleToken is empty, Server is Using Athenz Authentication");
             }
             if (log.isDebugEnabled()) {
                 log.debug("Athenz RoleToken : [{}] received from Client: {}", roleToken, clientAddress);
@@ -116,9 +124,10 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
             RoleToken token = new RoleToken(roleToken);
 
             if (!domainNameList.contains(token.getDomain())) {
-                throw new PulsarAuthenticationException(
+                errorCode = ErrorCode.DOMAIN_MISMATCH;
+                throw new AuthenticationException(
                         String.format("Athenz RoleToken Domain mismatch, Expected: %s, Found: %s",
-                                domainNameList.toString(), token.getDomain()), ErrorCode.AUTHZ_DOMAIN_MISMATCH);
+                                domainNameList.toString(), token.getDomain()));
             }
 
             // Synchronize for non-thread safe static calls inside athenz library
@@ -126,8 +135,8 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 PublicKey ztsPublicKey = AuthZpeClient.getZtsPublicKey(token.getKeyId());
 
                 if (ztsPublicKey == null) {
-                    throw new PulsarAuthenticationException("Unable to retrieve ZTS Public Key",
-                            ErrorCode.AUTHZ_NO_PUBLIC_KEY);
+                    errorCode = ErrorCode.NO_PUBLIC_KEY;
+                    throw new AuthenticationException("Unable to retrieve ZTS Public Key");
                 }
 
                 if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
@@ -135,13 +144,13 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                     AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
                     return token.getPrincipal();
                 } else {
-                    throw new PulsarAuthenticationException(
-                            String.format("Athenz Role Token Not Authenticated from Client: %s", clientAddress),
-                            ErrorCode.AUTHZ_INVALID_TOKEN);
+                    errorCode = ErrorCode.INVALID_TOKEN;
+                    throw new AuthenticationException(
+                            String.format("Athenz Role Token Not Authenticated from Client: %s", clientAddress));
                 }
             }
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), exception);
+            incrementFailureMetric(errorCode);
             throw exception;
         }
     }
