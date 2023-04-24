@@ -20,10 +20,11 @@ package org.apache.pulsar.broker.delayed.bucket;
 
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
 import static org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker.NULL_LONG_PROMISE;
-import java.io.IOException;
+import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -36,8 +37,8 @@ import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotF
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.roaringbitmap.InvalidRoaringFormat;
 import org.roaringbitmap.RoaringBitmap;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 
 @Slf4j
 class ImmutableBucket extends Bucket {
@@ -97,7 +98,7 @@ class ImmutableBucket extends Bucket {
                         this.setLastSegmentEntryId(metadataList.size());
                         this.recoverDelayedIndexBitMapAndNumber(nextSnapshotEntryIndex, metadataList);
                         List<Long> firstScheduleTimestamps = metadataList.stream().map(
-                                SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
+                                        SnapshotSegmentMetadata::getMinScheduleTimestamp).toList();
                         this.setFirstScheduleTimestamps(firstScheduleTimestamps);
 
                         return nextSnapshotEntryIndex + 1;
@@ -138,37 +139,25 @@ class ImmutableBucket extends Bucket {
         });
     }
 
-    /**
-     * Recover delayed index bit map and message numbers.
-     * @throws InvalidRoaringFormat invalid bitmap serialization format
-     */
     private void recoverDelayedIndexBitMapAndNumber(int startSnapshotIndex,
-                                                    List<SnapshotSegmentMetadata> segmentMetaList) {
-        delayedIndexBitMap.clear(); // cleanup dirty bm
-        final var numberMessages = new MutableLong(0);
-        for (int i = startSnapshotIndex; i < segmentMetaList.size(); i++) {
-            for (final var entry : segmentMetaList.get(i).getDelayedIndexBitMapMap().entrySet()) {
-                final var ledgerId = entry.getKey();
-                final var bs = entry.getValue();
-                final var sbm = new RoaringBitmap();
-                try {
-                    sbm.deserialize(bs.asReadOnlyByteBuffer());
-                } catch (IOException e) {
-                    throw new InvalidRoaringFormat(e.getMessage());
+                                                    List<SnapshotSegmentMetadata> segmentMetadata) {
+        this.delayedIndexBitMap.clear();
+        MutableLong numberMessages = new MutableLong(0);
+        for (int i = startSnapshotIndex; i < segmentMetadata.size(); i++) {
+            Map<Long, ByteString> bitByteStringMap = segmentMetadata.get(i).getDelayedIndexBitMapMap();
+            bitByteStringMap.forEach((leaderId, bitSetString) -> {
+                boolean exist = this.delayedIndexBitMap.containsKey(leaderId);
+                RoaringBitmap bitSet =
+                        new ImmutableRoaringBitmap(bitSetString.asReadOnlyByteBuffer()).toRoaringBitmap();
+                numberMessages.add(bitSet.getCardinality());
+                if (!exist) {
+                    this.delayedIndexBitMap.put(leaderId, bitSet);
+                } else {
+                    this.delayedIndexBitMap.get(leaderId).or(bitSet);
                 }
-                numberMessages.add(sbm.getCardinality());
-                delayedIndexBitMap.compute(ledgerId, (lId, bm) -> {
-                    if (bm == null) {
-                        return sbm;
-                    }
-                    bm.or(sbm);
-                    return bm;
-                });
-            }
+            });
         }
-        // optimize bm
-        delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
-        setNumberBucketDelayedMessages(numberMessages.getValue());
+        this.setNumberBucketDelayedMessages(numberMessages.getValue());
     }
 
     CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>> getRemainSnapshotSegment() {
@@ -204,7 +193,7 @@ class ImmutableBucket extends Bucket {
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.delete);
                     } else {
                         log.info("[{}] Delete bucket snapshot finish, bucketId: {}, bucketKey: {}",
-                                dispatcherName, bucketId, bucketKey);
+                                 dispatcherName, bucketId, bucketKey);
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.delete,
                                 System.currentTimeMillis() - deleteStartTime);
