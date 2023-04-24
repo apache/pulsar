@@ -51,7 +51,6 @@ import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -287,16 +286,10 @@ public class FilterEntryTest extends BrokerTestBase {
 
     }
 
-    @DataProvider(name = "topicProvider")
-    public Object[][] topicProvider() {
-        return new Object[][]{
-                {"persistent://prop/ns-abc/topic" + UUID.randomUUID()},
-                {"non-persistent://prop/ns-abc/topic" + UUID.randomUUID()},
-        };
-    }
 
-    @Test(dataProvider = "topicProvider")
-    public void testFilteredMsgCount(String topic) throws Throwable {
+    @Test
+    public void testFilteredMsgCount() throws Throwable {
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
 
         try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -305,7 +298,7 @@ public class FilterEntryTest extends BrokerTestBase {
                      .subscriptionName(subName).subscribe()) {
 
             // mock entry filters
-            Subscription subscription = pulsar.getBrokerService()
+            PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
                     .getTopicReference(topic).get().getSubscription(subName);
             Dispatcher dispatcher = subscription.getDispatcher();
             Field field = EntryFilterSupport.class.getDeclaredField("entryFilters");

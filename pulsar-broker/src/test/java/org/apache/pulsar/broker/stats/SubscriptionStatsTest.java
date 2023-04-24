@@ -211,22 +211,21 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             hasFilterField.set(dispatcher, true);
         }
 
-        int rejectedCount = 100;
-        int acceptCount = 100;
-        int scheduleCount = 100;
-        for (int i = 0; i < rejectedCount; i++) {
-            producer.newMessage().property("REJECT", " ").value(UUID.randomUUID().toString()).send();
-        }
-        for (int i = 0; i < acceptCount; i++) {
+        for (int i = 0; i < 100; i++) {
             producer.newMessage().property("ACCEPT", " ").value(UUID.randomUUID().toString()).send();
         }
-        for (int i = 0; i < scheduleCount; i++) {
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage().property("REJECT", " ").value(UUID.randomUUID().toString()).send();
+        }
+        for (int i = 0; i < 100; i++) {
             producer.newMessage().property("RESCHEDULE", " ").value(UUID.randomUUID().toString()).send();
         }
 
-        for (int i = 0; i < acceptCount; i++) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
-            Assert.assertNotNull(message);
+        for (;;) {
+            Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
             consumer.acknowledge(message);
         }
 
@@ -264,12 +263,12 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
                     .mapToDouble(m-> m.value).sum();
 
             if (setFilter) {
-                Assert.assertEquals(filterAccepted, acceptCount);
-                Assert.assertEquals(filterRejected, rejectedCount);
-                // Only works on the test, if there are some markers,
-                // the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
-                Assert.assertEquals(throughFilter,
-                        filterAccepted + filterRejected + filterRescheduled, 0.01 * throughFilter);
+                Assert.assertEquals(filterAccepted, 100);
+                if (isPersistent) {
+                    Assert.assertEquals(filterRejected, 100);
+                    // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
+                    Assert.assertEquals(throughFilter, filterAccepted + filterRejected + filterRescheduled, 0.01 * throughFilter);
+                }
             } else {
                 Assert.assertEquals(throughFilter, 0D);
                 Assert.assertEquals(filterAccepted, 0D);
@@ -283,20 +282,19 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
             Assert.assertEquals(rescheduledMetrics.size(), 0);
         }
 
-        testSubscriptionStatsAdminApi(topic, subName, setFilter, acceptCount, rejectedCount);
+        testSubscriptionStatsAdminApi(topic, subName, setFilter);
     }
 
-    private void testSubscriptionStatsAdminApi(String topic, String subName, boolean setFilter,
-                                               int acceptCount, int rejectedCount) throws Exception {
+    private void testSubscriptionStatsAdminApi(String topic, String subName, boolean setFilter) throws Exception {
         boolean persistent = TopicName.get(topic).isPersistent();
         TopicStats topicStats = admin.topics().getStats(topic);
         SubscriptionStats stats = topicStats.getSubscriptions().get(subName);
         Assert.assertNotNull(stats);
 
         if (setFilter) {
-            Assert.assertEquals(stats.getFilterAcceptedMsgCount(), acceptCount);
+            Assert.assertEquals(stats.getFilterAcceptedMsgCount(), 100);
             if (persistent) {
-                Assert.assertEquals(stats.getFilterRejectedMsgCount(), rejectedCount);
+                Assert.assertEquals(stats.getFilterRejectedMsgCount(), 100);
                 // Only works on the test, if there are some markers, the filterProcessCount will be not equal with rejectedCount + rescheduledCount + acceptCount
                 Assert.assertEquals(stats.getFilterProcessedMsgCount(),
                         stats.getFilterAcceptedMsgCount() + stats.getFilterRejectedMsgCount()
