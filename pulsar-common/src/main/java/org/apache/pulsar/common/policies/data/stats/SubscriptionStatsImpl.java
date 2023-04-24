@@ -160,6 +160,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         bytesOutCounter = 0;
         msgOutCounter = 0;
         msgRateRedeliver = 0;
+        messageAckRate = 0;
+        chunkedMessageRate = 0;
         msgBacklog = 0;
         backlogSize = 0;
         msgBacklogNoDelayed = 0;
@@ -190,6 +192,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
+        this.messageAckRate += stats.messageAckRate;
+        this.chunkedMessageRate += stats.chunkedMessageRate;
         this.msgBacklog += stats.msgBacklog;
         this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;

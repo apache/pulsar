@@ -231,7 +231,7 @@ public class TopicName implements ServiceUnitId {
     }
 
     public TopicName getPartition(int index) {
-        if (index == -1 || this.toString().contains(PARTITIONED_TOPIC_SUFFIX)) {
+        if (index == -1 || this.toString().endsWith(PARTITIONED_TOPIC_SUFFIX + index)) {
             return this;
         }
         String partitionName = this.toString() + PARTITIONED_TOPIC_SUFFIX + index;
