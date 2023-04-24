@@ -334,9 +334,9 @@ The Apache Software License, Version 2.0
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
  * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.6.jar
  * Swagger
-    - io.swagger-swagger-annotations-1.6.2.jar
-    - io.swagger-swagger-core-1.6.2.jar
-    - io.swagger-swagger-models-1.6.2.jar
+    - io.swagger-swagger-annotations-1.6.10.jar
+    - io.swagger-swagger-core-1.6.10.jar
+    - io.swagger-swagger-models-1.6.10.jar
  * DataSketches
     - com.yahoo.datasketches-memory-0.8.3.jar
     - com.yahoo.datasketches-sketches-core-0.8.3.jar
