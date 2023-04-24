@@ -66,41 +66,22 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     @Override
     public CompletableFuture<SnapshotMetadata> getBucketSnapshotMetadata(long bucketId) {
-        return openLedger(bucketId).thenCompose(ledgerHandle -> {
-            CompletableFuture<SnapshotMetadata> snapshotFuture =
-                    getLedgerEntry(ledgerHandle, 0, 0)
-                            .thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement()));
-
-            snapshotFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
-
-            return snapshotFuture;
-        });
+        return openLedger(bucketId).thenCompose(
+                ledgerHandle -> getLedgerEntry(ledgerHandle, 0, 0).
+                        thenApply(entryEnumeration -> parseSnapshotMetadataEntry(entryEnumeration.nextElement())));
     }
 
     @Override
     public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId, long firstSegmentEntryId,
                                                                              long lastSegmentEntryId) {
-        return openLedger(bucketId).thenCompose(ledgerHandle -> {
-            CompletableFuture<List<SnapshotSegment>> parseFuture =
-                    getLedgerEntry(ledgerHandle, firstSegmentEntryId, lastSegmentEntryId)
-                            .thenApply(this::parseSnapshotSegmentEntries);
-
-            parseFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
-
-            return parseFuture;
-        });
+        return openLedger(bucketId).thenCompose(
+                ledgerHandle -> getLedgerEntry(ledgerHandle, firstSegmentEntryId,
+                        lastSegmentEntryId).thenApply(this::parseSnapshotSegmentEntries));
     }
 
     @Override
     public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
-        return openLedger(bucketId).thenCompose(ledgerHandle -> {
-            CompletableFuture<Long> lengthFuture =
-                    CompletableFuture.completedFuture(ledgerHandle.getLength());
-
-            lengthFuture.whenComplete((__, e) -> closeLedger(ledgerHandle));
-
-            return lengthFuture;
-        });
+        return openLedger(bucketId).thenApply(LedgerHandle::getLength);
     }
 
     @Override
