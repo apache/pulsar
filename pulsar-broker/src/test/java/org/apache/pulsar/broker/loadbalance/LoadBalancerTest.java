@@ -154,7 +154,9 @@ public class LoadBalancerTest {
         executor.shutdownNow();
 
         for (int i = 0; i < BROKER_COUNT; i++) {
-            pulsarAdmins[i].close();
+            if (pulsarAdmins[i] != null) {
+                pulsarAdmins[i].close();
+            }
             if (pulsarServices[i] != null) {
                 pulsarServices[i].close();
             }

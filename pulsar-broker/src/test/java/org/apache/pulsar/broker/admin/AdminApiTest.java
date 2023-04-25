@@ -3286,14 +3286,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testGetReadPositionWhenJoining() throws Exception {
-        final String topic = "persistent://prop-xyz/ns1/testGetReadPositionWhenJoining-" + UUID.randomUUID().toString();
+    public void testGetLastSentPositionsWhenJoining() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/testGetLastSentPositionsWhenJoining-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .enableBatching(false)
                 .create();
+        @Cleanup
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer()
+                .topic(topic)
+                .consumerName("c1")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
 
         final int messages = 10;
         MessageIdImpl messageId = null;
@@ -3301,28 +3308,26 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             messageId = (MessageIdImpl) producer.send(("Hello Pulsar - " + i).getBytes());
         }
 
-        List<Consumer<byte[]>> consumers = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                    .topic(topic)
-                    .subscriptionType(SubscriptionType.Key_Shared)
-                    .subscriptionName(subName)
-                    .subscribe();
-            consumers.add(consumer);
+        for (int i = 0; i < messages; i++) {
+            assertNotNull(consumer1.receive(100, TimeUnit.MILLISECONDS));
         }
+
+        @Cleanup
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer()
+                .topic(topic)
+                .consumerName("c2")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscriptionName(subName)
+                .subscribe();
 
         TopicStats stats = admin.topics().getStats(topic);
         Assert.assertEquals(stats.getSubscriptions().size(), 1);
         SubscriptionStats subStats = stats.getSubscriptions().get(subName);
         Assert.assertNotNull(subStats);
         Assert.assertEquals(subStats.getConsumers().size(), 2);
-        ConsumerStats consumerStats = subStats.getConsumers().get(0);
-        Assert.assertEquals(consumerStats.getReadPositionWhenJoining(),
-                PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId() + 1).toString());
-
-        for (Consumer<byte[]> consumer : consumers) {
-            consumer.close();
-        }
+        ConsumerStats consumer2Stats = subStats.getConsumers().stream().filter(s -> s.getConsumerName().equals(consumer2.getConsumerName())).findFirst().get();
+        Assert.assertEquals(consumer2Stats.getLastSentPositionsWhenJoining(),
+                Set.of(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).toString());
     }
 
     @Test

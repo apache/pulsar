@@ -20,11 +20,13 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -455,7 +457,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         String topic = "persistent://public/default/key_shared_disabled";
         try {
             @Cleanup
-            Consumer c = pulsarClient.newConsumer()
+            Consumer<byte[]> c = pulsarClient.newConsumer()
                     .topic(topic)
                     .subscriptionName("key_shared")
                     .subscriptionType(SubscriptionType.Key_Shared)
@@ -499,7 +501,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         String slowKey = "slowKey";
 
         List<PulsarClient> clients = new ArrayList<>();
-        List<Consumer> consumers = new ArrayList<>();
+        List<Consumer<Integer>> consumers = new ArrayList<>();
         try {
             AtomicInteger receivedMessages = new AtomicInteger();
 
@@ -509,7 +511,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                         .build();
                 clients.add(client);
 
-                Consumer c = client.newConsumer(Schema.INT32)
+                Consumer<Integer> c = client.newConsumer(Schema.INT32)
                         .topic(topic)
                         .subscriptionName("key_shared")
                         .subscriptionType(SubscriptionType.Key_Shared)
@@ -556,7 +558,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 assertEquals((double) receivedMessages.get(), N * 0.9, N * 0.3);
             });
 
-            for (Consumer c : consumers) {
+            for (Consumer<Integer> c : consumers) {
                 c.close();
             }
         } finally {
@@ -576,14 +578,19 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<Integer> c1 = createConsumer(topic);
 
+        final List<String> keys = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
+            final String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            keys.add(key);
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(key)
                     .value(i)
                     .send();
         }
 
         // All the already published messages will be pre-fetched by C1.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(((ConsumerImpl<Integer>) c1).getTotalIncomingMessages(), 10));
 
         // Adding a new consumer.
         @Cleanup
@@ -591,7 +598,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 10; i < 20; i++) {
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(keys.get(i % 10))
                     .value(i)
                     .send();
         }
@@ -630,6 +637,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         }
 
         // All the already published messages will be pre-fetched by C1.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(((ConsumerImpl<Integer>) c1).getTotalIncomingMessages(), 10));
 
         // Adding a new consumer.
         @Cleanup
@@ -676,9 +685,12 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .consumerName("c1")
                 .subscribe();
 
+        final List<String> keys = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
+            final String key = String.valueOf(random.nextInt(NUMBER_OF_KEYS));
+            keys.add(key);
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(key)
                     .value(i)
                     .send();
         }
@@ -699,7 +711,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 10; i < 20; i++) {
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(keys.get(i % 10))
                     .value(i)
                     .send();
         }
@@ -838,6 +850,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     public void testContinueDispatchMessagesWhenMessageTTL() throws Exception {
         int defaultTTLSec = 3;
         int totalMessages = 1000;
+        int numOfKeys = totalMessages / 10;
         this.conf.setTtlDurationDefaultInSeconds(defaultTTLSec);
         final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
         final String subName = "my-sub";
@@ -846,7 +859,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
-                .receiverQueueSize(10)
+                .receiverQueueSize(numOfKeys)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .subscribe();
 
@@ -855,19 +868,24 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .topic(topic)
                 .create();
 
+        final Map<Integer, String> keys = new HashMap<>();
         for (int i = 0; i < totalMessages; i++) {
+            // all type of keys are sent to consumer1
+            final int keyIndex = i % numOfKeys;
+            keys.computeIfAbsent(keyIndex, k -> String.valueOf(random.nextInt(NUMBER_OF_KEYS)));
             producer.newMessage()
-                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .key(keys.get(keyIndex))
                     .value(i)
                     .send();
         }
 
         // don't ack the first message
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(((ConsumerImpl<Integer>) consumer1).getTotalIncomingMessages(), numOfKeys));
         consumer1.receive();
         consumer1.acknowledge(consumer1.receive());
 
-        // The consumer1 and consumer2 should be stuck because of the mark delete position did not move forward.
-
+        // The consumer2 and consumer3 should be stuck because of the mark delete position did not move forward.
         @Cleanup
         Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
@@ -1190,6 +1208,167 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         l.await();
     }
 
+    @Test(timeOut = 30_000)
+    public void testCheckRecentlyJoinedConsumers() throws Exception {
+        conf.setSubscriptionKeySharedUseConsistentHashing(true);
+        conf.setSubscriptionKeySharedConsistentHashingReplicaPoints(100);
+
+        final String topicName = "persistent://public/default/recently-joined-consumers-" + UUID.randomUUID();
+        final String subName = "my-sub";
+        final String consumerName = "name";
+
+        final ConsumerBuilder<String> cb = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared);
+
+        // Create 2 consumers
+        @Cleanup
+        final Consumer<String> c1 = cb.consumerName("c1").subscribe();
+        final Map<String, List<Message<String>>> c1Msgs = new HashMap<>();
+        @Cleanup
+        final Consumer<String> c2 = cb.consumerName("c2").subscribe();
+        final Map<String, List<Message<String>>> c2Msgs = new HashMap<>();
+
+        @Cleanup
+        final Producer<String> p = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            p.newMessage()
+                    .key(Integer.toString(i % 10))
+                    .value("msg-" + i)
+                    .send();
+        }
+
+        final Set<String> c1Keys1 = Set.of("1", "3", "4", "5", "9");
+        final Set<String> c2Keys1 = Set.of("0", "2", "6", "7", "8");
+        for (int i = 0; i < 100; i++) {
+            final Message<String> msg1 = c1.receive(10, TimeUnit.MILLISECONDS);
+            if (msg1 != null) {
+                c1Msgs.computeIfAbsent(msg1.getKey(), k -> new ArrayList<>());
+                c1Msgs.get(msg1.getKey()).add(msg1);
+                c1.acknowledge(msg1);
+            }
+        }
+        assertEquals(c1Msgs.values().stream().mapToInt(List::size).sum(), c1Keys1.size() * 10);
+        assertEquals(c1Msgs.keySet(), c1Keys1);
+        assertNotEquals(c1Msgs.keySet(), c2Keys1);
+        c1Msgs.clear();
+
+        @Cleanup
+        final Consumer<String> c3 = cb.consumerName("c3").subscribe();
+        final Map<String, List<Message<String>>> c3Msgs = new HashMap<>();
+
+        for (int i = 100; i < 200; i++) {
+            p.newMessage()
+                    .key(Integer.toString(i % 10))
+                    .value("msg-" + i)
+                    .send();
+        }
+
+        final Set<String> c1Keys2 = Set.of("3", "4", "5", "9");
+        final Set<String> c2Keys2 = Set.of("0", "8");
+        final Set<String> c2RemovedKeys = Sets.difference(c2Keys1, c2Keys2);
+        final Set<String> c3Keys2 = Set.of("1", "2", "6", "7");
+        for (int i = 0; i < 100; i++) {
+            final Message<String> msg1 = c1.receive(10, TimeUnit.MILLISECONDS);
+            if (msg1 != null) {
+                c1Msgs.computeIfAbsent(msg1.getKey(), k -> new ArrayList<>());
+                c1Msgs.get(msg1.getKey()).add(msg1);
+                c1.acknowledge(msg1);
+            }
+
+            final Message<String> msg3 = c3.receive(10, TimeUnit.MILLISECONDS);
+            if (msg3 != null) {
+                fail();
+            }
+        }
+        assertEquals(c1Msgs.values().stream().mapToInt(List::size).sum(), c1Keys2.size() * 10);
+        assertEquals(c1Msgs.keySet(), c1Keys2);
+        assertNotEquals(c1Msgs.keySet(), c2Keys2);
+        assertNotEquals(c1Msgs.keySet(), c3Keys2);
+        c1Msgs.clear();
+
+        for (int i = 200; i < 300; i++) {
+            p.newMessage()
+                    .key(Integer.toString((i % 10) + 10))
+                    .value("msg-" + i)
+                    .send();
+        }
+
+        final Set<String> c1Keys3 = Set.of("11", "16");
+        final Set<String> c2Keys3 = Set.of("13", "19");
+        final Set<String> c3Keys3 = Set.of("10", "12", "14", "15", "17", "18");
+        for (int i = 0; i < 100; i++) {
+            final Message<String> msg1 = c1.receive(10, TimeUnit.MILLISECONDS);
+            if (msg1 != null) {
+                c1Msgs.computeIfAbsent(msg1.getKey(), k -> new ArrayList<>());
+                c1Msgs.get(msg1.getKey()).add(msg1);
+                c1.acknowledge(msg1);
+            }
+
+            final Message<String> msg3 = c3.receive(10, TimeUnit.MILLISECONDS);
+            if (msg3 != null) {
+                c3Msgs.computeIfAbsent(msg3.getKey(), k -> new ArrayList<>());
+                c3Msgs.get(msg3.getKey()).add(msg3);
+                c3.acknowledge(msg3);
+            }
+        }
+        assertEquals(c1Msgs.values().stream().mapToInt(List::size).sum(), c1Keys3.size() * 10);
+        assertEquals(c1Msgs.keySet(), c1Keys3);
+        c1Msgs.clear();
+
+        assertEquals(c3Msgs.values().stream().mapToInt(List::size).sum(), c3Keys3.size() * 10);
+        assertEquals(c3Msgs.keySet(), c3Keys3);
+        c3Msgs.clear();
+
+        for (int i = 0; i < 300; i++) {
+            final Message<String> msg2 = c2.receive(10, TimeUnit.MILLISECONDS);
+            if (msg2 != null) {
+                final String key2 = msg2.getKey();
+                c2Msgs.computeIfAbsent(key2, k -> new ArrayList<>());
+                c2Msgs.get(key2).add(msg2);
+                if (c2Keys2.contains(key2) || c2Keys3.contains(key2)) {
+                    c2.acknowledge(msg2);
+                }
+            }
+
+            final Message<String> msg3 = c3.receive(10, TimeUnit.MILLISECONDS);
+            if (msg3 != null) {
+                fail();
+            }
+        }
+        assertEquals(c2Msgs.values().stream().mapToInt(List::size).sum(),
+                (c2Keys1.size() + c2Keys2.size() + c2Keys3.size()) * 10);
+        assertEquals(c2Msgs.keySet(), Sets.union(c2Keys1, c2Keys3));
+
+        for (final String key : c2RemovedKeys) {
+            final List<Message<String>> msgs = c2Msgs.get(key);
+            final int numOfMsgs = msgs.size();
+            for (int i = 0; i < numOfMsgs; i++) {
+                c2.acknowledge(msgs.get(i));
+                if (i < numOfMsgs - 1) {
+                    assertNull(c3.receive(10, TimeUnit.MILLISECONDS));
+                }
+            }
+        }
+        c2Msgs.clear();
+
+        for (int i = 0; i < 300; i++) {
+            final Message<String> msg3 = c3.receive(10, TimeUnit.MILLISECONDS);
+            if (msg3 != null) {
+                c3Msgs.computeIfAbsent(msg3.getKey(), k -> new ArrayList<>());
+                c3Msgs.get(msg3.getKey()).add(msg3);
+                c3.acknowledge(msg3);
+            }
+        }
+        assertEquals(c3Msgs.values().stream().mapToInt(List::size).sum(), c3Keys2.size() * 10);
+        assertEquals(c3Msgs.keySet(), c3Keys2);
+        c3Msgs.clear();
+
+        assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(subName).getMsgBacklog(), 0);
+    }
 
     private KeySharedMode getKeySharedModeOfSubscription(Topic topic, String subscription) {
         if (TopicName.get(topic.getName()).getDomain().equals(TopicDomain.persistent)) {
@@ -1323,7 +1502,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     private void receiveAndCheck(List<KeyValue<Consumer<Integer>, Integer>> checkList) throws PulsarClientException {
-        Map<Consumer, Set<String>> consumerKeys = new HashMap<>();
+        Map<Consumer<Integer>, Set<String>> consumerKeys = new HashMap<>();
         for (KeyValue<Consumer<Integer>, Integer> check : checkList) {
             if (check.getValue() % 2 != 0) {
                 throw new IllegalArgumentException();
@@ -1371,7 +1550,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 }
                 lastMessageForKey.put(key, message);
             }
-            Message noMessages = null;
+            Message<Integer> noMessages = null;
             try {
                 noMessages = check.getKey().receive(100, TimeUnit.MILLISECONDS);
             } catch (PulsarClientException ignore) {
@@ -1479,7 +1658,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 })
                 .subscribe();
 
-        Future producerFuture = pulsar.getExecutor().submit(() -> {
+        Future<?> producerFuture = pulsar.getExecutor().submit(() -> {
             try
             {
                 try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -1513,7 +1692,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         // start consuming again...
         @Cleanup
-        Consumer consumer3 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer3 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -1531,7 +1710,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 })
                 .subscribe();
         @Cleanup
-        Consumer consumer4 = pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer4 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
