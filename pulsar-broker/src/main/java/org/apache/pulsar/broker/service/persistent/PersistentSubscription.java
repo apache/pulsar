@@ -1186,11 +1186,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
 
-            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers = keySharedDispatcher
+            LinkedHashMap<Consumer, PersistentStickyKeyDispatcherMultipleConsumers.LastSentPositions>
+                    recentlyJoinedConsumers = keySharedDispatcher
                     .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
-                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
+                    // Dispatchers allows same name consumers
+                    final StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append("consumerName=").append(k.consumerName())
+                            .append(", consumerId=").append(k.consumerId());
+                    if (k.cnx() != null) {
+                        stringBuilder.append(", address=").append(k.cnx().clientAddress());
+                    }
+                    subStats.recentlyJoinedConsumers.put(stringBuilder.toString(), v.toPositionSetString());
                 });
             }
         }

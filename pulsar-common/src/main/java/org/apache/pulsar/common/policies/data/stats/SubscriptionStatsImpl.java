@@ -122,8 +122,8 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
     public String keySharedMode;
 
-    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
-    public Map<String, String> consumersAfterMarkDeletePosition;
+    /** This is for Key_Shared subscription to get the recentlyJoinedConsumers in the Key_Shared subscription. */
+    public Map<String, String> recentlyJoinedConsumers;
 
     /** The number of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRanges;
@@ -149,7 +149,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
-        this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
+        this.recentlyJoinedConsumers = new LinkedHashMap<>();
         this.subscriptionProperties = new HashMap<>();
         this.bucketDelayedIndexStats = new HashMap<>();
     }
@@ -171,7 +171,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
-        consumersAfterMarkDeletePosition.clear();
+        recentlyJoinedConsumers.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         delayedMessageIndexSizeInBytes = 0;
@@ -214,7 +214,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
             }
         }
         this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
-        this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
+        this.recentlyJoinedConsumers.putAll(stats.recentlyJoinedConsumers);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
