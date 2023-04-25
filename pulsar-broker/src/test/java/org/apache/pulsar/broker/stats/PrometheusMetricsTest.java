@@ -64,8 +64,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException;
-import org.apache.pulsar.broker.authentication.BaseAuthenticationException.PulsarAuthenticationException.ErrorCode;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -1372,16 +1370,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setProperties(properties);
         provider.initialize(conf);
 
-        ErrorCode errorCode = ErrorCode.UNKNOWN;
         try {
             provider.authenticate(new AuthenticationDataSource() {
             });
             fail("Should have failed");
         } catch (AuthenticationException e) {
             // expected, no credential passed
-            if (e instanceof PulsarAuthenticationException) {
-                errorCode = ((PulsarAuthenticationException) e).getErrorCode();
-            }
         }
 
         String token = AuthTokenUtils.createToken(secretKey, "subject", Optional.empty());
@@ -1418,7 +1412,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         boolean haveFailed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
-                    && Objects.equals(metric.tags.get("reason"), errorCode.name())
+                    && Objects.equals(metric.tags.get("reason"),
+                    AuthenticationProviderToken.ErrorCode.INVALID_AUTH_DATA.name())
                     && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
                 haveFailed = true;
             }

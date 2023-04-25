@@ -106,7 +106,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenAudienceSettingName;
     private String confTokenAllowedClockSkewSecondsSettingName;
 
-    private enum ErrorCode {
+    public enum ErrorCode {
         INVALID_AUTH_DATA,
         INVALID_TOKEN,
         INVALID_AUDIENCES,
