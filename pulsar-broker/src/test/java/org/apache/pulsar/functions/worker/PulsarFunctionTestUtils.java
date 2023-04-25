@@ -54,6 +54,14 @@ public class PulsarFunctionTestUtils {
         return result.toString();
     }
 
+    public static HttpURLConnection getPrometheusMetrics0(int metricsPort) throws IOException {
+        StringBuilder result = new StringBuilder();
+        URL url = new URL(String.format("http://%s:%s/metrics", "localhost", metricsPort));
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        return conn;
+    }
+
     @Test
     void testParseMetrics() throws IOException {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
