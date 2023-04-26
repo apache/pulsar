@@ -18,11 +18,17 @@
  */
 package org.apache.pulsar.functions.runtime;
 
+
+import static java.util.Objects.requireNonNull;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameterized;
+import com.beust.jcommander.Strings;
 import com.beust.jcommander.converters.StringConverter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
@@ -31,14 +37,21 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.prometheus.client.exporter.HTTPServer;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import javax.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.Reflections;
@@ -57,39 +70,39 @@ import org.apache.pulsar.functions.utils.FunctionCommon;
 
 @Slf4j
 public class JavaInstanceStarter implements AutoCloseable {
-    @Parameter(names = "--function_details", description = "Function details json\n", required = true)
+    @Parameter(names = "--function_details", description = "Function details json\n")
     public String functionDetailsJsonString;
     @Parameter(
             names = "--jar",
-            description = "Path to Jar\n",
+            description = "Path to user function jar\n",
             listConverter = StringConverter.class)
     public String jarFile;
 
     @Parameter(
             names = "--transform_function_jar",
-            description = "Path to Transform Function Jar\n",
+            description = "Path to the transform function jar\n",
             listConverter = StringConverter.class)
     public String transformFunctionJarFile;
 
-    @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
-    public int instanceId;
+    @Parameter(names = "--instance_id", description = "instanceId used to uniquely identify a function instance\n")
+    public Integer instanceId;
 
-    @Parameter(names = "--function_id", description = "Function Id\n", required = true)
+    @Parameter(names = "--function_id", description = "functionId used to uniquely identify a function\n")
     public String functionId;
 
-    @Parameter(names = "--function_version", description = "Function Version\n", required = true)
+    @Parameter(names = "--function_version", description = "The version of the function\n")
     public String functionVersion;
 
-    @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
+    @Parameter(names = "--pulsar_serviceurl", description = "serviceUrl of the target Pulsar cluster\n")
     public String pulsarServiceUrl;
 
-    @Parameter(names = "--transform_function_id", description = "Transform Function Id\n")
+    @Parameter(names = "--transform_function_id", description = "functionId of the transform function\n")
     public String transformFunctionId;
 
-    @Parameter(names = "--client_auth_plugin", description = "Client auth plugin name\n")
+    @Parameter(names = "--client_auth_plugin", description = "Client auth plugin full classname\n")
     public String clientAuthenticationPlugin;
 
-    @Parameter(names = "--client_auth_params", description = "Client auth param\n")
+    @Parameter(names = "--client_auth_params", description = "Client auth parameters\n")
     public String clientAuthenticationParameters;
 
     @Parameter(names = "--use_tls", description = "Use tls connection\n")
@@ -104,51 +117,55 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     public String tlsTrustCertFilePath;
 
-    @Parameter(names = "--state_storage_impl_class", description = "State Storage Service "
-            + "Implementation class\n", required = false)
+    @Parameter(names = "--state_storage_impl_class", description = "State storage service"
+            + "implementation classname\n")
     public String stateStorageImplClass;
 
-    @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
+    @Parameter(names = "--state_storage_serviceurl", description = "State storage service url\n")
     public String stateStorageServiceUrl;
 
-    @Parameter(names = "--port", description = "Port to listen on\n", required = true)
-    public int port;
+    @Parameter(names = "--port", description = "Port to listen on\n")
+    public Integer port;
 
-    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
-    public int metricsPort;
+    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n")
+    public Integer metricsPort;
 
-    @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
-    public int maxBufferedTuples;
+    @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n")
+    public Integer maxBufferedTuples;
 
     @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in "
-            + "seconds between healtchecks", required = true)
-    public int expectedHealthCheckInterval;
+            + "seconds between health checks")
+    public Integer expectedHealthCheckInterval;
 
-    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
+    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider")
     public String secretsProviderClassName;
 
     @Parameter(names = "--secrets_provider_config", description = "The config that needs to be "
-            + "passed to secrets provider", required = false)
+            + "passed to secrets provider")
     public String secretsProviderConfig;
 
     @Parameter(names = "--cluster_name", description = "The name of the cluster this "
-            + "instance is running on", required = true)
+            + "instance is running on")
     public String clusterName;
 
     @Parameter(names = "--nar_extraction_directory", description = "The directory where "
-            + "extraction of nar packages happen", required = false)
+            + "extraction of nar packages happen")
     public String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
-    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance",
-            required = false)
-    public int maxPendingAsyncRequests = 1000;
+    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance")
+    public Integer maxPendingAsyncRequests = 1000;
 
-    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
-    public String webServiceUrl = null;
+    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url")
+    public String webServiceUrl  = null;
 
     @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
-            + "exposed to function context, default is disabled.", required = false)
+            + "exposed to function context, default is disabled. Providing this flag set value to true")
+
     public Boolean exposePulsarAdminClientEnabled = false;
+
+    @Parameter(names = "--config_file", description = "The config file for instance to use, default "
+            + "use coomand line args")
+    public String configFile;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -164,9 +181,7 @@ public class JavaInstanceStarter implements AutoCloseable {
             throws Exception {
         Thread.currentThread().setContextClassLoader(functionInstanceClassLoader);
 
-        JCommander jcommander = new JCommander(this);
-        // parse args by JCommander
-        jcommander.parse(args);
+        setConfigs(args);
 
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
@@ -190,6 +205,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
         instanceConfig.setMetricsPort(metricsPort);
+        instanceConfig.setConfigFile(configFile);
 
         Map<String, String> secretsProviderConfigMap = null;
         if (!StringUtils.isEmpty(secretsProviderConfig)) {
@@ -472,6 +488,162 @@ public class JavaInstanceStarter implements AutoCloseable {
             responseObserver.onCompleted();
 
             lastHealthCheckTs = System.currentTimeMillis();
+        }
+    }
+
+    @VisibleForTesting
+    protected void useConfigFromFileAndProvideDefaultValue() throws IOException {
+        if (configFile == null) {
+            // skip the file if not provided
+            throw new ValidationException("Error: config file cannot be null");
+        }
+
+        JavaInstanceConfiguration instanceConfiguration;
+        try {
+            instanceConfiguration = PulsarConfigurationLoader.create(
+                    configFile, JavaInstanceConfiguration.class);
+        }  catch (FileNotFoundException e) {
+            log.warn("The file {} is not found, using command line args only", configFile);
+            throw e;
+        }
+
+        requireNonNull(instanceConfiguration);
+        // optional String configs
+        jarFile = instanceConfiguration.getJarFile();
+        transformFunctionJarFile = instanceConfiguration.getTransformFunctionJarFile();
+        transformFunctionId = instanceConfiguration.getTransformFunctionId();
+        clientAuthenticationPlugin = instanceConfiguration.getClientAuthenticationPlugin();
+        clientAuthenticationParameters = instanceConfiguration.getClientAuthenticationParameters();
+        tlsTrustCertFilePath = instanceConfiguration.getTlsTrustCertFilePath();
+        stateStorageImplClass = instanceConfiguration.getStateStorageImplClass();
+        stateStorageServiceUrl = instanceConfiguration.getStateStorageServiceUrl();
+        secretsProviderClassName = instanceConfiguration.getSecretsProviderClassName();
+        secretsProviderConfig = instanceConfiguration.getSecretsProviderConfig();
+        narExtractionDirectory = instanceConfiguration.getNarExtractionDirectory();
+        webServiceUrl = instanceConfiguration.getWebServiceUrl();
+
+        // optional Integer configs
+        maxPendingAsyncRequests = instanceConfiguration.getMaxPendingAsyncRequests();
+
+        // optional Boolean configs
+        useTls = instanceConfiguration.getUseTls();
+        tlsAllowInsecureConnection = instanceConfiguration.getTlsAllowInsecureConnection();
+        tlsHostNameVerificationEnabled = instanceConfiguration.getTlsHostNameVerificationEnabled();
+
+        // special arity=0 Boolean config
+        exposePulsarAdminClientEnabled = instanceConfiguration.getExposePulsarAdminClientEnabled();
+
+        // required String configs
+        functionDetailsJsonString = instanceConfiguration.getFunctionDetailsJsonString();
+        functionId = instanceConfiguration.getFunctionId();
+        functionVersion = instanceConfiguration.getFunctionVersion();
+        pulsarServiceUrl = instanceConfiguration.getPulsarServiceUrl();
+        clusterName = instanceConfiguration.getClusterName();
+        // required Integer configs
+        instanceId = instanceConfiguration.getInstanceId();
+        port = instanceConfiguration.getPort();
+        metricsPort = instanceConfiguration.getMetricsPort();
+        maxBufferedTuples = instanceConfiguration.getMaxBufferedTuples();
+        expectedHealthCheckInterval = instanceConfiguration.getExpectedHealthCheckInterval();
+    }
+
+    private void validateRequiredConfigs() {
+        try {
+            // String configs
+            requireNonNull(functionDetailsJsonString);
+            requireNonNull(functionId);
+            requireNonNull(functionVersion);
+            requireNonNull(pulsarServiceUrl);
+            requireNonNull(clusterName);
+            // Integer configs
+            requireNonNull(instanceId);
+            requireNonNull(port);
+            requireNonNull(metricsPort);
+            requireNonNull(maxBufferedTuples);
+            requireNonNull(expectedHealthCheckInterval);
+        } catch (NullPointerException e) {
+            throw new ParameterException(String.format("The following option is required: [%s]",
+                    Strings.join(",", requiredConfigFieldNames().toArray())),
+                    e);
+        }
+    }
+
+    /**
+     * If a config field is not provided in JCommander, then it will be initialized to null.
+     *
+     * <p>File config and Command line config should be exclusive. When --config_file is used,
+     * users should not provide any other command line arguments. This design is to avoid possible confusion and
+     * allow users to easy reason where a configuration value comes from.
+     * @param args
+     * @throws IOException
+     */
+    @VisibleForTesting
+    protected void setConfigs(String[] args) throws IOException{
+        JCommander jcommander = new JCommander(this);
+        // parse args by JCommander
+        jcommander.parse(args);
+        if (configFile != null) {
+            checkNoOtherConfigs(args);
+            useConfigFromFileAndProvideDefaultValue();
+        }
+        validateRequiredConfigs();
+    }
+
+    protected static Set<String> requireConfigFieldsNames = new HashSet<>(){{
+        // String
+        add("functionDetailsJsonString");
+        add("functionId");
+        add("functionVersion");
+        add("pulsarServiceUrl");
+        add("clusterName");
+        add("instanceId");
+        add("port");
+        add("metricsPort");
+        add("maxBufferedTuples");
+        add("expectedHealthCheckInterval");
+    }};
+
+    @VisibleForTesting
+    protected Set<String> requiredConfigFieldNames() {
+        return requireConfigFieldsNames;
+    }
+
+    @VisibleForTesting
+    protected Set<String> optionalConfigFieldNames() {
+        JCommander jc = new JCommander(this);
+        return jc.getFields()
+                .keySet()
+                .stream()
+                .map(Parameterized::getName)
+                .filter(name -> !requireConfigFieldsNames.contains(name))
+                .collect(Collectors.toSet());
+    }
+
+    @VisibleForTesting
+    protected Set<String> requiredConfigLongestArgNames() {
+        JCommander jc = new JCommander(this);
+        return jc.getFields()
+                .entrySet()
+                .stream()
+                .filter(entry -> requireConfigFieldsNames.contains(entry.getKey().getName()))
+                .map(entry -> entry.getValue().getLongestName())
+                .collect(Collectors.toSet());
+    }
+
+    @VisibleForTesting
+    protected Set<String> optionalConfigLongestArgNames() {
+        JCommander jc = new JCommander(this);
+        return jc.getFields()
+                .entrySet()
+                .stream()
+                .filter(entry -> !requireConfigFieldsNames.contains(entry.getKey().getName()))
+                .map(entry -> entry.getValue().getLongestName())
+                .collect(Collectors.toSet());
+    }
+
+    private void checkNoOtherConfigs(String[] args) {
+        if (args.length != 2) {
+            throw new ValidationException("When using file config， configs should not be specified with command line");
         }
     }
 }
