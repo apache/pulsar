@@ -27,8 +27,12 @@ import static org.mockito.Mockito.when;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -253,5 +257,24 @@ public class JavaInstanceRunnableTest {
             Assert.assertEquals(parsedConfig.get("field1"), "value");
             Assert.assertEquals(parsedConfig.get("field2"), "value2");
         }
+    }
+
+    public static class ConnectorTestConfig2 {
+        public static int constantField = 1;
+        public String field1;
+        private long withGetter;
+        @JsonIgnore
+        private ConnectorTestConfig1 ignore;
+
+        public long getWithGetter() {
+            return withGetter;
+        }
+    }
+
+    @Test
+    public void testBeanPropertiesReader() throws Exception {
+        final List<String> beanProperties = JavaInstanceRunnable.BeanPropertiesReader
+                .getBeanProperties(ConnectorTestConfig2.class);
+        Assert.assertEquals(new TreeSet<>(beanProperties), new TreeSet<>(Arrays.asList("field1", "withGetter")));
     }
 }
