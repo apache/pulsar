@@ -150,6 +150,12 @@ public class JavaInstanceStarter implements AutoCloseable {
             + "exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
+    @Parameter(names = "--ignore_unknown_config_fields",
+            description = "Whether to ignore unknown properties when deserializing the connector configuration.",
+            required = false)
+    public Boolean ignoreUnknownConfigFields = false;
+
+
     private Server server;
     private RuntimeSpawner runtimeSpawner;
     private ThreadRuntimeFactory containerFactory;
@@ -177,6 +183,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setClusterName(clusterName);
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
+        instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
         Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
