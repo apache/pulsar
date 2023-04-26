@@ -916,7 +916,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 for (String s : config.keySet()) {
                     if (!allFields.contains(s)) {
-                        log.warn("Field '{}' not defined in the {} configuration {}, the field will be ignored",
+                        log.error("Field '{}' not defined in the {} configuration {}, the field will be ignored",
                                 s,
                                 componentType,
                                 configClass);
