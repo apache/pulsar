@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
@@ -187,12 +188,15 @@ public class MetadataStoreStuckTest {
         final NamespaceBundle bundle0 = bundles.get(0);
         final NamespaceBundle bundle1 = bundles.get(1);
 
+        AtomicInteger finishedTaskCount = new AtomicInteger(0);
+
         // task: lookup.
         final AtomicBoolean lookupTaskRunning = new AtomicBoolean();
         final Thread lookupTask = new Thread(() -> {
             pulsarService.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                     .getPartitionedTopicMetadataAsync(TopicName.get(topicName), true).join();
             lookupTaskRunning.set(true);
+            finishedTaskCount.incrementAndGet();
         });
 
         // task: create topic.
@@ -210,14 +214,15 @@ public class MetadataStoreStuckTest {
                 List<NamespaceBundle> bundleList = pulsarService.getNamespaceService().getNamespaceBundleFactory()
                         .getBundles(namespaceName).getBundles();
                 log.info("get bundle list: {}", bundleList);
+                finishedTaskCount.incrementAndGet();
                 return CompletableFuture.completedFuture(res);
-            }).join();
+            });
         });
 
         // Verify all tasks will be finished in time.
         createTopicTask.start();
-        createTopicTask.join();
-        lookupTask.join();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(finishedTaskCount.get(), 2));
     }
 
     private CompletableFuture<NamespaceEphemeralData> acquiringOwnership(OwnershipCache ownershipCache,
