@@ -83,7 +83,7 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<ResourceLock<T>> acquireLock(String path, T value) {
-        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path);
+        ResourceLockImpl<T> lock = new ResourceLockImpl<>(store, serde, path, executor);
 
         CompletableFuture<ResourceLock<T>> result = new CompletableFuture<>();
         lock.acquire(value).thenRun(() -> {
