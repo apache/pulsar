@@ -279,6 +279,7 @@ flexible messaging model and an intuitive client API.</description>
     <surefire.version>3.0.0-M3</surefire.version>
     <maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
+    <maven-source-plugin.version>3.2.1</maven-source-plugin.version>
     <maven-dependency-plugin.version>3.4.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.4.1</maven-shade-plugin>
@@ -1512,6 +1513,25 @@ flexible messaging model and an intuitive client API.</description>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <version>${maven-source-plugin.version}</version>
+        <executions>
+            <execution>
+            <id>attach-sources</id>
+            <goals>
+                <goal>jar-no-fork</goal>
+            </goals>
+            </execution>
+        </executions>
+        <configuration>
+            <attach>true</attach>
+            <classifier>sources</classifier>
+            <addSources>true</addSources>
+            <addJavadoc>true</addJavadoc>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:+UseZGC
@@ -2353,6 +2373,25 @@ flexible messaging model and an intuitive client API.</description>
                 <phase>none</phase>
               </execution>
             </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.2.1</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <attach>true</attach>
+              <classifier>sources</classifier>
+              <addSources>true</addSources>
+              <addJavadoc>true</addJavadoc>
+            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
