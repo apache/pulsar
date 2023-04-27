@@ -21,14 +21,22 @@
 <assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
-  <id>shell</id>
+  <id>bin</id>
   <formats>
     <format>tar.gz</format>
+    <format>zip</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
   <files>
     <file>
-      <source>${basedir}/../../LICENSE</source>
+      <source>${basedir}/src/assemble/LICENSE.bin.txt</source>
+      <destName>LICENSE</destName>
+      <outputDirectory>.</outputDirectory>
+      <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/src/assemble/NOTICE.bin.txt</source>
+      <destName>NOTICE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
     </file>
@@ -47,6 +55,16 @@
     <file>
       <outputDirectory>bin</outputDirectory>
       <source>${basedir}/../../bin/pulsar-shell</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-admin-common.cmd</source>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <outputDirectory>bin</outputDirectory>
+      <source>${basedir}/../../bin/pulsar-shell.cmd</source>
       <fileMode>755</fileMode>
     </file>
     <file>

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,7 +59,7 @@ public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
 
         // Delete and recreate with 32 bundles
         admin.topics().delete(topic);
-        admin.namespaces().deleteNamespace(namespace, false);
+        deleteNamespaceWithRetry(namespace, false);
         admin.namespaces().createNamespace(namespace, 32);
 
         BundlesData bundlesData = admin.namespaces().getBundles(namespace);

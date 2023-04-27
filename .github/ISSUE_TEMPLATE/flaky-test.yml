@@ -1,0 +1,65 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Flaky test
+title: "Flaky-test: test_class.test_method"
+description: Report a flaky test failure
+labels: [ "component/test", "flaky-tests" ]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you very much for reporting flaky tests!
+  - type: checkboxes
+    attributes:
+      label: Search before asking
+      description: >
+        Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported. First search with the test method name and then with the test class name to see if there are reports for the same test method or the same test class.
+      options:
+        - label: >
+            I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
+          required: true
+  - type: input
+    attributes:
+      label: Example failure
+      description: |
+        Attach a url to the example failure. In the Github Actions workflow run logs, you can right click on the line number to copy a link to the line.
+      placeholder: e.g. https://github.com/apache/pulsar/runs/7612690351?check_suite_focus=true#step:2:20
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Exception stacktrace
+      description: |
+        Copy-paste the stack trace from the build log. If the stacktrace is >100 lines, you can limit the stack trace to the point where it includes the stack frame for the test method so that it's possible to find out where the exception occurred in the test.
+      value: |
+        <!-- copy-paste the stack trace in the code block below -->
+        ```
+
+        ```
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Are you willing to submit a PR?
+      description: >
+        We look forward to the community of developers or users helping solve Pulsar problems together. If you are willing to submit a PR to fix this problem, please check the box.
+      options:
+        - label: I'm willing to submit a PR!
+  - type: markdown
+    attributes:
+      value: "Thanks for completing our form!"

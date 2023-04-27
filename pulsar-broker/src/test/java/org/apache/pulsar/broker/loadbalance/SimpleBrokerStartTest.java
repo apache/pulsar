@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.nio.file.Files;
@@ -47,7 +46,7 @@ public class SimpleBrokerStartTest {
         LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         // Start broker
-        ServiceConfiguration config = spy(ServiceConfiguration.class);
+        ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
@@ -75,7 +74,7 @@ public class SimpleBrokerStartTest {
         LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         // Start broker
-        ServiceConfiguration config = spy(ServiceConfiguration.class);
+        ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());

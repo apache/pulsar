@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -72,8 +72,10 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
@@ -89,6 +91,7 @@ import org.apache.pulsar.metadata.impl.batching.OpPut;
 @Slf4j
 public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
+    static final String ETCD_SCHEME = "etcd";
     static final String ETCD_SCHEME_IDENTIFIER = "etcd:";
 
     private final int leaseTTLSeconds;
@@ -126,7 +129,8 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     private Client newEtcdClient(String metadataURL, MetadataStoreConfig conf) throws IOException {
         String etcdUrl = metadataURL.replaceFirst(ETCD_SCHEME_IDENTIFIER, "");
-        ClientBuilder clientBuilder = Client.builder().endpoints(etcdUrl);
+        ClientBuilder clientBuilder = Client.builder()
+                .endpoints(etcdUrl.split(","));
 
         if (StringUtils.isNotEmpty(conf.getConfigFilePath())) {
             try (InputStream inputStream = Files.newInputStream(Paths.get(conf.getConfigFilePath()))) {
@@ -158,22 +162,24 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     @Override
     public void close() throws Exception {
-        super.close();
+        if (isClosed.compareAndSet(false, true)) {
+            super.close();
 
-        if (sessionWatcher != null) {
-            sessionWatcher.close();
+            if (sessionWatcher != null) {
+                sessionWatcher.close();
+            }
+
+            if (leaseClient != null) {
+                leaseClient.close();
+            }
+
+            if (leaseId != 0) {
+                client.getLeaseClient().revoke(leaseId);
+            }
+
+            kv.close();
+            client.close();
         }
-
-        if (leaseClient != null) {
-            leaseClient.close();
-        }
-
-        if (leaseId != 0) {
-            client.getLeaseClient().revoke(leaseId);
-        }
-
-        kv.close();
-        client.close();
     }
 
     private static final GetOption EXISTS_GET_OPTION = GetOption.newBuilder().withCountOnly(true).build();
@@ -384,11 +390,12 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                     case GET_CHILDREN: {
                         OpGetChildren getChildren = op.asGetChildren();
                         GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
-                        String basePath = getChildren.getPath() + "/";
+                        String basePath =
+                                getChildren.getPath().equals("/") ? "/" : getChildren.getPath() + "/";
 
                         Set<String> children = gr.getKvs().stream()
                                 .map(kv -> kv.getKey().toString(StandardCharsets.UTF_8))
-                                .map(p -> p.replace(basePath, ""))
+                                .map(p -> p.replaceFirst(basePath, ""))
                                 // Only return first-level children
                                 .map(k -> k.split("/", 2)[0])
                                 .collect(Collectors.toCollection(TreeSet::new));
@@ -493,4 +500,18 @@ class EtcdConfig {
     private String tlsCertificateFilePath;
 
     private String authority;
+}
+
+class EtcdMetadataStoreProvider implements MetadataStoreProvider {
+
+    @Override
+    public String urlScheme() {
+        return EtcdMetadataStore.ETCD_SCHEME;
+    }
+
+    @Override
+    public MetadataStore create(String metadataURL, MetadataStoreConfig metadataStoreConfig,
+                                boolean enableSessionWatcher) throws MetadataStoreException {
+        return new EtcdMetadataStore(metadataURL, metadataStoreConfig, enableSessionWatcher);
+    }
 }

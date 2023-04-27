@@ -18,7 +18,7 @@
 # under the License.
 #
 
-bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ conf/presto/catalog/pulsar.properties && \
+bin/apply-config-from-env-with-prefix.py SQL_PREFIX_ trino/conf/catalog/pulsar.properties && \
     bin/apply-config-from-env.py conf/pulsar_env.sh
 
 if [ -z "$NO_AUTOSTART" ]; then

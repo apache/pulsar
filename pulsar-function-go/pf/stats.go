@@ -273,8 +273,8 @@ func (stat *StatWithLabelValues) incrTotalUserExceptions(err error) {
 func (stat *StatWithLabelValues) addUserException(err error) {
 	now := time.Now()
 	ts := now.UnixNano()
-	errorTs := LatestException{err, ts}
-	stat.latestUserException = append(stat.latestUserException, errorTs)
+	errorTS := LatestException{err, ts}
+	stat.latestUserException = append(stat.latestUserException, errorTS)
 	if len(stat.latestUserException) > 10 {
 		stat.latestUserException = stat.latestUserException[1:]
 	}
@@ -284,8 +284,8 @@ func (stat *StatWithLabelValues) addUserException(err error) {
 
 //@limits(calls=5, period=60)
 func (stat *StatWithLabelValues) reportUserExceptionPrometheus(exception error) {
-	errorTs := []string{exception.Error()}
-	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
+	errorTS := []string{exception.Error()}
+	exceptionMetricLabels := append(stat.metricsLabels, errorTS...)
 	userExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
 
@@ -303,8 +303,8 @@ func (stat *StatWithLabelValues) incrTotalSysExceptions(exception error) {
 func (stat *StatWithLabelValues) addSysException(exception error) {
 	now := time.Now()
 	ts := now.UnixNano()
-	errorTs := LatestException{exception, ts}
-	stat.latestSysException = append(stat.latestSysException, errorTs)
+	errorTS := LatestException{exception, ts}
+	stat.latestSysException = append(stat.latestSysException, errorTS)
 	if len(stat.latestSysException) > 10 {
 		stat.latestSysException = stat.latestSysException[1:]
 	}
@@ -314,8 +314,8 @@ func (stat *StatWithLabelValues) addSysException(exception error) {
 
 //@limits(calls=5, period=60)
 func (stat *StatWithLabelValues) reportSystemExceptionPrometheus(exception error) {
-	errorTs := []string{exception.Error()}
-	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
+	errorTS := []string{exception.Error()}
+	exceptionMetricLabels := append(stat.metricsLabels, errorTS...)
 	systemExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
 

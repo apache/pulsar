@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Base64;
@@ -59,6 +58,8 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
     private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
+    private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+
     @BeforeMethod
     @Override
     public void setup() throws Exception {
@@ -84,9 +85,9 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("schematest", tenantInfo);
-        admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("schematest/test", Set.of("test"));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -109,11 +110,18 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), CONSUME_TOKEN)
                 .build();
+
+        PulsarAdmin adminWithProducePermission = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
+                .authentication(AuthenticationToken.class.getName(), PRODUCE_TOKEN)
+                .build();
         admin.topics().grantPermission(topicName, "consumer", EnumSet.of(AuthAction.consume));
         admin.topics().grantPermission(topicName, "producer", EnumSet.of(AuthAction.produce));
 
         SchemaInfo si = Schema.BOOL.getSchemaInfo();
+        assertThrows(PulsarAdminException.class, () -> adminWithConsumePermission.schemas().getSchemaInfo(topicName));
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().createSchema(topicName, si));
+        adminWithProducePermission.schemas().createSchema(topicName, si);
         adminWithAdminPermission.schemas().createSchema(topicName, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));

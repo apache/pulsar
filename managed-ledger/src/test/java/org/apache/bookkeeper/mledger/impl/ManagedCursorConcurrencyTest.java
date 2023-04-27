@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 
 import com.google.common.collect.Lists;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -76,7 +77,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
-        final List<Position> addedEntries = Lists.newArrayList();
+        final List<Position> addedEntries = new ArrayList();
 
         for (int i = 0; i < 1000; i++) {
             Position pos = ledger.addEntry("entry".getBytes());
@@ -136,7 +137,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final CompletableFuture<String> closeFuture = new CompletableFuture<>();
         final String CLOSED = "closed";
 
-        final List<Position> addedEntries = Lists.newArrayList();
+        final List<Position> addedEntries = new ArrayList();
 
         for (int i = 0; i < 1000; i++) {
             Position pos = ledger.addEntry("entry".getBytes());
@@ -215,7 +216,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
-        final List<Position> addedEntries = Lists.newArrayList();
+        final List<Position> addedEntries = new ArrayList();
 
         for (int i = 0; i < 1000; i++) {
             Position pos = ledger.addEntry("entry".getBytes());
@@ -314,7 +315,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
     public void testConcurrentReadOfSameEntry() throws Exception {
         ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", new ManagedLedgerConfig());
         final int numCursors = 5;
-        final List<ManagedCursor> cursors = Lists.newArrayList();
+        final List<ManagedCursor> cursors = new ArrayList();
         for (int i = 0; i < numCursors; i++) {
             final ManagedCursor cursor = ledger.openCursor("c" + i);
             cursors.add(cursor);
@@ -381,7 +382,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         final AtomicInteger iteration = new AtomicInteger(0);
 
         for (int i = 0; i < deleteEntries; i++) {
-            executor.submit(safeRun(() -> {
+            executor.submit(() -> {
                 try {
                     cursor.asyncDelete(addedEntries.get(iteration.getAndIncrement()), new DeleteCallback() {
                         @Override
@@ -401,7 +402,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
                 } finally {
                     counter.countDown();
                 }
-            }));
+            });
         }
 
         counter.await();

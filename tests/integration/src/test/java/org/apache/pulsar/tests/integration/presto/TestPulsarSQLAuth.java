@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -141,7 +141,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                         // Authorization error
                         assertEquals(e.getResult().getExitCode(), 1);
                         log.info(e.getResult().getStderr());
-                        assertTrue(e.getResult().getStderr().contains("Unable to authenticate"));
+                        assertTrue(e.getResult().getStderr().contains("Failed to authenticate"));
                     }
                 }
         );

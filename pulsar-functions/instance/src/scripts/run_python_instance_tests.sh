@@ -25,7 +25,7 @@ pip3 install protobuf==3.20.1 --user
 pip3 install fastavro --user
 
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-PULSAR_HOME=$CUR_DIR/../../../../
+PULSAR_HOME="$( cd "$CUR_DIR/../../../../" >/dev/null && pwd )"
 
 # run instance tests
 PULSAR_HOME=${PULSAR_HOME} PYTHONPATH=${PULSAR_HOME}/pulsar-functions/instance/target/python-instance python3 -m unittest discover -v ${PULSAR_HOME}/pulsar-functions/instance/target/python-instance/tests

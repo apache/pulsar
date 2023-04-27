@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,9 +43,9 @@ public class ManagedLedgerFactoryConfig {
     private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     /**
-     * Frequency of cache eviction triggering. Default is 100 times per second.
+     * Interval of cache eviction triggering. Default is 10 ms times.
      */
-    private double cacheEvictionFrequency = 100;
+    private long cacheEvictionIntervalMs = 10;
 
     /**
      * All entries that have stayed in cache for more than the configured time, will be evicted.
@@ -56,6 +56,11 @@ public class ManagedLedgerFactoryConfig {
      * Whether we should make a copy of the entry payloads when inserting in cache.
      */
     private boolean copyEntriesInCache = false;
+
+    /**
+     * Maximum number of (estimated) data in-flight reading from storage and the cache.
+     */
+    private long managedLedgerMaxReadsInFlightSize = 0;
 
     /**
      * Whether trace managed ledger task execution time.

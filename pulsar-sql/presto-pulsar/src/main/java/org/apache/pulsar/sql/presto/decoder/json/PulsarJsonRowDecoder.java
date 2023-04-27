@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,9 +27,9 @@ import com.fasterxml.jackson.databind.node.MissingNode;
 import com.google.common.base.Splitter;
 import io.airlift.log.Logger;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.decoder.json.JsonFieldDecoder;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.decoder.json.JsonFieldDecoder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;

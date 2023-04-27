@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -88,11 +88,25 @@ public class PulsarRegistrationManager implements RegistrationManager {
     @SneakyThrows
     public void close() {
         for (ResourceLock<BookieServiceInfo> rwBookie : bookieRegistration.values()) {
-            rwBookie.release().get();
+            try {
+                rwBookie.release().get();
+            } catch (ExecutionException ignore) {
+                log.error("Cannot release correctly {}", rwBookie, ignore.getCause());
+            } catch (InterruptedException ignore) {
+                log.error("Cannot release correctly {}", rwBookie, ignore);
+                Thread.currentThread().interrupt();
+            }
         }
 
         for (ResourceLock<BookieServiceInfo> roBookie : bookieRegistrationReadOnly.values()) {
-            roBookie.release().get();
+            try {
+                roBookie.release().get();
+            } catch (ExecutionException ignore) {
+                log.error("Cannot release correctly {}", roBookie, ignore.getCause());
+            } catch (InterruptedException ignore) {
+                log.error("Cannot release correctly {}", roBookie, ignore);
+                Thread.currentThread().interrupt();
+            }
         }
         coordinationService.close();
     }
@@ -115,11 +129,13 @@ public class PulsarRegistrationManager implements RegistrationManager {
             throws BookieException {
         String regPath = bookieRegistrationPath + "/" + bookieId;
         String regPathReadOnly = bookieReadonlyRegistrationPath + "/" + bookieId;
+        log.info("RegisterBookie {} readOnly {} info {}", bookieId, readOnly, bookieServiceInfo);
 
         try {
             if (readOnly) {
                 ResourceLock<BookieServiceInfo> rwRegistration = bookieRegistration.remove(bookieId);
                 if (rwRegistration != null) {
+                    log.info("Bookie {} was already registered as writable, unregistering");
                     rwRegistration.release().get();
                 }
 
@@ -128,6 +144,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
             } else {
                 ResourceLock<BookieServiceInfo> roRegistration = bookieRegistrationReadOnly.remove(bookieId);
                 if (roRegistration != null) {
+                    log.info("Bookie {} was already registered as read-only, unregistering");
                     roRegistration.release().get();
                 }
 

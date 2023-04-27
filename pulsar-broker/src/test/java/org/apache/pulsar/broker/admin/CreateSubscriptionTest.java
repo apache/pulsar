@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,24 +22,24 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Lists;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.io.IOException;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.core.Response.Status;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -47,8 +47,8 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -63,6 +63,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
+@Slf4j
 public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -92,7 +93,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                     Status.CONFLICT.getStatusCode());
         }
 
-        assertEquals(admin.topics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
 
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic).create();
         p1.send("test-1".getBytes());
@@ -128,7 +129,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 10; i++) {
             assertEquals(admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
-                    Lists.newArrayList("sub-1"));
+                    List.of("sub-1"));
         }
     }
 
@@ -154,7 +155,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             assertEquals(
                     admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
-                    Lists.newArrayList("sub-1"));
+                    List.of("sub-1"));
         }
     }
 
@@ -480,4 +481,5 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
         assertEquals(ml.getWaitingCursorsCount(), 0);
     }
+
 }

@@ -39,6 +39,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
         <property name="max" value="120"/>
         <property name="severity" value="error"/>
 
+        <!-- Checks only for Java files. -->
+        <property name="fileExtensions" value="java"/>
+
         <!--
           The default ignore pattern exempts the following elements:
             - import statements
@@ -134,7 +137,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
         <module name="IllegalImport">
             <property name="illegalPkgs"
-                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged" />
+                      value="autovalue.shaded, avro.shaded, bk-shade, com.google.api.client.repackaged, com.google.appengine.repackaged, org.apache.curator.shaded, org.testcontainers.shaded" />
         </module>
 
         <module name="RedundantModifier">
@@ -145,7 +148,7 @@ page at http://checkstyle.sourceforge.net/config.html -->
         </module>
 
         <!--
-            IllegalImport cannot blacklist classes, and c.g.api.client.util is used for some shaded
+            IllegalImport cannot exclude classes, and c.g.api.client.util is used for some shaded
             code and some useful code. So we need to fall back to Regexp.
         -->
         <module name="RegexpSinglelineJava">

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -224,12 +224,14 @@ public class AutoClusterFailoverTest {
         autoClusterFailover.initialize(pulsarClient);
 
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), secondary));
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(secondaryTlsTrustCertsFilePath);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(secondaryAuthentication);
 
         // primary cluster came back
         Mockito.doReturn(true).when(autoClusterFailover).probeAvailable(primary);
         Awaitility.await().untilAsserted(() -> assertEquals(autoClusterFailover.getServiceUrl(), primary));
+        Mockito.verify(pulsarClient, Mockito.atLeastOnce()).reloadLookUp();
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateTlsTrustCertsFilePath(primaryTlsTrustCertsFilePath);
         Mockito.verify(pulsarClient, Mockito.atLeastOnce()).updateAuthentication(primaryAuthentication);
 

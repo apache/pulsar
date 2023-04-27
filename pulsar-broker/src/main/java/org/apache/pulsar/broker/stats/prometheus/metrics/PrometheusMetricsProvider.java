@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Collector;
 import java.io.IOException;
 import java.io.Writer;
@@ -34,6 +33,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
 /**
  * A <i>Prometheus</i> based {@link StatsProvider} implementation.
@@ -90,7 +90,8 @@ public class PrometheusMetricsProvider implements StatsProvider {
 
     @Override
     public void start(Configuration conf) {
-        executor = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("metrics"));
+        executor = Executors.newSingleThreadScheduledExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("metrics"));
 
         int latencyRolloverSeconds = conf.getInt(PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
                 DEFAULT_PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS);

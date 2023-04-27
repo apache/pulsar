@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -169,6 +169,22 @@ public interface PulsarAdminBuilder {
     PulsarAdminBuilder authentication(Authentication authentication);
 
     /**
+     * Set the path to the TLS key file.
+     *
+     * @param tlsKeyFilePath
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyFilePath(String tlsKeyFilePath);
+
+    /**
+     * Set the path to the TLS certificate file.
+     *
+     * @param tlsCertificateFilePath
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsCertificateFilePath(String tlsCertificateFilePath);
+
+    /**
      * Set the path to the trusted TLS certificate file.
      *
      * @param tlsTrustCertsFilePath
@@ -208,6 +224,30 @@ public interface PulsarAdminBuilder {
      * @param sslProvider
      */
     PulsarAdminBuilder sslProvider(String sslProvider);
+
+    /**
+     * The file format of the key store file.
+     *
+     * @param tlsKeyStoreType
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyStoreType(String tlsKeyStoreType);
+
+    /**
+     * The location of the key store file.
+     *
+     * @param tlsTrustStorePath
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyStorePath(String tlsTrustStorePath);
+
+    /**
+     * The store password for the key store file.
+     *
+     * @param tlsKeyStorePassword
+     * @return the admin builder instance
+     */
+    PulsarAdminBuilder tlsKeyStorePassword(String tlsKeyStorePassword);
 
     /**
      * The file format of the trust store file.

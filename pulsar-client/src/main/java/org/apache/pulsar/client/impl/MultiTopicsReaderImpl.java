@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
 @Slf4j
 public class MultiTopicsReaderImpl<T> implements Reader<T> {
@@ -82,8 +83,13 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
                 @Override
                 public void received(Consumer<T> consumer, Message<T> msg) {
+                    final MessageId messageId = msg.getMessageId();
                     readerListener.received(MultiTopicsReaderImpl.this, msg);
-                    consumer.acknowledgeCumulativeAsync(msg);
+                    consumer.acknowledgeCumulativeAsync(messageId).exceptionally(ex -> {
+                        log.error("[{}][{}] auto acknowledge message {} cumulative fail.", getTopic(),
+                                getMultiTopicsConsumer().getSubscription(), messageId, ex);
+                        return null;
+                    });
                 }
 
                 @Override
@@ -146,7 +152,8 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
-        return multiTopicsConsumer.receiveAsync().thenApply(msg -> {
+        CompletableFuture<Message<T>> originalFuture = multiTopicsConsumer.receiveAsync();
+        CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
             multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
                     .exceptionally(ex -> {
                         log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
@@ -155,6 +162,10 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                     });
             return msg;
         });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
     }
 
     @Override

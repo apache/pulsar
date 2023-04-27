@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
+import java.util.Objects;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -40,8 +41,8 @@ public class PreInterceptFilter implements Filter {
     private final ExceptionHandler exceptionHandler;
 
     public PreInterceptFilter(BrokerInterceptor interceptor, ExceptionHandler exceptionHandler) {
-        this.interceptor = interceptor;
-        this.exceptionHandler = exceptionHandler;
+        this.interceptor = Objects.requireNonNull(interceptor);
+        this.exceptionHandler = Objects.requireNonNull(exceptionHandler);
     }
 
     @Override
@@ -66,7 +67,9 @@ public class PreInterceptFilter implements Filter {
         }
         try {
             RequestWrapper requestWrapper = new RequestWrapper((HttpServletRequest) servletRequest);
-            interceptor.onWebserviceRequest(requestWrapper);
+            if (interceptor != null) {
+                interceptor.onWebserviceRequest(requestWrapper);
+            }
             filterChain.doFilter(requestWrapper, servletResponse);
         } catch (InterceptException e) {
             exceptionHandler.handle(servletResponse, e);

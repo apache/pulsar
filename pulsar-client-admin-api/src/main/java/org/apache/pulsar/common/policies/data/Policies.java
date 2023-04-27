@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,6 +94,8 @@ public class Policies {
     @SuppressWarnings("checkstyle:MemberName")
     public long offload_threshold = -1;
     @SuppressWarnings("checkstyle:MemberName")
+    public long offload_threshold_in_seconds = -1;
+    @SuppressWarnings("checkstyle:MemberName")
     public Long offload_deletion_lag_ms = null;
     @SuppressWarnings("checkstyle:MemberName")
     public Integer max_topics_per_namespace = null;
@@ -128,6 +130,9 @@ public class Policies {
         LARGEST, HOT;
     }
 
+    @SuppressWarnings("checkstyle:MemberName")
+    public EntryFilters entryFilters = null;
+
     @Override
     public int hashCode() {
         return Objects.hash(auth_policies, replication_clusters,
@@ -142,7 +147,7 @@ public class Policies {
                 max_producers_per_topic,
                 max_consumers_per_topic, max_consumers_per_subscription,
                 max_unacked_messages_per_consumer, max_unacked_messages_per_subscription,
-                compaction_threshold, offload_threshold,
+                compaction_threshold, offload_threshold, offload_threshold_in_seconds,
                 offload_deletion_lag_ms,
                 schema_auto_update_compatibility_strategy,
                 schema_validation_enforced,
@@ -151,7 +156,7 @@ public class Policies {
                 offload_policies,
                 subscription_types_enabled,
                 properties,
-                resource_group_name);
+                resource_group_name, entryFilters);
     }
 
     @Override
@@ -188,6 +193,7 @@ public class Policies {
                     && Objects.equals(max_consumers_per_subscription, other.max_consumers_per_subscription)
                     && Objects.equals(compaction_threshold, other.compaction_threshold)
                     && offload_threshold == other.offload_threshold
+                    && offload_threshold_in_seconds == other.offload_threshold_in_seconds
                     && Objects.equals(offload_deletion_lag_ms, other.offload_deletion_lag_ms)
                     && schema_auto_update_compatibility_strategy == other.schema_auto_update_compatibility_strategy
                     && schema_validation_enforced == other.schema_validation_enforced
@@ -196,7 +202,8 @@ public class Policies {
                     && Objects.equals(offload_policies, other.offload_policies)
                     && Objects.equals(subscription_types_enabled, other.subscription_types_enabled)
                     && Objects.equals(properties, other.properties)
-                    && Objects.equals(resource_group_name, other.resource_group_name);
+                    && Objects.equals(resource_group_name, other.resource_group_name)
+                    && Objects.equals(entryFilters, other.entryFilters);
         }
 
         return false;

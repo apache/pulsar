@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,10 +21,10 @@ package org.apache.pulsar.broker.admin;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import com.google.common.collect.Sets;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.Lock;
@@ -52,16 +52,15 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(
-                Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+                Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("pulsar", tenantInfo);
-        admin.namespaces().createNamespace("pulsar/system", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("pulsar/system", Set.of("test"));
         admin.tenants().createTenant("public", tenantInfo);
-        admin.namespaces().createNamespace("public/default", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("public/default", Set.of("test"));
     }
 
     @AfterMethod(alwaysRun = true)

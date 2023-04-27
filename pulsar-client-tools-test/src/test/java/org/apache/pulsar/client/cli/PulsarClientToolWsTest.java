@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,7 +46,6 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
     }
 
@@ -143,5 +142,53 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         List<String> subscriptions = admin.topics().getSubscriptions(topicName);
         Assert.assertNotNull(subscriptions);
         Assert.assertEquals(subscriptions.size(), 1);
+    }
+
+    @Test(timeOut = 30000)
+    public void testWebSocketReader() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+
+        int numberOfMessages = 10;
+        {
+            @Cleanup("shutdown")
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            executor.execute(() -> {
+                try {
+                    PulsarClientTool pulsarClientToolReader = new PulsarClientTool(properties);
+                    String[] args = {"read", "-m", "latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r",
+                            "30", topicName};
+                    Assert.assertEquals(pulsarClientToolReader.run(args), 0);
+                    future.complete(null);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            });
+
+            // Make sure subscription has been created
+            Awaitility.await()
+                    .pollInterval(Duration.ofMillis(200))
+                    .ignoreExceptions().untilAsserted(() -> {
+                Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+                Assert.assertTrue(admin.topics().getSubscriptions(topicName).get(0).startsWith("reader-"));
+            });
+
+            PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+            String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                    "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+            Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+            future.get();
+            Assert.assertFalse(future.isCompletedExceptionally());
+        }
+
+        Awaitility.await()
+                .ignoreExceptions().untilAsserted(() -> {
+            Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
+        });
     }
 }

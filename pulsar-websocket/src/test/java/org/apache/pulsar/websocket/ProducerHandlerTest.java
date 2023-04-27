@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -86,7 +86,7 @@ public class ProducerHandlerTest {
         ServletUpgradeResponse response = mock(ServletUpgradeResponse.class);
 
         ProducerHandler producerHandler = new ProducerHandler(service, httpServletRequest, response);
-        producerHandler.onWebSocketText(ObjectMapperFactory.getThreadLocal().writeValueAsString(produceRequest));
+        producerHandler.onWebSocketText(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest));
 
         verify(messageBuilder, times(1)).deliverAfter(11111, TimeUnit.MILLISECONDS);
         verify(messageBuilder, times(1)).deliverAt(22222);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,29 @@
  */
 package org.apache.pulsar.sql.presto.decoder.protobufnative;
 
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.TimestampType.TIMESTAMP_MILLIS;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
+import static io.trino.spi.type.VarcharType.VARCHAR;
+import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.StandardTypes;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.TypeSignatureParameter;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.Timestamps;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeSignatureParameter;
+import java.util.HashSet;
+import java.util.Map;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
@@ -36,19 +48,6 @@ import org.apache.pulsar.sql.presto.PulsarColumnHandle;
 import org.apache.pulsar.sql.presto.decoder.AbstractDecoderTester;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.HashSet;
-import java.util.Map;
-
-import static io.prestosql.spi.type.BigintType.BIGINT;
-import static io.prestosql.spi.type.BooleanType.BOOLEAN;
-import static io.prestosql.spi.type.DoubleType.DOUBLE;
-import static io.prestosql.spi.type.IntegerType.INTEGER;
-import static io.prestosql.spi.type.TimestampType.TIMESTAMP;
-import static io.prestosql.spi.type.VarbinaryType.VARBINARY;
-import static io.prestosql.spi.type.VarcharType.VARCHAR;
-import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
-import static org.testng.Assert.assertTrue;
 
 public class TestProtobufNativeDecoder extends AbstractDecoderTester {
 
@@ -173,9 +172,9 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
         checkValue(decodedRow, enumFieldColumnHandle, testMessage.getTestEnum().name());
 
         PulsarColumnHandle timestampFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
-                "timestampField", TIMESTAMP,false,false,"timestampField",null,null,
+                "timestampField", TIMESTAMP_MILLIS,false,false,"timestampField",null,null,
                 PulsarColumnHandle.HandleKeyValueType.NONE);
-        checkValue(decodedRow, timestampFieldColumnHandle, mills);
+        checkValue(decodedRow, timestampFieldColumnHandle, mills * Timestamps.MICROSECONDS_PER_MILLISECOND);
 
     }
 

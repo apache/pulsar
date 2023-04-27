@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
@@ -58,6 +59,12 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     private final List<BackedInputStream> inputStreams;
     private final List<DataInputStream> dataStreams;
     private final ExecutorService executor;
+    private State state = null;
+
+    enum State {
+        Opened,
+        Closed
+    }
 
     static class GroupedReader {
         @Override
@@ -99,6 +106,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             dataStreams.add(new DataInputStream(inputStream));
         }
         this.executor = executor;
+        this.state = State.Opened;
     }
 
     @Override
@@ -123,6 +131,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
                 for (DataInputStream dataStream : dataStreams) {
                     dataStream.close();
                 }
+                state = State.Closed;
                 promise.complete(null);
             } catch (IOException t) {
                 promise.completeExceptionally(t);
@@ -135,13 +144,20 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        if (firstEntry > lastEntry
-                || firstEntry < 0
-                || lastEntry > getLastAddConfirmed()) {
-            promise.completeExceptionally(new IllegalArgumentException());
-            return promise;
-        }
         executor.execute(() -> {
+            if (state == State.Closed) {
+                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
+                        ledgerId, firstEntry, lastEntry);
+                promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
+                return;
+            }
+
+            if (firstEntry > lastEntry
+                    || firstEntry < 0
+                    || lastEntry > getLastAddConfirmed()) {
+                promise.completeExceptionally(new BKException.BKIncorrectParameterException());
+                return;
+            }
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
             List<GroupedReader> groupedReaders = null;
             try {

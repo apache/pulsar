@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -112,6 +112,7 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
                 && pulsarCluster.getSqlFollowWorkerContainers().size() > 0) {
             OkHttpClient okHttpClient = new OkHttpClient();
             Request request = new Request.Builder()
+                    .header("X-Trino-User", "test-user")
                     .url("http://" + pulsarCluster.getPrestoWorkerContainer().getUrl() + "/v1/node")
                     .build();
             do {

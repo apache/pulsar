@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.proxy.server;
 
 import io.netty.buffer.ByteBuf;
@@ -118,7 +117,11 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
                     ParserProxyHandler.producerHashMap.put(cmd.getProducer().getProducerId() + "," + ctx.channel().id(),
                             cmd.getProducer().getTopic());
 
-                    logging(ctx.channel(), cmd.getType(), "{producer:" + cmd.getProducer().getProducerName()
+                    String producerName = "";
+                    if (cmd.getProducer().hasProducerName()){
+                        producerName = cmd.getProducer().getProducerName();
+                    }
+                    logging(ctx.channel(), cmd.getType(), "{producer:" + producerName
                             + ",topic:" + cmd.getProducer().getTopic() + "}", null);
                     break;
 

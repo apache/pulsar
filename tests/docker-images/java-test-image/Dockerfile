@@ -34,14 +34,23 @@ WORKDIR /pulsar
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
+ARG UBUNTU_SECURITY_MIRROR=http://security.ubuntu.com/ubuntu/
 
-RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
+RUN sed -i -e "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" \
+     -e "s|http://security\.ubuntu\.com/ubuntu/|${UBUNTU_SECURITY_MIRROR:-http://security.ubuntu.com/ubuntu/}|g" /etc/apt/sources.list \
      && apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install openjdk-17-jdk-headless
+     && apt-get -y install wget apt-transport-https
 
-ENV JAVA_HOME /usr/lib/jvm/java-17-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-17-openjdk-amd64/conf/security/java.security
+# Install Eclipse Temurin Package
+RUN mkdir -p /etc/apt/keyrings \
+     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
+     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
+     && apt-get update \
+     && apt-get -y dist-upgrade \
+     && apt-get -y install temurin-17-jdk \
+     && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
+     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security
 
 # /pulsar/bin/watch-znode.py requires python3-kazoo
 # /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
@@ -54,12 +63,13 @@ RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
-    && mkdir -p /pulsar/ssl
+    && mkdir -p /pulsar/certificate-authority
 
 COPY target/conf /etc/supervisord/conf.d/
 RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 
-COPY target/ssl /pulsar/ssl/
+# TLS certificates
+COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
 

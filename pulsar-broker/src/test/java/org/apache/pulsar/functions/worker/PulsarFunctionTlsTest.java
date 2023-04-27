@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,7 +34,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -44,6 +44,7 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
@@ -71,6 +72,7 @@ public class PulsarFunctionTlsTest {
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
     protected PulsarService leaderPulsar;
     protected PulsarAdmin leaderAdmin;
+    protected WorkerService[] fnWorkerServices = new WorkerService[BROKER_COUNT];
     protected String testCluster = "my-cluster";
     protected String testTenant = "my-tenant";
     protected String testNamespace = testTenant + "/my-ns";
@@ -85,8 +87,8 @@ public class PulsarFunctionTlsTest {
 
         // start brokers
         for (int i = 0; i < BROKER_COUNT; i++) {
-            int brokerPort = PortManager.nextFreePort();
-            int webPort = PortManager.nextFreePort();
+            int brokerPort = nextLockedFreePort();
+            int webPort = nextLockedFreePort();
 
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
@@ -126,7 +128,7 @@ public class PulsarFunctionTlsTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                     new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
             workerConfig.setFailureCheckFreqMs(100);
             workerConfig.setNumFunctionPackageReplicas(1);
@@ -137,12 +139,15 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
-            WorkerService fnWorkerService = WorkerServiceLoader.load(workerConfig);
+            workerConfig.setTlsEnableHostnameVerification(true);
+            workerConfig.setTlsAllowInsecureConnection(false);
+            workerConfig.setBrokerClientTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+            fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(
-                config, workerConfig, Optional.of(fnWorkerService), code -> {});
+                config, workerConfig, Optional.of(fnWorkerServices[i]), code -> {});
             pulsarServices[i].start();
 
             // Sleep until pulsarServices[0] becomes leader, this way we can spy namespace bundle assignment easily.
@@ -181,10 +186,25 @@ public class PulsarFunctionTlsTest {
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
                 }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (fnWorkerServices[i] != null) {
+                    fnWorkerServices[i].stop();
+                }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
+                if (pulsarServices[i] != null) {
+                    pulsarServices[i].getLoadManager().get().stop();
+                }
+            }
+            for (int i = 0; i < BROKER_COUNT; i++) {
                 if (pulsarServices[i] != null) {
                     pulsarServices[i].close();
+                    pulsarServices[i].getConfiguration().
+                            getBrokerServicePort().ifPresent(PortManager::releaseLockedPort);
+                    pulsarServices[i].getConfiguration()
+                            .getWebServicePort().ifPresent(PortManager::releaseLockedPort);
                 }
-
             }
             bkEnsemble.stop();
         } finally {

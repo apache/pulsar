@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,21 +43,23 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     private volatile long evictionTriggerThreshold;
     private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
-    private final ConcurrentMap<String, EntryCache> caches = Maps.newConcurrentMap();
+    private final ConcurrentMap<String, EntryCache> caches = new ConcurrentHashMap();
     private final EntryCacheEvictionPolicy evictionPolicy;
 
     private final AtomicBoolean evictionInProgress = new AtomicBoolean(false);
 
     private final ManagedLedgerFactoryImpl mlFactory;
     protected final ManagedLedgerFactoryMBeanImpl mlFactoryMBean;
+    private final InflightReadsLimiter inflightReadsLimiter;
 
     protected static final double MB = 1024 * 1024;
-
     private static final double evictionTriggerThresholdPercent = 0.98;
 
 
     public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory) {
         this.maxSize = factory.getConfig().getMaxCacheSize();
+        this.inflightReadsLimiter = new InflightReadsLimiter(
+                factory.getConfig().getManagedLedgerMaxReadsInFlightSize());
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
         this.cacheEvictionWatermark = factory.getConfig().getCacheEvictionWatermark();
         this.evictionPolicy = new EntryCacheDefaultEvictionPolicy();
@@ -114,7 +115,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
         // Trigger a single eviction in background. While the eviction is running we stop inserting entries in the cache
         if (currentSize > evictionTriggerThreshold && evictionInProgress.compareAndSet(false, true)) {
-            mlFactory.getScheduledExecutor().execute(safeRun(() -> {
+            mlFactory.getScheduledExecutor().execute(() -> {
                 // Trigger a new cache eviction cycle to bring the used memory below the cacheEvictionWatermark
                 // percentage limit
                 long sizeToEvict = currentSize - (long) (maxSize * cacheEvictionWatermark);
@@ -134,17 +135,19 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                     mlFactoryMBean.recordCacheEviction();
                     evictionInProgress.set(false);
                 }
-            }));
+            });
         }
 
         return currentSize < maxSize;
     }
 
     void entryAdded(long size) {
+        mlFactoryMBean.recordCacheInsertion();
         currentSize.addAndGet(size);
     }
 
-    void entriesRemoved(long size) {
+    void entriesRemoved(long size, int count) {
+        mlFactoryMBean.recordNumberOfCacheEntriesEvicted(count);
         currentSize.addAndGet(-size);
     }
 
@@ -191,6 +194,10 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             ledgerEntry.close();
         }
         return returnEntry;
+    }
+
+    public InflightReadsLimiter getInflightReadsLimiter() {
+        return inflightReadsLimiter;
     }
 
     private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheManagerImpl.class);

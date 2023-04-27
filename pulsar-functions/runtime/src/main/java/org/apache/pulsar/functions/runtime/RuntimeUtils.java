@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.runtime;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.util.JsonFormat;
 import io.prometheus.client.hotspot.BufferPoolsExports;
@@ -36,6 +37,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +68,7 @@ public class RuntimeUtils {
                                           String extraDependenciesDir, /* extra dependencies for running instances */
                                           String logDirectory,
                                           String originalCodeFileName,
+                                          String originalTransformFunctionFileName,
                                           String pulsarServiceUrl,
                                           String stateStorageServiceUrl,
                                           AuthenticationConfig authConfig,
@@ -85,7 +88,7 @@ public class RuntimeUtils {
         final List<String> cmd = getArgsBeforeCmd(instanceConfig, extraDependenciesDir);
 
         cmd.addAll(getCmd(instanceConfig, instanceFile, extraDependenciesDir, logDirectory,
-                originalCodeFileName, pulsarServiceUrl, stateStorageServiceUrl,
+                originalCodeFileName, originalTransformFunctionFileName, pulsarServiceUrl, stateStorageServiceUrl,
                 authConfig, shardId, grpcPort, expectedHealthCheckInterval,
                 logConfigFile, secretsProviderClassName, secretsProviderConfig,
                 installUserCodeDependencies, pythonDependencyRepository,
@@ -244,7 +247,7 @@ public class RuntimeUtils {
         goInstanceConfig.setPort(instanceConfig.getPort());
 
         // Parse the contents of goInstanceConfig into json form string
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
         args.add(originalCodeFileName);
@@ -262,6 +265,7 @@ public class RuntimeUtils {
                                       String extraDependenciesDir, /* extra dependencies for running instances */
                                       String logDirectory,
                                       String originalCodeFileName,
+                                      String originalTransformFunctionFileName,
                                       String pulsarServiceUrl,
                                       String stateStorageServiceUrl,
                                       AuthenticationConfig authConfig,
@@ -332,9 +336,7 @@ public class RuntimeUtils {
             }
 
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                    args.add(runtimeFlagArg);
-                }
+                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             if (instanceConfig.getFunctionDetails().getResources() != null) {
                 Function.Resources resources = instanceConfig.getFunctionDetails().getResources();
@@ -346,12 +348,16 @@ public class RuntimeUtils {
 
             args.add("--jar");
             args.add(originalCodeFileName);
+            if (isNotEmpty(originalTransformFunctionFileName)) {
+                args.add("--transform_function_jar");
+                args.add(originalTransformFunctionFileName);
+                args.add("--transform_function_id");
+                args.add(instanceConfig.getTransformFunctionId());
+            }
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
             args.add("python3");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
-                    args.add(runtimeFlagArg);
-                }
+                Collections.addAll(args, splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags()));
             }
             args.add(instanceFile);
             args.add("--py");
@@ -429,10 +435,14 @@ public class RuntimeUtils {
         args.add("--metrics_port");
         args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
-        // only the Java instance supports --pending_async_requests right now.
+        // params supported only by the Java instance runtime.
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("--pending_async_requests");
             args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+
+            if (instanceConfig.isIgnoreUnknownConfigFields()) {
+                args.add("--ignore_unknown_config_fields");
+            }
         }
 
         // state storage configs
@@ -493,7 +503,7 @@ public class RuntimeUtils {
     }
 
     public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
-        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
+        return ObjectMapperFactory.getMapper().getObjectMapper().convertValue(configMap, functionRuntimeConfigClass);
     }
 
     public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {

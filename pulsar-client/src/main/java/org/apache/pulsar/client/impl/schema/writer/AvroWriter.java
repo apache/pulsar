@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.writer;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayOutputStream;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryEncoder;
@@ -30,8 +31,8 @@ import org.apache.pulsar.client.impl.schema.AvroSchema;
 
 public class AvroWriter<T> implements SchemaWriter<T> {
     private final ReflectDatumWriter<T> writer;
-    private BinaryEncoder encoder;
-    private ByteArrayOutputStream byteArrayOutputStream;
+    private final BinaryEncoder encoder;
+    private final ByteArrayOutputStream byteArrayOutputStream;
 
     public AvroWriter(Schema schema) {
         this(schema, false);
@@ -43,6 +44,11 @@ public class AvroWriter<T> implements SchemaWriter<T> {
         ReflectData reflectData = new ReflectData();
         AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
         this.writer = new ReflectDatumWriter<>(schema, reflectData);
+    }
+
+    @VisibleForTesting
+    public BinaryEncoder getEncoder() {
+        return this.encoder;
     }
 
     @Override

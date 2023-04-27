@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
@@ -43,6 +44,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private final boolean enableTls;
     private final boolean tlsEnabledWithKeyStore;
     private final int brokerProxyReadTimeoutMs;
+    private final int maxMessageSize;
 
     private SslContextAutoRefreshBuilder<SslContext> serverSslCtxRefresher;
     private NettySSLContextAutoRefreshBuilder serverSSLContextAutoRefreshBuilder;
@@ -54,6 +56,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         this.enableTls = enableTls;
         this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         this.brokerProxyReadTimeoutMs = serviceConfig.getBrokerProxyReadTimeoutMs();
+        this.maxMessageSize = serviceConfig.getMaxMessageSize();
 
         if (enableTls) {
             if (tlsEnabledWithKeyStore) {
@@ -104,13 +107,13 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         }
         if (brokerProxyReadTimeoutMs > 0) {
             ch.pipeline().addLast("readTimeoutHandler",
-                    new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+                    new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
         }
         if (proxyService.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-                Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+                this.maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
 
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService, proxyService.getDnsAddressResolverGroup()));
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,14 @@
 package org.apache.pulsar.jclouds;
 
 import com.google.inject.AbstractModule;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.jclouds.ContextBuilder;
 import org.jclouds.http.apachehc.config.ApacheHCHttpCommandExecutorServiceModule;
 import org.jclouds.http.okhttp.config.OkHttpCommandExecutorServiceModule;
 import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * This utility class helps in dealing with shaded dependencies (especially Guice).

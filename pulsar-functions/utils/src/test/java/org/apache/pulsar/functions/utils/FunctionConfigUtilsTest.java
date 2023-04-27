@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.utils;
 
 import com.google.gson.Gson;
 
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -45,6 +46,7 @@ import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -52,6 +54,18 @@ import static org.testng.Assert.assertTrue;
  */
 @Slf4j
 public class FunctionConfigUtilsTest {
+
+    @Test
+    public void testAutoAckConvertFailed() {
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setAutoAck(false);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);            
+        });
+    }
 
     @Test
     public void testConvertBackFidelity() {
@@ -83,6 +97,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
+        producerConfig.setCompressionType(CompressionType.ZLIB);
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
@@ -124,9 +139,14 @@ public class FunctionConfigUtilsTest {
         producerConfig.setMaxPendingMessagesAcrossPartitions(1000);
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("KEY_BASED");
+        producerConfig.setCompressionType(CompressionType.SNAPPY);
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+
+        // WindowsFunction guarantees convert to FunctionGuarantees.
+        assertEquals(convertedConfig.getWindowConfig().getProcessingGuarantees(),
+                WindowConfig.ProcessingGuarantees.valueOf(functionConfig.getProcessingGuarantees().name()));
 
         // add default resources
         functionConfig.setResources(Resources.getDefaultResources());

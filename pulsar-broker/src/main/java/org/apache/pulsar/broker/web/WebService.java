@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.web;
 
-import com.google.common.collect.Lists;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
@@ -34,6 +33,8 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.ContextHandler;
@@ -86,7 +87,7 @@ public class WebService implements AutoCloseable {
     }
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
-        this.handlers = Lists.newArrayList();
+        this.handlers = new ArrayList<>();
         this.pulsar = pulsar;
         ServiceConfiguration config = pulsar.getConfiguration();
         this.webServiceExecutor = new WebExecutorThreadPool(
@@ -101,8 +102,10 @@ public class WebService implements AutoCloseable {
         List<ServerConnector> connectors = new ArrayList<>();
 
         Optional<Integer> port = config.getWebServicePort();
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setRequestHeaderSize(pulsar.getConfig().getHttpMaxRequestHeaderSize());
         if (port.isPresent()) {
-            httpConnector = new ServerConnector(server);
+            httpConnector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
             httpConnector.setPort(port.get());
             httpConnector.setHost(pulsar.getBindAddress());
             connectors.add(httpConnector);
@@ -141,7 +144,7 @@ public class WebService implements AutoCloseable {
                             config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                httpsConnector = new ServerConnector(server, sslCtxFactory);
+                httpsConnector = new ServerConnector(server, sslCtxFactory, new HttpConnectionFactory(httpConfig));
                 httpsConnector.setPort(tlsPort.get());
                 httpsConnector.setHost(pulsar.getBindAddress());
                 connectors.add(httpsConnector);
@@ -210,13 +213,14 @@ public class WebService implements AutoCloseable {
                         new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
             }
 
-            if (!config.getBrokerInterceptors().isEmpty()
-                    || !config.isDisableBrokerInterceptors()) {
+            boolean brokerInterceptorEnabled =
+                    pulsarService.getBrokerInterceptor() != null && !config.isDisableBrokerInterceptors();
+            if (brokerInterceptorEnabled) {
                 ExceptionHandler handler = new ExceptionHandler();
                 // Enable PreInterceptFilter only when interceptors are enabled
                 filterHolders.add(
                         new FilterHolder(new PreInterceptFilter(pulsarService.getBrokerInterceptor(), handler)));
-                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService)));
+                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService.getBrokerInterceptor())));
             }
 
             if (config.isAuthenticationEnabled()) {
@@ -237,7 +241,9 @@ public class WebService implements AutoCloseable {
                                 config.getHttpMaxRequestSize())));
             }
 
-            filterHolders.add(new FilterHolder(new ResponseHandlerFilter(pulsarService)));
+            if (brokerInterceptorEnabled) {
+                filterHolders.add(new FilterHolder(new ResponseHandlerFilter(pulsarService)));
+            }
         }
 
         public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {

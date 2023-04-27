@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,8 @@ import static org.apache.commons.lang.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.BUILTIN;
 import static org.apache.pulsar.common.util.ClassLoaderUtils.loadJar;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromCompressionType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsSubscriptionPosition;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -198,8 +200,16 @@ public class FunctionConfigUtils {
             sourceSpecBuilder.setSubscriptionPosition(subPosition);
         }
 
+        if (functionConfig.getSkipToLatest() != null) {
+            sourceSpecBuilder.setSkipToLatest(functionConfig.getSkipToLatest());
+        } else {
+            sourceSpecBuilder.setSkipToLatest(false);
+        }
+
         if (extractedDetails.getTypeArg0() != null) {
             sourceSpecBuilder.setTypeClassName(extractedDetails.getTypeArg0());
+        } else if (StringUtils.isNotEmpty(functionConfig.getInputTypeClassName())) {
+            sourceSpecBuilder.setTypeClassName(functionConfig.getInputTypeClassName());
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
@@ -242,6 +252,8 @@ public class FunctionConfigUtils {
         }
         if (extractedDetails.getTypeArg1() != null) {
             sinkSpecBuilder.setTypeClassName(extractedDetails.getTypeArg1());
+        } else if (StringUtils.isNotEmpty(functionConfig.getOutputTypeClassName())) {
+            sinkSpecBuilder.setTypeClassName(functionConfig.getOutputTypeClassName());
         }
         if (functionConfig.getProducerConfig() != null) {
             ProducerConfig producerConf = functionConfig.getProducerConfig();
@@ -260,6 +272,11 @@ public class FunctionConfigUtils {
             }
             if (producerConf.getBatchBuilder() != null) {
                 pbldr.setBatchBuilder(producerConf.getBatchBuilder());
+            }
+            if (producerConf.getCompressionType() != null) {
+                pbldr.setCompressionType(convertFromCompressionType(producerConf.getCompressionType()));
+            } else {
+                pbldr.setCompressionType(Function.CompressionType.LZ4);
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
@@ -308,11 +325,22 @@ public class FunctionConfigUtils {
         // windowing related
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
+            // Windows Function not support MANUAL and EFFECTIVELY_ONCE.
+            if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE
+                    || functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.MANUAL) {
+                throw new IllegalArgumentException(
+                        "Windows Function not support "
+                                + functionConfig.getProcessingGuarantees() + " delivery semantics.");
+            } else {
+                // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
+                windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
+                        .valueOf(functionDetailsBuilder.getProcessingGuarantees().name()));
+                functionDetailsBuilder.setProcessingGuarantees(Function.ProcessingGuarantees.MANUAL);
+            }
             windowConfig.setActualWindowFunctionClassName(extractedDetails.getFunctionClassName());
             configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
             // set class name to window function executor
             functionDetailsBuilder.setClassName("org.apache.pulsar.functions.windowing.WindowFunctionExecutor");
-
         } else {
             if (extractedDetails.getFunctionClassName() != null) {
                 functionDetailsBuilder.setClassName(extractedDetails.getFunctionClassName());
@@ -321,7 +349,6 @@ public class FunctionConfigUtils {
         if (!configs.isEmpty()) {
             functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
         }
-
         if (functionConfig.getSecrets() != null && !functionConfig.getSecrets().isEmpty()) {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
         }
@@ -361,10 +388,26 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setBuiltin(builtin);
         }
 
-        return functionDetailsBuilder.build();
+        return validateFunctionDetails(functionDetailsBuilder.build());
+    }
+
+    public static FunctionDetails validateFunctionDetails(FunctionDetails functionDetails)
+            throws IllegalArgumentException {
+        if (!functionDetails.getAutoAck() && functionDetails.getProcessingGuarantees()
+                == Function.ProcessingGuarantees.ATMOST_ONCE) {
+            throw new IllegalArgumentException("When Guarantees == ATMOST_ONCE, autoAck must be equal to true."
+                    + " This is a contradictory configuration, autoAck will be removed later."
+                    + " Please refer to PIP: https://github.com/apache/pulsar/issues/15560");
+        }
+        if (!functionDetails.getAutoAck()) {
+            log.warn("The autoAck configuration will be deprecated in the future."
+                    + " If you want not to automatically ack, please configure the processing guarantees as MANUAL.");
+        }
+        return functionDetails;
     }
 
     public static FunctionConfig convertFromDetails(FunctionDetails functionDetails) {
+        functionDetails = validateFunctionDetails(functionDetails);
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(functionDetails.getTenant());
         functionConfig.setNamespace(functionDetails.getNamespace());
@@ -435,6 +478,7 @@ public class FunctionConfigUtils {
                 producerConfig.setBatchBuilder(spec.getBatchBuilder());
             }
             producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
             functionConfig.setProducerConfig(producerConfig);
         }
         if (!isEmpty(functionDetails.getLogTopic())) {
@@ -463,6 +507,10 @@ public class FunctionConfigUtils {
                     (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
                     WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
+            if (windowConfig.getProcessingGuarantees() != null) {
+                functionConfig.setProcessingGuarantees(
+                        FunctionConfig.ProcessingGuarantees.valueOf(windowConfig.getProcessingGuarantees().name()));
+            }
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
         } else {
@@ -532,7 +580,6 @@ public class FunctionConfigUtils {
         } else if (functionConfig.getGo() != null) {
             functionConfig.setRuntime(FunctionConfig.Runtime.GO);
         }
-
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
             WindowConfigUtils.inferMissingArguments(windowConfig);
@@ -540,7 +587,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+    public static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
 
         String functionClassName = functionConfig.getClassName();
         Class functionClass;

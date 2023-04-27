@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,9 @@ import lombok.ToString;
 @Getter
 @ToString
 public class MetadataStoreConfig {
+    public static final String METADATA_STORE = "metadata-store";
+    public static final String STATE_METADATA_STORE = "state-metadata-store";
+    public static final String CONFIGURATION_METADATA_STORE = "configuration-metadata-store";
 
     /**
      * The (implementation specific) session timeout, in milliseconds.
@@ -71,4 +74,22 @@ public class MetadataStoreConfig {
      */
     @Builder.Default
     private final int batchingMaxSizeKb = 128;
+
+    /**
+     * The name of a metadata store.
+     */
+    @Builder.Default
+    private final String metadataStoreName = "";
+
+    /**
+     * Whether we should enable fsync for local metadata store, It's supported by RocksdbMetadataStore for now.
+     */
+    @Builder.Default
+    private final boolean fsyncEnable = true;
+
+    /**
+     * Pluggable MetadataEventSynchronizer to sync metadata events across the
+     * separate clusters.
+     */
+    private MetadataEventSynchronizer synchronizer;
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
-import com.google.common.collect.Sets;
+import static org.testng.Assert.fail;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -40,7 +44,6 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        resetConfig();
         super.internalSetup();
         admin.clusters()
                 .createCluster(CLUSTER, ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -50,6 +53,18 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testCreateClusterBadRequest() {
+        try {
+            admin.clusters()
+                    .createCluster("bad_request", ClusterData.builder()
+                            .serviceUrl("pulsar://example.com").build());
+            fail("Unexpected behaviour");
+        } catch (PulsarAdminException ex) {
+            assertEquals(ex.getStatusCode(), 400);
+        }
     }
 
     @Test
@@ -87,11 +102,43 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     public void testDeleteExistFailureDomain() throws PulsarAdminException {
         String domainName = CLUSTER + "-failure-domain";
         FailureDomain domain = FailureDomain.builder()
-                .brokers(Sets.newHashSet("b1", "b2", "b3"))
+                .brokers(Set.of("b1", "b2", "b3"))
                 .build();
         admin.clusters().createFailureDomain(CLUSTER, domainName, domain);
         Awaitility.await().untilAsserted(() -> admin.clusters().getFailureDomain(CLUSTER, domainName));
 
         admin.clusters().deleteFailureDomain(CLUSTER, domainName);
+    }
+
+    @Test
+    public void testCreateCluster() throws PulsarAdminException {
+        List<ClusterData> clusterDataList = new ArrayList<>();
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl("http://pulsar.app:8080")
+                .serviceUrlTls("")
+                .brokerServiceUrl("pulsar://pulsar.app:6650")
+                .brokerServiceUrlTls("")
+                .build());
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl("")
+                .serviceUrlTls("https://pulsar.app:8443")
+                .brokerServiceUrl("")
+                .brokerServiceUrlTls("pulsar+ssl://pulsar.app:6651")
+                .build());
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl("")
+                .serviceUrlTls("")
+                .brokerServiceUrl("")
+                .brokerServiceUrlTls("")
+                .build());
+        clusterDataList.add(ClusterData.builder()
+                .serviceUrl(null)
+                .serviceUrlTls(null)
+                .brokerServiceUrl(null)
+                .brokerServiceUrlTls(null)
+                .build());
+        for (int i = 0; i < clusterDataList.size(); i++) {
+            admin.clusters().createCluster("cluster-test-" + i, clusterDataList.get(i));
+        }
     }
 }

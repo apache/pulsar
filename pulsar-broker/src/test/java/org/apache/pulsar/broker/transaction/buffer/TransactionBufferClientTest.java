@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,25 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
+import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferHandlerImpl;
@@ -146,6 +152,55 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             assertEquals(futures.get(i).get().getMostSigBits(), 1L);
             assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
+    }
+
+
+    @Test
+    public void testTransactionBufferMetrics() throws Exception {
+        //Test commit
+        for (int i = 0; i < partitions; i++) {
+            String topic = partitionedTopicName.getPartition(i).toString();
+            tbClient.commitTxnOnSubscription(topic, "test", 1L, i, -1L).get();
+        }
+
+        //test abort
+        for (int i = 0; i < partitions; i++) {
+            String topic = partitionedTopicName.getPartition(i).toString();
+            tbClient.abortTxnOnSubscription(topic, "test", 1L, i, -1L).get();
+        }
+
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsarServiceList.get(0), true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
+
+        Collection<PrometheusMetricsTest.Metric> abortFailed = metricsMap.get("pulsar_txn_tb_client_abort_failed_total");
+        Collection<PrometheusMetricsTest.Metric> commitFailed = metricsMap.get("pulsar_txn_tb_client_commit_failed_total");
+        Collection<PrometheusMetricsTest.Metric> abortLatencyCount =
+                metricsMap.get("pulsar_txn_tb_client_abort_latency_count");
+        Collection<PrometheusMetricsTest.Metric> commitLatencyCount =
+                metricsMap.get("pulsar_txn_tb_client_commit_latency_count");
+        Collection<PrometheusMetricsTest.Metric> pending = metricsMap.get("pulsar_txn_tb_client_pending_requests");
+
+        assertEquals(abortFailed.stream().mapToDouble(metric -> metric.value).sum(), 0);
+        assertEquals(commitFailed.stream().mapToDouble(metric -> metric.value).sum(), 0);
+
+        for (int i = 0; i < partitions; i++) {
+            String topic = partitionedTopicName.getPartition(i).toString();
+            Optional<PrometheusMetricsTest.Metric> optional = abortLatencyCount.stream()
+                    .filter(metric -> metric.tags.get("topic").equals(topic)).findFirst();
+
+            assertTrue(optional.isPresent());
+            assertEquals(optional.get().value, 1D);
+
+            Optional<PrometheusMetricsTest.Metric> optional1 = commitLatencyCount.stream()
+                    .filter(metric -> metric.tags.get("topic").equals(topic)).findFirst();
+            assertTrue(optional1.isPresent());
+            assertEquals(optional1.get().value, 1D);
+        }
+
+        assertEquals(pending.size(), 1);
     }
 
     @Test

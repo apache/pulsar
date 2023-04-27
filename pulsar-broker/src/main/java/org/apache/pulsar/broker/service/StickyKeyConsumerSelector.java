@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
@@ -33,7 +33,7 @@ public interface StickyKeyConsumerSelector {
      *
      * @param consumer new consumer
      */
-    void addConsumer(Consumer consumer) throws ConsumerAssignException;
+    CompletableFuture<Void> addConsumer(Consumer consumer);
 
     /**
      * Remove the consumer.

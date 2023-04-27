@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,10 +25,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,20 +79,19 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        resetConfig();
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 
-        // create otherbroker to test redirect on calls that need
+        // create other broker to test redirect on calls that need
         // namespace ownership
         mockPulsarSetup = new MockedPulsarService(this.conf);
         mockPulsarSetup.setup();
 
         // Setup namespaces
         admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
@@ -151,11 +149,11 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).build();
         Consumer<byte[]> consumer1 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName1)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(admin.topics().getSubscriptions(partitionedTopicName), Lists.newArrayList(subName1));
+        assertEquals(admin.topics().getSubscriptions(partitionedTopicName), List.of(subName1));
         Consumer<byte[]> consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(partitionedTopicName)),
-                Sets.newHashSet(subName1, subName2));
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(partitionedTopicName)),
+                Set.of(subName1, subName2));
 
         // (1) update partitions
         admin.topics().updatePartitionedTopic(partitionedTopicName, newPartitions);
@@ -182,23 +180,23 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         consumer2.close();
         consumer2 = client.newConsumer().topic(partitionedTopicName).subscriptionName(subName2)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
-        assertEquals(Sets.newHashSet(admin.topics().getSubscriptions(newPartitionTopicName)),
-                Sets.newHashSet(subName1, subName2));
+        assertEquals(new HashSet<>(admin.topics().getSubscriptions(newPartitionTopicName)),
+                Set.of(subName1, subName2));
 
-        assertEquals(Sets.newHashSet(admin.topics().getList("prop-xyz/use/ns1")).size(), newPartitions);
+        assertEquals(new HashSet<>(admin.topics().getList("prop-xyz/use/ns1")).size(), newPartitions);
 
         // test cumulative stats for partitioned topic
         PartitionedTopicStats topicStats = admin.topics().getPartitionedStats(partitionedTopicName, false);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList(subName1, subName2)));
+        assertEquals(topicStats.getSubscriptions().keySet(), Set.of(subName1, subName2));
         assertEquals(topicStats.getSubscriptions().get(subName2).getConsumers().size(), 1);
         assertEquals(topicStats.getSubscriptions().get(subName2).getMsgBacklog(), totalMessages);
         assertEquals(topicStats.getPublishers().size(), 1);
-        assertEquals(topicStats.getPartitions(), Maps.newHashMap());
+        assertEquals(topicStats.getPartitions(), new HashMap<>());
 
         // (5) verify: each partition should have backlog
         topicStats = admin.topics().getPartitionedStats(partitionedTopicName, true);
         assertEquals(topicStats.getMetadata().partitions, newPartitions);
-        Set<String> partitionSet = Sets.newHashSet();
+        Set<String> partitionSet = new HashSet<>();
         for (int i = 0; i < newPartitions; i++) {
             partitionSet.add(partitionedTopicName + "-partition-" + i);
         }
@@ -242,12 +240,12 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 10, 0);
 
         NonPersistentTopicStats topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertEquals(topicStats.getSubscriptions().keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(topicStats.getSubscriptions().keySet(), Set.of("my-sub"));
         assertEquals(topicStats.getSubscriptions().get("my-sub").getConsumers().size(), 1);
         assertEquals(topicStats.getPublishers().size(), 0);
 
         PersistentTopicInternalStats internalStats = admin.nonPersistentTopics().getInternalStats(persistentTopicName);
-        assertEquals(internalStats.cursors.keySet(), Sets.newTreeSet(Lists.newArrayList("my-sub")));
+        assertEquals(internalStats.cursors.keySet(), Set.of("my-sub"));
 
         consumer.close();
         client.close();
@@ -435,7 +433,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
-        assertEquals(admin.topics().getSubscriptions(topicName), Lists.newArrayList("my-sub"));
+        assertEquals(admin.topics().getSubscriptions(topicName), List.of("my-sub"));
 
         publishMessagesOnPersistentTopic(topicName, totalProducedMessages, 0);
 
@@ -555,21 +553,21 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("us-east2",
                 ClusterData.builder().serviceUrl("http://broker.messaging.east2.example.com:8080").build());
 
-        admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west2")));
-        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), Lists.newArrayList("us-west2"));
+        admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(List.of("us-west2")));
+        assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(), List.of("us-west2"));
         assertNull(admin.clusters().getCluster("us-west2").getPeerClusterNames());
         // update cluster with duplicate peer-clusters in the list
         admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(
-                Lists.newArrayList("us-west2", "us-east1", "us-west2", "us-east1", "us-west2", "us-east1")));
+                List.of("us-west2", "us-east1", "us-west2", "us-east1", "us-west2", "us-east1")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
-                Lists.newArrayList("us-west2", "us-east1"));
+                List.of("us-west2", "us-east1"));
         admin.clusters().updatePeerClusterNames("us-west1", null);
         assertNull(admin.clusters().getCluster("us-west1").getPeerClusterNames());
 
         // Check name validation
         try {
             admin.clusters().updatePeerClusterNames("us-west1",
-                    Sets.newLinkedHashSet(Lists.newArrayList("invalid-cluster")));
+                    Sets.newLinkedHashSet(List.of("invalid-cluster")));
             fail("should have failed");
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
@@ -577,7 +575,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // Cluster itselft can't be part of peer-list
         try {
-            admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(Lists.newArrayList("us-west1")));
+            admin.clusters().updatePeerClusterNames("us-west1", Sets.newLinkedHashSet(List.of("us-west1")));
             fail("should have failed");
         } catch (PulsarAdminException e) {
             assertTrue(e instanceof PreconditionFailedException);
@@ -606,25 +604,25 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("global", ClusterData.builder().build());
 
         final String property = "peer-prop";
-        Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
+        Set<String> allowedClusters = Set.of("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2");
-        TenantInfoImpl propConfig = new TenantInfoImpl(Sets.newHashSet("test"), allowedClusters);
+        TenantInfoImpl propConfig = new TenantInfoImpl(Set.of("test"), allowedClusters);
         admin.tenants().createTenant(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
         admin.namespaces().createNamespace(namespace);
 
         admin.clusters().updatePeerClusterNames("us-west1",
-                Sets.newLinkedHashSet(Lists.newArrayList("us-west2", "us-west3")));
+                Sets.newLinkedHashSet(List.of("us-west2", "us-west3")));
         assertEquals(admin.clusters().getCluster("us-west1").getPeerClusterNames(),
-                Lists.newArrayList("us-west2", "us-west3"));
+                List.of("us-west2", "us-west3"));
 
         // (1) no conflicting peer
-        Set<String> clusterIds = Sets.newHashSet("us-east1", "us-east2");
+        Set<String> clusterIds = Set.of("us-east1", "us-east2");
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
         // (2) conflicting peer
-        clusterIds = Sets.newHashSet("us-west2", "us-west3", "us-west1");
+        clusterIds = Set.of("us-west2", "us-west3", "us-west1");
         try {
             admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
             fail("Peer-cluster can't coexist in replication cluster list");
@@ -632,11 +630,11 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        clusterIds = Sets.newHashSet("us-west2", "us-west3");
+        clusterIds = Set.of("us-west2", "us-west3");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
-        clusterIds = Sets.newHashSet("us-west1", "us-west4");
+        clusterIds = Set.of("us-west1", "us-west4");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }
@@ -652,7 +650,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
                         .build());
         // create
         FailureDomain domain = FailureDomain.builder()
-                .brokers(Sets.newHashSet("b1", "b2", "b3"))
+                .brokers(Set.of("b1", "b2", "b3"))
                 .build();
         admin.clusters().createFailureDomain(cluster, "domain-1", domain);
         admin.clusters().updateFailureDomain(cluster, "domain-1", domain);
@@ -718,7 +716,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, 20);
         int totalTopics = 100;
 
-        Set<String> topicNames = Sets.newHashSet();
+        Set<String> topicNames = new HashSet<>();
         for (int i = 0; i < totalTopics; i++) {
             topicNames.add(topicName + i);
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -791,7 +789,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithUnderscore() throws Exception {
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
         admin.tenants().createTenant("prop_xyz", tenantInfo);
 
         admin.namespaces().createNamespace("prop_xyz/use/my-namespace");
@@ -811,7 +809,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testTenantNameWithInvalidCharacters() throws Exception {
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("use"));
 
         // If we try to create property with invalid characters, it should fail immediately
         try {

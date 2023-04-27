@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -254,6 +254,11 @@ public class ElasticSearchClient implements AutoCloseable {
             client.close();
             client = null;
         }
+    }
+
+    @VisibleForTesting
+    void setClient(RestClient client) {
+        this.client = client;
     }
 
     private void checkNotFailed() throws Exception {

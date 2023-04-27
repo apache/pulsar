@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -46,6 +47,8 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
+
 /**
  * Admin interface for Topics management.
  */
@@ -586,7 +589,7 @@ public interface Topics {
     CompletableFuture<Void> createMissedPartitionsAsync(String topic);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -602,7 +605,7 @@ public interface Topics {
     void updatePartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -618,7 +621,7 @@ public interface Topics {
     CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -638,7 +641,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -658,7 +661,7 @@ public interface Topics {
             boolean force);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -676,7 +679,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -732,6 +735,42 @@ public interface Topics {
      * @return a future that can be used to track when the topic properties is returned
      */
     CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
+
+    /**
+     * Update Topic Properties on a topic.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
+     * @param topic
+     * @param properties
+     * @throws PulsarAdminException
+     */
+    void updateProperties(String topic, Map<String, String> properties) throws PulsarAdminException;
+
+    /**
+     * Update Topic Properties on a topic.
+     * The new properties will override the existing values, old properties in the topic will be keep if not override.
+     * @param topic
+     * @param properties
+     * @return
+     */
+    CompletableFuture<Void> updatePropertiesAsync(String topic, Map<String, String> properties);
+
+    /**
+     * Remove the key in properties on a topic.
+     *
+     * @param topic
+     * @param key
+     * @throws PulsarAdminException
+     */
+    void removeProperties(String topic, String key) throws PulsarAdminException;
+
+    /**
+     * Remove the key in properties on a topic asynchronously.
+     *
+     * @param topic
+     * @param key
+     * @return
+     */
+    CompletableFuture<Void> removePropertiesAsync(String topic, String key);
 
     /**
      * Delete a partitioned topic and its schemas.
@@ -1941,6 +1980,19 @@ public interface Topics {
     CompletableFuture<Void> triggerCompactionAsync(String topic);
 
     /**
+     * Trigger topic trimming.
+     * @param topic The topic to trim
+     * @throws PulsarAdminException
+     */
+    void trimTopic(String topic) throws PulsarAdminException;
+
+    /**
+     * Trigger topic trimming asynchronously.
+     * @param topic The topic to trim
+     */
+    CompletableFuture<Void> trimTopicAsync(String topic);
+
+    /**
      * Check the status of an ongoing compaction for a topic.
      *
      * @param topic The topic whose compaction status we wish to check
@@ -2048,6 +2100,46 @@ public interface Topics {
     @Deprecated
     Map<BacklogQuota.BacklogQuotaType, BacklogQuota> getBacklogQuotaMap(String topic, boolean applied)
             throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    AnalyzeSubscriptionBacklogResult analyzeSubscriptionBacklog(String topic, String subscriptionName,
+                                                                Optional<MessageId> startPosition)
+            throws PulsarAdminException;
+
+    /**
+     * Analyze subscription backlog.
+     * This is a potentially expensive operation, as it requires
+     * to read the messages from storage.
+     * This function takes into consideration batch messages
+     * and also Subscription filters.
+     * @param topic
+     *            Topic name
+     * @param subscriptionName
+     *            the subscription
+     * @param startPosition
+     *           the position to start the scan from (empty means the last processed message)
+     * @return an accurate analysis of the backlog
+     * @throws PulsarAdminException
+     *            Unexpected error
+     */
+    CompletableFuture<AnalyzeSubscriptionBacklogResult> analyzeSubscriptionBacklogAsync(String topic,
+                                                                           String subscriptionName,
+                                                                           Optional<MessageId> startPosition);
 
     /**
      * Get backlog size by a message ID.
@@ -4274,4 +4366,102 @@ public interface Topics {
      * @param topic topic name
      */
     CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean enable);
+
+    /**
+     * Set shadow topic list for a source topic.
+     *
+     * @param sourceTopic  source topic name
+     * @param shadowTopics list of shadow topic name
+     */
+    void setShadowTopics(String sourceTopic, List<String> shadowTopics) throws PulsarAdminException;
+
+    /**
+     * Remove all shadow topics for a source topic.
+     *
+     * @param sourceTopic source topic name
+     */
+    void removeShadowTopics(String sourceTopic) throws PulsarAdminException;
+
+    /**
+     * Get shadow topic list of the source topic.
+     *
+     * @param sourceTopic source topic name
+     * @return shadow topic list
+     */
+    List<String> getShadowTopics(String sourceTopic) throws PulsarAdminException;
+
+    /**
+     * Set shadow topic list for a source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<Void> setShadowTopicsAsync(String sourceTopic, List<String> shadowTopics);
+
+    /**
+     * Remove all shadow topics for a source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<Void> removeShadowTopicsAsync(String sourceTopic);
+
+    /**
+     * Get shadow topic list of the source topic asynchronously.
+     *
+     * @param sourceTopic source topic name
+     */
+    CompletableFuture<List<String>> getShadowTopicsAsync(String sourceTopic);
+
+    /**
+     * Get the shadow source topic name of the given shadow topic.
+     * @param shadowTopic shadow topic name.
+     * @return The topic name of the source of the shadow topic.
+     */
+    String getShadowSource(String shadowTopic) throws PulsarAdminException;
+
+    /**
+     * Get the shadow source topic name of the given shadow topic asynchronously.
+     * @param shadowTopic shadow topic name.
+     * @return The topic name of the source of the shadow topic.
+     */
+    CompletableFuture<String> getShadowSourceAsync(String shadowTopic);
+
+    /**
+     * Create a new shadow topic as the shadow of the source topic.
+     * The source topic must exist before call this method.
+     * <p>
+     *     For partitioned source topic, the partition number of shadow topic follows the source topic at creation. If
+     *     the partition number of the source topic changes, the shadow topic needs to update its partition number
+     *     manually.
+     *     For non-partitioned source topic, the shadow topic will be created as non-partitioned topic.
+     * </p>
+     *
+     * NOTE: This is still WIP until <a href="https://github.com/apache/pulsar/issues/16153">PIP-180</a> is finished.
+     *
+     * @param shadowTopic shadow topic name, and it must be a persistent topic name.
+     * @param sourceTopic source topic name, and it must be a persistent topic name.
+     * @param properties properties to be created with in the shadow topic.
+     * @throws PulsarAdminException
+     */
+    void createShadowTopic(String shadowTopic, String sourceTopic, Map<String, String> properties)
+            throws PulsarAdminException;
+
+    /**
+     * Create a new shadow topic, see #{@link #createShadowTopic(String, String, Map)} for details.
+     */
+    CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic,
+                                                   Map<String, String> properties);
+
+    /**
+     * Create a new shadow topic, see #{@link #createShadowTopic(String, String, Map)} for details.
+     */
+    default void createShadowTopic(String shadowTopic, String sourceTopic) throws PulsarAdminException {
+        createShadowTopic(shadowTopic, sourceTopic, null);
+    }
+
+    /**
+     * Create a new shadow topic, see #{@link #createShadowTopic(String, String, Map)} for details.
+     */
+    default CompletableFuture<Void> createShadowTopicAsync(String shadowTopic, String sourceTopic) {
+        return createShadowTopicAsync(shadowTopic, sourceTopic, null);
+    }
 }

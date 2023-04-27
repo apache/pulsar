@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -85,14 +86,37 @@ public interface ManagedCursor {
      */
     Map<String, String> getCursorProperties();
 
-     /**
-      * Updates the properties.
-      * @param cursorProperties
-      * @return a handle to the result of the operation
-      */
-     default CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
-         return CompletableFuture.completedFuture(null);
-     }
+    /**
+     * Add a property associated with the cursor.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
+     * @return a handle to the result of the operation
+     */
+    CompletableFuture<Void> putCursorProperty(String key, String value);
+
+    /**
+     * Set all properties associated with the cursor,
+     * but internal properties(start with '#pulsar_internal.') are still preserved
+     * and prohibit setting of internal properties by this method.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
+     * @return a handle to the result of the operation
+     */
+    CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties);
+
+    /**
+     * Remove a property associated with the cursor.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
+     * @return a handle to the result of the operation
+     */
+    CompletableFuture<Void> removeCursorProperty(String key);
 
     /**
      * Add a property associated with the last stored position.
@@ -142,6 +166,21 @@ public interface ManagedCursor {
      */
     void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
                           Object ctx, PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     * @param maxPosition           max position can read
+     * @param skipCondition         predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                          Object ctx, PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+        asyncReadEntries(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -239,6 +278,55 @@ public interface ManagedCursor {
      */
     void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
                                 PositionImpl maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     * @param skipCondition
+     *            predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
+                                                PositionImpl maxPosition, Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, callback, ctx, maxPosition);
+    }
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     * @param skipCondition
+     *            predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                                Object ctx, PositionImpl maxPosition,
+                                                Predicate<PositionImpl> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
@@ -502,6 +590,23 @@ public interface ManagedCursor {
      */
     Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
+    /**
+     * Scan the cursor from the current position up to the end.
+     * Please note that this is an expensive operation
+     * @param startingPosition the position to start from, if not provided the scan will start from
+     *                         the lastDeleteMarkPosition
+     * @param condition a condition to continue the scan, the condition can access the entry
+     * @param batchSize number of entries to process at each read
+     * @param maxEntries maximum number of entries to scan
+     * @param timeOutMs maximum time to spend on this operation
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    default CompletableFuture<ScanOutcome> scan(Optional<Position> startingPosition,
+                                                Predicate<Entry> condition,
+                                                int batchSize, long maxEntries, long timeOutMs) {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+    }
 
     /**
      * Find the newest entry that matches the given predicate.

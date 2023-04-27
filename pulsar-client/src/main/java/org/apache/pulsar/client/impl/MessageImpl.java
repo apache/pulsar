@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
@@ -52,6 +53,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaHash;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -64,6 +66,8 @@ public class MessageImpl<T> implements Message<T> {
     private ByteBuf payload;
 
     private Schema<T> schema;
+
+    private SchemaHash schemaHash;
     private SchemaInfo schemaInfoForReplicator;
     private SchemaState schemaState = SchemaState.None;
     private Optional<EncryptionContext> encryptionCtx = Optional.empty();
@@ -91,6 +95,7 @@ public class MessageImpl<T> implements Message<T> {
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
         msg.schema = schema;
+        msg.schemaHash = SchemaHash.of(schema);
         msg.uncompressedSize = payload.remaining();
         return msg;
     }
@@ -431,9 +436,14 @@ public class MessageImpl<T> implements Message<T> {
         return schema.getSchemaInfo();
     }
 
+    public SchemaHash getSchemaHash() {
+        return schemaHash == null ? SchemaHash.empty() : schemaHash;
+    }
+
     public void setSchemaInfoForReplicator(SchemaInfo schemaInfo) {
         if (msgMetadata.hasReplicatedFrom()) {
             this.schemaInfoForReplicator = schemaInfo;
+            this.schemaHash = SchemaHash.of(schemaInfo);
         } else {
             throw new IllegalArgumentException("Only allowed to set schemaInfoForReplicator for a replicated message.");
         }
@@ -488,11 +498,19 @@ public class MessageImpl<T> implements Message<T> {
         if (value != null) {
             return value;
         }
+
         if (null == schemaVersion) {
-            return schema.decode(getData());
+            return schema.decode(getByteBuffer());
         } else {
-            return schema.decode(getData(), schemaVersion);
+            return schema.decode(getByteBuffer(), schemaVersion);
         }
+    }
+
+    private ByteBuffer getByteBuffer() {
+        if (msgMetadata.isNullValue()) {
+            return null;
+        }
+        return this.payload.nioBuffer();
     }
 
     private T getKeyValueBySchemaVersion() {
@@ -697,9 +715,10 @@ public class MessageImpl<T> implements Message<T> {
     @Override
     public Optional<Long> getIndex() {
         if (brokerEntryMetadata != null && brokerEntryMetadata.hasIndex()) {
-            if (msgMetadata.hasNumMessagesInBatch() && messageId instanceof BatchMessageIdImpl) {
-                int batchSize = ((BatchMessageIdImpl) messageId).getBatchSize();
-                int batchIndex = ((BatchMessageIdImpl) messageId).getBatchIndex();
+            MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
+            if (msgMetadata.hasNumMessagesInBatch() && MessageIdAdvUtils.isBatch(messageIdAdv)) {
+                int batchSize = messageIdAdv.getBatchSize();
+                int batchIndex = messageIdAdv.getBatchIndex();
                 return Optional.of(brokerEntryMetadata.getIndex() - batchSize + batchIndex + 1);
             }
             return Optional.of(brokerEntryMetadata.getIndex());
@@ -736,7 +755,7 @@ public class MessageImpl<T> implements Message<T> {
         return msgMetadata.hasReplicatedFrom();
     }
 
-    void setMessageId(MessageId messageId) {
+    public void setMessageId(MessageId messageId) {
         this.messageId = messageId;
     }
 
@@ -755,9 +774,6 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     SchemaState getSchemaState() {
-        if (getSchemaInfo() == null) {
-            return SchemaState.Ready;
-        }
         return schemaState;
     }
 

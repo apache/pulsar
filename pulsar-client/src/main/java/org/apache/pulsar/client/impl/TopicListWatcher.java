@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -148,8 +148,8 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             cnx.channel().close();
                             return null;
                         }
-                        log.warn("[{}][{}] Failed to subscribe to topic on {}", topic,
-                                getHandlerName(), cnx.channel().remoteAddress());
+                        log.warn("[{}][{}] Failed to create topic list watcher on {}",
+                                topic, getHandlerName(), cnx.channel().remoteAddress());
 
                         if (e.getCause() instanceof PulsarClientException
                                 && PulsarClientException.isRetriableError(e.getCause())

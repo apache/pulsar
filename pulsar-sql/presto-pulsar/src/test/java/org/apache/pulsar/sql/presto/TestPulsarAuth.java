@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static io.prestosql.spi.StandardErrorCode.PERMISSION_DENIED;
-import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
+import static io.trino.spi.StandardErrorCode.QUERY_REJECTED;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.ConnectorSession;
-import io.prestosql.spi.security.ConnectorIdentity;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
+import io.trino.spi.security.ConnectorIdentity;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Optional;
@@ -52,7 +52,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
     @Override
-    protected void setup() throws Exception {
+    public void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.broker.authentication.AuthenticationProviderToken"));
@@ -80,7 +80,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
 
     @AfterClass
     @Override
-    protected void cleanup() throws Exception {
+    public void cleanup() throws Exception {
         internalCleanup();
     }
 
@@ -112,7 +112,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         try {
             pulsarAuth.checkTopicAuth(session, "test");
             Assert.fail(); // should fail
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             Assert.assertEquals(QUERY_REJECTED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("The credential information is empty"));
         }
@@ -124,7 +124,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         try {
             pulsarAuth.checkTopicAuth(session, "test");
             Assert.fail(); // should fail
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             Assert.assertEquals(QUERY_REJECTED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("Please specify the auth-method and auth-params"));
         }
@@ -135,7 +135,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         try {
             pulsarAuth.checkTopicAuth(session, "test");
             Assert.fail(); // should fail
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             Assert.assertEquals(QUERY_REJECTED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("Please specify the auth-method and auth-params"));
         }
@@ -186,7 +186,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         try {
             pulsarAuth.checkTopicAuth(session, otherTopic);
             Assert.fail(); // should fail
-        } catch (PrestoException e){
+        } catch (TrinoException e){
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("not authorized"));
         }
@@ -207,9 +207,9 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
             }}).when(identity).getExtraCredentials();
             pulsarAuth.checkTopicAuth(session, topic);
             Assert.fail(); // should fail
-        } catch (PrestoException e){
+        } catch (TrinoException e){
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
-            Assert.assertTrue(e.getMessage().contains("Unable to authenticate"));
+            Assert.assertTrue(e.getMessage().contains("Failed to authenticate"));
         }
 
         pulsarAuth.cleanSession(session);
@@ -224,7 +224,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
             }}).when(identity).getExtraCredentials();
             pulsarAuth.checkTopicAuth(session, topic);
             Assert.fail(); // should fail
-        } catch (PrestoException e){
+        } catch (TrinoException e){
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("not authorized"));
         }

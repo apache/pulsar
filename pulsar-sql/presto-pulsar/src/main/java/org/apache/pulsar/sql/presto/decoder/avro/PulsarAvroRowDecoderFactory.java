@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,33 +19,33 @@
 package org.apache.pulsar.sql.presto.decoder.avro;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.prestosql.spi.type.DateType.DATE;
-import static io.prestosql.spi.type.TimeType.TIME;
-import static io.prestosql.spi.type.VarcharType.createUnboundedVarcharType;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static java.lang.String.format;
 import static java.util.stream.Collectors.toList;
 import com.google.common.collect.ImmutableList;
 import io.airlift.log.Logger;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.ArrayType;
-import io.prestosql.spi.type.BigintType;
-import io.prestosql.spi.type.BooleanType;
-import io.prestosql.spi.type.DecimalType;
-import io.prestosql.spi.type.DoubleType;
-import io.prestosql.spi.type.IntegerType;
-import io.prestosql.spi.type.RealType;
-import io.prestosql.spi.type.RowType;
-import io.prestosql.spi.type.StandardTypes;
-import io.prestosql.spi.type.TimestampType;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.TypeManager;
-import io.prestosql.spi.type.TypeSignature;
-import io.prestosql.spi.type.TypeSignatureParameter;
-import io.prestosql.spi.type.VarbinaryType;
-import io.prestosql.spi.type.VarcharType;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.type.ArrayType;
+import io.trino.spi.type.BigintType;
+import io.trino.spi.type.BooleanType;
+import io.trino.spi.type.DateType;
+import io.trino.spi.type.DecimalType;
+import io.trino.spi.type.DoubleType;
+import io.trino.spi.type.IntegerType;
+import io.trino.spi.type.RealType;
+import io.trino.spi.type.RowType;
+import io.trino.spi.type.StandardTypes;
+import io.trino.spi.type.TimeType;
+import io.trino.spi.type.TimestampType;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeManager;
+import io.trino.spi.type.TypeSignature;
+import io.trino.spi.type.TypeSignatureParameter;
+import io.trino.spi.type.VarbinaryType;
+import io.trino.spi.type.VarcharType;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -68,7 +68,7 @@ import org.apache.pulsar.sql.presto.PulsarRowDecoderFactory;
  */
 public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
 
-    private TypeManager typeManager;
+    private final TypeManager typeManager;
 
     public PulsarAvroRowDecoderFactory(TypeManager typeManager) {
         this.typeManager = typeManager;
@@ -86,14 +86,14 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
         List<ColumnMetadata> columnMetadata;
         String schemaJson = new String(schemaInfo.getSchema());
         if (StringUtils.isBlank(schemaJson)) {
-            throw new PrestoException(NOT_SUPPORTED, "Topic "
+            throw new TrinoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " does not have a valid schema");
         }
         Schema schema;
         try {
             schema = GenericJsonSchema.of(schemaInfo).getAvroSchema();
         } catch (SchemaParseException ex) {
-            throw new PrestoException(NOT_SUPPORTED, "Topic "
+            throw new TrinoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " does not have a valid schema");
         }
 
@@ -110,13 +110,13 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
         } catch (StackOverflowError e){
             log.warn(e, "Topic "
                     + topicName.toString() + " extractColumnMetadata failed.");
-            throw new PrestoException(NOT_SUPPORTED, "Topic "
+            throw new TrinoException(NOT_SUPPORTED, "Topic "
                     + topicName.toString() + " schema may contains cyclic definitions.", e);
         }
         return columnMetadata;
     }
 
-    private Type parseAvroPrestoType(String fieldname, Schema schema) {
+    private Type parseAvroPrestoType(String fieldName, Schema schema) {
         Schema.Type type = schema.getType();
         LogicalType logicalType  = schema.getLogicalType();
         switch (type) {
@@ -126,7 +126,7 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
             case NULL:
                 throw new UnsupportedOperationException(
                         format("field '%s' NULL type code should not be reached,"
-                                + "please check the schema or report the bug.", fieldname));
+                                + "please check the schema or report the bug.", fieldName));
             case FIXED:
             case BYTES:
                 //  When the precision <= 0, throw Exception.
@@ -140,16 +140,15 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 return VarbinaryType.VARBINARY;
             case INT:
                 if (logicalType == LogicalTypes.timeMillis()) {
-                    return TIME;
+                    return TimeType.TIME_MILLIS;
                 } else if (logicalType == LogicalTypes.date()) {
-                    return DATE;
+                    return DateType.DATE;
                 }
                 return IntegerType.INTEGER;
             case LONG:
                 if (logicalType == LogicalTypes.timestampMillis()) {
-                    return TimestampType.TIMESTAMP;
+                    return TimestampType.TIMESTAMP_MILLIS;
                 }
-                //TODO: support timestamp_microseconds logicalType : https://github.com/prestosql/presto/issues/1284
                 return BigintType.BIGINT;
             case FLOAT:
                 return RealType.REAL;
@@ -158,10 +157,10 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
             case BOOLEAN:
                 return BooleanType.BOOLEAN;
             case ARRAY:
-                return new ArrayType(parseAvroPrestoType(fieldname, schema.getElementType()));
+                return new ArrayType(parseAvroPrestoType(fieldName, schema.getElementType()));
             case MAP:
                 //The key for an avro map must be string
-                TypeSignature valueType = parseAvroPrestoType(fieldname, schema.getValueType()).getTypeSignature();
+                TypeSignature valueType = parseAvroPrestoType(fieldName, schema.getValueType()).getTypeSignature();
                 return typeManager.getParameterizedType(StandardTypes.MAP,
                         ImmutableList.of(TypeSignatureParameter.typeParameter(VarcharType.VARCHAR.getTypeSignature()),
                                 TypeSignatureParameter.typeParameter(valueType)));
@@ -174,16 +173,16 @@ public class PulsarAvroRowDecoderFactory implements PulsarRowDecoderFactory {
                 } else {
                     throw new UnsupportedOperationException(format(
                             "field '%s' of record type has no fields, "
-                                    + "please check schema definition. ", fieldname));
+                                    + "please check schema definition. ", fieldName));
                 }
             case UNION:
                 for (Schema nestType : schema.getTypes()) {
                     if (nestType.getType() != Schema.Type.NULL) {
-                        return parseAvroPrestoType(fieldname, nestType);
+                        return parseAvroPrestoType(fieldName, nestType);
                     }
                 }
                 throw new UnsupportedOperationException(format(
-                        "field '%s' of UNION type must contains not NULL type.", fieldname));
+                        "field '%s' of UNION type must contains not NULL type.", fieldName));
             default:
                 throw new UnsupportedOperationException(format(
                         "Can't convert from schema type '%s' (%s) to presto type.",

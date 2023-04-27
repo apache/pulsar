@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,6 +43,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     private long ledgerId;
     private long entryId;
     ByteBuf data;
+
+    private Runnable onDeallocate;
 
     public static EntryImpl create(LedgerEntry ledgerEntry) {
         EntryImpl entry = RECYCLER.get();
@@ -100,6 +102,22 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     private EntryImpl(Recycler.Handle<EntryImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
+    }
+
+    public void onDeallocate(Runnable r) {
+        if (this.onDeallocate == null) {
+            this.onDeallocate = r;
+        } else {
+            // this is not expected to happen
+            Runnable previous = this.onDeallocate;
+            this.onDeallocate = () -> {
+                try {
+                    previous.run();
+                } finally {
+                    r.run();
+                }
+            };
+        }
     }
 
     public long getTimestamp() {
@@ -167,6 +185,13 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
     @Override
     protected void deallocate() {
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
+        if (onDeallocate != null) {
+            try {
+                onDeallocate.run();
+            } finally {
+                onDeallocate = null;
+            }
+        }
         data.release();
         data = null;
         timestamp = -1;

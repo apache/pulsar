@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.scheduler;
 
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -38,7 +38,7 @@ public class RoundRobinScheduler implements IScheduler {
                                      List<Assignment> currentAssignments, Set<String> workers) {
 
         Map<String, List<Instance>> workerIdToAssignment = new HashMap<>();
-        List<Assignment> newAssignments = Lists.newArrayList();
+        List<Assignment> newAssignments = new ArrayList<>();
 
         for (String workerId : workers) {
             workerIdToAssignment.put(workerId, new LinkedList<>());

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -64,6 +64,8 @@ class AdminProxyHandler extends ProxyServlet {
     private static final Logger LOG = LoggerFactory.getLogger(AdminProxyHandler.class);
 
     private static final String ORIGINAL_PRINCIPAL_HEADER = "X-Original-Principal";
+
+    public static final String INIT_PARAM_REQUEST_BUFFER_SIZE = "requestBufferSize";
 
     private static final Set<String> functionRoutes = new HashSet<>(Arrays.asList(
         "/admin/v3/function",
@@ -140,7 +142,7 @@ class AdminProxyHandler extends ProxyServlet {
         }
         client.setIdleTimeout(Long.parseLong(value));
 
-        value = config.getInitParameter("requestBufferSize");
+        value = config.getInitParameter(INIT_PARAM_REQUEST_BUFFER_SIZE);
         if (value != null) {
             client.setRequestBufferSize(Integer.parseInt(value));
         }

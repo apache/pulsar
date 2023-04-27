@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,15 @@ public class FunctionRecord<T> implements Record<T> {
     private final Integer partitionIndex;
     private final Long recordSequence;
 
+    // Explicit define FunctionRecordBuilder to avoid javadoc failure
+    @SuppressWarnings("unused")
+    public static class FunctionRecordBuilder<T> {
+        /**
+         * Force to use {@link #from(Context, Schema)}.
+         */
+        private FunctionRecordBuilder() {}
+    }
+
     /**
      * Creates a builder for a Record from a Function Context.
      * The builder is initialized with the output topic from the Context and with the topicName, key, eventTime,
@@ -49,11 +58,15 @@ public class FunctionRecord<T> implements Record<T> {
      * @param <T> type of Record to build
      * @return a Record builder initialised with values from the Function Context
      */
-     public static <T> FunctionRecord.FunctionRecordBuilder<T> from(Context context) {
+    public static <T> FunctionRecord.FunctionRecordBuilder<T> from(Context context, Schema<T> schema) {
+        if (schema == null) {
+            throw new IllegalArgumentException("Schema should not be null.");
+        }
         Record<?> currentRecord = context.getCurrentRecord();
         FunctionRecordBuilder<T> builder = new FunctionRecordBuilder<T>()
-                .destinationTopic(context.getOutputTopic())
-                .properties(currentRecord.getProperties());
+            .schema(schema)
+            .destinationTopic(context.getOutputTopic())
+            .properties(currentRecord.getProperties());
         currentRecord.getTopicName().ifPresent(builder::topicName);
         currentRecord.getKey().ifPresent(builder::key);
         currentRecord.getEventTime().ifPresent(builder::eventTime);

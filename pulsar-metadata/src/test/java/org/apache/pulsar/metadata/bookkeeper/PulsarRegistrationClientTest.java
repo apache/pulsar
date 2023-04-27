@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,10 +19,15 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,15 +36,18 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.discover.RegistrationManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
+import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -64,8 +72,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGetWritableBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 
@@ -91,8 +99,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "impl")
     public void testGetReadonlyBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 
@@ -115,6 +123,162 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "impl")
+    public void testGetBookieServiceInfo(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                        MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
+
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+
+        List<BookieId> addresses = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            addresses.add(BookieId.parse("BOOKIE-" + i));
+        }
+        Map<BookieId, BookieServiceInfo> bookieServiceInfos = new HashMap<>();
+        Set<BookieId> readOnlyBookies = new HashSet<>();
+        int port = 223;
+        for (BookieId address : addresses) {
+            BookieServiceInfo info = new BookieServiceInfo();
+            BookieServiceInfo.Endpoint endpoint = new BookieServiceInfo.Endpoint();
+            endpoint.setAuth(Collections.emptyList());
+            endpoint.setExtensions(Collections.emptyList());
+            endpoint.setId("id");
+            endpoint.setHost("localhost");
+            endpoint.setPort(port++);
+            endpoint.setProtocol("bookie-rpc");
+            info.setEndpoints(Arrays.asList(endpoint));
+            bookieServiceInfos.put(address, info);
+            // some readonly, some writable
+            boolean readOnly = port % 2 == 0;
+            if (readOnly) {
+                readOnlyBookies.add(address);
+            }
+            rm.registerBookie(address, readOnly, info);
+            // write the cookie
+            rm.writeCookie(address, new Versioned<>(new byte[0], Version.NEW));
+        }
+
+        // trigger loading the BookieServiceInfo in the local cache
+        getAndVerifyAllBookies(rc, addresses);
+
+        Awaitility.await().untilAsserted(() -> {
+        for (BookieId address : addresses) {
+            BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+            compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
+        }});
+
+        // shutdown the bookies (but keep the cookie)
+        for (BookieId address : addresses) {
+            rm.unregisterBookie(address, readOnlyBookies.contains(address));
+            readOnlyBookies.remove(address);
+        }
+
+        // getAllBookies should find all the bookies in any case (it reads the cookies)
+        getAndVerifyAllBookies(rc, addresses);
+
+        // getBookieServiceInfo should fail with BKBookieHandleNotAvailableException
+        Awaitility.await().untilAsserted(() -> {
+        for (BookieId address : addresses) {
+            assertTrue(
+                expectThrows(ExecutionException.class, () -> {
+                    rc.getBookieServiceInfo(address).get();
+            }).getCause() instanceof BKException.BKBookieHandleNotAvailableException);
+        }});
+
+
+        // restart the bookies, all writable
+        // we 'register' the bookie, but do not write the cookie again
+        for (BookieId address : addresses) {
+            rm.registerBookie(address, false, bookieServiceInfos.get(address));
+        }
+
+        getAndVerifyAllBookies(rc, addresses);
+
+        // verify that infos are available again
+        Awaitility.await()
+                .ignoreExceptionsMatching(e -> e.getCause() instanceof BKException.BKBookieHandleNotAvailableException)
+                .untilAsserted(() -> {
+                    for (BookieId address : addresses) {
+                        BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                        compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
+                    }
+                });
+
+        // update the infos
+        port = 111;
+        for (BookieId address : addresses) {
+            BookieServiceInfo info = new BookieServiceInfo();
+            BookieServiceInfo.Endpoint endpoint = new BookieServiceInfo.Endpoint();
+            endpoint.setAuth(Collections.emptyList());
+            endpoint.setExtensions(Collections.emptyList());
+            endpoint.setId("id");
+            endpoint.setHost("localhost");
+            endpoint.setPort(port++);
+            endpoint.setProtocol("bookie-rpc");
+            info.setEndpoints(Arrays.asList(endpoint));
+            bookieServiceInfos.put(address, info);
+            // some readonly, some writable
+            boolean readOnly = port % 2 == 0;
+
+            // remove the previous info from the metadata service
+            rm.unregisterBookie(address, readOnlyBookies.contains(address));
+
+            rm.registerBookie(address, readOnly, info);
+
+            if (readOnly) {
+                readOnlyBookies.add(address);
+            }
+        }
+
+        // verify that the client tracked the changes
+        Awaitility
+                .await()
+                .ignoreExceptionsMatching(e -> e.getCause() instanceof BKException.BKBookieHandleNotAvailableException)
+                .untilAsserted(() -> {
+            // verify that infos are updated
+            for (BookieId address : addresses) {
+                BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
+            }
+        });
+
+    }
+
+    private static void getAndVerifyAllBookies(RegistrationClient rc, List<BookieId> addresses)
+            throws InterruptedException, ExecutionException {
+        Set<BookieId> all = rc.getAllBookies().get().getValue();
+        assertEquals(all.size(), addresses.size());
+        for (BookieId id : all) {
+            assertTrue(addresses.contains(id));
+        }
+        for (BookieId id : addresses) {
+            assertTrue(all.contains(id));
+        }
+    }
+
+    private void compareBookieServiceInfo(BookieServiceInfo a, BookieServiceInfo b) {
+        assertEquals(a.getProperties(), b.getProperties());
+        assertEquals(a.getEndpoints().size(), b.getEndpoints().size());
+        for (int i = 0; i < a.getEndpoints().size(); i++) {
+            BookieServiceInfo.Endpoint e1 = a.getEndpoints().get(i);
+            BookieServiceInfo.Endpoint e2 = b.getEndpoints().get(i);
+            assertEquals(e1.getHost(), e2.getHost());
+            assertEquals(e1.getPort(), e2.getPort());
+            assertEquals(e1.getId(), e2.getId());
+            assertEquals(e1.getProtocol(), e2.getProtocol());
+            assertEquals(e1.getExtensions(), e2.getExtensions());
+            assertEquals(e1.getAuth(), e2.getAuth());
+        }
+
+    }
+
+    @Test(dataProvider = "impl")
     public void testGetAllBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store =
@@ -132,8 +296,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         List<String> children = new ArrayList<>();
         for (BookieId address : addresses) {
             children.add(address.toString());
-            boolean isReadOnly = children.size() % 2 == 0;
-            rm.registerBookie(address, isReadOnly, new BookieServiceInfo());
+            rm.writeCookie(address, new Versioned<>(new byte[0], Version.NEW));
         }
 
         Versioned<Set<BookieId>> result = result(rc.getAllBookies());
@@ -154,8 +317,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             throws Exception {
 
         @Cleanup
-        MetadataStoreExtended store =
-                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                        MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 

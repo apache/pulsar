@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -228,26 +228,15 @@ public final class WorkerUtils {
         return dlogUri;
     }
 
-    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {
-        return getPulsarAdminClient(pulsarWebServiceUrl, null, null, null, null, null, null);
-    }
-
     public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
                                                    String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
-                                                   Boolean enableTlsHostnameVerificationEnable) {
-        return getPulsarAdminClient(pulsarWebServiceUrl, authPlugin, authParams, tlsTrustCertsFilePath,
-                allowTlsInsecureConnection, enableTlsHostnameVerificationEnable, null);
-    }
-
-    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl, String authPlugin, String authParams,
-                                                   String tlsTrustCertsFilePath, Boolean allowTlsInsecureConnection,
-                                                   Boolean enableTlsHostnameVerificationEnable,
+                                                   Boolean enableTlsHostnameVerification,
                                                    WorkerConfig workerConfig) {
         log.info("Create Pulsar Admin to service url {}: "
                         + "authPlugin = {}, authParams = {}, "
-                        + "tlsTrustCerts = {}, allowTlsInsecureConnector = {}, enableTlsHostnameVerification = {}",
+                        + "tlsTrustCerts = {}, allowTlsInsecureConnection = {}, enableTlsHostnameVerification = {}",
                 pulsarWebServiceUrl, authPlugin, authParams,
-                tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerificationEnable);
+                tlsTrustCertsFilePath, allowTlsInsecureConnection, enableTlsHostnameVerification);
         try {
             PulsarAdminBuilder adminBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsarWebServiceUrl);
             if (workerConfig != null) {
@@ -266,8 +255,8 @@ public final class WorkerUtils {
             if (allowTlsInsecureConnection != null) {
                 adminBuilder.allowTlsInsecureConnection(allowTlsInsecureConnection);
             }
-            if (enableTlsHostnameVerificationEnable != null) {
-                adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
+            if (enableTlsHostnameVerification != null) {
+                adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerification);
             }
 
             return adminBuilder.build();
@@ -275,11 +264,6 @@ public final class WorkerUtils {
             log.error("Error creating pulsar admin client", e);
             throw new RuntimeException(e);
         }
-    }
-
-    public static PulsarClient getPulsarClient(String pulsarServiceUrl) {
-        return getPulsarClient(pulsarServiceUrl, null, null, null,
-                null, null, null, null);
     }
 
     public static PulsarClient getPulsarClient(String pulsarServiceUrl, String authPlugin, String authParams,

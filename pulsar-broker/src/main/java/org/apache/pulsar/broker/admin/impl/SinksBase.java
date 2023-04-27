@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class SinksBase extends AdminResource {
 
     Sinks<? extends WorkerService> sinks() {
-        return pulsar().getWorkerService().getSinks();
+        return validateAndGetWorkerService().getSinks();
     }
 
     @POST
@@ -145,34 +145,30 @@ public class SinksBase extends AdminResource {
                                              value = {
                                                  @ExampleProperty(
                                                      mediaType = MediaType.TEXT_PLAIN,
-                                                     value = "Example \n"
-                                                             + "\n"
-                                                             + " 1. Create a JSON object. \n"
-                                                             + "\n"
-                                                             + "{\n"
-                                                             + "\t\"classname\": \"org.example.MySinkTest\",\n"
-                                                             + "\t\"inputs\": ["
-                                                             + "\"persistent://public/default/sink-input\"],\n"
-                                                             + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                             + "\t\"parallelism\": \"10\"\n"
-                                                             + "}\n"
-                                                             + "\n"
-                                                             + "\n"
-                                                             + "2. Encapsulate the JSON object to a multipart object "
-                                                             + "(in Python).\n"
-                                                             + "\n"
-                                                             + "from requests_toolbelt.multipart.encoder import "
-                                                             + "MultipartEncoder \n"
-                                                             + "mp_encoder = MultipartEncoder( \n"
-                                                             + "\t[('sinkConfig', "
-                                                             + "(None, json.dumps(config), 'application/json'))])\n"
+                                                     value = """
+                                                             Example
+                                                             1. Create a JSON object.
+                                                              {
+                                                               "classname": "org.example.MySinkTest",
+                                                               "inputs": ["persistent://public/default/sink-input"],
+                                                               "processingGuarantees": "EFFECTIVELY_ONCE",
+                                                               "parallelism": "10"
+                                                              }
+                                                             2. Encapsulate the JSON object to a multipart object \
+                                                             (in Python).
+                                                             from requests_toolbelt.multipart.encoder import \
+                                                             MultipartEncoder
+                                                             mp_encoder = MultipartEncoder(\
+                                                              [('sinkConfig',\
+                                                             (None, json.dumps(config), 'application/json'))])
+                                                             """
                                                   )
                                             }
                                     )
                              )
                              final @FormDataParam("sinkConfig") SinkConfig sinkConfig) {
         sinks().registerSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData());
+                sinkPkgUrl, sinkConfig, authParams());
     }
 
     @PUT
@@ -260,13 +256,14 @@ public class SinksBase extends AdminResource {
                                    examples = @Example(
                                            value = @ExampleProperty(
                                                    mediaType = MediaType.APPLICATION_JSON,
-                                                   value = "{\n"
-                                                           + "\t\"classname\": \"org.example.SinkStressTest\",\n"
-                                                           + "\t\"inputs\": ["
-                                                           + "\"persistent://public/default/sink-input\"],\n"
-                                                           + "\t\"processingGuarantees\": \"EFFECTIVELY_ONCE\",\n"
-                                                           + "\t\"parallelism\": 5\n"
-                                                           + "}"
+                                                   value = """
+                                                           {
+                                                           "classname": "org.example.SinkStressTest",
+                                                           "inputs": ["persistent://public/default/sink-input"],
+                                                           "processingGuarantees": "EFFECTIVELY_ONCE",
+                                                           "parallelism": 5
+                                                           }
+                                                           """
                                            )
                                )
                            )
@@ -274,7 +271,7 @@ public class SinksBase extends AdminResource {
                            @ApiParam(value = "Update options for the Pulsar Sink")
                            final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) {
          sinks().updateSink(tenant, namespace, sinkName, uploadedInputStream, fileDetail,
-                sinkPkgUrl, sinkConfig, clientAppId(), clientAuthData(), updateOptions);
+                sinkPkgUrl, sinkConfig, authParams(), updateOptions);
 
     }
 
@@ -298,7 +295,7 @@ public class SinksBase extends AdminResource {
                                final @PathParam("namespace") String namespace,
                                @ApiParam(value = "The name of a Pulsar Sink")
                                final @PathParam("sinkName") String sinkName) {
-        sinks().deregisterFunction(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().deregisterFunction(tenant, namespace, sinkName, authParams());
     }
 
     @GET
@@ -318,7 +315,7 @@ public class SinksBase extends AdminResource {
                                   final @PathParam("namespace") String namespace,
                                   @ApiParam(value = "The name of a Pulsar Sink")
                                   final @PathParam("sinkName") String sinkName) throws IOException {
-        return sinks().getSinkInfo(tenant, namespace, sinkName);
+        return sinks().getSinkInfo(tenant, namespace, sinkName, authParams());
     }
 
     @GET
@@ -345,7 +342,7 @@ public class SinksBase extends AdminResource {
             @ApiParam(value = "The instanceId of a Pulsar Sink")
             final @PathParam("instanceId") String instanceId) throws IOException {
         return sinks().getSinkInstanceStatus(
-            tenant, namespace, sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+            tenant, namespace, sinkName, instanceId, uri.getRequestUri(), authParams());
     }
 
     @GET
@@ -368,7 +365,7 @@ public class SinksBase extends AdminResource {
                                     final @PathParam("namespace") String namespace,
                                     @ApiParam(value = "The name of a Pulsar Sink")
                                     final @PathParam("sinkName") String sinkName) throws IOException {
-        return sinks().getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), clientAppId(), clientAuthData());
+        return sinks().getSinkStatus(tenant, namespace, sinkName, uri.getRequestUri(), authParams());
     }
 
     @GET
@@ -388,7 +385,7 @@ public class SinksBase extends AdminResource {
                                   final @PathParam("tenant") String tenant,
                                   @ApiParam(value = "The namespace of a Pulsar Sink")
                                   final @PathParam("namespace") String namespace) {
-        return sinks().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return sinks().listFunctions(tenant, namespace, authParams());
     }
 
     @POST
@@ -414,7 +411,7 @@ public class SinksBase extends AdminResource {
                             @ApiParam(value = "The instanceId of a Pulsar Sink")
                             final @PathParam("instanceId") String instanceId) {
         sinks().restartFunctionInstance(tenant, namespace, sinkName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @POST
@@ -435,7 +432,7 @@ public class SinksBase extends AdminResource {
                             final @PathParam("namespace") String namespace,
                             @ApiParam(value = "The name of a Pulsar Sink")
                             final @PathParam("sinkName") String sinkName) {
-        sinks().restartFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().restartFunctionInstances(tenant, namespace, sinkName, authParams());
     }
 
     @POST
@@ -459,7 +456,7 @@ public class SinksBase extends AdminResource {
                          @ApiParam(value = "The instanceId of a Pulsar Sink")
                          final @PathParam("instanceId") String instanceId) {
         sinks().stopFunctionInstance(tenant, namespace,
-                sinkName, instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+                sinkName, instanceId, uri.getRequestUri(), authParams());
     }
 
     @POST
@@ -480,7 +477,7 @@ public class SinksBase extends AdminResource {
                          final @PathParam("namespace") String namespace,
                          @ApiParam(value = "The name of a Pulsar Sink")
                          final @PathParam("sinkName") String sinkName) {
-        sinks().stopFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().stopFunctionInstances(tenant, namespace, sinkName, authParams());
     }
 
     @POST
@@ -504,7 +501,7 @@ public class SinksBase extends AdminResource {
                           @ApiParam(value = "The instanceId of a Pulsar Sink")
                           final @PathParam("instanceId") String instanceId) {
         sinks().startFunctionInstance(tenant, namespace, sinkName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @POST
@@ -525,7 +522,7 @@ public class SinksBase extends AdminResource {
                           final @PathParam("namespace") String namespace,
                           @ApiParam(value = "The name of a Pulsar Sink")
                           final @PathParam("sinkName") String sinkName) {
-        sinks().startFunctionInstances(tenant, namespace, sinkName, clientAppId(), clientAuthData());
+        sinks().startFunctionInstances(tenant, namespace, sinkName, authParams());
     }
 
     @GET
@@ -574,6 +571,6 @@ public class SinksBase extends AdminResource {
     })
     @Path("/reloadBuiltInSinks")
     public void reloadSinks() {
-        sinks().reloadConnectors(clientAppId(), clientAuthData());
+        sinks().reloadConnectors(authParams());
     }
 }

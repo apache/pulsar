@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -79,7 +79,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public boolean isTxnAborted(TxnID txnID) {
+    public boolean isTxnAborted(TxnID txnID, PositionImpl readPosition) {
         return false;
     }
 
@@ -106,5 +106,20 @@ public class TransactionBufferDisable implements TransactionBuffer {
     @Override
     public CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn) {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public long getOngoingTxnCount() {
+        return 0;
+    }
+
+    @Override
+    public long getAbortedTxnCount() {
+        return 0;
+    }
+
+    @Override
+    public long getCommittedTxnCount() {
+        return 0;
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kafka;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
@@ -124,13 +123,15 @@ public class KafkaBytesSource extends KafkaAbstractSource<ByteBuffer> {
             return new KeyValueKafkaRecord(consumerRecord,
                     new KeyValue<>(key, value),
                     currentKeySchema,
-                    currentValueSchema);
+                    currentValueSchema,
+                    copyKafkaHeaders(consumerRecord));
 
         } else {
             Object value = consumerRecord.value();
             return new KafkaRecord(consumerRecord,
                     extractSimpleValue(value),
-                    getSchemaFromObject(value, valueSchema));
+                    getSchemaFromObject(value, valueSchema),
+                    copyKafkaHeaders(consumerRecord));
 
         }
     }

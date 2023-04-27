@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.sql.presto;
 
 import io.airlift.log.Logger;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.*;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.*;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -35,9 +35,9 @@ import javax.ws.rs.core.Response;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static io.prestosql.spi.StandardErrorCode.NOT_FOUND;
-import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
-import static io.prestosql.spi.StandardErrorCode.PERMISSION_DENIED;
+import static io.trino.spi.StandardErrorCode.NOT_FOUND;
+import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
 
@@ -142,7 +142,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
             ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                     pulsarTableHandle);
             fail("Invalid schema should have generated an exception");
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             assertEquals(e.getErrorCode(), NOT_FOUND.toErrorCode());
             assertEquals(e.getMessage(), "Schema wrong-tenant/wrong-ns does not exist");
         }
@@ -208,7 +208,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
             ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                     pulsarTableHandle);
             fail("Table without schema should have generated an exception");
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             assertEquals(e.getErrorCode(), NOT_SUPPORTED.toErrorCode());
             assertEquals(e.getMessage(),
                     "Topic persistent://tenant-1/ns-1/topic-1 does not have a valid schema");
@@ -235,7 +235,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
             ConnectorTableMetadata tableMetadata = this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                     pulsarTableHandle);
             fail("Table without schema should have generated an exception");
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             assertEquals(e.getErrorCode(), NOT_SUPPORTED.toErrorCode());
             assertEquals(e.getMessage(),
                     "Topic persistent://tenant-1/ns-1/topic-1 does not have a valid schema");
@@ -404,14 +404,14 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         // Test getColumnHandles should pass the auth check
         this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle);
 
-        doThrow(new PrestoException(PERMISSION_DENIED, "not authorized")).when(this.pulsarAuth)
+        doThrow(new TrinoException(PERMISSION_DENIED, "not authorized")).when(this.pulsarAuth)
                 .checkTopicAuth(isA(ConnectorSession.class), isA(String.class));
 
         // Test getTableHandle should fail the auth check
         try {
             this.pulsarMetadata.getTableHandle(mock(ConnectorSession.class), schemaTableName);
             Assert.fail("Test getTableHandle should fail the auth check"); // should fail
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
         }
 
@@ -420,7 +420,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
             this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                     pulsarTableHandle);
             Assert.fail("Test getTableMetadata should fail the auth check"); // should fail
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
         }
 
@@ -428,7 +428,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         try {
             this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle);
             Assert.fail("Test getColumnHandles should fail the auth check"); // should fail
-        } catch (PrestoException e) {
+        } catch (TrinoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
         }
 

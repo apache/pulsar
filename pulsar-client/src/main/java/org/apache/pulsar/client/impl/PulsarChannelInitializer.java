@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -43,6 +43,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
 @Slf4j
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -208,6 +209,28 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         }
 
         return initSocks5Future;
+    }
+
+    CompletableFuture<Channel> initializeClientCnx(Channel ch,
+                                                   InetSocketAddress logicalAddress,
+                                                   InetSocketAddress unresolvedPhysicalAddress) {
+        return NettyFutureUtil.toCompletableFuture(ch.eventLoop().submit(() -> {
+            final ClientCnx cnx = (ClientCnx) ch.pipeline().get("handler");
+
+            if (cnx == null) {
+                throw new IllegalStateException("Missing ClientCnx. This should not happen.");
+            }
+
+            if (!logicalAddress.equals(unresolvedPhysicalAddress)) {
+                // We are connecting through a proxy. We need to set the target broker in the ClientCnx object so that
+                // it can be specified when sending the CommandConnect.
+                cnx.setTargetBroker(logicalAddress);
+            }
+
+            cnx.setRemoteHostName(unresolvedPhysicalAddress.getHostString());
+
+            return ch;
+        }));
     }
 }
 

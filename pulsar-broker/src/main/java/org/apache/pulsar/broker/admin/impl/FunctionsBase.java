@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,7 @@ import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -55,7 +56,7 @@ import org.glassfish.jersey.media.multipart.FormDataParam;
 public class FunctionsBase extends AdminResource {
 
     Functions<? extends WorkerService> functions() {
-        return pulsar().getWorkerService().getFunctions();
+        return validateAndGetWorkerService().getFunctions();
     }
 
     @POST
@@ -172,33 +173,28 @@ public class FunctionsBase extends AdminResource {
                             value = {
                                 @ExampleProperty(
                                     mediaType = MediaType.TEXT_PLAIN,
-                                    value = " Example \n"
-                                            + "\n"
-                                            + " 1. Create a JSON object. \n"
-                                            + "\n"
-                                            + "{\n"
-                                            + "\t\"inputs\": \"persistent://public/default/input-topic\",\n"
-                                            + "\t\"parallelism\": \"4\",\n"
-                                            + "\t\"output\": \"persistent://public/default/output-topic\",\n"
-                                            + "\t\"log-topic\": \"persistent://public/default/log-topic\",\n"
-                                            + "\t\"classname\": \"org.example.test.ExclamationFunction\",\n"
-                                            + "\t\"jar\": \"java-function-1.0-SNAPSHOT.jar\"\n"
-                                            + "}\n"
-                                            + "\n"
-                                            + "\n"
-                                            + "2. Encapsulate the JSON object to a multipart object (in Python). \n"
-                                            + "\n"
-                                            + "from requests_toolbelt.multipart.encoder import MultipartEncoder \n"
-                                            + "mp_encoder = MultipartEncoder( \n"
-                                            + "\t[('functionConfig', "
-                                            + "(None, json.dumps(config), 'application/json'))])\n"
+                                        value = """
+                                            Examples
+                                            1. Create a JSON object
+                                             {
+                                               "inputs": "persistent://public/default/input-topic",
+                                               "parallelism": "4",
+                                               "output": "persistent://public/default/output-topic",
+                                               "log-topic": "persistent://public/default/log-topic",
+                                               "classname": "org.example.test.ExclamationFunction",
+                                               "jar": "java-function-1.0-SNAPSHOT.jar"
+                                             }
+                                            2. Encapsulate the JSON object to a multipart object (in Python)
+                                            from requests_toolbelt.multipart.encoder import MultipartEncoders
+                                            mp_encoder = MultipartEncoder([('functionConfig',(None, json.dumps(config),\
+                                             'application/json'))])"""
                                 )
                             }
                     )
             )
             final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
         functions().registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-            functionPkgUrl, functionConfig, clientAppId(), clientAuthData());
+            functionPkgUrl, functionConfig, authParams());
     }
 
     @PUT
@@ -308,14 +304,16 @@ public class FunctionsBase extends AdminResource {
                     examples = @Example(
                             value = @ExampleProperty(
                                     mediaType = MediaType.APPLICATION_JSON,
-                                    value = "{\n"
-                                            + "  \"inputs\": persistent://public/default/input-topic,\n"
-                                            + "  \"parallelism\": 4\n"
-                                            + "  \"output\": persistent://public/default/output-topic\n"
-                                            + "  \"log-topic\": persistent://public/default/log-topic\n"
-                                            + "  \"classname\": org.example.test.ExclamationFunction\n"
-                                            + "  \"jar\": java-function-1.0-SNAPSHOT.jar\n"
-                                            + "}\n"
+                                    value = """
+                                            {
+                                              "inputs": "persistent://public/default/input-topic",
+                                              "parallelism": 4,
+                                              "output": "persistent://public/default/output-topic",
+                                              "log-topic": "persistent://public/default/log-topic",
+                                              "classname": "org.example.test.ExclamationFunction",
+                                              "jar": "java-function-1.0-SNAPSHOT.jar"
+                                            }
+                                            """
                             )
                     )
             )
@@ -324,7 +322,7 @@ public class FunctionsBase extends AdminResource {
             final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) throws IOException {
 
         functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
-                functionPkgUrl, functionConfig, clientAppId(), clientAuthData(), updateOptions);
+                functionPkgUrl, functionConfig, authParams(), updateOptions);
     }
 
 
@@ -345,7 +343,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions().deregisterFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().deregisterFunction(tenant, namespace, functionName, authParams());
     }
 
     @GET
@@ -367,7 +365,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
-        return functions().getFunctionInfo(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions().getFunctionInfo(tenant, namespace, functionName, authParams());
     }
 
     @GET
@@ -391,7 +389,7 @@ public class FunctionsBase extends AdminResource {
                     + " the stats of all instances is returned") final @PathParam("instanceId")
                     String instanceId) throws IOException {
         return functions().getFunctionInstanceStatus(tenant, namespace, functionName,
-                instanceId, uri.getRequestUri(), clientAppId(), clientAuthData());
+                instanceId, uri.getRequestUri(), authParams());
     }
 
     @GET
@@ -415,7 +413,7 @@ public class FunctionsBase extends AdminResource {
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionStatus(tenant, namespace, functionName, uri.getRequestUri(),
-                clientAppId(), clientAuthData());
+                authParams());
     }
 
     @GET
@@ -439,7 +437,7 @@ public class FunctionsBase extends AdminResource {
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionStats(tenant, namespace, functionName,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @GET
@@ -463,7 +461,7 @@ public class FunctionsBase extends AdminResource {
                     + " (if instance-id is not provided, the stats of all instances is returned") final @PathParam(
                     "instanceId") String instanceId) throws IOException {
         return functions().getFunctionsInstanceStats(tenant, namespace, functionName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @GET
@@ -482,7 +480,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("tenant") String tenant,
             @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace) {
-        return functions().listFunctions(tenant, namespace, clientAppId(), clientAuthData());
+        return functions().listFunctions(tenant, namespace, authParams());
     }
 
     @POST
@@ -511,7 +509,7 @@ public class FunctionsBase extends AdminResource {
                     + " consumes from which you want to inject the data to") final @FormDataParam("topic")
                     String topic) {
         return functions().triggerFunction(tenant, namespace, functionName, triggerValue,
-                triggerStream, topic, clientAppId(), clientAuthData());
+                triggerStream, topic, authParams());
     }
 
     @GET
@@ -535,7 +533,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("functionName") String functionName,
             @ApiParam(value = "The stats key")
             final @PathParam("key") String key) {
-        return functions().getFunctionState(tenant, namespace, functionName, key, clientAppId(), clientAuthData());
+        return functions().getFunctionState(tenant, namespace, functionName, key, authParams());
     }
 
     @POST
@@ -555,7 +553,7 @@ public class FunctionsBase extends AdminResource {
                                  final @PathParam("functionName") String functionName,
                                  final @PathParam("key") String key,
                                  final @FormDataParam("state") FunctionState stateJson) {
-        functions().putFunctionState(tenant, namespace, functionName, key, stateJson, clientAppId(), clientAuthData());
+        functions().putFunctionState(tenant, namespace, functionName, key, stateJson, authParams());
     }
 
     @POST
@@ -576,7 +574,7 @@ public class FunctionsBase extends AdminResource {
                     "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are restarted")
             final @PathParam("instanceId") String instanceId) {
         functions().restartFunctionInstance(tenant, namespace, functionName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @POST
@@ -595,7 +593,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions().restartFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().restartFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
@@ -615,7 +613,7 @@ public class FunctionsBase extends AdminResource {
                     "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are stopped. ")
             final @PathParam("instanceId") String instanceId) {
         functions().stopFunctionInstance(tenant, namespace, functionName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @POST
@@ -634,7 +632,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions().stopFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().stopFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
@@ -654,7 +652,7 @@ public class FunctionsBase extends AdminResource {
                     + " (if instance-id is not provided, all instances sre started. ") final @PathParam("instanceId")
                     String instanceId) {
         functions().startFunctionInstance(tenant, namespace, functionName, instanceId,
-                uri.getRequestUri(), clientAppId(), clientAuthData());
+                uri.getRequestUri(), authParams());
     }
 
     @POST
@@ -673,7 +671,7 @@ public class FunctionsBase extends AdminResource {
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
-        functions().startFunctionInstances(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        functions().startFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
@@ -685,7 +683,7 @@ public class FunctionsBase extends AdminResource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void uploadFunction(final @FormDataParam("data") InputStream uploadedInputStream,
                                final @FormDataParam("path") String path) {
-        functions().uploadFunction(uploadedInputStream, path, clientAppId(), clientAuthData());
+        functions().uploadFunction(uploadedInputStream, path, authParams());
     }
 
     @GET
@@ -695,7 +693,7 @@ public class FunctionsBase extends AdminResource {
     )
     @Path("/download")
     public StreamingOutput downloadFunction(final @QueryParam("path") String path) {
-        return functions().downloadFunction(path, clientAppId(), clientAuthData());
+        return functions().downloadFunction(path, authParams());
     }
 
     @GET
@@ -710,9 +708,11 @@ public class FunctionsBase extends AdminResource {
             @ApiParam(value = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
             @ApiParam(value = "The name of a Pulsar Function")
-            final @PathParam("functionName") String functionName) {
+            final @PathParam("functionName") String functionName,
+            @ApiParam(value = "Whether to download the transform-function")
+            final @QueryParam("transform-function") boolean transformFunction) {
 
-        return functions().downloadFunction(tenant, namespace, functionName, clientAppId(), clientAuthData());
+        return functions().downloadFunction(tenant, namespace, functionName, authParams(), transformFunction);
     }
 
     @GET
@@ -734,6 +734,37 @@ public class FunctionsBase extends AdminResource {
         return functions().getListOfConnectors();
     }
 
+    @POST
+    @ApiOperation(
+            value = "Reload the built-in Functions"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 401, message = "This operation requires super-user access"),
+            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(code = 500, message = "Internal server error")
+    })
+    @Path("/builtins/reload")
+    public void reloadBuiltinFunctions() throws IOException {
+        functions().reloadBuiltinFunctions(authParams());
+    }
+
+    @GET
+    @ApiOperation(
+            value = "Fetches the list of built-in Pulsar functions",
+            response = FunctionDefinition.class,
+            responseContainer = "List"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
+            @ApiResponse(code = 400, message = "Invalid request"),
+            @ApiResponse(code = 408, message = "Request timeout")
+    })
+    @Path("/builtins")
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<FunctionDefinition> getBuiltinFunction() {
+        return functions().getBuiltinFunctions(authParams());
+    }
+
     @PUT
     @ApiOperation(value = "Updates a Pulsar Function on the worker leader", hidden = true)
     @ApiResponses(value = {
@@ -753,6 +784,6 @@ public class FunctionsBase extends AdminResource {
                                              final @FormDataParam("delete") boolean delete) {
 
         functions().updateFunctionOnWorkerLeader(tenant, namespace, functionName, uploadedInputStream,
-                delete, uri.getRequestUri(), clientAppId(), clientAuthData());
+                delete, uri.getRequestUri(), authParams());
     }
 }

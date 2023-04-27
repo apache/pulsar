@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.io.Resources;
 import io.etcd.jetcd.launcher.EtcdCluster;
 import io.etcd.jetcd.launcher.EtcdClusterFactory;
+
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -39,6 +40,63 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class EtcdMetadataStoreTest {
+
+    @Test
+    public void testCluster() throws Exception {
+        @Cleanup
+        EtcdCluster etcdCluster = EtcdClusterFactory.buildCluster("test-cluster", 3, false);
+        etcdCluster.start();
+
+        EtcdConfig etcdConfig = EtcdConfig.builder().useTls(false)
+                .tlsProvider(null)
+                .authority("etcd0")
+                .build();
+
+        Path etcdConfigPath = Files.createTempFile("etcd_config_cluster", ".yml");
+        new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
+
+        String metadataURL =
+                "etcd:" + etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(metadataURL,
+                MetadataStoreConfig.builder().configFilePath(etcdConfigPath.toString()).build());
+
+        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        assertTrue(store.exists("/test").join());
+
+    }
+
+    @Test
+    public void testClusterWithTls() throws Exception {
+        @Cleanup
+        EtcdCluster etcdCluster = EtcdClusterFactory.buildCluster("test-cluster", 3, true);
+        etcdCluster.start();
+
+        EtcdConfig etcdConfig = EtcdConfig.builder().useTls(true)
+                .tlsProvider(null)
+                .authority("etcd0")
+                .tlsTrustCertsFilePath(Resources.getResource("ssl/cert/ca.pem").getPath())
+                .tlsKeyFilePath(Resources.getResource("ssl/cert/client-key-pk8.pem").getPath())
+                .tlsCertificateFilePath(Resources.getResource("ssl/cert/client.pem").getPath())
+                .build();
+
+        Path etcdConfigPath = Files.createTempFile("etcd_config_cluster_ssl", ".yml");
+        new ObjectMapper(new YAMLFactory()).writeValue(etcdConfigPath.toFile(), etcdConfig);
+
+        String metadataURL =
+                "etcd:" + etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(metadataURL,
+                MetadataStoreConfig.builder().configFilePath(etcdConfigPath.toString()).build());
+
+        store.put("/test", "value".getBytes(StandardCharsets.UTF_8), Optional.empty()).join();
+
+        assertTrue(store.exists("/test").join());
+
+    }
 
     @Test
     public void testTlsInstance() throws Exception {

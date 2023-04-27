@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -81,6 +82,7 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
         Assert.assertNotNull(repClient1);
         Assert.assertFalse(repClient1.isClosed());
 
+        @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();

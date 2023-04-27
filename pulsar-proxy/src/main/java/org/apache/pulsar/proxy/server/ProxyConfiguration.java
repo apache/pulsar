@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -39,6 +40,7 @@ import org.apache.pulsar.common.configuration.PropertiesContext;
 import org.apache.pulsar.common.configuration.PropertyContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 
 @Getter
@@ -131,6 +133,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
     )
     private int metadataStoreCacheExpirySeconds = 300;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Is metadata store read-only operations."
+    )
+    private boolean metadataStoreAllowReadOnlyOperations;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Max size of messages.",
+            maxValue = Integer.MAX_VALUE - Commands.MESSAGE_SIZE_FRAME_PADDING)
+    private int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
+
     @Deprecated
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -148,6 +162,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
                 + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
     )
     private int zooKeeperCacheExpirySeconds = -1;
+
+    @Deprecated
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            deprecated = true,
+            doc = "Is zooKeeper allow read-only operations."
+    )
+    private boolean zooKeeperAllowReadOnlyOperations;
 
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
@@ -342,6 +364,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "to take effect"
     )
     private boolean forwardAuthorizationCredentials = false;
+
+    @FieldContext(
+            category = CATEGORY_AUTHENTICATION,
+            doc = "Interval of time for checking for expired authentication credentials. Disable by setting to 0."
+    )
+    private int authenticationRefreshCheckSeconds = 60;
+
     @FieldContext(
         category = CATEGORY_AUTHENTICATION,
         doc = "Whether the '/metrics' endpoint requires authentication. Defaults to true."
@@ -385,6 +414,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int maxConcurrentInboundConnections = 10000;
 
     @FieldContext(
+            category = CATEGORY_RATE_LIMITING,
+            doc = "The maximum number of connections per IP. If it exceeds, new connections are rejected."
+    )
+    private int maxConcurrentInboundConnectionsPerIp = 0;
+
+
+    @FieldContext(
         category = CATEGORY_RATE_LIMITING,
         doc = "Max concurrent lookup requests. The proxy will reject requests beyond that"
     )
@@ -405,6 +441,17 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "The path to trusted certificates used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
     private String brokerClientTrustCertsFilePath;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_AUTHENTICATION,
+            doc = "The path to TLS private key used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientKeyFilePath;
+
+    @FieldContext(
+            category = CATEGORY_CLIENT_AUTHENTICATION,
+            doc = "The path to the TLS certificate used by the Pulsar proxy to authenticate with Pulsar brokers")
+    private String brokerClientCertificateFilePath;
 
     @FieldContext(
         category = CATEGORY_CLIENT_AUTHENTICATION,
@@ -548,6 +595,25 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // needed when client auth is required
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore type configuration for proxy: JKS, PKCS12 "
+                    + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStoreType = "JKS";
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore path for internal client, "
+                    + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    private String brokerClientTlsKeyStore = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "TLS KeyStore password for proxy, "
+                    + " used by the Pulsar proxy to authenticate with Pulsar brokers"
+    )
+    @ToString.Exclude
+    private String brokerClientTlsKeyStorePassword = null;
+    @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore type configuration for proxy: JKS, PKCS12 "
                   + " used by the Pulsar proxy to authenticate with Pulsar brokers"
     )
@@ -601,6 +667,18 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "see the data as soon as possible."
     )
     private int httpOutputBufferSize = 32 * 1024;
+
+    @FieldContext(
+        minValue = 1,
+        category = CATEGORY_HTTP,
+        doc = """
+                The maximum size in bytes of the request header.
+                Larger headers will allow for more and/or larger cookies plus larger form content encoded in a URL.
+                However, larger headers consume more memory and can make a server more vulnerable to denial of service
+                attacks.
+              """
+    )
+    private int httpMaxRequestHeaderSize = 8 * 1024;
 
     @FieldContext(
             minValue = 1,
@@ -754,6 +832,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WEBSOCKET,
+            doc = "Interval of time to sending the ping to keep alive in WebSocket proxy. "
+                    + "This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
+    @FieldContext(
+            category = CATEGORY_WEBSOCKET,
             doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
@@ -864,5 +948,9 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public int getMetadataStoreCacheExpirySeconds() {
         return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
+    }
+
+    public boolean isMetadataStoreAllowReadOnlyOperations() {
+        return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 }

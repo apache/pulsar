@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,9 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.Serializable;
 import java.util.Objects;
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -48,22 +50,35 @@ public class TxnID implements Serializable {
      */
     private final long leastSigBits;
 
+    @Getter(AccessLevel.NONE)
+    private final transient int hashCode;
+
+    @Getter(AccessLevel.NONE)
+    private final transient String txnStr;
+
+    public TxnID(long mostSigBits, long leastSigBits) {
+        this.mostSigBits = mostSigBits;
+        this.leastSigBits = leastSigBits;
+        this.hashCode = Objects.hash(mostSigBits, leastSigBits);
+        this.txnStr = "(" + mostSigBits + "," + leastSigBits + ")";
+    }
+
     @Override
     public String toString() {
-        return "(" + mostSigBits + "," + leastSigBits + ")";
+        return txnStr;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mostSigBits, leastSigBits);
+        return hashCode;
     }
 
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof TxnID) {
             TxnID other = (TxnID) obj;
-            return Objects.equals(mostSigBits, other.mostSigBits)
-                    && Objects.equals(leastSigBits, other.leastSigBits);
+            return mostSigBits == other.mostSigBits
+                    && leastSigBits == other.leastSigBits;
         }
 
         return false;

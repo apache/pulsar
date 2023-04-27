@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -73,7 +73,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
-        elasticSearchConfig = ElasticSearchConfig.load(config);
+        elasticSearchConfig = ElasticSearchConfig.load(config, sinkContext);
         elasticSearchConfig.validate();
         elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
         if (!Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
@@ -100,6 +100,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             elasticsearchClient.close();
             elasticsearchClient = null;
         }
+    }
+
+    @VisibleForTesting
+    void setElasticsearchClient(ElasticSearchClient elasticsearchClient) {
+        this.elasticsearchClient = elasticsearchClient;
     }
 
     @Override
@@ -200,7 +205,15 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             String doc = null;
             if (value != null) {
                 if (valueSchema != null) {
-                    doc = stringifyValue(valueSchema, value);
+                    if (elasticSearchConfig.isCopyKeyFields()
+                            && (keySchema.getSchemaInfo().getType().equals(SchemaType.AVRO)
+                            || keySchema.getSchemaInfo().getType().equals(SchemaType.JSON))) {
+                        JsonNode keyNode = extractJsonNode(keySchema, key);
+                        JsonNode valueNode = extractJsonNode(valueSchema, value);
+                        doc = stringify(JsonConverter.topLevelMerge(keyNode, valueNode));
+                    } else {
+                        doc = stringifyValue(valueSchema, value);
+                    }
                 } else {
                     if (value.getNativeObject() instanceof byte[]) {
                         // for BWC with the ES-Sink
@@ -227,20 +240,28 @@ public class ElasticSearchSink implements Sink<GenericObject> {
             if (id != null
                     && idHashingAlgorithm != null
                     && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
-                Hasher hasher;
-                switch (idHashingAlgorithm) {
-                    case SHA256:
-                        hasher = Hashing.sha256().newHasher();
-                        break;
-                    case SHA512:
-                        hasher = Hashing.sha512().newHasher();
-                        break;
-                    default:
-                        throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
-                                + idHashingAlgorithm);
+                final byte[] idBytes = id.getBytes(StandardCharsets.UTF_8);
+
+                boolean performHashing = true;
+                if (elasticSearchConfig.isConditionalIdHashing() && idBytes.length <= 512) {
+                    performHashing = false;
                 }
-                hasher.putString(id, StandardCharsets.UTF_8);
-                id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                if (performHashing) {
+                    Hasher hasher;
+                    switch (idHashingAlgorithm) {
+                        case SHA256:
+                            hasher = Hashing.sha256().newHasher();
+                            break;
+                        case SHA512:
+                            hasher = Hashing.sha512().newHasher();
+                            break;
+                        default:
+                            throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
+                                    + idHashingAlgorithm);
+                    }
+                    hasher.putBytes(idBytes);
+                    id = base64Encoder.encodeToString(hasher.hash().asBytes());
+                }
             }
 
             if (log.isDebugEnabled()) {
@@ -330,6 +351,10 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {
         JsonNode jsonNode = extractJsonNode(schema, val);
+        return stringify(jsonNode);
+    }
+
+    public String stringify(JsonNode jsonNode) throws JsonProcessingException {
         return elasticSearchConfig.isStripNulls()
                 ? objectMapper.writeValueAsString(stripNullNodes(jsonNode))
                 : objectMapper.writeValueAsString(jsonNode);
@@ -349,6 +374,9 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     }
 
     public static JsonNode extractJsonNode(Schema<?> schema, Object val) {
+        if (val == null) {
+            return null;
+        }
         switch (schema.getSchemaInfo().getType()) {
             case JSON:
                 return (JsonNode) ((GenericRecord) val).getNativeObject();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertTrue;
 import java.lang.reflect.Field;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -25,7 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.PulsarChannelInitializer;
 import org.apache.pulsar.broker.service.ServerCnx;
@@ -38,12 +42,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertNull;
-import static org.testng.AssertJUnit.assertTrue;
 
 @Test(groups = "broker-api")
 @Slf4j
@@ -68,31 +66,23 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
     }
 
     @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory((_pulsar, opts) -> {
+            return new PulsarChannelInitializer(_pulsar, opts) {
+                @Override
+                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
+                    return new ServerCnx(pulsar) {
 
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory(
-                        (_pulsar, opts) -> {
-                            return new PulsarChannelInitializer(_pulsar, opts) {
-                                @Override
-                                protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) throws Exception {
-                                    return new ServerCnx(pulsar) {
-
-                                        @Override
-                                        protected void handleFlow(CommandFlow flow) {
-                                            super.handleFlow(flow);
-                                            numFlow.incrementAndGet();
-                                        }
-                                    };
-                                }
-                            };
-                        });
-                return broker;
-            }
-        };
+                        @Override
+                        protected void handleFlow(CommandFlow flow) {
+                            super.handleFlow(flow);
+                            numFlow.incrementAndGet();
+                        }
+                    };
+                }
+            };
+        });
+        return brokerService;
     }
 
     @Test

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class CmdUtils {
     public static <T> T loadConfig(String file, Class<T> clazz) throws IOException {
         try {
-            return ObjectMapperFactory.getThreadLocalYaml().readValue(new File(file), clazz);
+            return ObjectMapperFactory.getYamlMapper().reader().readValue(new File(file), clazz);
         } catch (Exception ex) {
             if (ex instanceof UnrecognizedPropertyException) {
                 UnrecognizedPropertyException unrecognizedPropertyException = (UnrecognizedPropertyException) ex;

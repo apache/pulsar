@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.io.kinesis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,7 +48,7 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
     private Boolean skipCertificateValidation = false;
 
     @FieldDoc(
-        required = true,
+        required = false,
         defaultValue = "ONLY_RAW_PAYLOAD",
         help = "Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams.\n"
             + "  #\n"

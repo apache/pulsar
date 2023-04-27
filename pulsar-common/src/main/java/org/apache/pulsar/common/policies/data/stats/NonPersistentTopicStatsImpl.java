@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,6 +42,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 
 /**
  * Statistics for a non-persistent topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPersistentTopicStats {
@@ -148,14 +149,14 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
+    // stats. This stat addition is not thread-safe.
     public NonPersistentTopicStatsImpl add(NonPersistentTopicStats ts) {
         NonPersistentTopicStatsImpl stats = (NonPersistentTopicStatsImpl) ts;
         Objects.requireNonNull(stats);
         super.add(stats);
         this.msgDropRate += stats.msgDropRate;
-
-        stats.getNonPersistentPublishers().forEach(s -> {
+        for (int index = 0; index < stats.getNonPersistentPublishers().size(); index++) {
+            NonPersistentPublisherStats s = stats.getNonPersistentPublishers().get(index);
             if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
@@ -165,20 +166,20 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
                             return newStats;
                         })).add((NonPersistentPublisherStatsImpl) s);
             } else {
-                if (this.nonPersistentPublishers.size() != stats.getNonPersistentPublishers().size()) {
-                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                        NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
-                        newStats.setSupportsPartialProducer(false);
-                        this.nonPersistentPublishers.add(newStats.add((NonPersistentPublisherStatsImpl) s));
-                    }
-                } else {
-                    for (int i = 0; i < stats.getNonPersistentPublishers().size(); i++) {
-                        ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(i))
-                                .add((NonPersistentPublisherStatsImpl) s);
-                    }
+                // Add a non-persistent publisher stat entry to this.nonPersistentPublishers
+                // if this.nonPersistentPublishers.size() is smaller than
+                // the input stats.nonPersistentPublishers.size().
+                // Here, index == this.nonPersistentPublishers.size() means
+                // this.nonPersistentPublishers.size() is smaller than the input stats.nonPersistentPublishers.size()
+                if (index == this.nonPersistentPublishers.size()) {
+                    NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();
+                    newStats.setSupportsPartialProducer(false);
+                    this.nonPersistentPublishers.add(newStats);
                 }
+                ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishers.get(index))
+                        .add((NonPersistentPublisherStatsImpl) s);
             }
-        });
+        }
 
         if (this.getNonPersistentSubscriptions().size() != stats.getNonPersistentSubscriptions().size()) {
             for (String subscription : stats.getNonPersistentSubscriptions().keySet()) {

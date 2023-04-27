@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -82,6 +82,7 @@ class ProcessRuntime implements Runtime {
                    String narExtractionDirectory,
                    String logDirectory,
                    String codeFile,
+                   String transformFunctionFile,
                    String pulsarServiceUrl,
                    String stateStorageServiceUrl,
                    AuthenticationConfig authConfig,
@@ -133,6 +134,7 @@ class ProcessRuntime implements Runtime {
                     ? extraDependenciesDir : null,
             logDirectory,
             codeFile,
+            transformFunctionFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.tests;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
 import org.testng.ITestListener;
+import org.testng.ITestNGMethod;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 
@@ -41,13 +47,24 @@ import org.testng.SkipException;
  */
 public class FailFastNotifier
         implements IInvokedMethodListener, ITestListener {
+    private static final Logger LOG = LoggerFactory.getLogger(FailFastNotifier.class);
+    private static final String PROPERTY_NAME_TEST_FAIL_FAST = "testFailFast";
     private static final boolean FAIL_FAST_ENABLED = Boolean.parseBoolean(
-            System.getProperty("testFailFast", "true"));
+            System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST, "true"));
+
+    private static final String PROPERTY_NAME_TEST_FAIL_FAST_FILE = "testFailFastFile";
+
+    // A file that is used to communicate to other parallel forked test processes to terminate the build
+    // so that fail fast mode works with multiple forked test processes
+    private static final File FAIL_FAST_KILLSWITCH_FILE =
+            System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE) != null
+                    && System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim().length() > 0
+                    ? new File(System.getProperty(PROPERTY_NAME_TEST_FAIL_FAST_FILE).trim()) : null;
 
     static class FailFastEventsSingleton {
         private static final FailFastEventsSingleton INSTANCE = new FailFastEventsSingleton();
 
-        private volatile boolean skipAfterFailure;
+        private volatile ITestResult firstFailure;
 
         private FailFastEventsSingleton() {
         }
@@ -56,12 +73,22 @@ public class FailFastNotifier
             return INSTANCE;
         }
 
-        public boolean isSkipAfterFailure() {
-            return skipAfterFailure;
+        public ITestResult getFirstFailure() {
+            return firstFailure;
         }
 
-        public void setSkipOnNextTest() {
-            this.skipAfterFailure = true;
+        public void testFailed(ITestResult result) {
+            if (this.firstFailure == null) {
+                this.firstFailure = result;
+                if (FAIL_FAST_KILLSWITCH_FILE != null && !FAIL_FAST_KILLSWITCH_FILE.exists()) {
+                    try {
+                        Files.createFile(FAIL_FAST_KILLSWITCH_FILE.toPath());
+                    } catch (IOException e) {
+                        LOG.warn("Unable to create fail fast kill switch file '"
+                                + FAIL_FAST_KILLSWITCH_FILE.getAbsolutePath() + "'", e);
+                    }
+                }
+            }
         }
     }
 
@@ -74,18 +101,33 @@ public class FailFastNotifier
 
     @Override
     public void onTestFailure(ITestResult result) {
-        FailFastNotifier.FailFastEventsSingleton.getInstance().setSkipOnNextTest();
         // Hide FailFastSkipExceptions and mark the test as skipped
         if (result.getThrowable() instanceof FailFastSkipException) {
             result.setThrowable(null);
             result.setStatus(ITestResult.SKIP);
+        } else {
+            FailFastNotifier.FailFastEventsSingleton.getInstance().testFailed(result);
         }
     }
 
     @Override
     public void beforeInvocation(IInvokedMethod iInvokedMethod, ITestResult iTestResult) {
-        if (FAIL_FAST_ENABLED && FailFastEventsSingleton.getInstance().isSkipAfterFailure()) {
-            throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
+        if (FAIL_FAST_ENABLED) {
+            ITestResult firstFailure = FailFastEventsSingleton.getInstance().getFirstFailure();
+            if (firstFailure != null) {
+                ITestNGMethod iTestNGMethod = iInvokedMethod.getTestMethod();
+                // condition that ensures that cleanup methods will be called in the test class where the
+                // first exception happened
+                if (iTestResult.getInstance() != firstFailure.getInstance()
+                        || !(iTestNGMethod.isAfterMethodConfiguration()
+                        || iTestNGMethod.isAfterClassConfiguration()
+                        || iTestNGMethod.isAfterTestConfiguration())) {
+                    throw new FailFastSkipException("Skipped after failure since testFailFast system property is set.");
+                }
+            }
+            if (FAIL_FAST_KILLSWITCH_FILE != null && FAIL_FAST_KILLSWITCH_FILE.exists()) {
+                throw new FailFastSkipException("Skipped after failure since kill switch file exists.");
+            }
         }
     }
 

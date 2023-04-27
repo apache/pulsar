@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,10 +28,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.AuthenticationState;
-import org.apache.pulsar.common.sasl.SaslConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,54 +49,12 @@ public class AuthenticationFilter implements Filter {
         this.authenticationService = authenticationService;
     }
 
-    private boolean isSaslRequest(HttpServletRequest request) {
-        if (request.getHeader(SaslConstants.SASL_HEADER_TYPE) == null
-                || request.getHeader(SaslConstants.SASL_HEADER_TYPE).isEmpty()) {
-            return false;
-        }
-        if (request.getHeader(SaslConstants.SASL_HEADER_TYPE)
-            .equalsIgnoreCase(SaslConstants.SASL_TYPE_VALUE)) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         try {
-            HttpServletRequest httpRequest = (HttpServletRequest) request;
-            HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-            if (!isSaslRequest(httpRequest)) {
-                // not sasl type, return role directly.
-                String authMethodName = httpRequest.getHeader(PULSAR_AUTH_METHOD_NAME);
-                String role;
-                if (authMethodName != null && authenticationService.getAuthenticationProvider(authMethodName) != null) {
-                    AuthenticationState authenticationState = authenticationService
-                            .getAuthenticationProvider(authMethodName).newHttpAuthState(httpRequest);
-                    request.setAttribute(AuthenticatedDataAttributeName, authenticationState.getAuthDataSource());
-                    role = authenticationService.authenticateHttpRequest(
-                            (HttpServletRequest) request, authenticationState.getAuthDataSource());
-                } else {
-                    request.setAttribute(AuthenticatedDataAttributeName,
-                            new AuthenticationDataHttps((HttpServletRequest) request));
-                    role = authenticationService.authenticateHttpRequest((HttpServletRequest) request);
-                }
-                request.setAttribute(AuthenticatedRoleAttributeName, role);
-
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
-                }
-                chain.doFilter(request, response);
-                return;
-            }
-
             boolean doFilter = authenticationService
-                .getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME)
-                .authenticateHttpRequest(httpRequest, httpResponse);
-
+                    .authenticateHttpRequest((HttpServletRequest) request, (HttpServletResponse) response);
             if (doFilter) {
                 chain.doFilter(request, response);
             }
@@ -111,7 +66,6 @@ public class AuthenticationFilter implements Filter {
             } else {
                 LOG.error("[{}] Error performing authentication for HTTP", request.getRemoteAddr(), e);
             }
-            return;
         }
     }
 

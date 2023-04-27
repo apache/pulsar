@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,10 @@
 package org.apache.pulsar.testclient;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TestDefaultMessageFormatter {
 
@@ -65,7 +64,7 @@ public class TestDefaultMessageFormatter {
         Assert.assertTrue(l3 > 0);
         Assert.assertTrue(l3 <= 99999);
         Assert.assertTrue(i2 < 10);
-        Assert.assertTrue(0 < i2, "i2 was " + i2);
+        Assert.assertTrue(0 <= i2, "i2 was " + i2);
         Assert.assertTrue(f2 < 100000);
         Assert.assertTrue( -100000 < f2);
     }

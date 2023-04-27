@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -129,6 +129,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)")
     private String brokerClientTrustCertsFilePath = "";
 
+    // Note: name matches the ServiceConfiguration name to ensure correct mapping
+    @FieldContext(doc = "Enable TLS hostname verification when connecting to broker")
+    private boolean tlsHostnameVerificationEnabled = false;
+
     @FieldContext(doc = "Number of IO threads in Pulsar client used in WebSocket proxy")
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
 
@@ -161,6 +165,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Timeout of idling WebSocket session (in milliseconds)")
     private int webSocketSessionIdleTimeoutMillis = 300000;
 
+    @FieldContext(doc = "Interval of time to sending the ping to keep alive. This value greater than 0 means enabled")
+    private int webSocketPingDurationSeconds = -1;
+
     @FieldContext(doc = "When this parameter is not empty, unauthenticated users perform as anonymousUserRole")
     private String anonymousUserRole = null;
 
@@ -180,7 +187,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Path for the trusted TLS certificate file")
     private String tlsTrustCertsFilePath = "";
 
-    @FieldContext(doc = "Accept untrusted TLS certificate from client")
+    @FieldContext(doc = "Accept untrusted TLS certificate from client and broker")
     private boolean tlsAllowInsecureConnection = false;
 
     @FieldContext(doc = "Specify whether client certificates are required for "

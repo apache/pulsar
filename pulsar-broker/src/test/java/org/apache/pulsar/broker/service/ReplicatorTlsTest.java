@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,15 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
+import java.util.List;
+import java.util.Optional;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
 @Test(groups = "broker")
 public class ReplicatorTlsTest extends ReplicatorTestBase {
@@ -50,11 +51,19 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
     @Test
     public void testReplicationClient() throws Exception {
         log.info("--- Starting ReplicatorTlsTest::testReplicationClient ---");
-        for (BrokerService ns : Lists.newArrayList(ns1, ns2, ns3)) {
+        for (BrokerService ns : List.of(ns1, ns2, ns3)) {
+            // load the client
+            ns.getReplicationClient(cluster1, Optional.of(admin1.clusters().getCluster(cluster1)));
+            ns.getReplicationClient(cluster2, Optional.of(admin1.clusters().getCluster(cluster2)));
+            ns.getReplicationClient(cluster3, Optional.of(admin1.clusters().getCluster(cluster3)));
+
+            // verify the client
             ns.getReplicationClients().forEach((cluster, client) -> {
-                assertTrue(((PulsarClientImpl) client).getConfiguration().isUseTls());
-                assertEquals(((PulsarClientImpl) client).getConfiguration().getTlsTrustCertsFilePath(),
-                        TLS_SERVER_CERT_FILE_PATH);
+                ClientConfigurationData configuration = ((PulsarClientImpl) client).getConfiguration();
+                assertTrue(configuration.isUseTls());
+                assertEquals(configuration.getTlsTrustCertsFilePath(), caCertFilePath);
+                assertEquals(configuration.getTlsKeyFilePath(), clientKeyFilePath);
+                assertEquals(configuration.getTlsCertificateFilePath(), clientCertFilePath);
             });
         }
     }

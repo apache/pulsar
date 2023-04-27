@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,11 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
-import com.google.common.collect.Lists;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -78,7 +77,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @BeforeMethod
     public void setup(Method m) throws Exception {
         super.setUp(m);
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+        ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         @Cleanup
@@ -108,7 +107,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
         doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).checkTopicOwnership(any(TopicName.class));
 
-        final List<Position> addedEntries = Lists.newArrayList();
+        final List<Position> addedEntries = new ArrayList<>();
 
         for (int i = 0; i < 100; i++) {
             Position pos = ledger.addEntry("entry".getBytes());

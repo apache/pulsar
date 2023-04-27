@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -45,20 +44,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
 
     @Override
     public CompletableFuture<List<String>> getResourceGroupsAsync() {
-        final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(adminResourceGroups,
-                new InvocationCallback<List<String>>() {
-                    @Override
-                    public void completed(List<String> resourcegroups) {
-                        future.complete(resourcegroups);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(this.adminResourceGroups, new FutureCallback<List<String>>(){});
     }
 
     @Override
@@ -69,20 +55,7 @@ public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
     @Override
     public CompletableFuture<ResourceGroup> getResourceGroupAsync(String name) {
         WebTarget path = adminResourceGroups.path(name);
-        final CompletableFuture<ResourceGroup> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<ResourceGroup>() {
-                    @Override
-                    public void completed(ResourceGroup resourcegroup) {
-                        future.complete(resourcegroup);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<ResourceGroup>(){});
     }
 
     @Override

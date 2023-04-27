@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -99,10 +99,8 @@ public class DispatchRateLimiter {
      */
     public boolean tryDispatchPermit(long msgPermits, long bytePermits) {
         boolean acquiredMsgPermit = msgPermits <= 0 || dispatchRateLimiterOnMessage == null
-        // acquiring permits must be < configured msg-rate;
                 || dispatchRateLimiterOnMessage.tryAcquire(msgPermits);
         boolean acquiredBytePermit = bytePermits <= 0 || dispatchRateLimiterOnByte == null
-        // acquiring permits must be < configured msg-rate;
                 || dispatchRateLimiterOnByte.tryAcquire(bytePermits);
         return acquiredMsgPermit && acquiredBytePermit;
     }

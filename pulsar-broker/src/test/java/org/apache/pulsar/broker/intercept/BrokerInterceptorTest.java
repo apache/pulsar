@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,25 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import okhttp3.Call;
 import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -32,22 +45,12 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-
-import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker")
 public class BrokerInterceptorTest extends ProducerConsumerBase {
@@ -87,6 +90,11 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     }
 
     @Override
+    protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
+        pulsarTestContextBuilder.brokerInterceptor(new CounterBrokerInterceptor());
+    }
+
+    @Override
     protected void cleanup() throws Exception {
         teardown();
     }
@@ -114,7 +122,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         admin.namespaces().createNamespace("public/test", 4);
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getCount() >= 1);
     }
 
     @Test
@@ -123,7 +131,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         // CONNECT and PRODUCER
-        Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 2);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getCount() >= 2);
     }
 
     @Test
@@ -133,7 +141,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
         // single connection for both producer and consumer
-        assertEquals(((CounterBrokerInterceptor) listener).getConnectionCreationCount(), 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getConnectionCreationCount() == 1);
     }
 
     @Test
@@ -142,7 +150,18 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         assertEquals(((CounterBrokerInterceptor) listener).getProducerCount(), 0);
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
-        assertEquals(((CounterBrokerInterceptor) listener).getProducerCount(), 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getProducerCount() == 1);
+    }
+
+    @Test
+    public void testProducerClose() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        assertEquals(((CounterBrokerInterceptor) listener).getProducerCount(), 0);
+        Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic("test").create();
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getProducerCount() == 1);
+        producer.close();
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getProducerCount() == 0);
     }
 
     @Test
@@ -151,7 +170,36 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
         assertEquals(((CounterBrokerInterceptor) listener).getConsumerCount(), 0);
         pulsarClient.newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
-        assertEquals(((CounterBrokerInterceptor) listener).getConsumerCount(), 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getConsumerCount() == 1);
+    }
+
+    @Test
+    public void testConsumerClose() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+        assertEquals(((CounterBrokerInterceptor) listener).getConsumerCount(), 0);
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getConsumerCount() == 1);
+        consumer.close();
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getConsumerCount() == 0);
+    }
+
+    @Test
+    public void testMessagePublishAndProduced() throws PulsarClientException {
+        BrokerInterceptor listener = pulsar.getBrokerInterceptor();
+        Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic("test-before-send-message")
+                .create();
+
+        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),0);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageProducedCount(),0);
+        producer.send("hello world");
+        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),1);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageProducedCount(),1);
     }
 
     @Test
@@ -169,17 +217,18 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             .subscriptionName("test")
             .subscribe();
 
-        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),0);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageProducedCount(),0);
         assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),0);
         producer.send("hello world");
-        assertEquals(((CounterBrokerInterceptor)listener).getMessagePublishCount(),1);
+        assertEquals(((CounterBrokerInterceptor)listener).getMessageProducedCount(),1);
 
         Message<String> msg = consumer.receive();
 
         assertEquals(msg.getValue(), "hello world");
 
-        assertEquals(((CounterBrokerInterceptor) listener).getBeforeSendCount(), 1);
-        assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getBeforeSendCount() == 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getBeforeSendCountAtConsumerLevel() == 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) listener).getMessageDispatchCount() == 1);
     }
 
     @Test
@@ -195,8 +244,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             Message<String> message = consumer.receive();
             consumer.acknowledge(message);
         }
-
-        Assert.assertEquals(((CounterBrokerInterceptor) interceptor).getHandleAckCount(), 1);
+        Awaitility.await().until(() -> ((CounterBrokerInterceptor) interceptor).getHandleAckCount() == 1);
     }
 
     @Test
@@ -225,10 +273,38 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             }
         });
         future.get();
+        Awaitility.await().until(() -> !interceptor.getResponseList().isEmpty());
         CounterBrokerInterceptor.ResponseEvent responseEvent = interceptor.getResponseList().get(0);
         Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
+
         Assert.assertEquals(responseEvent.getResponseStatus(),
                 javax.ws.rs.core.Response.noContent().build().getStatus());
+    }
+
+    public void requestInterceptorFailedTest() {
+        Set<String> allowedClusters = new HashSet<>();
+        allowedClusters.add(configClusterName);
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(new HashSet<>(), allowedClusters);
+        try {
+            admin.tenants().createTenant("test-interceptor-failed-tenant", tenantInfo);
+            Assert.fail("Create tenant because interceptor should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getHttpError(), "Create tenant failed");
+        }
+
+        try {
+            admin.namespaces().createNamespace("public/test-interceptor-failed-namespace");
+            Assert.fail("Create namespace because interceptor should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getHttpError(), "Create namespace failed");
+        }
+
+        try {
+            admin.topics().createNonPartitionedTopic("persistent://public/default/test-interceptor-failed-topic");
+            Assert.fail("Create topic because interceptor should fail");
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getHttpError(), "Create topic failed");
+        }
     }
 
 }

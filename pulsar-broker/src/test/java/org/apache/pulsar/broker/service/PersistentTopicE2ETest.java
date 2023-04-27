@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,7 +25,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Sets;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -42,14 +44,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
+import lombok.Cleanup;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.MessageRedeliveryController;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
@@ -94,15 +98,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.socket.SocketChannel;
-import lombok.Cleanup;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
-
 @Test(groups = "flaky")
 public class PersistentTopicE2ETest extends BrokerTestBase {
     private final List<AutoCloseable> closeables = new ArrayList<>();
@@ -126,17 +121,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     @Override
-    protected PulsarService newPulsarService(ServiceConfiguration conf) throws Exception {
-        return new PulsarService(conf) {
-            @Override
-            protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
-                BrokerService broker = new BrokerService(this, ioEventLoopGroup);
-                broker.setPulsarChannelInitializerFactory((_pulsar, opts) -> {
-                            return new PulsarChannelInitializerForTest(_pulsar, opts);
-                    });
-                return broker;
-            }
-        };
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        brokerService.setPulsarChannelInitializerFactory(PulsarChannelInitializerForTest::new);
+        return brokerService;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -998,7 +985,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         admin.topics().deleteSubscription(topicName, subName);
         admin.topics().delete(topicName);
-        admin.namespaces().deleteNamespace(namespaceName);
+        deleteNamespaceWithRetry(namespaceName, false);
     }
 
     @Test
@@ -1090,7 +1077,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             consumer.close();
             admin.topics().deleteSubscription(topicName, subName);
             admin.topics().delete(topicName);
-            admin.namespaces().deleteNamespace(namespaceName, true);
+            deleteNamespaceWithRetry(namespaceName, true);
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 500);
         }
@@ -1327,7 +1314,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             .create();
 
         // 2. Stop broker
-        super.internalCleanup();
+        cleanup();
 
         // 2. producer publish messages
         long startTime = System.nanoTime();
@@ -1374,7 +1361,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             .create();
 
         // 2. Stop broker
-        super.internalCleanup();
+        cleanup();
 
         // 2. producer publish messages
         long startTime = System.nanoTime();
@@ -1930,7 +1917,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
     @Test
     public void testHttpLookupWithNotFoundError() throws Exception {
-        stopBroker();
+        cleanup();
         isTcpLookup = false;
         setup();
         try {
@@ -1961,8 +1948,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             ch.pipeline().remove("handler");
             PersistentTopicE2ETest.ServerCnxForTest serverCnxForTest = new PersistentTopicE2ETest.ServerCnxForTest(this.pulsar, this.opts.getListenerName());
             ch.pipeline().addAfter("flowController", "testHandler", serverCnxForTest);
-            //override parent
-            connections.put(ch.remoteAddress(), serverCnxForTest);
         }
 
     }
@@ -2017,7 +2002,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 if(topicClazz == NonPersistentTopic.class) {
                     return (T) new NonPersistentTopic(topic, brokerService);
                 }else {
-                    return (T) new PersistentTopic(topic, ledger, brokerService); 
+                    return (T) new PersistentTopic(topic, ledger, brokerService);
                 }
             } catch (Exception e) {
                 throw new IllegalStateException(e);

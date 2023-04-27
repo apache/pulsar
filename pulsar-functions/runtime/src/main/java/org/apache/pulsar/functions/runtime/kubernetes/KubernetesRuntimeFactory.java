@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.kubernetes;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -253,7 +252,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 kubernetesFunctionAuthProvider.initialize(coreClient, serverCaBytes,
                         (funcDetails) -> getRuntimeCustomizer()
                                 .map((customizer) -> customizer.customizeNamespace(funcDetails, jobNamespace))
-                                .orElse(jobNamespace));
+                                .orElse(jobNamespace), factoryConfig.getKubernetesFunctionAuthProviderConfig());
                 this.authProvider = Optional.of(kubernetesFunctionAuthProvider);
             }
         } else {
@@ -269,6 +268,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
+                                             String transformFunctionPkgUrl,
+                                             String originalTransformFunctionFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {
@@ -327,6 +328,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             configAdminCLI,
             codePkgUrl,
             originalCodeFileName,
+            originalTransformFunctionFileName,
             pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUri,
@@ -403,7 +405,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                                KubernetesRuntimeFactory kubernetesRuntimeFactory) {
         try {
             V1ConfigMap v1ConfigMap =
-                    coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null, true, false);
+                    coreClient.readNamespacedConfigMap(changeConfigMap, changeConfigMapNamespace, null);
             Map<String, String> data = v1ConfigMap.getData();
             if (data != null) {
                 overRideKubernetesConfig(data, kubernetesRuntimeFactory);

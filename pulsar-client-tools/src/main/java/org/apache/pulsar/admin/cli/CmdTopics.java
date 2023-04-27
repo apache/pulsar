@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.cli.NoSplitter;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -120,6 +122,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
         jcommander.addCommand("get-properties", new GetPropertiesCmd());
+        jcommander.addCommand("update-properties", new UpdateProperties());
+        jcommander.addCommand("remove-properties", new RemoveProperties());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -242,13 +246,22 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replicated-subscription-status", new SetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-replicated-subscription-status", new GetReplicatedSubscriptionStatus());
         jcommander.addCommand("get-backlog-size", new GetBacklogSizeByMessageId());
+        jcommander.addCommand("analyze-backlog", new AnalyzeBacklog());
 
         jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
         jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
 
+        jcommander.addCommand("get-shadow-topics", new GetShadowTopics());
+        jcommander.addCommand("set-shadow-topics", new SetShadowTopics());
+        jcommander.addCommand("remove-shadow-topics", new RemoveShadowTopics());
+        jcommander.addCommand("create-shadow-topic", new CreateShadowTopic());
+        jcommander.addCommand("get-shadow-source", new GetShadowSource());
+
         jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
         jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
+
+        jcommander.addCommand("trim-topic", new TrimTopic());
 
         initDeprecatedCommands();
     }
@@ -572,7 +585,7 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update existing non-global partitioned topic. "
+    @Parameters(commandDescription = "Update existing partitioned topic. "
             + "New updating number of partitions must be greater than existing number of partitions.")
     private class UpdatePartitionedCmd extends CliCommand {
 
@@ -583,6 +596,10 @@ public class CmdTopics extends CmdBase {
                 "--partitions" }, description = "Number of partitions for the topic", required = true)
         private int numPartitions;
 
+        @Parameter(names = { "-ulo",
+                "--update-local-only"}, description = "Update partitions number for topic in local cluster only")
+        private boolean updateLocalOnly = false;
+
         @Parameter(names = { "-f",
                 "--force" }, description = "Update forcefully without validating existing partitioned topic")
         private boolean force;
@@ -590,7 +607,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            getTopics().updatePartitionedTopic(topic, numPartitions, false, force);
+            getTopics().updatePartitionedTopic(topic, numPartitions, updateLocalOnly, force);
         }
     }
 
@@ -618,6 +635,41 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             print(getTopics().getProperties(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Update the properties of on a topic")
+    private class UpdateProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+            required = false, splitter = NoSplitter.class)
+        private java.util.List<String> properties;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            if (map == null) {
+                map = Collections.emptyMap();
+            }
+            getTopics().updateProperties(topic, map);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the key in properties of a topic")
+    private class RemoveProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--key", "-k"}, description = "The key to remove in the properties of topic")
+        private String key;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            getTopics().removeProperties(topic, key);
         }
     }
 
@@ -740,8 +792,8 @@ public class CmdTopics extends CmdBase {
 
         @Parameter(names = { "-sbs",
                 "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
-        + ", locking required.")
-        private boolean subscriptionBacklogSize = false;
+        + ", locking required. If set to false, the attribute 'backlogSize' in the response will be -1")
+        private boolean subscriptionBacklogSize = true;
 
         @Parameter(names = { "-etb",
                 "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
@@ -806,7 +858,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-sbs",
                 "--get-subscription-backlog-size" }, description = "Set true to get backlog size for each subscription"
                 + ", locking required.")
-        private boolean subscriptionBacklogSize = false;
+        private boolean subscriptionBacklogSize = true;
 
         @Parameter(names = { "-etb",
                 "--get-earliest-time-in-backlog" }, description = "Set true to get earliest time in backlog")
@@ -960,7 +1012,7 @@ public class CmdTopics extends CmdBase {
         private boolean replicated = false;
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Override
@@ -989,7 +1041,7 @@ public class CmdTopics extends CmdBase {
         private String subscriptionName;
 
         @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
-                required = false)
+                required = false, splitter = NoSplitter.class)
         private java.util.List<String> properties;
 
         @Parameter(names = {"--clear", "-c"}, description = "Remove all properties",
@@ -1027,7 +1079,7 @@ public class CmdTopics extends CmdBase {
             String topic = validateTopicName(params);
             Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
             // Ensure we are using JSON and not Java toString()
-            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
+            System.out.println(ObjectMapperFactory.getMapper().writer().writeValueAsString(result));
         }
     }
 
@@ -1119,7 +1171,7 @@ public class CmdTopics extends CmdBase {
             Map<Integer, MessageId> messageIds = getTopics().terminatePartitionedTopic(persistentTopic);
             for (Map.Entry<Integer, MessageId> entry: messageIds.entrySet()) {
                 String topicName = persistentTopic + "-partition-" + entry.getKey();
-                System.out.println("Topic " + topicName +  " succesfully terminated at " + entry.getValue());
+                System.out.println("Topic " + topicName +  " successfully terminated at " + entry.getValue());
             }
         }
     }
@@ -1275,6 +1327,7 @@ public class CmdTopics extends CmdBase {
 
                 System.out.println("Publish time: " + message.getPublishTime());
                 System.out.println("Event time: " + message.getEventTime());
+                System.out.println("Redelivery count: " + message.getRedeliveryCount());
 
                 if (message.getDeliverAtTime() != 0) {
                     System.out.println("Deliver at time: " + message.getDeliverAtTime());
@@ -1629,6 +1682,79 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the shadow topics for a topic")
+    private class GetShadowTopics extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            print(getTopics().getShadowTopics(persistentTopic));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the shadow topics for a topic")
+    private class SetShadowTopics extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--topics",
+                "-t" }, description = "Shadow topic list (comma separated values)", required = true)
+        private String shadowTopics;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            List<String> topics = Lists.newArrayList(shadowTopics.split(","));
+            getTopics().setShadowTopics(persistentTopic, topics);
+        }
+    }
+
+    @Parameters(commandDescription = "Remove the shadow topics for a topic")
+    private class RemoveShadowTopics extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            getTopics().removeShadowTopics(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Create a shadow topic for an existing source topic.")
+    private class CreateShadowTopic extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = {"--source", "-s"}, description = "source topic name", required = true)
+        private String sourceTopic;
+
+        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(eg: a=a b=b c=c)")
+        private java.util.List<String> propertyList;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> properties = parseListKeyValueMap(propertyList);
+            getTopics().createShadowTopic(topic, TopicName.get(sourceTopic).toString(), properties);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the source topic for a shadow topic")
+    private class GetShadowSource extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String shadowTopic = validatePersistentTopic(params);
+            print(getTopics().getShadowSource(shadowTopic));
+        }
+    }
+
     @Parameters(commandDescription = "Get the delayed delivery policy for a topic")
     private class GetDelayedDelivery extends CliCommand {
         @Parameter(description = "tenant/namespace/topic", required = true)
@@ -1817,11 +1943,16 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
-                + "0 means no retention and -1 means infinite time retention", required = true)
+                "-t" }, description = "Retention time with optional time unit suffix. "
+                + "For example, 100m, 3h, 2d, 5w. "
+                + "If the time unit is not specified, the default unit is seconds. For example, "
+                + "-t 120 will set retention to 2 minutes. "
+                + "0 means no retention and -1 means infinite time retention.", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit with optional size unit suffix. "
+                + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
+                + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
@@ -2026,6 +2157,10 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload threshold in bytes", required = true)
         private long offloadThresholdInBytes;
 
+        @Parameter(names = {"-ts", "--offloadThresholdInSeconds"}
+                , description = "ManagedLedger offload threshold in seconds")
+        private Long offloadThresholdInSeconds;
+
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
         private Long offloadDeletionLagInMillis;
@@ -2062,7 +2197,8 @@ public class CmdTopics extends CmdBase {
                     s3Role, s3RoleSessionName,
                     awsId, awsSecret,
                     maxBlockSizeInBytes,
-                    readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+                    readBufferSizeInBytes, offloadThresholdInBytes, offloadThresholdInSeconds,
+                    offloadDeletionLagInMillis, offloadedReadPriority);
 
             getTopics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }
@@ -2074,26 +2210,32 @@ public class CmdTopics extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-e",
-                "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic", required = true)
-        private int bookkeeperEnsemble;
+                "--bookkeeper-ensemble" }, description = "Number of bookies to use for a topic")
+        private int bookkeeperEnsemble = 2;
 
         @Parameter(names = { "-w",
-                "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry", required = true)
-        private int bookkeeperWriteQuorum;
+                "--bookkeeper-write-quorum" }, description = "How many writes to make of each entry")
+        private int bookkeeperWriteQuorum = 2;
 
         @Parameter(names = { "-a",
-                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry",
-                required = true)
-        private int bookkeeperAckQuorum;
+                "--bookkeeper-ack-quorum" }, description = "Number of acks (guaranteed copies) to wait for each entry")
+        private int bookkeeperAckQuorum = 2;
 
         @Parameter(names = { "-r",
                 "--ml-mark-delete-max-rate" }, description = "Throttling rate of mark-delete operation "
-                + "(0 means no throttle)", required = true)
-        private double managedLedgerMaxMarkDeleteRate;
+                + "(0 means no throttle)")
+        private double managedLedgerMaxMarkDeleteRate = 0;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
+            if (bookkeeperEnsemble <= 0 || bookkeeperWriteQuorum <= 0 || bookkeeperAckQuorum <= 0) {
+                throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
+                        + "and [--bookkeeper-ack-quorum] must greater than 0.");
+            }
+            if (managedLedgerMaxMarkDeleteRate < 0) {
+                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
+            }
             getTopics().setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
                     bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
         }
@@ -2921,6 +3063,33 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+
+    @Parameters(commandDescription = "Analyze the backlog of a subscription.")
+    private class AnalyzeBacklog extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s", "--subscription" }, description = "Subscription to be analyzed", required = true)
+        private String subName;
+
+        @Parameter(names = { "--position",
+                "-p" }, description = "message position to start the scan from (ledgerId:entryId)", required = false)
+        private String messagePosition;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            Optional<MessageId> startPosition = Optional.empty();
+            if (isNotBlank(messagePosition)) {
+                int partitionIndex = TopicName.get(persistentTopic).getPartitionIndex();
+                MessageId messageId = validateMessageIdString(messagePosition, partitionIndex);
+                startPosition = Optional.of(messageId);
+            }
+            print(getTopics().analyzeSubscriptionBacklog(persistentTopic, subName, startPosition));
+
+        }
+    }
+
     @Parameters(commandDescription = "Get the schema validation enforced")
     private class GetSchemaValidationEnforced extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2948,6 +3117,17 @@ public class CmdTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
             getAdmin().topics().setSchemaValidationEnforced(topic, enable);
+        }
+    }
+    @Parameters(commandDescription = "Trim a topic")
+    private class TrimTopic extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getAdmin().topics().trimTopic(topic);
         }
     }
 }

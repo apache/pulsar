@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.google.common.collect.Sets;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
@@ -27,6 +26,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -59,6 +59,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -74,7 +75,6 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,14 +189,19 @@ public class Namespaces extends NamespacesBase {
                                 @PathParam("namespace") String namespace,
                                 @QueryParam("force") @DefaultValue("false") boolean force,
                                 @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalDeleteNamespace(asyncResponse, authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalDeleteNamespaceAsync(force)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful delete namespace {}", clientAppId(), namespace);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to delete namespace {}", clientAppId(), namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -795,15 +800,18 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Unload a namespace bundle")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void unloadNamespaceBundle(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                      @QueryParam("destinationBroker") String destinationBroker) {
         validateNamespaceName(tenant, namespace);
-        internalUnloadNamespaceBundleAsync(bundleRange, authoritative)
+        internalUnloadNamespaceBundleAsync(bundleRange, destinationBroker, authoritative)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), bundleRange);
+                    log.info("[{}] Successfully unloaded namespace bundle {}",
+                            clientAppId(), bundleRange);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
@@ -821,6 +829,7 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Split a namespace bundle")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void splitNamespaceBundle(
             @Suspended final AsyncResponse asyncResponse,
@@ -1101,23 +1110,24 @@ public class Namespaces extends NamespacesBase {
     @Path("/{tenant}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Remove replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void removeReplicatorDispatchRate(
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void removeReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                             @PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveReplicatorDispatchRate();
+        internalRemoveReplicatorDispatchRate(asyncResponse);
     }
 
     @POST
     @Path("/{tenant}/{namespace}/replicatorDispatchRate")
     @ApiOperation(value = "Set replicator dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission")})
-    public void setReplicatorDispatchRate(@PathParam("tenant") String tenant,
-                                          @PathParam("namespace") String namespace, @ApiParam(value =
-            "Replicator dispatch rate for all topics of the specified namespace")
-                                                      DispatchRateImpl dispatchRate) {
+    public void setReplicatorDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace,
+                                          @ApiParam(value =
+            "Replicator dispatch rate for all topics of the specified namespace") DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
-        internalSetReplicatorDispatchRate(dispatchRate);
+        internalSetReplicatorDispatchRate(asyncResponse, dispatchRate);
     }
 
     @GET
@@ -1126,19 +1136,12 @@ public class Namespaces extends NamespacesBase {
             + "dispatch-rate not configured, -1 means msg-dispatch-rate or byte-dispatch-rate not configured "
             + "in dispatch-rate yet")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void getReplicatorDispatchRate(
-            @Suspended final AsyncResponse asyncResponse,
-            @PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void getReplicatorDispatchRate(@Suspended final AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalGetReplicatorDispatchRateAsync().thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get replicator dispatch-rate configured for the namespace {}",
-                            clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalGetReplicatorDispatchRate(asyncResponse);
     }
 
     @GET
@@ -1151,15 +1154,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.BACKLOG,
-                PolicyOperation.READ)
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenAccept(policies -> asyncResponse.resume(policies.backlog_quota_map))
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to get backlog quota map on namespace {}", clientAppId(), namespaceName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+        internalGetBacklogQuotaMap(asyncResponse);
     }
 
     @POST
@@ -1171,11 +1166,13 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412,
                     message = "Specified backlog quota exceeds retention quota."
                             + " Increase retention quota and retry request")})
-    public void setBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setBacklogQuota(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType,
             @ApiParam(value = "Backlog quota for all topics of the specified namespace") BacklogQuota backlogQuota) {
         validateNamespaceName(tenant, namespace);
-        internalSetBacklogQuota(backlogQuotaType, backlogQuota);
+        internalSetBacklogQuota(asyncResponse, backlogQuotaType, backlogQuota);
     }
 
     @DELETE
@@ -1184,10 +1181,12 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeBacklogQuota(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void removeBacklogQuota(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @QueryParam("backlogQuotaType") BacklogQuotaType backlogQuotaType) {
         validateNamespaceName(tenant, namespace);
-        internalRemoveBacklogQuota(backlogQuotaType);
+        internalRemoveBacklogQuota(asyncResponse, backlogQuotaType);
     }
 
     @GET
@@ -1195,10 +1194,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get retention config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public RetentionPolicies getRetention(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
+    public void getRetention(@Suspended final AsyncResponse asyncResponse,
+                             @PathParam("tenant") String tenant,
+                             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetRetention();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RETENTION, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.retention_policies))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get retention config on a namespace {}", clientAppId(), namespaceName,
+                            ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1234,21 +1242,36 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 400, message = "Invalid persistence policies")})
-    public void setPersistence(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void setPersistence(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                               @PathParam("namespace") String namespace,
                                @ApiParam(value = "Persistence policies for the specified namespace", required = true)
                                        PersistencePolicies persistence) {
         validateNamespaceName(tenant, namespace);
-        internalSetPersistence(persistence);
+        internalSetPersistenceAsync(persistence)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update the persistence for a namespace {}", clientAppId(), namespaceName,
+                            ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
     @Path("/{tenant}/{namespace}/persistence")
     @ApiOperation(value = "Delete the persistence configuration for all topics on a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void deletePersistence(@PathParam("tenant") String tenant,
-                                               @PathParam("namespace") String namespace) {
+    public void deletePersistence(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalDeletePersistence();
+        internalDeletePersistenceAsync()
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to delete the persistence for a namespace {}", clientAppId(), namespaceName,
+                            ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1492,10 +1515,19 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"), })
-    public DelayedDeliveryPolicies getDelayedDeliveryPolicies(@PathParam("tenant") String tenant,
-                                         @PathParam("namespace") String namespace) {
+    public void getDelayedDeliveryPolicies(@Suspended final AsyncResponse asyncResponse,
+                                           @PathParam("tenant") String tenant,
+                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetDelayedDelivery();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DELAYED_DELIVERY, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.delayed_delivery_policies))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get delayed delivery messages config on a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1573,10 +1605,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getMaxProducersPerTopic(@PathParam("tenant") String tenant,
+    public void getMaxProducersPerTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxProducersPerTopic();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_PRODUCERS, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.max_producers_per_topic))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxProducersPerTopic config on a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1609,10 +1651,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get deduplicationSnapshotInterval config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getDeduplicationSnapshotInterval(@PathParam("tenant") String tenant,
-                                                @PathParam("namespace") String namespace) {
+    public void getDeduplicationSnapshotInterval(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetDeduplicationSnapshotInterval();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION_SNAPSHOT, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.deduplicationSnapshotIntervalSeconds))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get deduplicationSnapshotInterval config on a namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1633,10 +1685,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getMaxConsumersPerTopic(@PathParam("tenant") String tenant,
+    public void getMaxConsumersPerTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxConsumersPerTopic();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_CONSUMERS, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.max_consumers_per_topic))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxConsumersPerTopic config on a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1719,10 +1781,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxUnackedMessagesPerConsumer config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getMaxUnackedMessagesPerConsumer(@PathParam("tenant") String tenant,
-                                       @PathParam("namespace") String namespace) {
+    public void getMaxUnackedMessagesPerConsumer(@Suspended final AsyncResponse asyncResponse,
+                                                 @PathParam("tenant") String tenant,
+                                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxUnackedMessagesPerConsumer();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.max_unacked_messages_per_consumer))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxUnackedMessagesPerConsumer config on a namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1757,10 +1828,20 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxUnackedMessagesPerSubscription config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getMaxUnackedmessagesPerSubscription(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace) {
+    public void getMaxUnackedmessagesPerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxUnackedMessagesPerSubscription();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_UNACKED, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.max_unacked_messages_per_subscription))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxUnackedMessagesPerSubscription config on a namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1794,10 +1875,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxSubscriptionsPerTopic config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public Integer getMaxSubscriptionsPerTopic(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace) {
+    public void getMaxSubscriptionsPerTopic(@Suspended final AsyncResponse asyncResponse,
+                                            @PathParam("tenant") String tenant,
+                                            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxSubscriptionsPerTopic();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_SUBSCRIPTIONS, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.max_subscriptions_per_topic))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxSubscriptionsPerTopic config on a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -1960,7 +2050,8 @@ public class Namespaces extends NamespacesBase {
         validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> {
-                    if (policies.offload_policies == null) {
+                    if (policies.offload_policies == null
+                            || policies.offload_policies.getManagedLedgerOffloadThresholdInBytes() == null) {
                         asyncResponse.resume(policies.offload_threshold);
                     } else {
                         asyncResponse.resume(policies.offload_policies.getManagedLedgerOffloadThresholdInBytes());
@@ -1991,6 +2082,58 @@ public class Namespaces extends NamespacesBase {
                                             required = true) long newThreshold) {
         validateNamespaceName(tenant, namespace);
         internalSetOffloadThreshold(newThreshold);
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/offloadThresholdInSeconds")
+    @ApiOperation(value = "Maximum number of bytes stored on the pulsar cluster for a topic,"
+            + " before the broker will start offloading to longterm storage",
+            notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
+    public void getOffloadThresholdInSeconds(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> {
+                    if (policies.offload_policies == null
+                            || policies.offload_policies.getManagedLedgerOffloadThresholdInSeconds() == null) {
+                        asyncResponse.resume(policies.offload_threshold_in_seconds);
+                    } else {
+                        asyncResponse.resume(policies.offload_policies.getManagedLedgerOffloadThresholdInSeconds());
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get offload threshold on namespace {}", clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @PUT
+    @Path("/{tenant}/{namespace}/offloadThresholdInSeconds")
+    @ApiOperation(value = "Set maximum number of seconds stored on the pulsar cluster for a topic,"
+            + " before the broker will start offloading to longterm storage",
+            notes = "A negative value disables automatic offloading")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "offloadThresholdInSeconds value is not valid") })
+    public void setOffloadThresholdInSeconds(
+            @Suspended final AsyncResponse response,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            long newThreshold) {
+        validateNamespaceName(tenant, namespace);
+        internalSetOffloadThresholdInSecondsAsync(newThreshold)
+                .thenAccept(response::resume)
+                .exceptionally(t -> {
+                    resumeAsyncResponseExceptionally(response, t);
+                    return null;
+                });
     }
 
     @GET
@@ -2096,11 +2239,21 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy(
+    public void getSchemaCompatibilityStrategy(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetSchemaCompatibilityStrategy();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.schema_compatibility_strategy))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get the strategy of the namespace schema compatibility {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
@@ -2124,11 +2277,27 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public boolean getIsAllowAutoUpdateSchema(
+    public void getIsAllowAutoUpdateSchema(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetIsAllowAutoUpdateSchema();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> {
+                    if (policies.is_allow_auto_update_schema == null) {
+                        asyncResponse.resume(pulsar().getConfig().isAllowAutoUpdateSchemaEnabled());
+                    } else {
+                        asyncResponse.resume(policies.is_allow_auto_update_schema);
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get the flag of whether allow auto update schema on a namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -2152,11 +2321,25 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public Set<SubscriptionType> getSubscriptionTypesEnabled(
+    public void getSubscriptionTypesEnabled(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetSubscriptionTypesEnabled();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SUBSCRIPTION_AUTH_MODE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> {
+                    Set<SubscriptionType> subscriptionTypes = new HashSet<>();
+                    policies.subscription_types_enabled.forEach(
+                            subType -> subscriptionTypes.add(SubscriptionType.valueOf(subType)));
+                    asyncResponse.resume(subscriptionTypes);
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get the set of whether allow subscription types on a namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -2184,7 +2367,7 @@ public class Namespaces extends NamespacesBase {
     public void removeSubscriptionTypesEnabled(@PathParam("tenant") String tenant,
                                                @PathParam("namespace") String namespace) {
             validateNamespaceName(tenant, namespace);
-            internalSetSubscriptionTypesEnabled(Sets.newHashSet());
+            internalSetSubscriptionTypesEnabled(new HashSet<>());
     }
 
     @GET
@@ -2196,11 +2379,29 @@ public class Namespaces extends NamespacesBase {
                           + " this setting, it will cause non-java clients failed to produce.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
                             @ApiResponse(code = 404, message = "Tenants or Namespace doesn't exist") })
-    public boolean getSchemaValidtionEnforced(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace,
-                                              @QueryParam("applied") @DefaultValue("false") boolean applied) {
+    public void getSchemaValidtionEnforced(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @QueryParam("applied") @DefaultValue("false") boolean applied) {
         validateNamespaceName(tenant, namespace);
-        return internalGetSchemaValidationEnforced(applied);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SCHEMA_COMPATIBILITY_STRATEGY,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> {
+                    boolean schemaValidationEnforced = policies.schema_validation_enforced;
+                    if (!schemaValidationEnforced && applied) {
+                        asyncResponse.resume(pulsar().getConfiguration().isSchemaValidationEnforced());
+                    } else {
+                        asyncResponse.resume(schemaValidationEnforced);
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get schema validation enforced flag for namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -2294,10 +2495,23 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get maxTopicsPerNamespace config on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace does not exist") })
-    public Integer getMaxTopicsPerNamespace(@PathParam("tenant") String tenant,
-                                              @PathParam("namespace") String namespace) {
+    public void getMaxTopicsPerNamespace(@Suspended final AsyncResponse asyncResponse,
+                                         @PathParam("tenant") String tenant,
+                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetMaxTopicsPerNamespace();
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> {
+                    int maxTopicsPerNamespace =
+                            policies.max_topics_per_namespace != null ? policies.max_topics_per_namespace : 0;
+                    asyncResponse.resume(maxTopicsPerNamespace);
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get maxTopicsPerNamespace config on a namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -2355,7 +2569,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/property/{key}")
-    @ApiOperation(value = "Get property value for a given key on a namespace.")
+    @ApiOperation(value = "Remove property value for a given key on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist"), })
     public void removeProperty(
@@ -2410,17 +2624,23 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{tenant}/{namespace}/resourcegroup")
-    @ApiOperation(value = "Get the resourcegroup attached to the namespace")
+    @ApiOperation(value = "Get the resource group attached to the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public String getNamespaceResourceGroup(@PathParam("tenant") String tenant,
-                                      @PathParam("namespace") String namespace) {
+    public void getNamespaceResourceGroup(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.RESOURCEGROUP,
-                PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.resource_group_name;
+        validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace), PolicyName.RESOURCEGROUP,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.resource_group_name))
+                .exceptionally(ex -> {
+                    log.error("Failed to get the resource group attached to the namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -2469,7 +2689,7 @@ public class Namespaces extends NamespacesBase {
                             } else {
                                 first = true;
                             }
-                            String json = ObjectMapperFactory.getThreadLocal().writeValueAsString(data);
+                            String json = objectWriter().writeValueAsString(data);
                             out.write(json);
                         }
 
@@ -2496,6 +2716,70 @@ public class Namespaces extends NamespacesBase {
                     "Error while scanning ledgers for " + namespaceName);
         }
     }
+
+    @GET
+    @Path("/{tenant}/{namespace}/entryFilters")
+    @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public void getEntryFiltersPerTopic(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespacePolicyOperationAsync(namespaceName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(polices -> asyncResponse.resume(polices.entryFilters))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get entry filters config on namespace {}: {} ",
+                            clientAppId(), namespaceName, ex.getCause().getMessage(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/entryFilters")
+    @ApiOperation(value = "Set entry filters for namespace")
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "Specified entry filters are not valid"),
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")
+    })
+    public void setEntryFiltersPerTopic(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace,
+                                       @ApiParam(value = "entry filters", required = true)
+                                               EntryFilters entryFilters) {
+        validateNamespaceName(tenant, namespace);
+        internalSetEntryFiltersPerTopicAsync(entryFilters)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("Failed to set entry filters for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/entryFilters")
+    @ApiOperation(value = "Remove entry filters for namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Invalid TTL")})
+    public void removeNamespaceEntryFilters(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
+                                          @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalSetEntryFiltersPerTopicAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("Failed to remove entry filters for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import static io.prestosql.spi.StandardErrorCode.PERMISSION_DENIED;
-import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
+import static io.trino.spi.StandardErrorCode.PERMISSION_DENIED;
+import static io.trino.spi.StandardErrorCode.QUERY_REJECTED;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import io.airlift.log.Logger;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.connector.ConnectorSession;
+import io.trino.spi.TrinoException;
+import io.trino.spi.connector.ConnectorSession;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -82,7 +83,7 @@ public class PulsarAuth {
         }
         Map<String, String> extraCredentials = session.getIdentity().getExtraCredentials();
         if (extraCredentials.isEmpty()) { // the extraCredentials won't be null
-            throw new PrestoException(QUERY_REJECTED,
+            throw new TrinoException(QUERY_REJECTED,
                     String.format(
                             "Failed to check the authorization for topic %s: The credential information is empty.",
                             topic));
@@ -90,7 +91,7 @@ public class PulsarAuth {
         String authMethod = extraCredentials.get(CREDENTIALS_AUTH_PLUGIN);
         String authParams = extraCredentials.get(CREDENTIALS_AUTH_PARAMS);
         if (StringUtils.isEmpty(authMethod) || StringUtils.isEmpty(authParams)) {
-            throw new PrestoException(QUERY_REJECTED,
+            throw new TrinoException(QUERY_REJECTED,
                     String.format(
                             "Failed to check the authorization for topic %s: Required credential parameters are "
                                     + "missing. Please specify the auth-method and auth-params in the extra "
@@ -98,6 +99,7 @@ public class PulsarAuth {
                             topic));
         }
         try {
+            @Cleanup
             PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarConnectorConfig.getBrokerBinaryServiceUrl())
                     .authentication(authMethod, authParams)
@@ -117,10 +119,10 @@ public class PulsarAuth {
                 log.debug("Check the authorization for the topic %s successfully.", topic);
             }
         } catch (PulsarClientException.AuthenticationException | PulsarClientException.AuthorizationException e) {
-            throw new PrestoException(PERMISSION_DENIED,
+            throw new TrinoException(PERMISSION_DENIED,
                     String.format("Failed to access topic %s: %s", topic, e.getLocalizedMessage()));
         } catch (IOException e) {
-            throw new PrestoException(QUERY_REJECTED,
+            throw new TrinoException(QUERY_REJECTED,
                     String.format("Failed to check authorization for topic %s: %s", topic, e.getLocalizedMessage()));
         }
     }

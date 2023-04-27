@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -443,6 +444,78 @@ public class UtilsTest {
                 + "\"payload.value.d\":1,\"payload.value.e.a\":\"a\",\"payload.value.e.b\":true,\"payload.value.e"
                 + ".d\":1.0,\"payload.value.e.f\":1.0,\"payload.value.e.i\":1,\"payload.value.e.l\":10,\"payload.key"
                 + ".a\":\"1\",\"payload.key.b\":1,\"properties.prop-key\":\"prop-value\",\"eventTime\":1648502845803}");
+    }
+
+    @Test(dataProvider = "schemaType")
+    public void testKeyValueSerializeNoValue(SchemaType schemaType) throws Exception {
+        RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("key");
+        keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
+        GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
+
+        RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
+        valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
+        GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
+
+        Schema<org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord>> keyValueSchema =
+                Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        org.apache.pulsar.common.schema.KeyValue<GenericRecord, GenericRecord>
+                keyValue = new org.apache.pulsar.common.schema.KeyValue<>(null, null);
+        GenericObject genericObject = new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return keyValue;
+            }
+        };
+
+        Record<GenericObject> genericObjectRecord = new Record<>() {
+            @Override
+            public Optional<String> getTopicName() {
+                return Optional.of("data-ks1.table1");
+            }
+
+            @Override
+            public org.apache.pulsar.client.api.Schema getSchema() {
+                return keyValueSchema;
+            }
+
+            @Override
+            public Optional<String> getKey() {
+                return Optional.of("message-key");
+            }
+
+            @Override
+            public GenericObject getValue() {
+                return genericObject;
+            }
+
+            @Override
+            public Map<String, String> getProperties() {
+                return Collections.emptyMap();
+            }
+
+            @Override
+            public Optional<Long> getEventTime() {
+                return Optional.of(1648502845803L);
+            }
+        };
+
+        ObjectMapper objectMapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        String json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, false);
+
+        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                + "\"payload\":{},"
+                + "\"eventTime\":1648502845803}");
+
+        json = Utils.serializeRecordToJsonExpandingValue(objectMapper, genericObjectRecord, true);
+
+        assertEquals(json, "{\"topicName\":\"data-ks1.table1\",\"key\":\"message-key\","
+                + "\"payload\":{},"
+                + "\"eventTime\":1648502845803}");
     }
 
     @Test

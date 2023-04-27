@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.avro.Schema.Type.RECORD;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -55,6 +56,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     private String componentName;
 
     private SchemaInfoProvider schemaInfoProvider;
+
+    public static final SchemaInfo SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("AutoConsume")
+            .type(SchemaType.AUTO_CONSUME)
+            .schema(new byte[0])
+            .build();
 
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
         ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
@@ -118,6 +125,14 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         fetchSchemaIfNeeded(sv);
         ensureSchemaInitialized(sv);
         return adapt(schemaMap.get(sv).decode(bytes, schemaVersion), schemaVersion);
+    }
+
+    @Override
+    public GenericRecord decode(ByteBuffer buffer, byte[] schemaVersion) {
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
+        fetchSchemaIfNeeded(sv);
+        ensureSchemaInitialized(sv);
+        return adapt(schemaMap.get(sv).decode(buffer, schemaVersion), schemaVersion);
     }
 
     @Override

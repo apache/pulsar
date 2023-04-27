@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.google.common.base.Charsets;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
@@ -32,6 +32,7 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.commons.collections4.MapUtils;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
 
 /**
@@ -68,7 +69,7 @@ public class ManagedLedgerConfig {
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
-    private byte[] password = "".getBytes(Charsets.UTF_8);
+    private byte[] password = "".getBytes(StandardCharsets.UTF_8);
     private boolean unackedRangesOpenCacheSetEnabled = true;
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
@@ -84,6 +85,10 @@ public class ManagedLedgerConfig {
     private int minimumBacklogCursorsForCaching = 0;
     private int minimumBacklogEntriesForCaching = 1000;
     private int maxBacklogBetweenCursorsForCaching = 1000;
+
+    @Getter
+    @Setter
+    private String shadowSourceName;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -271,7 +276,7 @@ public class ManagedLedgerConfig {
      *            the password to set
      */
     public ManagedLedgerConfig setPassword(String password) {
-        this.password = password.getBytes(Charsets.UTF_8);
+        this.password = password.getBytes(StandardCharsets.UTF_8);
         return this;
     }
 
@@ -392,7 +397,7 @@ public class ManagedLedgerConfig {
      * Set the retention time for the ManagedLedger.
      * <p>
      * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
-     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
      * <p>
@@ -422,7 +427,7 @@ public class ManagedLedgerConfig {
      * The retention size is used to set a maximum retention size quota on the ManagedLedger.
      * <p>
      * Retention size and retention time ({@link #setRetentionTime(int, TimeUnit)}) are together used to retain the
-     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
      * <p>
@@ -742,4 +747,10 @@ public class ManagedLedgerConfig {
     public void setMaxBacklogBetweenCursorsForCaching(int maxBacklogBetweenCursorsForCaching) {
         this.maxBacklogBetweenCursorsForCaching = maxBacklogBetweenCursorsForCaching;
     }
+
+    public String getShadowSource() {
+        return MapUtils.getString(properties, PROPERTY_SOURCE_TOPIC_KEY);
+    }
+
+    public static final String PROPERTY_SOURCE_TOPIC_KEY = "PULSAR.SHADOW_SOURCE";
 }

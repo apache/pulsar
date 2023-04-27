@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -135,6 +135,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
+        assertTrue(cursor.active);
         producer.close();
         consumer.close();
         log.info("-- Exiting {} test --", methodName);

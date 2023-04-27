@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,11 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 @Test(groups = "broker-admin")
@@ -101,14 +105,24 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 60000)
-    public void testPackagesOperationsFailed() {
+    public void testPackagesOperationsFailed() throws IOException {
         // download a non-existent package should return not found exception
         String unknownPackageName = "function://public/default/unknown@v1";
+
+        Path tmp = Files.createTempDirectory("package-test-tmp");
         try {
-            admin.packages().download(unknownPackageName, "/test/unknown");
+            admin.packages().download(unknownPackageName, tmp.toAbsolutePath() + "/unknown");
             fail("should throw 404 error");
         } catch (PulsarAdminException e) {
             assertEquals(404, e.getStatusCode());
+        } finally {
+            Files.walk(tmp).sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
 
         // get the metadata of a non-existent package should return not found exception

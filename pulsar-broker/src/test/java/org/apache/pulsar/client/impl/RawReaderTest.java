@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -40,17 +39,17 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+@Test(groups = "broker-impl")
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "foobar-sub";
@@ -84,6 +83,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             .enableBatching(batching)
             // easier to create enough batches with a small batch size
             .batchingMaxMessages(10)
+            .batchingMaxPublishDelay(1, TimeUnit.MINUTES)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .maxPendingMessages(count)
             .topic(topic)
@@ -95,6 +95,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
                 lastFuture = producer.newMessage().key(key).value(data).sendAsync();
                 keys.add(key);
             }
+            producer.flushAsync();
             lastFuture.get();
         }
         return keys;

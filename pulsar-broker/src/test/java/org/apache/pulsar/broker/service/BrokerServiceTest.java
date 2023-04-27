@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,6 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -61,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -87,13 +87,18 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -128,7 +133,6 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
-        resetConfig();
     }
 
     // method for resetting state explicitly
@@ -574,8 +578,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         final String ns1 = "prop/stats1";
         final String ns2 = "prop/stats2";
 
-        List<String> nsList = Lists.newArrayList(ns1, ns2);
-        List<Producer<byte[]>> producerList = Lists.newArrayList();
+        List<String> nsList = List.of(ns1, ns2);
+        List<Producer<byte[]>> producerList = new ArrayList<>();
 
         BrokerStats brokerStatsClient = admin.brokerStats();
 
@@ -966,8 +970,6 @@ public class BrokerServiceTest extends BrokerTestBase {
      */
     @Test
     public void testLookupThrottlingForClientByClient() throws Exception {
-        // This test looks like it could be flakey, if the broker responds
-        // quickly enough, there may never be concurrency in requests
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
         PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
@@ -979,7 +981,30 @@ public class BrokerServiceTest extends BrokerTestBase {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(20, false,
                 new DefaultThreadFactory("test-pool", Thread.currentThread().isDaemon()));
         long reqId = 0xdeadbeef;
-        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop)) {
+        // Using an AtomicReference in order to reset a new CountDownLatch
+        AtomicReference<CountDownLatch> latchRef = new AtomicReference<>();
+        latchRef.set(new CountDownLatch(1));
+        try (ConnectionPool pool = new ConnectionPool(conf, eventLoop, () -> new ClientCnx(conf, eventLoop) {
+            @Override
+            protected void handleLookupResponse(CommandLookupTopicResponse lookupResult) {
+                try {
+                    latchRef.get().await();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+                super.handleLookupResponse(lookupResult);
+            }
+
+            @Override
+            protected void handlePartitionResponse(CommandPartitionedTopicMetadataResponse lookupResult) {
+                try {
+                    latchRef.get().await();
+                } catch (InterruptedException e) {
+                    // ignore
+                }
+                super.handlePartitionResponse(lookupResult);
+            }
+        })) {
             // for PMR
             // 2 lookup will succeed
             long reqId1 = reqId++;
@@ -990,12 +1015,18 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId2 = reqId++;
             ByteBuf request2 = Commands.newPartitionMetadataRequest(topicName, reqId2);
             CompletableFuture<?> f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request2, reqId2));
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request2, reqId2);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                });
 
             f1.get();
             f2.get();
 
             // 3 lookup will fail
+            latchRef.set(new CountDownLatch(1));
             long reqId3 = reqId++;
             ByteBuf request3 = Commands.newPartitionMetadataRequest(topicName, reqId3);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1009,11 +1040,16 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId5 = reqId++;
             ByteBuf request5 = Commands.newPartitionMetadataRequest(topicName, reqId5);
             CompletableFuture<?> f3 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request5, reqId5));
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request5, reqId5);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                    });
 
+            f1.get();
+            f2.get();
             try {
-                f1.get();
-                f2.get();
                 f3.get();
                 fail("At least one should fail");
             } catch (ExecutionException e) {
@@ -1029,6 +1065,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             // for Lookup
             // 2 lookup will succeed
+            latchRef.set(new CountDownLatch(1));
             long reqId6 = reqId++;
             ByteBuf request6 = Commands.newLookup(topicName, true, reqId6);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1037,12 +1074,18 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId7 = reqId++;
             ByteBuf request7 = Commands.newLookup(topicName, true, reqId7);
             f2 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request7, reqId7));
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request7, reqId7);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                });
 
             f1.get();
             f2.get();
 
             // 3 lookup will fail
+            latchRef.set(new CountDownLatch(1));
             long reqId8 = reqId++;
             ByteBuf request8 = Commands.newLookup(topicName, true, reqId8);
             f1 = pool.getConnection(resolver.resolveHost())
@@ -1056,11 +1099,16 @@ public class BrokerServiceTest extends BrokerTestBase {
             long reqId10 = reqId++;
             ByteBuf request10 = Commands.newLookup(topicName, true, reqId10);
             f3 = pool.getConnection(resolver.resolveHost())
-                .thenCompose(clientCnx -> clientCnx.newLookup(request10, reqId10));
+                .thenCompose(clientCnx -> {
+                    CompletableFuture<?> future = clientCnx.newLookup(request10, reqId10);
+                    // pending other responses in `ClientCnx` until now
+                    latchRef.get().countDown();
+                    return future;
+                });
 
+            f1.get();
+            f2.get();
             try {
-                f1.get();
-                f2.get();
                 f3.get();
                 fail("At least one should fail");
             } catch (ExecutionException e) {
@@ -1073,7 +1121,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                     throw e;
                 }
             }
-
         }
     }
 
@@ -1426,5 +1473,51 @@ public class BrokerServiceTest extends BrokerTestBase {
         NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
+    }
+
+    @Test
+    public void testGetTopic() throws Exception {
+        final String ns = "prop/ns-test";
+        admin.namespaces().createNamespace(ns, 2);
+        final String topicName = ns + "/topic-1";
+        admin.topics().createNonPartitionedTopic(String.format("persistent://%s", topicName));
+        Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        producer1.close();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).get().get();
+        persistentTopic.close().join();
+        List<String> topics = new ArrayList<>(pulsar.getBrokerService().getTopics().keys());
+        topics.removeIf(item -> item.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME));
+        Assert.assertEquals(topics.size(), 0);
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteNamespaceAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteNamespaceAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteNamespaceAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteNamespaceAllowed());
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationsForceDeleteTenantAllowed() throws Exception {
+        cleanup();
+        conf.setForceDeleteTenantAllowed(false);
+        setup();
+        admin.brokers()
+                .updateDynamicConfiguration("forceDeleteTenantAllowed", "true");
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isForceDeleteTenantAllowed());
+        });
     }
 }

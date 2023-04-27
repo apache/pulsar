@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,7 @@ public class ObjectMapperFactoryTest {
 
     @Test
     public void testResourceQuotaMixIn() {
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
         try {
             ResourceQuota resourceQuota = new ResourceQuota();
             String json = objectMapper.writeValueAsString(resourceQuota);
@@ -40,7 +40,7 @@ public class ObjectMapperFactoryTest {
 
     @Test
     public void testMetricsMixIn() {
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
         try {
             Metrics metrics = new Metrics();
             String json = objectMapper.writeValueAsString(metrics);

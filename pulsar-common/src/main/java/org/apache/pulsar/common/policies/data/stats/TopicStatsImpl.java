@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,6 +41,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Statistics for a Pulsar topic.
+ * This class is not thread-safe.
  */
 @Data
 public class TopicStatsImpl implements TopicStats {
@@ -101,6 +102,10 @@ public class TopicStatsImpl implements TopicStats {
     /** record last failed offloaded timestamp. If no failed offload, the value should be 0 */
     public long lastOffloadFailureTimeStamp;
 
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
+
     /** List of connected publishers on this topic w/ their stats. */
     @Getter(AccessLevel.NONE)
     @Setter(AccessLevel.NONE)
@@ -131,8 +136,17 @@ public class TopicStatsImpl implements TopicStats {
     /** The serialized size of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
+    /** The size of InMemoryDelayedDeliveryTracer memory usage. */
+    public long delayedMessageIndexSizeInBytes;
+
+    /** Map of bucket delayed index statistics. */
+    public Map<String, TopicMetricBean> bucketDelayedIndexStats;
+
     /** The compaction stats. */
     public CompactionStatsImpl compaction;
+
+    /** The broker that owns this topic. */
+    public String ownerBroker;
 
     public List<? extends PublisherStats> getPublishers() {
         return Stream.concat(publishers.stream().sorted(
@@ -171,6 +185,7 @@ public class TopicStatsImpl implements TopicStats {
         this.subscriptions = new HashMap<>();
         this.replication = new TreeMap<>();
         this.compaction = new CompactionStatsImpl();
+        this.bucketDelayedIndexStats = new HashMap<>();
     }
 
     public void reset() {
@@ -200,11 +215,14 @@ public class TopicStatsImpl implements TopicStats {
         this.lastOffloadFailureTimeStamp = 0;
         this.lastOffloadSuccessTimeStamp = 0;
         this.publishRateLimitedTimes = 0L;
+        this.delayedMessageIndexSizeInBytes = 0;
         this.compaction.reset();
+        this.ownerBroker = null;
+        this.bucketDelayedIndexStats.clear();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
-    // stats.
+    // stats. This stat addition is not thread-safe.
     public TopicStatsImpl add(TopicStats ts) {
         TopicStatsImpl stats = (TopicStatsImpl) ts;
 
@@ -226,8 +244,21 @@ public class TopicStatsImpl implements TopicStats {
         this.offloadedStorageSize += stats.offloadedStorageSize;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
+        this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
+        this.ongoingTxnCount = stats.ongoingTxnCount;
+        this.abortedTxnCount = stats.abortedTxnCount;
+        this.committedTxnCount = stats.committedTxnCount;
 
-        stats.getPublishers().forEach(s -> {
+        stats.bucketDelayedIndexStats.forEach((k, v) -> {
+            TopicMetricBean topicMetricBean =
+                    this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            topicMetricBean.name = v.name;
+            topicMetricBean.labelsAndValues = v.labelsAndValues;
+            topicMetricBean.value += v.value;
+        });
+
+        for (int index = 0; index < stats.getPublishers().size(); index++) {
+           PublisherStats s = stats.getPublishers().get(index);
            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                this.publishersMap.computeIfAbsent(s.getProducerName(), key -> {
                    final PublisherStatsImpl newStats = new PublisherStatsImpl();
@@ -236,19 +267,20 @@ public class TopicStatsImpl implements TopicStats {
                    return newStats;
                }).add((PublisherStatsImpl) s);
            } else {
-               if (this.publishers.size() != stats.publishers.size()) {
-                   for (int i = 0; i < stats.publishers.size(); i++) {
-                       PublisherStatsImpl newStats = new PublisherStatsImpl();
-                       newStats.setSupportsPartialProducer(false);
-                       this.publishers.add(newStats.add(stats.publishers.get(i)));
-                   }
-               } else {
-                   for (int i = 0; i < stats.publishers.size(); i++) {
-                       this.publishers.get(i).add(stats.publishers.get(i));
-                   }
+               // Add a publisher stat entry to this.publishers
+               // if this.publishers.size() is smaller than
+               // the input stats.publishers.size().
+               // Here, index == this.publishers.size() means
+               // this.publishers.size() is smaller than the input stats.publishers.size()
+               if (index == this.publishers.size()) {
+                   PublisherStatsImpl newStats = new PublisherStatsImpl();
+                   newStats.setSupportsPartialProducer(false);
+                   this.publishers.add(newStats);
                }
+               this.publishers.get(index)
+                       .add((PublisherStatsImpl) s);
            }
-        });
+        }
 
         if (this.subscriptions.size() != stats.subscriptions.size()) {
             for (String subscription : stats.subscriptions.keySet()) {
@@ -268,6 +300,7 @@ public class TopicStatsImpl implements TopicStats {
         if (this.replication.size() != stats.replication.size()) {
             for (String repl : stats.replication.keySet()) {
                 ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
+                replStats.setConnected(true);
                 this.replication.put(repl, replStats.add(stats.replication.get(repl)));
             }
         } else {
@@ -276,6 +309,7 @@ public class TopicStatsImpl implements TopicStats {
                     this.replication.get(repl).add(stats.replication.get(repl));
                 } else {
                     ReplicatorStatsImpl replStats = new ReplicatorStatsImpl();
+                    replStats.setConnected(true);
                     this.replication.put(repl, replStats.add(stats.replication.get(repl)));
                 }
             }

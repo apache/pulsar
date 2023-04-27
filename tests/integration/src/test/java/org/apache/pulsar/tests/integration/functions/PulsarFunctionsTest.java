@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -60,6 +61,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
@@ -86,7 +88,6 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.assertj.core.api.Assertions;
 import org.awaitility.Awaitility;
-import org.testng.annotations.Test;
 
 /**
  * A test base for testing functions.
@@ -175,8 +176,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals(admin.topics().getStats(inputTopicName).getSubscriptions().size(), 1);
 
             // publish and consume result
-            if (Runtime.JAVA == runtime) {
-                // java supports schema
+            if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
+                // java and python supports schema
                 @Cleanup PulsarClient client = PulsarClient.builder()
                         .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                         .build();
@@ -209,7 +210,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 assertEquals(expectedMessages.size(), 0);
 
             } else {
-                // python doesn't support schema
+                // golang doesn't support schema
 
                 @Cleanup PulsarClient client = PulsarClient.builder()
                         .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -356,7 +357,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
 
         Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             schema = Schema.STRING;
         } else {
             schema = Schema.BYTES;
@@ -389,8 +390,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionStatsEmpty(functionName);
 
         // publish and consume result
-        if (Runtime.JAVA == runtime) {
-            // java supports schema
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
+            // java and python supports schema
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                     .build();
@@ -421,7 +422,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             assertEquals(expectedMessages.size(), 0);
 
         } else {
-            // python doesn't support schema
+            // golang doesn't support schema
 
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -531,7 +532,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             schema = Schema.STRING;
         } else {
             schema = Schema.BYTES;
@@ -560,9 +561,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_JAVA_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null);
+                        null, null, null, null, null);
                 break;
             case PYTHON:
+                ConsumerConfig consumerConfig = new ConsumerConfig();
+                consumerConfig.setSchemaType("string");
+                Map<String, String> inputSpecs = new HashMap<>() {{
+                    put(inputTopicName, objectMapper.writeValueAsString(consumerConfig));
+                }};
                 submitFunction(
                         runtime,
                         inputTopicName,
@@ -572,7 +578,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         PUBLISH_PYTHON_CLASS,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null);
+                        objectMapper.writeValueAsString(inputSpecs), "string", null, null, null);
                 break;
             case GO:
                 submitFunction(
@@ -584,7 +590,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         null,
                         schema,
                         Collections.singletonMap("publish-topic", outputTopicName),
-                        null, null, null);
+                        null, null, null, null, null);
         }
 
         // get function info
@@ -595,11 +601,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // publish and consume result
 
-        if (Runtime.JAVA == runtime) {
-            // java supports schema
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
+            // java and python supports schema
             publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
         } else {
-            // python doesn't support schema. Does Go? Maybe we need a switch instead for the Go case.
+            // Does Go support schema? Maybe we need a switch instead for the Go case.
 
             @Cleanup PulsarClient client = PulsarClient.builder()
                     .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -664,7 +670,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
 
         Schema<?> schema;
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             schema = Schema.STRING;
         } else {
             schema = Schema.BYTES;
@@ -708,11 +714,11 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         getFunctionStatsEmpty(functionName);
 
         // publish and consume result
-        if (Runtime.JAVA == runtime) {
+        if (Runtime.JAVA == runtime || Runtime.PYTHON == runtime) {
             // java supports schema
             publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
         } else {
-            // python doesn't support schema
+            // golang doesn't support schema
             publishAndConsumeMessagesBytes(inputTopicName, outputTopicName, numMessages);
         }
 
@@ -794,7 +800,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     String functionClass,
                                     Schema<T> inputTopicSchema) throws Exception {
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, functionFile, functionClass,
-                inputTopicSchema, null, null, null, null);
+                inputTopicSchema, null, null, null, null, null, null);
     }
 
     private <T> void submitFunction(Runtime runtime,
@@ -807,7 +813,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                     Map<String, String> userConfigs,
                                     String customSchemaInputs,
                                     String outputSchemaType,
-                                    SubscriptionInitialPosition subscriptionInitialPosition) throws Exception {
+                                    SubscriptionInitialPosition subscriptionInitialPosition,
+                                    String inputTypeClassName,
+                                    String outputTypeClassName) throws Exception {
+
+        if (StringUtils.isNotEmpty(inputTopicName)) {
+            ensureSubscriptionCreated(
+                inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+        }
 
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}', customSchemaInputs: {}", inputTopicName, customSchemaInputs);
@@ -832,6 +845,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         if (subscriptionInitialPosition != null) {
             generator.setSubscriptionInitialPosition(subscriptionInitialPosition);
         }
+        if (inputTypeClassName != null) {
+            generator.setInputTypeClassName(inputTypeClassName);
+        }
+        if (outputTypeClassName != null) {
+            generator.setOutputTypeClassName(outputTypeClassName);
+        }
         String command = "";
 
         switch (runtime){
@@ -853,12 +872,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         };
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
+        log.info("---------- stdout is: {}", result.getStdout());
+        log.info("---------- stderr is: {}", result.getStderr());
         assertTrue(result.getStdout().contains("Created successfully"));
-
-        if (StringUtils.isNotEmpty(inputTopicName)) {
-            ensureSubscriptionCreated(
-                    inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
-        }
     }
 
     private void updateFunctionParallelism(String functionName, int parallelism) throws Exception {
@@ -1061,7 +1077,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "topics",
                     "stats",
                     topic);
-            TopicStats topicStats = ObjectMapperFactory.getThreadLocal().readValue(result.getStdout(), TopicStats.class);
+            TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
+                    .readValue(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.getSubscriptions().size(), 0);
 
         } catch (ContainerExecException e) {
@@ -1076,7 +1093,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     "topics",
                     "stats",
                     topic);
-            TopicStats topicStats = ObjectMapperFactory.getThreadLocal().readValue(result.getStdout(), TopicStats.class);
+            TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
+                    .readValue(result.getStdout(), TopicStats.class);
             assertEquals(topicStats.getPublishers().size(), 0);
 
         } catch (ContainerExecException e) {
@@ -1260,10 +1278,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         result.assertNoStderr();
     }
 
-    @Test(groups = "function")
-    public void testAutoSchemaFunction() throws Exception {
+    protected void testAutoSchemaFunction() throws Exception {
         String inputTopicName = "test-autoschema-input-" + randomName(8);
-        String outputTopicName = "test-autoshcema-output-" + randomName(8);
+        String outputTopicName = "test-autoschema-output-" + randomName(8);
         String functionName = "test-autoschema-fn-" + randomName(8);
         final int numMessages = 10;
 
@@ -1326,8 +1343,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    @Test(groups = "function")
-    public void testAvroSchemaFunction() throws Exception {
+    protected void testAvroSchemaFunction(Runtime runtime) throws Exception {
+        if (functionRuntimeType == FunctionRuntimeType.THREAD && runtime == Runtime.PYTHON) {
+            // python can only run on process mode
+            return;
+        }
+
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);
         final String outputTopic = "test-avroschema-output-" + randomName(8);
@@ -1376,14 +1397,31 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             }
         });
 
-        submitFunction(
-                Runtime.JAVA,
-                inputTopic,
-                outputTopic,
-                functionName,
-                null,
-                AvroSchemaTestFunction.class.getName(),
-                Schema.AVRO(AvroTestObject.class));
+        if (runtime == Runtime.JAVA) {
+            submitFunction(
+                    Runtime.JAVA,
+                    inputTopic,
+                    outputTopic,
+                    functionName,
+                    null,
+                    AvroSchemaTestFunction.class.getName(),
+                    Schema.AVRO(AvroTestObject.class));
+        } else if (runtime == Runtime.PYTHON) {
+            ConsumerConfig consumerConfig = new ConsumerConfig();
+            consumerConfig.setSchemaType("avro");
+            Map<String, String> inputSpecs = new HashMap<>() {{
+                put(inputTopic, objectMapper.writeValueAsString(consumerConfig));
+            }};
+            submitFunction(
+                    Runtime.PYTHON,
+                    inputTopic,
+                    outputTopic,
+                    functionName,
+                    AVRO_SCHEMA_FUNCTION_PYTHON_FILE,
+                    AVRO_SCHEMA_PYTHON_CLASS,
+                    Schema.AVRO(AvroTestObject.class),
+                    null, objectMapper.writeValueAsString(inputSpecs), "avro", null, "avro_schema_test_function.AvroTestObject", "avro_schema_test_function.AvroTestObject");
+        }
         log.info("pulsar submitFunction");
 
         getFunctionInfoSuccess(functionName);
@@ -1458,7 +1496,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
         submitFunction(runtime, inputTopicName, outputTopicName, functionName, null, InitializableFunction.class.getName(), schema,
-                Collections.singletonMap("publish-topic", outputTopicName), null, null, null);
+                Collections.singletonMap("publish-topic", outputTopicName), null, null, null, null, null);
 
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
@@ -1536,6 +1574,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                                            String logTopicName,
                                            String functionName,
                                            Schema<?> schema) throws Exception {
+        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
+
         CommandGenerator generator;
         log.info("------- INPUT TOPIC: '{}'", inputTopicName);
         if (inputTopicName.endsWith(".*")) {
@@ -1556,8 +1596,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 commands);
         assertTrue(result.getStdout().contains("Created successfully"));
-
-        ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), schema);
     }
 
     private void publishAndConsumeMessages(String inputTopic,
@@ -1598,11 +1636,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                         Json.pretty(pulsarAdmin.topics().getInternalStats(inputTopic, true)));
                 log.info("Output topic internal-stats: {}",
                         Json.pretty(pulsarAdmin.topics().getInternalStats(outputTopic, true)));
+            } else {
+                String logMsg = new String(msg.getValue(), UTF_8);
+                log.info("Received message: '{}'", logMsg);
+                assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
+                expectedMessages.remove(logMsg);
             }
-            String logMsg = new String(msg.getValue(), UTF_8);
-            log.info("Received message: '{}'", logMsg);
-            assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
-            expectedMessages.remove(logMsg);
         }
 
         consumer.close();
@@ -1645,7 +1684,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 null,
                 SchemaType.NONE.name(),
-                SubscriptionInitialPosition.Earliest);
+                SubscriptionInitialPosition.Earliest, null, null);
         try {
             if (keyValue) {
                 @Cleanup
@@ -1830,7 +1869,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 null,
                 inputSpecNode.toString(),
                 SchemaType.AUTO_PUBLISH.name().toUpperCase(),
-                SubscriptionInitialPosition.Earliest);
+                SubscriptionInitialPosition.Earliest, null, null);
 
         getFunctionInfoSuccess(functionName);
 

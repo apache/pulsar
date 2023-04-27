@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.Cleanup;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
@@ -66,7 +67,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         for (int i = 0; i < 10; i++) {
             String entry = "entry" + i;
-            ledger.addEntry(entry.getBytes("UTF8"));
+            ledger.addEntry(entry.getBytes(StandardCharsets.UTF_8));
         }
 
         List<Entry> entryList = cursor.readEntries(10);
@@ -74,7 +75,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         for (int i = 0; i < 10; i++) {
             Entry entry = entryList.get(i);
-            Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
+            Assert.assertEquals(("entry" + i).getBytes(StandardCharsets.UTF_8), entry.getData());
         }
     }
     @Test(timeOut = 60000)
@@ -103,7 +104,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         for (int i = 0; i < 10; i++) {
             String entry = "entry" + i;
-            ledger.addEntry(entry.getBytes("UTF8"));
+            ledger.addEntry(entry.getBytes(StandardCharsets.UTF_8));
         }
 
         List<Entry> entryList = cursor.readEntries(10);
@@ -111,7 +112,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
 
         for (int i = 0; i < 10; i++) {
             Entry entry = entryList.get(i);
-            Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
+            Assert.assertEquals(("entry" + i).getBytes(StandardCharsets.UTF_8), entry.getData());
         }
     }
 }

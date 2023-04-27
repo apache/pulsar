@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,6 +33,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 public class InstanceConfig {
     private int instanceId;
     private String functionId;
+    private String transformFunctionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
@@ -47,6 +48,7 @@ public class InstanceConfig {
     private boolean exposePulsarAdminClientEnabled = false;
     private int metricsPort;
     private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
+    private boolean ignoreUnknownConfigFields;
 
     /**
      * Get the string representation of {@link #getInstanceId()}.

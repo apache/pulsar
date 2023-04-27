@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,17 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.websocket.api.RemoteEndpoint;
 import org.eclipse.jetty.websocket.api.Session;
@@ -35,17 +39,12 @@ import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParseException;
-
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleProducerSocket {
 
     private final CountDownLatch closeLatch;
     private Session session;
-    private final ArrayList<String> producerBuffer;
+    private final List<String> producerBuffer;
     private final int messagesToSendWhenConnected;
 
     public SimpleProducerSocket() {
@@ -54,7 +53,7 @@ public class SimpleProducerSocket {
 
     public SimpleProducerSocket(int messagesToSendWhenConnected) {
         this.closeLatch = new CountDownLatch(1);
-        this.producerBuffer = new ArrayList<>();
+        this.producerBuffer = Collections.synchronizedList(new ArrayList<>());
         this.messagesToSendWhenConnected = messagesToSendWhenConnected;
     }
 
@@ -62,7 +61,7 @@ public class SimpleProducerSocket {
         ProducerMessage msg = new ProducerMessage();
         msg.payload = Base64.getEncoder().encodeToString(("test" + index).getBytes());
         msg.key = Integer.toString(index);
-        return jsonMapper().writeValueAsString(msg);
+        return ObjectMapperFactory.getMapper().writer().writeValueAsString(msg);
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
@@ -103,7 +102,7 @@ public class SimpleProducerSocket {
         return this.session;
     }
 
-    public synchronized ArrayList<String> getBuffer() {
+    public List<String> getBuffer() {
         return producerBuffer;
     }
 

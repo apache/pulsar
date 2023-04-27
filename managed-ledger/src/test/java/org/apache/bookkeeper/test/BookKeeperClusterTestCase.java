@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@
 package org.apache.bookkeeper.test;
 
 import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertFalse;
 
 import com.google.common.base.Stopwatch;
@@ -57,12 +58,13 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.conf.TestBKConfiguration;
 import org.apache.bookkeeper.meta.zk.ZKMetadataDriverBase;
 import org.apache.bookkeeper.metastore.InMemoryMetaStore;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.Auditor;
 import org.apache.bookkeeper.replication.ReplicationWorker;
-import org.apache.bookkeeper.util.PortManager;
+import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
@@ -113,6 +115,7 @@ public abstract class BookKeeperClusterTestCase {
 
     private boolean isAutoRecoveryEnabled;
     protected ExecutorService executor;
+    private final List<Integer> bookiePorts = new ArrayList<>();
 
     SynchronousQueue<Throwable> asyncExceptions = new SynchronousQueue<>();
     protected void captureThrowable(Runnable c) {
@@ -184,7 +187,7 @@ public abstract class BookKeeperClusterTestCase {
         return "";
     }
 
-    @AfterTest
+    @AfterTest(alwaysRun = true)
     public void tearDown() throws Exception {
         boolean failed = false;
         for (Throwable e : asyncExceptions) {
@@ -204,6 +207,8 @@ public abstract class BookKeeperClusterTestCase {
         }
         // stop zookeeper service
         try {
+            // cleanup for metrics.
+            metadataStore.close();
             stopZKCluster();
         } catch (Exception e) {
             LOG.error("Got Exception while trying to stop ZKCluster", e);
@@ -264,7 +269,7 @@ public abstract class BookKeeperClusterTestCase {
 
         // Create Bookie Servers (B1, B2, B3)
         for (int i = 0; i < numBookies; i++) {
-            startNewBookie();
+            bookiePorts.add(startNewBookie());
         }
     }
 
@@ -283,6 +288,7 @@ public abstract class BookKeeperClusterTestCase {
             t.shutdown();
         }
         servers.clear();
+        bookiePorts.removeIf(PortManager::releaseLockedPort);
     }
 
     protected ServerConfiguration newServerConfiguration() throws Exception {
@@ -290,7 +296,7 @@ public abstract class BookKeeperClusterTestCase {
 
         int port;
         if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
-            port = PortManager.nextFreePort();
+            port = nextLockedFreePort();
         } else {
             port = 0;
         }
@@ -845,4 +851,14 @@ public abstract class BookKeeperClusterTestCase {
         return servers.get(index).getStatsProvider();
     }
 
+    public static void closeManagedLedgerWithRetry(ManagedLedger closeable){
+        Awaitility.await().until(() -> {
+            try {
+                closeable.close();
+                return true;
+            } catch (Exception ex){
+                return false;
+            }
+        });
+    }
 }

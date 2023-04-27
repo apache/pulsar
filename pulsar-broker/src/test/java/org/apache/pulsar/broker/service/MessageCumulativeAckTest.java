@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static java.util.Collections.emptyMap;
-import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.apache.pulsar.common.api.proto.CommandAck.AckType.Cumulative;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Exclusive;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Failover;
@@ -36,28 +35,17 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import java.net.InetSocketAddress;
-import java.util.Optional;
-import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.metadata.api.MetadataStore;
-import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -66,51 +54,27 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class MessageCumulativeAckTest {
     private final int consumerId = 1;
-    private BrokerService brokerService;
+
     private ServerCnx serverCnx;
-    private MetadataStore store;
-    protected PulsarService pulsar;
-    private OrderedExecutor executor;
-    private EventLoopGroup eventLoopGroup;
     private PersistentSubscription sub;
+    private PulsarTestContext pulsarTestContext;
 
     @BeforeMethod
     public void setup() throws Exception {
-        executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-cumulative-ack-test").build();
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
-        svcConfig.setBrokerShutdownTimeoutMs(0L);
-        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-        svcConfig.setClusterName("pulsar-cluster");
-        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
-        doReturn(svcConfig).when(pulsar).getConfiguration();
+        pulsarTestContext = PulsarTestContext.builderForNonStartableContext()
+                .build();
 
-        ManagedLedgerFactory mlFactoryMock = mock(ManagedLedgerFactory.class);
-        doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
-        doReturn(TransactionTestBase.createMockBookKeeper(executor))
-            .when(pulsar).getBookKeeperClient();
-
-        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
-        doReturn(store).when(pulsar).getLocalMetadataStore();
-        doReturn(store).when(pulsar).getConfigurationMetadataStore();
-
-        PulsarResources pulsarResources = new PulsarResources(store, store);
-        doReturn(pulsarResources).when(pulsar).getPulsarResources();
-
-        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
+        serverCnx = pulsarTestContext.createServerCnxSpy();
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
         when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getValue());
         when(serverCnx.ctx()).thenReturn(mock(ChannelHandlerContext.class));
         doReturn(new PulsarCommandSenderImpl(null, serverCnx))
-            .when(serverCnx).getCommandSender();
-
-        eventLoopGroup = new NioEventLoopGroup();
-        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
-        doReturn(brokerService).when(pulsar).getBrokerService();
+                .when(serverCnx).getCommandSender();
 
         String topicName = TopicName.get("MessageCumulativeAckTest").toString();
-        PersistentTopic persistentTopic = new PersistentTopic(topicName, mock(ManagedLedger.class), brokerService);
+        PersistentTopic persistentTopic = new PersistentTopic(topicName, mock(ManagedLedger.class), pulsarTestContext.getBrokerService());
         sub = spy(new PersistentSubscription(persistentTopic, "sub-1",
             mock(ManagedCursorImpl.class), false));
         doNothing().when(sub).acknowledgeMessage(any(), any(), any());
@@ -118,20 +82,10 @@ public class MessageCumulativeAckTest {
 
     @AfterMethod(alwaysRun = true)
     public void shutdown() throws Exception {
-        if (brokerService != null) {
-            brokerService.close();
-            brokerService = null;
+        if (pulsarTestContext != null) {
+            pulsarTestContext.close();
+            pulsarTestContext = null;
         }
-        if (pulsar != null) {
-            pulsar.close();
-            pulsar = null;
-        }
-
-        executor.shutdown();
-        if (eventLoopGroup != null) {
-            eventLoopGroup.shutdownGracefully().get();
-        }
-        store.close();
         sub = null;
     }
 

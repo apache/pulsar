@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.ServerErrorException;
@@ -34,6 +35,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation.Builder;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -141,6 +143,15 @@ public abstract class BaseResource {
         return future;
     }
 
+    public <T, R> void asyncPostRequestWithResponse(final WebTarget target, Entity<T> entity,
+                                                                    InvocationCallback<R> callback) {
+        try {
+            request(target).async().post(entity, callback);
+        } catch (PulsarAdminException cae) {
+            callback.failed(cae);
+        }
+    }
+
     public <T> CompletableFuture<Void> asyncPostRequest(final WebTarget target, Entity<T> entity) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
@@ -170,6 +181,44 @@ public abstract class BaseResource {
         } catch (PulsarAdminException cae) {
             callback.failed(cae);
         }
+    }
+
+    public <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, FutureCallback<T> callback) {
+        asyncGetRequest(target, (InvocationCallback<T>) callback);
+        return callback.future();
+    }
+
+    protected <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Class<? extends T> type) {
+        return asyncGetRequest(target, response -> response.readEntity(type));
+    }
+
+    protected <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, GenericType<T> type) {
+        return asyncGetRequest(target, response -> response.readEntity(type));
+    }
+
+    private <T> CompletableFuture<T> asyncGetRequest(final WebTarget target, Function<Response, T> readResponse) {
+        final CompletableFuture<T> future = new CompletableFuture<>();
+        asyncGetRequest(target,
+                new InvocationCallback<Response>() {
+                    @Override
+                    public void completed(Response response) {
+                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+                            future.completeExceptionally(getApiException(response));
+                        } else {
+                            try {
+                                future.complete(readResponse.apply(response));
+                            } catch (Exception e) {
+                                future.completeExceptionally(getApiException(e));
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     public CompletableFuture<Void> asyncDeleteRequest(final WebTarget target) {
@@ -202,7 +251,7 @@ public abstract class BaseResource {
         }
     }
 
-    public PulsarAdminException getApiException(Throwable e) {
+    public static PulsarAdminException getApiException(Throwable e) {
         if (e instanceof PulsarAdminException) {
             return (PulsarAdminException) e;
         } else if (e instanceof ServiceUnavailableException) {
@@ -274,11 +323,12 @@ public abstract class BaseResource {
             return e.getResponse().readEntity(ErrorData.class).reason.toString();
         } catch (Exception ex) {
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(
+                return ObjectMapperFactory.getMapper().reader().readValue(
                         e.getResponse().getEntity().toString(), ErrorData.class).reason;
             } catch (Exception ex1) {
                 try {
-                    return ObjectMapperFactory.getThreadLocal().readValue(e.getMessage(), ErrorData.class).reason;
+                    return ObjectMapperFactory.getMapper().reader()
+                            .readValue(e.getMessage(), ErrorData.class).reason;
                 } catch (Exception ex2) {
                     // could not parse output to ErrorData class
                     return e.getMessage();
@@ -303,5 +353,29 @@ public abstract class BaseResource {
         } catch (Exception e) {
             throw PulsarAdminException.wrap(getApiException(e));
         }
+    }
+
+    /**
+     * InvocationCallback that creates a CompletableFuture and completes it based on the response.
+     * Must be subclassed to provide runtime type information to the ReST client library.
+     * @param <T> type to which the response body is parsed in case of success
+     */
+    abstract static class FutureCallback<T> implements InvocationCallback<T> {
+        private final CompletableFuture<T> future = new CompletableFuture<>();
+
+        @Override
+        public void completed(T value) {
+            future.complete(value);
+        }
+
+        @Override
+        public void failed(Throwable throwable) {
+            future.completeExceptionally(getApiException(throwable.getCause()));
+        }
+
+        public CompletableFuture<T> future() {
+            return future;
+        }
+
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -75,7 +75,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         // Initialize the counter such that the difference between the messages written on the ML and the
         // messagesConsumed is equal to the current backlog (negated).
         if (null != this.readPosition) {
-            long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) < 0
+            long initialBacklog = readPosition.compareTo(lastEntryAndCounter.getLeft()) <= 0
                 ? ledger.getNumberOfEntries(Range.closed(readPosition, lastEntryAndCounter.getLeft())) : 0;
             messagesConsumedCounter = lastEntryAndCounter.getRight() - initialBacklog;
         } else {
@@ -104,7 +104,7 @@ public class NonDurableCursorImpl extends ManagedCursorImpl {
         MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, properties, callback, ctx);
         lastMarkDeleteEntry = mdEntry;
         // it is important to advance cursor so the retention can kick in as expected.
-        ledger.updateCursor(NonDurableCursorImpl.this, mdEntry.newPosition);
+        ledger.onCursorMarkDeletePositionUpdated(NonDurableCursorImpl.this, mdEntry.newPosition);
 
         callback.markDeleteComplete(ctx);
     }

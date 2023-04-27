@@ -43,13 +43,7 @@ type instanceConf struct {
 	metricsPort                 int
 }
 
-func newInstanceConf() *instanceConf {
-	config := &conf.Conf{}
-	cfg := config.GetConf()
-	if cfg == nil {
-		panic("config file is nil.")
-	}
-
+func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -103,7 +97,31 @@ func newInstanceConf() *instanceConf {
 			UserConfig: cfg.UserConfig,
 		},
 	}
+
+	if instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_EFFECTIVELY_ONCE {
+		panic("Go instance current not support EFFECTIVELY_ONCE processing guarantees.")
+	}
+
+	if !instanceConf.funcDetails.AutoAck &&
+		(instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE ||
+			instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE) {
+		panic("When Guarantees == " + instanceConf.funcDetails.ProcessingGuarantees.String() +
+			", autoAck must be equal to true. If you want not to automatically ack, " +
+			"please configure the processing guarantees as MANUAL." +
+			" This is a contradictory configuration, autoAck will be removed later." +
+			" Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
+	}
+
 	return instanceConf
+}
+
+func newInstanceConf() *instanceConf {
+	config := &conf.Conf{}
+	cfg := config.GetConf()
+	if cfg == nil {
+		panic("config file is nil.")
+	}
+	return newInstanceConfWithConf(cfg)
 }
 
 func (ic *instanceConf) getInstanceName() string {

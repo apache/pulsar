@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,10 +26,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import io.netty.util.HashedWheelTimer;
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -39,7 +37,6 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -294,17 +291,13 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         // Simulate a producer that takes over and fences p1 through the topic epoch
         if (!partitioned) {
             Topic t = pulsar.getBrokerService().getTopic(topic, false).get().get();
-            CompletableFuture<?> f = (CompletableFuture<?>) Whitebox
-                    .getMethod(AbstractTopic.class, "incrementTopicEpoch", Optional.class)
-                    .invoke(t, Optional.of(0L));
+            CompletableFuture<?> f = ((AbstractTopic) t).incrementTopicEpoch(Optional.of(0L));
             f.get();
         } else {
             for (int i = 0; i < 3; i++) {
                 String name = TopicName.get(topic).getPartition(i).toString();
                 Topic t = pulsar.getBrokerService().getTopic(name, false).get().get();
-                CompletableFuture<?> f = (CompletableFuture<?>) Whitebox
-                        .getMethod(AbstractTopic.class, "incrementTopicEpoch", Optional.class)
-                        .invoke(t, Optional.of(0L));
+                CompletableFuture<?> f = ((AbstractTopic) t).incrementTopicEpoch(Optional.of(0L));
                 f.get();
             }
         }
