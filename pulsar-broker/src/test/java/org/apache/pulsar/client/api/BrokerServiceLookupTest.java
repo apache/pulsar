@@ -806,7 +806,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             final ModularLoadManagerImpl modularLoadManager =
                     (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
 
-            // Create one topic and trigger tasks, then verify there is only one boundle now.
+            // Create one topic and trigger tasks, then verify there is only one bundle now.
             Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName1)
                     .subscriptionName("my-subscriber-name").subscribe();
             List<NamespaceBundle> bounldes1 = pulsar.getNamespaceService().getNamespaceBundleFactory()
