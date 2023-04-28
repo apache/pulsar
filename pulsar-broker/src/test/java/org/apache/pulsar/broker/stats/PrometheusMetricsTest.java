@@ -805,7 +805,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // cleanup.
         mockZooKeeper.delete(mockedBroker, 0);
-        System.out.println(1);
     }
 
     @Test
