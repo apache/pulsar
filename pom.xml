@@ -109,6 +109,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
+      --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
