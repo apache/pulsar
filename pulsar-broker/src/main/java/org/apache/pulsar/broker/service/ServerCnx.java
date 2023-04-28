@@ -1817,7 +1817,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
-            if (redeliver.getMessageIdsCount() > 0 && Subscription.isIndividualAckMode(consumer.subType())) {
+            if (redeliver.getMessageIdsCount() > 0 && consumer.isIndividualAckMode()) {
                 consumer.redeliverUnacknowledgedMessages(redeliver.getMessageIdsList());
             } else {
                 if (redeliver.hasConsumerEpoch()) {
