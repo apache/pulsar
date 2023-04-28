@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,7 +42,7 @@ public class TopicNameForInfiniteHttpCallGetSubscriptionsTest extends ProducerCo
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED.toString());
         conf.setDefaultNumPartitions(1);
     }
 
