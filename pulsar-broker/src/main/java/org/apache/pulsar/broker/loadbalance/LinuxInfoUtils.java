@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
