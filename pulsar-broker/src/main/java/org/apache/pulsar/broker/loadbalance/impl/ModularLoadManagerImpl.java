@@ -195,7 +195,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private long unloadBundleCount = 0;
 
     private final Lock lock = new ReentrantLock();
-    private Set<String> knownBrokers = ConcurrentHashMap.newKeySet();
+    private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
 
     /**
@@ -480,7 +480,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         checkNamespaceBundleSplit();
     }
 
-    private void cleanupDeadBrokersData() {
+    private synchronized void cleanupDeadBrokersData() {
         final Set<String> activeBrokers = getAvailableBrokers();
         Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
         this.knownBrokers.clear();
