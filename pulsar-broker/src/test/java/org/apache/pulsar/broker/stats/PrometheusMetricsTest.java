@@ -776,7 +776,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         // Mock another broker to make split task work.
         String mockedBroker = "/loadbalance/brokers/127.0.0.1:0";
-        mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.EMPTY_LIST, CreateMode.EPHEMERAL);
+        mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
 
         pulsar.getBrokerService().updateRates();
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
