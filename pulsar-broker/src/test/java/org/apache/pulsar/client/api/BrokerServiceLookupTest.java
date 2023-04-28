@@ -66,6 +66,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -78,6 +79,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -758,6 +760,62 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                 assertNotEquals(bundleInBroker1AfterSplit.toString(), unsplitBundle);
             });
         } finally {
+            conf.setLoadManagerClassName(loadBalancerName);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void testSkipSplitBundleIfOnlyOneBroker() throws Exception {
+
+        log.info("-- Starting {} test --", methodName);
+        final String loadBalancerName = conf.getLoadManagerClassName();
+        final int defaultNumberOfNamespaceBundles = conf.getDefaultNumberOfNamespaceBundles();
+        final int loadBalancerNamespaceBundleMaxTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
+
+        final String namespace = "my-property/my-ns";
+        final String topicName1 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
+        final String topicName2 = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_");
+        try {
+            // configure broker with ModularLoadManager.
+            stopBroker();
+            conf.setDefaultNumberOfNamespaceBundles(1);
+            conf.setLoadBalancerNamespaceBundleMaxTopics(1);
+            conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+            startBroker();
+            final ModularLoadManagerWrapper modularLoadManagerWrapper =
+                    (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
+            final ModularLoadManagerImpl modularLoadManager =
+                    (ModularLoadManagerImpl) modularLoadManagerWrapper.getLoadManager();
+
+            // Create one topic and trigger tasks, then verify there is only one bundle now.
+            Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName1)
+                    .subscriptionName("my-subscriber-name").subscribe();
+            List<NamespaceBundle> bounldes1 = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(namespace)).getBundles();
+            pulsar.getBrokerService().updateRates();
+            pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+            pulsar.getLoadManager().get().writeResourceQuotasToZooKeeper();
+            modularLoadManager.updateAll();
+            assertEquals(bounldes1.size(), 1);
+
+            // Create the second topic and trigger tasks, then verify the split task will be skipped.
+            Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName2)
+                    .subscriptionName("my-subscriber-name").subscribe();
+            pulsar.getBrokerService().updateRates();
+            pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
+            pulsar.getLoadManager().get().writeResourceQuotasToZooKeeper();
+            modularLoadManager.updateAll();
+            List<NamespaceBundle> bounldes2 = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(namespace)).getBundles();
+            assertEquals(bounldes2.size(), 1);
+
+            consumer1.close();
+            consumer2.close();
+            admin.topics().delete(topicName1, false);
+            admin.topics().delete(topicName2, false);
+        } finally {
+            conf.setDefaultNumberOfNamespaceBundles(defaultNumberOfNamespaceBundles);
+            conf.setLoadBalancerNamespaceBundleMaxTopics(loadBalancerNamespaceBundleMaxTopics);
             conf.setLoadManagerClassName(loadBalancerName);
         }
     }

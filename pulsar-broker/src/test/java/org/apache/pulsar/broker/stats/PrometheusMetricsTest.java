@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -74,6 +75,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.zookeeper.CreateMode;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -548,6 +550,58 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             c1.acknowledge(c1.receive());
         }
 
+        // Mock another broker to make split task work.
+        String json =
+            "{"
+                + "\"webServiceUrl\": \"http://127.0.0.1:0\","
+                + "\"webServiceUrlTls\": \"https://127.0.0.1:0\","
+                + "\"pulsarServiceUrl\": \"pulsar://127.0.0.1:0\","
+                + "\"pulsarServiceUrlTls\": \"pulsar+ssl://127.0.0.1:0\","
+                + "\"persistentTopicsEnabled\": true,"
+                + "\"nonPersistentTopicsEnabled\": true,"
+                + "\"cpu\": {"
+                    + "\"usage\": 0.0,"
+                    + "\"limit\": 1000.0"
+                + "},"
+                + "\"memory\": {"
+                    + "\"usage\": 124.1398696899414,"
+                    + "\"limit\": 1024.0"
+                + "},"
+                + "\"directMemory\": {"
+                    + "\"usage\": 4.0,"
+                    + "\"limit\": 1024.0"
+                + "},"
+                + "\"bandwidthIn\": {"
+                    + "\"usage\": -1.0,"
+                    + "\"limit\": -1.0"
+                + "},"
+                + "\"bandwidthOut\": {"
+                    + "\"usage\": -1.0,"
+                    + "\"limit\": -1.0"
+                + "},"
+                + "\"msgThroughputIn\": 0.0,"
+                + "\"msgThroughputOut\": 0.0,"
+                + "\"msgRateIn\": 0.0,"
+                + "\"msgRateOut\": 0.0,"
+                + "\"lastUpdate\": 1683812593521,"
+                + "\"lastStats\": {},"
+                + "\"numTopics\": 0,"
+                + "\"numBundles\": 0,"
+                + "\"numConsumers\": 0,"
+                + "\"numProducers\": 0,"
+                + "\"bundles\": [],"
+                + "\"lastBundleGains\": [],"
+                + "\"lastBundleLosses\": [],"
+                + "\"brokerVersionString\": \"2.10.4\","
+                + "\"protocols\": {},"
+                + "\"advertisedListeners\": {},"
+                + "\"maxResourceUsage\": 0.00390625,"
+                + "\"loadReportType\": \"LocalBrokerData\","
+                + "\"bundleStats\": {}"
+            + "}";
+        String mockedBroker = "/loadbalance/brokers/127.0.0.1:0";
+        mockZooKeeper.create(mockedBroker, json.getBytes(), Collections.emptyList(), CreateMode.EPHEMERAL);
+
         pulsar.getBrokerService().updateRates();
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
         ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
@@ -572,6 +626,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
+
+        mockZooKeeper.delete(mockedBroker, 0);
     }
 
     @Test
