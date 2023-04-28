@@ -140,7 +140,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuUsageForCGroup(double elapsedTimeSeconds) {
-        double usage = getCpuUsageForCGroup();
+        double usage = (double) getCpuUsageForCGroup();
         double currentUsage = usage - lastCpuUsage;
         lastCpuUsage = usage;
         return 100 * currentUsage / elapsedTimeSeconds / TimeUnit.SECONDS.toNanos(1);

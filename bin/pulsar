@@ -307,6 +307,8 @@ if [[ -z "$IS_JAVA_8" ]]; then
   OPTS="$OPTS --add-opens java.management/sun.management=ALL-UNNAMED"
   # MBeanStatsGenerator
   OPTS="$OPTS --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED"
+  # LinuxInfoUtils
+  OPTS="$OPTS --add-opens java.base/jdk.internal.platform=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
