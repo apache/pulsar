@@ -1151,6 +1151,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                             + "topic partition");
         }
 
+        try {
+            admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1);
+            Assert.fail();
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getMessage(),
+                    "Could not examine messages due to the total message is zero");
+        }
+
         producer.send("message1");
         Assert.assertEquals(
                 new String(admin.topics().examineMessage(topicName + "-partition-0", "earliest", 1).getData()),

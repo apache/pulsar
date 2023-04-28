@@ -3061,6 +3061,10 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         PersistentTopic persistentTopic = (PersistentTopic) topic;
                         long totalMessage = persistentTopic.getNumberOfEntries();
+                        if (totalMessage <= 0) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Could not examine messages due to the total message is zero");
+                        }
                         PositionImpl startPosition = persistentTopic.getFirstPosition();
 
                         long messageToSkip = initialPositionLocal.equals("earliest") ? messagePositionLocal :
