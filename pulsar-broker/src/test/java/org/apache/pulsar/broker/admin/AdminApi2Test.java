@@ -3082,7 +3082,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         cleanup();
         setup();
 
-        conf.setAggregatePublisherStatsByProducerName(true);
+        conf.getMetricConfiguration().setAggregatePublisherStatsByProducerName(true);
         final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name";
         admin.topics().createPartitionedTopic(topic, 10);
 
@@ -3137,7 +3137,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(dataProvider = "topicType")
     public void testPartitionedStatsAggregationByProducerNamePerPartition(String topicType) throws Exception {
-        conf.setAggregatePublisherStatsByProducerName(true);
+        conf.getMetricConfiguration().setAggregatePublisherStatsByProducerName(true);
         final String topic = topicType + "://prop-xyz/ns1/test-partitioned-stats-aggregation-by-producer-name-per-pt";
         admin.topics().createPartitionedTopic(topic, 2);
 
