@@ -3300,6 +3300,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
+    public Object getProperty(String key) {
+        return properties.get(key);
+    }
+
+    @Override
+    public Properties getProperties() {
+        return properties;
+    }
+
+    @Override
+    public void setProperties(Properties properties) {
+        this.properties = properties;
+    }
+
     public boolean isDefaultTopicTypePartitioned() {
         return TopicType.PARTITIONED.equals(allowAutoTopicCreationType);
     }
