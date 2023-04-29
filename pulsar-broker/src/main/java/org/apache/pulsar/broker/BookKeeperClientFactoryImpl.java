@@ -41,6 +41,7 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.broker.configuration.ServerBookkeeperClientConfiguration;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
@@ -91,7 +92,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         BookKeeper.Builder builder = BookKeeper.forConfig(bkConf)
                 .allocator(PulsarByteBufAllocator.DEFAULT)
                 .statsLogger(statsLogger);
-        if (!conf.isBookkeeperClientSeparatedIoThreadsEnabled()) {
+        if (!conf.getBookkeeperClientConfiguration().isBookkeeperClientSeparatedIoThreadsEnabled()) {
             builder.eventLoopGroup(eventLoopGroup);
         }
         return builder;
@@ -100,40 +101,42 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     @VisibleForTesting
     ClientConfiguration createBkClientConfiguration(MetadataStoreExtended store, ServiceConfiguration conf) {
         ClientConfiguration bkConf = new ClientConfiguration();
-        if (conf.getBookkeeperClientAuthenticationPlugin() != null
-                && conf.getBookkeeperClientAuthenticationPlugin().trim().length() > 0) {
-            bkConf.setClientAuthProviderFactoryClass(conf.getBookkeeperClientAuthenticationPlugin());
-            bkConf.setProperty(conf.getBookkeeperClientAuthenticationParametersName(),
-                    conf.getBookkeeperClientAuthenticationParameters());
+
+        ServerBookkeeperClientConfiguration serverBkClientConf = conf.getBookkeeperClientConfiguration();
+        if (serverBkClientConf.getBookkeeperClientAuthenticationPlugin() != null
+                && serverBkClientConf.getBookkeeperClientAuthenticationPlugin().trim().length() > 0) {
+            bkConf.setClientAuthProviderFactoryClass(serverBkClientConf.getBookkeeperClientAuthenticationPlugin());
+            bkConf.setProperty(serverBkClientConf.getBookkeeperClientAuthenticationParametersName(),
+                    serverBkClientConf.getBookkeeperClientAuthenticationParameters());
         }
 
-        if (conf.isBookkeeperTLSClientAuthentication()) {
+        if (serverBkClientConf.isBookkeeperTLSClientAuthentication()) {
             bkConf.setTLSClientAuthentication(true);
-            bkConf.setTLSCertificatePath(conf.getBookkeeperTLSCertificateFilePath());
-            bkConf.setTLSKeyStore(conf.getBookkeeperTLSKeyFilePath());
-            bkConf.setTLSKeyStoreType(conf.getBookkeeperTLSKeyFileType());
-            bkConf.setTLSKeyStorePasswordPath(conf.getBookkeeperTLSKeyStorePasswordPath());
-            bkConf.setTLSProviderFactoryClass(conf.getBookkeeperTLSProviderFactoryClass());
-            bkConf.setTLSTrustStore(conf.getBookkeeperTLSTrustCertsFilePath());
-            bkConf.setTLSTrustStoreType(conf.getBookkeeperTLSTrustCertTypes());
-            bkConf.setTLSTrustStorePasswordPath(conf.getBookkeeperTLSTrustStorePasswordPath());
-            bkConf.setTLSCertFilesRefreshDurationSeconds(conf.getBookkeeperTlsCertFilesRefreshDurationSeconds());
+            bkConf.setTLSCertificatePath(serverBkClientConf.getBookkeeperTLSCertificateFilePath());
+            bkConf.setTLSKeyStore(serverBkClientConf.getBookkeeperTLSKeyFilePath());
+            bkConf.setTLSKeyStoreType(serverBkClientConf.getBookkeeperTLSKeyFileType());
+            bkConf.setTLSKeyStorePasswordPath(serverBkClientConf.getBookkeeperTLSKeyStorePasswordPath());
+            bkConf.setTLSProviderFactoryClass(serverBkClientConf.getBookkeeperTLSProviderFactoryClass());
+            bkConf.setTLSTrustStore(serverBkClientConf.getBookkeeperTLSTrustCertsFilePath());
+            bkConf.setTLSTrustStoreType(serverBkClientConf.getBookkeeperTLSTrustCertTypes());
+            bkConf.setTLSTrustStorePasswordPath(serverBkClientConf.getBookkeeperTLSTrustStorePasswordPath());
+            bkConf.setTLSCertFilesRefreshDurationSeconds(serverBkClientConf.getBookkeeperTlsCertFilesRefreshDurationSeconds());
         }
 
         bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());
-        bkConf.setNumWorkerThreads(conf.getBookkeeperClientNumWorkerThreads());
-        bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
-        bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
-        bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
-        bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
-        bkConf.setNumChannelsPerBookie(conf.getBookkeeperNumberOfChannelsPerBookie());
-        bkConf.setUseV2WireProtocol(conf.isBookkeeperUseV2WireProtocol());
+        bkConf.setNumWorkerThreads(serverBkClientConf.getBookkeeperClientNumWorkerThreads());
+        bkConf.setThrottleValue(serverBkClientConf.getBookkeeperClientThrottleValue());
+        bkConf.setAddEntryTimeout((int) serverBkClientConf.getBookkeeperClientTimeoutInSeconds());
+        bkConf.setReadEntryTimeout((int) serverBkClientConf.getBookkeeperClientTimeoutInSeconds());
+        bkConf.setSpeculativeReadTimeout(serverBkClientConf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
+        bkConf.setNumChannelsPerBookie(serverBkClientConf.getBookkeeperNumberOfChannelsPerBookie());
+        bkConf.setUseV2WireProtocol(serverBkClientConf.isBookkeeperUseV2WireProtocol());
         bkConf.setEnableDigestTypeAutodetection(true);
-        bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
+        bkConf.setStickyReadsEnabled(serverBkClientConf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
-        bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
+        bkConf.setDiskWeightBasedPlacementEnabled(serverBkClientConf.isBookkeeperDiskWeightBasedPlacementEnabled());
         bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
-        bkConf.setLimitStatsLogging(conf.isBookkeeperClientLimitStatsLogging());
+        bkConf.setLimitStatsLogging(serverBkClientConf.isBookkeeperClientLimitStatsLogging());
 
         if (!conf.isBookkeeperMetadataStoreSeparated()) {
             // If we're connecting to the same metadata service, with same config, then
@@ -141,24 +144,24 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             bkConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         }
 
-        if (conf.isBookkeeperClientHealthCheckEnabled()) {
+        if (serverBkClientConf.isBookkeeperClientHealthCheckEnabled()) {
             bkConf.enableBookieHealthCheck();
-            bkConf.setBookieHealthCheckInterval((int) conf.getBookkeeperClientHealthCheckIntervalSeconds(),
+            bkConf.setBookieHealthCheckInterval((int) serverBkClientConf.getBookkeeperClientHealthCheckIntervalSeconds(),
                     TimeUnit.SECONDS);
-            bkConf.setBookieErrorThresholdPerInterval(conf.getBookkeeperClientHealthCheckErrorThresholdPerInterval());
-            bkConf.setBookieQuarantineTime((int) conf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(),
+            bkConf.setBookieErrorThresholdPerInterval(serverBkClientConf.getBookkeeperClientHealthCheckErrorThresholdPerInterval());
+            bkConf.setBookieQuarantineTime((int) serverBkClientConf.getBookkeeperClientHealthCheckQuarantineTimeInSeconds(),
                     TimeUnit.SECONDS);
-            bkConf.setBookieQuarantineRatio(conf.getBookkeeperClientQuarantineRatio());
+            bkConf.setBookieQuarantineRatio(serverBkClientConf.getBookkeeperClientQuarantineRatio());
         }
 
-        bkConf.setReorderReadSequenceEnabled(conf.isBookkeeperClientReorderReadSequenceEnabled());
-        bkConf.setExplictLacInterval(conf.getBookkeeperExplicitLacIntervalInMills());
+        bkConf.setReorderReadSequenceEnabled(serverBkClientConf.isBookkeeperClientReorderReadSequenceEnabled());
+        bkConf.setExplictLacInterval(serverBkClientConf.getBookkeeperExplicitLacIntervalInMills());
         bkConf.setGetBookieInfoIntervalSeconds(
-                conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
+                serverBkClientConf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
-                conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
-        bkConf.setNumIOThreads(conf.getBookkeeperClientNumIoThreads());
-        PropertiesUtils.filterAndMapProperties(conf.getProperties(), "bookkeeper_")
+                serverBkClientConf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
+        bkConf.setNumIOThreads(serverBkClientConf.getBookkeeperClientNumIoThreads());
+        PropertiesUtils.filterAndMapProperties(serverBkClientConf.getProperties(), "bookkeeper_")
                 .forEach((key, value) -> {
                     log.info("Applying BookKeeper client configuration setting {}={}", key, value);
                     bkConf.setProperty(key, value);
@@ -173,8 +176,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     ) {
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
 
-        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
-            if (conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+        ServerBookkeeperClientConfiguration serverBkClientConf = conf.getBookkeeperClientConfiguration();
+
+        if (serverBkClientConf.isBookkeeperClientRackawarePolicyEnabled()
+                || serverBkClientConf.isBookkeeperClientRegionawarePolicyEnabled()) {
+            if (serverBkClientConf.isBookkeeperClientRegionawarePolicyEnabled()) {
                 bkConf.setEnsemblePlacementPolicy(RegionAwareEnsemblePlacementPolicy.class);
 
                 bkConf.setProperty(
@@ -197,8 +203,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 bkConf.setEnsemblePlacementPolicy(RackawareEnsemblePlacementPolicy.class);
             }
 
-            bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
-            bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
+            bkConf.setMinNumRacksPerWriteQuorum(
+                    serverBkClientConf.getBookkeeperClientMinNumRacksPerWriteQuorum());
+            bkConf.setEnforceMinNumRacksPerWriteQuorum(
+                    serverBkClientConf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
 
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS,
                     conf.getProperties().getProperty(
@@ -211,12 +219,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     ""));
         }
 
-        if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
+        if (serverBkClientConf.getBookkeeperClientIsolationGroups() != null
+                && !serverBkClientConf.getBookkeeperClientIsolationGroups().isEmpty()) {
             bkConf.setEnsemblePlacementPolicy(IsolatedBookieEnsemblePlacementPolicy.class);
             bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
-                    conf.getBookkeeperClientIsolationGroups());
+                    serverBkClientConf.getBookkeeperClientIsolationGroups());
             bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
-                    conf.getBookkeeperClientSecondaryIsolationGroups());
+                    serverBkClientConf.getBookkeeperClientSecondaryIsolationGroups());
         }
     }
 
@@ -224,7 +233,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                                             Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
-        if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
+        ServerBookkeeperClientConfiguration serverBkClientConf = conf.getBookkeeperClientConfiguration();
+
+        if (serverBkClientConf.isBookkeeperClientRackawarePolicyEnabled()
+                || serverBkClientConf.isBookkeeperClientRegionawarePolicyEnabled()) {
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
                     BookieRackAffinityMapping.class.getName()));
 
