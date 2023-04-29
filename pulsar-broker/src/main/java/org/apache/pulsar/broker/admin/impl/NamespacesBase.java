@@ -145,7 +145,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validatePoliciesAsync(namespaceName, policies))
                 .thenCompose(__ -> {
-                    int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
+                    int maxNamespacesPerTenant = pulsar().getPoliciesConfiguration().getMaxNamespacesPerTenant();
                     // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
                     if (maxNamespacesPerTenant > 0) {
                         return tenantResources().getListOfNamespacesAsync(namespaceName.getTenant())
@@ -386,7 +386,7 @@ public abstract class NamespacesBase extends AdminResource {
                 validateTenantOperationAsync(nsName.getTenant(), TenantOperation.DELETE_NAMESPACE)
                         .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                         .thenCompose(__ -> {
-                            if (force && !pulsar().getConfiguration().isForceDeleteNamespaceAllowed()) {
+                            if (force && !pulsar().getPoliciesConfiguration().isForceDeleteNamespaceAllowed()) {
                                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                                         "Broker doesn't allow forced deletion of namespaces");
                             }
@@ -1887,7 +1887,7 @@ public abstract class NamespacesBase extends AdminResource {
                         policies.bundles = validateBundlesData(policies.bundles);
                     }
                 } else {
-                    int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+                    int defaultNumberOfBundles = policiesConfiguration().getDefaultNumberOfNamespaceBundles();
                     policies.bundles = getBundles(defaultNumberOfBundles);
                 }
 

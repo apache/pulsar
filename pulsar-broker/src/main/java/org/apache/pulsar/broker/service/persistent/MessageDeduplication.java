@@ -135,8 +135,10 @@ public class MessageDeduplication {
         this.topic = topic;
         this.managedLedger = managedLedger;
         this.status = Status.Initialized;
-        this.snapshotInterval = pulsar.getConfiguration().getBrokerDeduplicationEntriesInterval();
-        this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
+        this.snapshotInterval = pulsar.getConfiguration().getPoliciesConfiguration()
+                .getBrokerDeduplicationEntriesInterval();
+        this.maxNumberOfProducers = pulsar.getConfiguration().getPoliciesConfiguration()
+                .getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
     }
@@ -454,7 +456,7 @@ public class MessageDeduplication {
      */
     public synchronized void purgeInactiveProducers() {
         long minimumActiveTimestamp = System.currentTimeMillis() - TimeUnit.MINUTES
-                .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
+                .toMillis(pulsar.getPoliciesConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
 
         Iterator<java.util.Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
         boolean hasInactive = false;

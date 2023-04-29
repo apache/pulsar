@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.PoliciesConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
@@ -61,6 +62,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             .register();
 
     protected final ServiceConfiguration serviceConfig;
+
+    protected final PoliciesConfiguration policiesConfiguration;
     protected final boolean dispatchThrottlingOnBatchMessageEnabled;
     private final LongAdder filterProcessedMsgs = new LongAdder();
     private final LongAdder filterAcceptedMsgs = new LongAdder();
@@ -70,7 +73,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription);
         this.serviceConfig = serviceConfig;
-        this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
+        this.policiesConfiguration = serviceConfig.getPoliciesConfiguration();
+        this.dispatchThrottlingOnBatchMessageEnabled =
+                this.policiesConfiguration.isDispatchThrottlingOnBatchMessageEnabled();
     }
 
 
@@ -308,7 +313,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     protected void acquirePermitsForDeliveredMessages(Topic topic, ManagedCursor cursor, long totalEntries,
                                                       long totalMessagesSent, long totalBytesSent) {
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled()
+        if (policiesConfiguration.isDispatchThrottlingOnNonBacklogConsumerEnabled()
                 || (cursor != null && !cursor.isActive())) {
             long permits = dispatchThrottlingOnBatchMessageEnabled ? totalEntries : totalMessagesSent;
             topic.getBrokerDispatchRateLimiter().ifPresent(rateLimiter ->

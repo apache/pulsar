@@ -79,6 +79,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.configuration.PoliciesConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -192,6 +193,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private ServiceConfiguration config = null;
+
+    private PoliciesConfiguration policiesConfiguration = null;
+
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
@@ -698,24 +702,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
-            if (config.getDefaultRetentionSizeInMB() > 0
-                    && config.getBacklogQuotaDefaultLimitBytes() > 0
-                    && config.getBacklogQuotaDefaultLimitBytes()
-                    >= (config.getDefaultRetentionSizeInMB() * 1024L * 1024L)) {
+            if (policiesConfiguration.getDefaultRetentionSizeInMB() > 0
+                    && policiesConfiguration.getBacklogQuotaDefaultLimitBytes() > 0
+                    && policiesConfiguration.getBacklogQuotaDefaultLimitBytes()
+                    >= (policiesConfiguration.getDefaultRetentionSizeInMB() * 1024L * 1024L)) {
                 throw new IllegalArgumentException(String.format("The retention size must > the backlog quota limit "
-                                + "size, but the configured backlog quota limit bytes is %d, the retention size is %d",
-                        config.getBacklogQuotaDefaultLimitBytes(),
-                        config.getDefaultRetentionSizeInMB() * 1024L * 1024L));
+                                + "size, but the policiesConfigurationured backlog quota "
+                                + "limit bytes is %d, the retention size is %d",
+                        policiesConfiguration.getBacklogQuotaDefaultLimitBytes(),
+                        policiesConfiguration.getDefaultRetentionSizeInMB() * 1024L * 1024L));
             }
 
-            if (config.getDefaultRetentionTimeInMinutes() > 0
-                    && config.getBacklogQuotaDefaultLimitSecond() > 0
-                    && config.getBacklogQuotaDefaultLimitSecond() >= config.getDefaultRetentionTimeInMinutes() * 60) {
+            if (policiesConfiguration.getDefaultRetentionTimeInMinutes() > 0
+                    && policiesConfiguration.getBacklogQuotaDefaultLimitSecond() > 0
+                    && policiesConfiguration.getBacklogQuotaDefaultLimitSecond()
+                    >= policiesConfiguration.getDefaultRetentionTimeInMinutes() * 60) {
                 throw new IllegalArgumentException(String.format("The retention time must > the backlog quota limit "
-                                + "time, but the configured backlog quota limit time duration is %d, "
+                                + "time, but the policiesConfigurationured backlog quota limit time duration is %d, "
                                 + "the retention time duration is %d",
-                        config.getBacklogQuotaDefaultLimitSecond(),
-                        config.getDefaultRetentionTimeInMinutes() * 60));
+                        policiesConfiguration.getBacklogQuotaDefaultLimitSecond(),
+                        policiesConfiguration.getDefaultRetentionTimeInMinutes() * 60));
             }
 
             if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
@@ -889,8 +895,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // Start the task to publish resource usage, if necessary
             this.resourceUsageTransportManager = DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
-            if (isNotBlank(config.getResourceUsageTransportClassName())) {
-                Class<?> clazz = Class.forName(config.getResourceUsageTransportClassName());
+            if (isNotBlank(policiesConfiguration.getResourceUsageTransportClassName())) {
+                Class<?> clazz = Class.forName(policiesConfiguration.getResourceUsageTransportClassName());
                 Constructor<?> ctor = clazz.getConstructor(PulsarService.class);
                 Object object = ctor.newInstance(new Object[]{this});
                 this.resourceUsageTransportManager = (ResourceUsageTopicTransportManager) object;

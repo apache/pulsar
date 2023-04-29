@@ -95,6 +95,7 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
+import org.apache.pulsar.broker.configuration.PoliciesConfiguration;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -370,11 +371,11 @@ public class BrokerService implements Closeable {
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         this.topicLoadRequestSemaphore = new AtomicReference<Semaphore>(
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest(), false));
-        if (pulsar.getConfiguration().getMaxUnackedMessagesPerBroker() > 0
-                && pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked() > 0.0) {
-            this.maxUnackedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerBroker();
+        if (pulsar.getPoliciesConfiguration().getMaxUnackedMessagesPerBroker() > 0
+                && pulsar.getPoliciesConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked() > 0.0) {
+            this.maxUnackedMessages = pulsar.getPoliciesConfiguration().getMaxUnackedMessagesPerBroker();
             this.maxUnackedMsgsPerDispatcher = (int) ((maxUnackedMessages
-                    * pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked()) / 100);
+                    * pulsar.getPoliciesConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked()) / 100);
             log.info("Enabling per-broker unack-message limit {} and dispatcher-limit {} on blocked-broker",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
             // block misbehaving dispatcher by checking periodically
@@ -386,7 +387,7 @@ public class BrokerService implements Closeable {
             log.info(
                     "Disabling per broker unack-msg blocking due invalid"
                             + " unAckMsgSubscriptionPercentageLimitOnBrokerBlocked {} ",
-                    pulsar.getConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
+                    pulsar.getPoliciesConfiguration().getMaxUnackedMessagesPerSubscriptionOnBrokerBlocked());
         }
 
         this.delayedDeliveryTrackerFactory = DelayedDeliveryTrackerLoader
@@ -576,8 +577,8 @@ public class BrokerService implements Closeable {
     }
 
     protected void startDeduplicationSnapshotMonitor() {
-        int interval = pulsar().getConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
-        if (interval > 0 && pulsar().getConfiguration().isBrokerDeduplicationEnabled()) {
+        int interval = pulsar().getPoliciesConfiguration().getBrokerDeduplicationSnapshotFrequencyInSeconds();
+        if (interval > 0 && pulsar().getPoliciesConfiguration().isBrokerDeduplicationEnabled()) {
             this.deduplicationSnapshotMonitor = OrderedScheduler.newSchedulerBuilder()
                     .name("deduplication-snapshot-monitor")
                     .numThreads(1)
@@ -589,23 +590,24 @@ public class BrokerService implements Closeable {
     }
 
     protected void startInactivityMonitor() {
-        if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
-            int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
+        if (pulsar().getPoliciesConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
+            int interval = pulsar().getPoliciesConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
             inactivityMonitor.scheduleAtFixedRate(() -> checkGC(), interval, interval,
                     TimeUnit.SECONDS);
         }
 
         // Deduplication info checker
         long duplicationCheckerIntervalInSeconds = TimeUnit.MINUTES
-                .toSeconds(pulsar().getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes()) / 3;
+                .toSeconds(pulsar().getPoliciesConfiguration()
+                        .getBrokerDeduplicationProducerInactivityTimeoutMinutes()) / 3;
         inactivityMonitor.scheduleAtFixedRate(this::checkMessageDeduplicationInfo,
                 duplicationCheckerIntervalInSeconds,
                 duplicationCheckerIntervalInSeconds, TimeUnit.SECONDS);
 
         // Inactive subscriber checker
-        if (pulsar().getConfiguration().getSubscriptionExpiryCheckIntervalInMinutes() > 0) {
+        if (pulsar().getPoliciesConfiguration().getSubscriptionExpiryCheckIntervalInMinutes() > 0) {
             long subscriptionExpiryCheckIntervalInSeconds =
-                    TimeUnit.MINUTES.toSeconds(pulsar().getConfiguration()
+                    TimeUnit.MINUTES.toSeconds(pulsar().getPoliciesConfiguration()
                             .getSubscriptionExpiryCheckIntervalInMinutes());
             inactivityMonitor.scheduleAtFixedRate(this::checkInactiveSubscriptions,
                     subscriptionExpiryCheckIntervalInSeconds,
@@ -621,7 +623,7 @@ public class BrokerService implements Closeable {
     }
 
     protected void startMessageExpiryMonitor() {
-        int interval = pulsar().getConfiguration().getMessageExpiryCheckIntervalInMinutes();
+        int interval = pulsar().getPoliciesConfiguration().getMessageExpiryCheckIntervalInMinutes();
         messageExpiryMonitor.scheduleAtFixedRate(this::checkMessageExpiry, interval, interval,
                 TimeUnit.MINUTES);
     }
@@ -651,8 +653,8 @@ public class BrokerService implements Closeable {
     }
 
     protected void startBacklogQuotaChecker() {
-        if (pulsar().getConfiguration().isBacklogQuotaCheckEnabled()) {
-            final int interval = pulsar().getConfiguration().getBacklogQuotaCheckIntervalInSeconds();
+        if (pulsar().getPoliciesConfiguration().isBacklogQuotaCheckEnabled()) {
+            final int interval = pulsar().getPoliciesConfiguration().getBacklogQuotaCheckIntervalInSeconds();
             log.info("Scheduling a thread to check backlog quota after [{}] seconds in background", interval);
             backlogQuotaChecker.scheduleAtFixedRate(this::monitorBacklogQuota, interval, interval,
                     TimeUnit.SECONDS);
@@ -668,7 +670,7 @@ public class BrokerService implements Closeable {
      */
     public void setupTopicPublishRateLimiterMonitor() {
         // set topic PublishRateLimiterMonitor
-        long topicTickTimeMs = pulsar().getConfiguration().getTopicPublisherThrottlingTickTimeMillis();
+        long topicTickTimeMs = pulsar().getPoliciesConfiguration().getTopicPublisherThrottlingTickTimeMillis();
         if (topicTickTimeMs > 0) {
             topicPublishRateLimiterMonitor.startOrUpdate(topicTickTimeMs,
                     this::checkTopicPublishThrottlingRate, this::refreshTopicPublishRate);
@@ -968,7 +970,8 @@ public class BrokerService implements Closeable {
                                 if (rateLimiter != null) {
                                     rateLimiter.acquire(1);
                                 }
-                                long timeout = pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs();
+                                long timeout = pulsar.getLoadBalancerConfiguration()
+                                        .getNamespaceBundleUnloadingTimeoutMs();
                                 pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
                                         closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
                             } catch (Exception e) {
@@ -1761,6 +1764,7 @@ public class BrokerService implements Closeable {
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(TopicName topicName) {
         NamespaceName namespace = topicName.getNamespaceObject();
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+        PoliciesConfiguration policiesConfiguration = pulsar.getPoliciesConfiguration();
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         LocalPoliciesResources lpr = pulsar.getPulsarResources().getLocalPolicies();
@@ -1791,8 +1795,8 @@ public class BrokerService implements Closeable {
 
                     if (retentionPolicies == null) {
                         retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
-                                () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
-                                        serviceConfig.getDefaultRetentionSizeInMB())
+                                () -> new RetentionPolicies(policiesConfiguration.getDefaultRetentionTimeInMinutes(),
+                                        policiesConfiguration.getDefaultRetentionSizeInMB())
                         );
                     }
 
@@ -2112,7 +2116,7 @@ public class BrokerService implements Closeable {
                     if (isExceeded) {
                         getBacklogQuotaManager().handleExceededBacklogQuota(topic,
                                 BacklogQuota.BacklogQuotaType.message_age,
-                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                                pulsar.getPoliciesConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                     } else {
                         if (log.isDebugEnabled()) {
                             log.debug("quota not exceeded for [{}]", topic.getName());
@@ -3413,7 +3417,7 @@ public class BrokerService implements Closeable {
                 .getPoliciesAsync(topicName.getNamespaceObject())
                 .thenCompose(optPolicies -> {
                     int maxTopicsPerNamespace = optPolicies.map(p -> p.max_topics_per_namespace)
-                            .orElse(pulsar.getConfig().getMaxTopicsPerNamespace());
+                            .orElse(pulsar.getPoliciesConfiguration().getMaxTopicsPerNamespace());
 
                     if (maxTopicsPerNamespace > 0 && !isSystemTopic(topicName)) {
                         return pulsar().getPulsarResources().getTopicResources()

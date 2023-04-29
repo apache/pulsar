@@ -140,7 +140,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         this.topic = topic;
         this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
         this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
-        this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
+        this.redeliveryTracker = this.policiesConfiguration.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
@@ -394,7 +394,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
         // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
-        if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
+        if (policiesConfiguration.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             if (topic.getBrokerDispatchRateLimiter().isPresent()) {
                 DispatchRateLimiter brokerRateLimiter = topic.getBrokerDispatchRateLimiter().get();
                 if (reachDispatchRateLimit(brokerRateLimiter)) {
