@@ -63,8 +63,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testDeleteWhenNoSubscriptions() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
@@ -91,9 +93,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testDeleteAndCleanZkNode() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
@@ -113,9 +116,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testWhenSubPartitionNotDelete() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
@@ -138,9 +142,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testNotEnabledDeleteZkNode() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
         super.baseSetup();
         final String namespace = "prop/ns-abc";
         final String topic = "persistent://prop/ns-abc/testNotEnabledDeleteZkNode1";
@@ -173,10 +178,12 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         final String namespace3 = "prop/ns-abc3";
         List<String> namespaceList = Arrays.asList(namespace2, namespace3);
 
-        conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        InactiveTopicPolicies defaultPolicy = new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        InactiveTopicPolicies defaultPolicy =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions
                 , 1000, true);
 
         super.baseSetup();
@@ -249,8 +256,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         final String namespace2 = "prop/ns-abc2";
         final String namespace3 = "prop/ns-abc3";
         List<String> namespaceList = Arrays.asList(namespace2, namespace3);
-        conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
         for (String ns : namespaceList) {
@@ -312,8 +319,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testDeleteWhenNoBacklogs() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoBacklogs";
@@ -369,9 +378,12 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testMaxInactiveDuration() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(5);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(5);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testMaxInactiveDuration";
@@ -420,10 +432,12 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        InactiveTopicPolicies defaultPolicy = new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        InactiveTopicPolicies defaultPolicy =
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions
                 , 1000, true);
 
         super.baseSetup();
@@ -496,8 +510,8 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
-        conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/test-" + UUID.randomUUID();
         final String topic2 = "persistent://prop/ns-abc/test-" + UUID.randomUUID();
@@ -560,9 +574,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         assertNull(admin.topics().getInactiveTopicPolicies(topic));
         //use broker-level by default
         InactiveTopicPolicies brokerLevelPolicy =
-                new InactiveTopicPolicies(conf.getBrokerDeleteInactiveTopicsMode(),
-                        conf.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                        conf.isBrokerDeleteInactiveTopicsEnabled());
+                new InactiveTopicPolicies(conf.getPoliciesConfiguration().getBrokerDeleteInactiveTopicsMode(),
+                        conf.getPoliciesConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                        conf.getPoliciesConfiguration().isBrokerDeleteInactiveTopicsEnabled());
         Assert.assertEquals(admin.topics().getInactiveTopicPolicies(topic, true), brokerLevelPolicy);
         //set namespace-level policy
         InactiveTopicPolicies namespaceLevelPolicy =
@@ -598,8 +612,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testHealthTopicInactiveNotClean() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.getPoliciesConfiguration()
+                .setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
         // init topic
         NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
@@ -627,58 +643,59 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test
     public void testDynamicConfigurationBrokerDeleteInactiveTopicsEnabled() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsEnabled(true);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsEnabled(true);
         super.baseSetup();
         admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "false");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
-            assertFalse(conf.isBrokerDeleteInactiveTopicsEnabled());
+            assertFalse(conf.getPoliciesConfiguration().isBrokerDeleteInactiveTopicsEnabled());
         });
     }
 
     @Test
     public void testDynamicConfigurationBrokerDeleteInactiveTopicsFrequencySeconds() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(30);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsFrequencySeconds(30);
         super.baseSetup();
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactiveTopicsFrequencySeconds", "60");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
-            assertEquals(conf.getBrokerDeleteInactiveTopicsFrequencySeconds(), 60);
+            assertEquals(conf.getPoliciesConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds(), 60);
         });
     }
 
     @Test
     public void testDynamicConfigurationBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(30);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(30);
         super.baseSetup();
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactiveTopicsMaxInactiveDurationSeconds", "60");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
-            assertEquals(conf.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 60);
+            assertEquals(conf.getPoliciesConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 60);
         });
     }
 
     @Test
     public void testDynamicConfigurationBrokerDeleteInactiveTopicsMode() throws Exception {
-        conf.setBrokerDeleteInactiveTopicsMode (InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactiveTopicsMode(
+                InactiveTopicDeleteMode.delete_when_no_subscriptions);
         super.baseSetup();
         String expect = InactiveTopicDeleteMode.delete_when_subscriptions_caught_up.toString();
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactiveTopicsMode",
                         expect);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
-            assertEquals(conf.getBrokerDeleteInactiveTopicsMode().toString(), expect);
+            assertEquals(conf.getPoliciesConfiguration().getBrokerDeleteInactiveTopicsMode().toString(), expect);
         });
     }
 
     @Test
     public void testBrokerDeleteInactivePartitionedTopicMetadataEnabled() throws Exception {
-        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(false);
+        conf.getPoliciesConfiguration().setBrokerDeleteInactivePartitionedTopicMetadataEnabled(false);
         super.baseSetup();
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactivePartitionedTopicMetadataEnabled",
                         "true");
         Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
-            assertTrue(conf.isBrokerDeleteInactivePartitionedTopicMetadataEnabled());
+            assertTrue(conf.getPoliciesConfiguration().isBrokerDeleteInactivePartitionedTopicMetadataEnabled());
         });
     }
 

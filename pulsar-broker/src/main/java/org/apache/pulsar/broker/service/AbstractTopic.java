@@ -343,7 +343,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         PoliciesConfiguration policiesConfiguration = brokerService.pulsar().getPoliciesConfiguration();
         topicPolicies.getInactiveTopicPolicies().updateBrokerValue(new InactiveTopicPolicies(
                 policiesConfiguration.getBrokerDeleteInactiveTopicsMode(),
-                config.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                policiesConfiguration.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
                 policiesConfiguration.isBrokerDeleteInactiveTopicsEnabled()));
 
         updateBrokerSubscriptionTypesEnabled();

@@ -2901,13 +2901,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
-    /**
-     * @deprecated Use {@link #getSubscriptionTypesEnabled()} instead
-     */
-    @Deprecated
-    public boolean isSubscriptionKeySharedEnable() {
-        return subscriptionKeySharedEnable && subscriptionTypesEnabled.contains("Key_Shared");
-    }
+
 
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
@@ -2977,13 +2971,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return TopicType.PARTITIONED.equals(allowAutoTopicCreationType);
     }
 
-    public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {
-        if (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds == null) {
-            return brokerDeleteInactiveTopicsFrequencySeconds;
-        } else {
-            return brokerDeleteInactiveTopicsMaxInactiveDurationSeconds;
-        }
-    }
 
     public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy() {
         if (SchemaCompatibilityStrategy.isUndefined(schemaCompatibilityStrategy)) {

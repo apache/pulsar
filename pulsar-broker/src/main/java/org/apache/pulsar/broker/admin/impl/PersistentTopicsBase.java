@@ -1034,9 +1034,9 @@ public class PersistentTopicsBase extends AdminResource {
                     if (applied) {
                         InactiveTopicPolicies policies = getNamespacePolicies(namespaceName).inactive_topic_policies;
                         return policies == null ? new InactiveTopicPolicies(
-                                config().getBrokerDeleteInactiveTopicsMode(),
-                                config().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                                config().isBrokerDeleteInactiveTopicsEnabled()) : policies;
+                                policiesConfiguration().getBrokerDeleteInactiveTopicsMode(),
+                                policiesConfiguration().getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                                policiesConfiguration().isBrokerDeleteInactiveTopicsEnabled()) : policies;
                     }
                     return null;
                 }));
@@ -1061,7 +1061,8 @@ public class PersistentTopicsBase extends AdminResource {
                     if (applied) {
                         Integer maxUnackedNum = getNamespacePolicies(namespaceName)
                                 .max_unacked_messages_per_subscription;
-                        return maxUnackedNum == null ? config().getMaxUnackedMessagesPerSubscription() : maxUnackedNum;
+                        return maxUnackedNum == null ?
+                                policiesConfiguration().getMaxUnackedMessagesPerSubscription() : maxUnackedNum;
                     }
                     return null;
                 }));
@@ -1089,7 +1090,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElseGet(() -> {
                     if (applied) {
                         Integer maxUnacked = getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
-                        return maxUnacked == null ? config().getMaxUnackedMessagesPerConsumer() : maxUnacked;
+                        return maxUnacked == null ?
+                                policiesConfiguration().getMaxUnackedMessagesPerConsumer() : maxUnacked;
                     }
                     return null;
                 }));
@@ -3477,7 +3479,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElseGet(() -> {
                     if (applied) {
                         Boolean enabled = getNamespacePolicies(namespaceName).deduplicationEnabled;
-                        return enabled == null ? config().isBrokerDeduplicationEnabled() : enabled;
+                        return enabled == null ? policiesConfiguration().isBrokerDeduplicationEnabled() : enabled;
                     }
                     return null;
                 }));
@@ -3528,7 +3530,8 @@ public class PersistentTopicsBase extends AdminResource {
                 if (applied) {
                     RetentionPolicies policies = getNamespacePolicies(namespaceName).retention_policies;
                     return policies == null ? new RetentionPolicies(
-                            config().getDefaultRetentionTimeInMinutes(), config().getDefaultRetentionSizeInMB())
+                            policiesConfiguration().getDefaultRetentionTimeInMinutes(),
+                            policiesConfiguration().getDefaultRetentionSizeInMB())
                             : policies;
                 }
                 return null;
