@@ -552,13 +552,13 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test(dataProvider = "cacheEnable")
     public void testStorageReadCacheMissesRate(boolean cacheEnable) throws Exception {
         cleanup();
-        conf.setManagedLedgerStatsPeriodSeconds(Integer.MAX_VALUE);
-        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(Long.MAX_VALUE);
-        conf.setCacheEvictionByMarkDeletedPosition(true);
+        conf.getManagedLedgerConfiguration().setManagedLedgerStatsPeriodSeconds(Integer.MAX_VALUE);
+        conf.getManagedLedgerConfiguration().setManagedLedgerCacheEvictionTimeThresholdMillis(Long.MAX_VALUE);
+        conf.getManagedLedgerConfiguration().setCacheEvictionByMarkDeletedPosition(true);
         if (cacheEnable) {
-            conf.setManagedLedgerCacheSizeMB(1);
+            conf.getManagedLedgerConfiguration().setManagedLedgerCacheSizeMB(1);
         } else {
-            conf.setManagedLedgerCacheSizeMB(0);
+            conf.getManagedLedgerConfiguration().setManagedLedgerCacheSizeMB(0);
         }
         setup();
         String ns = "prop/ns-abc1";

@@ -440,12 +440,12 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setAdvertisedAddress("localhost");
         configuration.setClusterName(configClusterName);
         // there are TLS tests in here, they need to use localhost because of the certificate
-        configuration.setManagedLedgerCacheSizeMB(8);
+        configuration.getManagedLedgerConfiguration().setManagedLedgerCacheSizeMB(8);
         configuration.setActiveConsumerFailoverDelayTimeMillis(0);
         configuration.setDefaultNumberOfNamespaceBundles(1);
         configuration.setMetadataStoreUrl("zk:localhost:2181");
         configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
-        configuration.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        configuration.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         configuration.setBrokerShutdownTimeoutMs(0L);
         configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         configuration.setBrokerServicePort(Optional.of(0));

@@ -1615,14 +1615,16 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     private NamespaceAttr markOriginalNamespaceAttr(){
-        return new NamespaceAttr(conf.isSystemTopicEnabled(), conf.getAllowAutoTopicCreationType(),
-                conf.getDefaultNumPartitions(), conf.isForceDeleteNamespaceAllowed());
+        return new NamespaceAttr(conf.isSystemTopicEnabled(),
+                conf.getManagedLedgerConfiguration().getAllowAutoTopicCreationType(),
+                conf.getManagedLedgerConfiguration().getDefaultNumPartitions(),
+                conf.isForceDeleteNamespaceAllowed());
     }
 
     private void setNamespaceAttr(NamespaceAttr namespaceAttr){
         conf.setSystemTopicEnabled(namespaceAttr.systemTopicEnabled);
-        conf.setAllowAutoTopicCreationType(namespaceAttr.autoTopicCreationType);
-        conf.setDefaultNumPartitions(namespaceAttr.defaultNumPartitions);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(namespaceAttr.autoTopicCreationType);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(namespaceAttr.defaultNumPartitions);
         conf.setForceDeleteNamespaceAllowed(namespaceAttr.forceDeleteNamespaceAllowed);
     }
 
@@ -2125,8 +2127,8 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // check producer/consumer auto create partitioned topic
         cleanup();
         conf.setMaxTopicsPerNamespace(10);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(3);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         setup();
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Set.of("test"));
@@ -2144,7 +2146,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         // check producer/consumer auto create non-partitioned topic
         cleanup();
         conf.setMaxTopicsPerNamespace(3);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         setup();
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace("testTenant/ns1", Set.of("test"));
@@ -2161,7 +2163,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         // reset configuration
         conf.setMaxTopicsPerNamespace(0);
-        conf.setDefaultNumPartitions(1);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(1);
     }
 
     @Test

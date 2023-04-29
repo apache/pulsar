@@ -120,7 +120,7 @@ public class PrometheusMetricsGenerator {
                     splitTopicAndPartitionIndexLabel, metricsProviders);
         } else {
             if (null == timeWindow) {
-                int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
+                int period = pulsar.getManagedLedgerConfiguration().getManagedLedgerStatsPeriodSeconds();
                 timeWindow = new TimeWindow<>(1, (int) TimeUnit.SECONDS.toMillis(period));
             }
             WindowWrap<ByteBuf> window = timeWindow.current(oldBuf -> {
