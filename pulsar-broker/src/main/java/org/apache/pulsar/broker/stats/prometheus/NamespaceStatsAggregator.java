@@ -86,8 +86,8 @@ public class NamespaceStatsAggregator {
 
             bundlesMap.forEach((bundle, topicsMap) -> topicsMap.forEach((name, topic) -> {
                 getTopicStats(topic, topicStats, includeConsumerMetrics, includeProducerMetrics,
-                        pulsar.getConfiguration().isExposePreciseBacklogInPrometheus(),
-                        pulsar.getConfiguration().isExposeSubscriptionBacklogSizeInPrometheus(),
+                        pulsar.getMetricConfiguration().isExposePreciseBacklogInPrometheus(),
+                        pulsar.getMetricConfiguration().isExposeSubscriptionBacklogSizeInPrometheus(),
                         compactorMXBean
                 );
 

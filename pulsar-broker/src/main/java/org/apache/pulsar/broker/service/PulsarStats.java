@@ -71,8 +71,8 @@ public class PulsarStats implements Closeable {
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
-        this.nsStats = new NamespaceStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
-        this.brokerStats = new BrokerStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
+        this.nsStats = new NamespaceStats(pulsar.getConfig().getMetricConfiguration().getStatsUpdateFrequencyInSecs());
+        this.brokerStats = new BrokerStats(pulsar.getConfig().getMetricConfiguration().getStatsUpdateFrequencyInSecs());
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
         this.bundleStats = new ConcurrentHashMap<>();
@@ -82,7 +82,7 @@ public class PulsarStats implements Closeable {
                 pulsar.getAdvertisedAddress());
         this.tempNonPersistentTopics = new ArrayList<>();
 
-        this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
+        this.exposePublisherStats = pulsar.getConfiguration().getMetricConfiguration().isExposePublisherStats();
         this.updatedAt = 0;
 
     }

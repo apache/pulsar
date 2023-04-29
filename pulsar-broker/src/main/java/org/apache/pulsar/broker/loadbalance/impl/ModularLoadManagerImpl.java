@@ -47,6 +47,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.MetricConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
@@ -139,6 +140,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Service configuration belonging to the pulsar service.
     private ServiceConfiguration conf;
+
+    private MetricConfiguration metricConfiguration;
 
     // The default bundle stats which are used to initialize historic data.
     // This data is overridden after the bundle receives its first sample.
@@ -258,6 +261,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         bundleSplitStrategy = new BundleSplitterTask();
 
         conf = pulsar.getConfiguration();
+        metricConfiguration = pulsar.getMetricConfiguration();
 
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
         defaultStats.msgThroughputIn = DEFAULT_MESSAGE_THROUGHPUT;
@@ -1005,7 +1009,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             final SystemResourceUsage systemResourceUsage = LoadManagerShared.getSystemResourceUsage(brokerHostUsage);
             localData.update(systemResourceUsage, getBundleStats());
             updateLoadBalancingMetrics(systemResourceUsage);
-            if (conf.isExposeBundlesMetricsInPrometheus()) {
+            if (metricConfiguration.isExposeBundlesMetricsInPrometheus()) {
                 updateLoadBalancingBundlesMetrics(getBundleStats());
             }
         } catch (Exception e) {

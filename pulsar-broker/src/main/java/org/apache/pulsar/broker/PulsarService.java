@@ -79,6 +79,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.configuration.MetricConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -192,6 +193,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private ServiceConfiguration config = null;
+    private MetricConfiguration metricConfiguration = null;
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
@@ -651,6 +653,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.config;
     }
 
+    public MetricConfiguration getMetricConfiguration() {
+        return this.metricConfiguration;
+    }
+
     /**
      * Get the current function worker service configuration.
      *
@@ -774,9 +780,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             OrderedScheduler offloaderScheduler = getOffloaderScheduler(defaultOffloadPolicies);
             int interval = config.getManagedLedgerStatsPeriodSeconds();
-            boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
+            boolean exposeTopicMetrics = metricConfiguration.isExposeTopicLevelMetricsInPrometheus();
 
-            offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
+            offloaderStats = LedgerOffloaderStats.create(metricConfiguration.isExposeManagedLedgerMetricsInPrometheus(),
                     exposeTopicMetrics, offloaderScheduler, interval);
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
@@ -950,10 +956,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private synchronized void createMetricsServlet() {
         this.metricsServlet = new PulsarPrometheusMetricsServlet(
-                this, config.isExposeTopicLevelMetricsInPrometheus(),
-                config.isExposeConsumerLevelMetricsInPrometheus(),
-                config.isExposeProducerLevelMetricsInPrometheus(),
-                config.isSplitTopicAndPartitionLabelInPrometheus());
+                this, metricConfiguration.isExposeTopicLevelMetricsInPrometheus(),
+                metricConfiguration.isExposeConsumerLevelMetricsInPrometheus(),
+                metricConfiguration.isExposeProducerLevelMetricsInPrometheus(),
+                metricConfiguration.isSplitTopicAndPartitionLabelInPrometheus());
         if (pendingMetricsProviders != null) {
             pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
             this.pendingMetricsProviders = null;
@@ -993,7 +999,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add metrics servlet
         webService.addServlet("/metrics",
                 new ServletHolder(metricsServlet),
-                config.isAuthenticateMetricsEndpoint(), attributeMap);
+                metricConfiguration.isAuthenticateMetricsEndpoint(), attributeMap);
 
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);

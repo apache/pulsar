@@ -35,7 +35,7 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
     public PulsarPrometheusMetricsServlet(PulsarService pulsar, boolean includeTopicMetrics,
                                           boolean includeConsumerMetrics, boolean shouldExportProducerMetrics,
                                           boolean splitTopicAndPartitionLabel) {
-        super(pulsar.getConfiguration().getMetricsServletTimeoutMs(), pulsar.getConfiguration().getClusterName());
+        super(pulsar.getMetricConfiguration().getMetricsServletTimeoutMs(), pulsar.getConfiguration().getClusterName());
         this.pulsar = pulsar;
         this.shouldExportTopicMetrics = includeTopicMetrics;
         this.shouldExportConsumerMetrics = includeConsumerMetrics;

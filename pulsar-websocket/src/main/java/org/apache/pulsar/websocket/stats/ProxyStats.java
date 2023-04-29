@@ -49,7 +49,9 @@ public class ProxyStats {
         super();
         this.service = service;
         this.jvmMetrics = JvmMetrics.create(
-                service.getExecutor(), "prx", service.getConfig().getJvmGCMetricsLoggerClassName());
+                service.getExecutor(), "prx", service.getConfig()
+                        .getMetricConfiguration().getJvmGCMetricsLoggerClassName()
+        );
         this.topicStats =
                 ConcurrentOpenHashMap.<String, ProxyNamespaceStats>newBuilder()
                         .build();

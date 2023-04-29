@@ -554,8 +554,8 @@ public class BrokerService implements Closeable {
 
         // start other housekeeping functions
         this.startStatsUpdater(
-                serviceConfig.getStatsUpdateInitialDelayInSecs(),
-                serviceConfig.getStatsUpdateFrequencyInSecs());
+                serviceConfig.getMetricConfiguration().getStatsUpdateInitialDelayInSecs(),
+                serviceConfig.getMetricConfiguration().getStatsUpdateFrequencyInSecs());
         this.startInactivityMonitor();
         this.startMessageExpiryMonitor();
         this.startCompactionMonitor();

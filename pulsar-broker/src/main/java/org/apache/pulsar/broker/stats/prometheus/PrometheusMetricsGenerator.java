@@ -113,7 +113,7 @@ public class PrometheusMetricsGenerator {
                                              boolean splitTopicAndPartitionIndexLabel, OutputStream out,
                                              List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buffer;
-        boolean exposeBufferMetrics = pulsar.getConfiguration().isMetricsBufferResponse();
+        boolean exposeBufferMetrics = pulsar.getMetricConfiguration().isMetricsBufferResponse();
 
         if (!exposeBufferMetrics) {
             buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
@@ -231,13 +231,13 @@ public class PrometheusMetricsGenerator {
         parseMetricsToPrometheusMetrics(new ManagedLedgerCacheMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
 
-        if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
+        if (pulsar.getMetricConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
             parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
                     clusterName, Collector.Type.GAUGE, stream);
         }
 
-        if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
+        if (pulsar.getMetricConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
             // generate managedCursor metrics
             parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                     clusterName, Collector.Type.GAUGE, stream);

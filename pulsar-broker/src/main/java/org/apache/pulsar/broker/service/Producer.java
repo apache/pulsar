@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.MetricConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
@@ -108,6 +109,7 @@ public class Producer {
             Optional<Long> topicEpoch,
             boolean supportsPartialProducer) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
+        final MetricConfiguration metricConfiguration = serviceConf.getMetricConfiguration();
 
         this.topic = topic;
         this.cnx = cnx;
@@ -136,7 +138,7 @@ public class Producer {
         stats.setClientVersion(cnx.getClientVersion());
         stats.setProducerName(producerName);
         stats.producerId = producerId;
-        if (serviceConf.isAggregatePublisherStatsByProducerName() && stats.getProducerName() != null) {
+        if (metricConfiguration.isAggregatePublisherStatsByProducerName() && stats.getProducerName() != null) {
             // If true and the client supports partial producer,
             // aggregate publisher stats of PartitionedTopicStats by producerName.
             // Otherwise, aggregate it by list index.
