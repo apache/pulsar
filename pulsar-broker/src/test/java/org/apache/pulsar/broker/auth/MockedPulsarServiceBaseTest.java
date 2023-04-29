@@ -39,6 +39,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.TimeoutHandler;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -98,6 +99,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
 
     protected ServiceConfiguration conf;
+
+    protected LoadBalancerConfiguration loadBalancerConfiguration;
     protected PulsarTestContext pulsarTestContext;
     protected MockZooKeeper mockZooKeeper;
     protected MockZooKeeper mockZooKeeperGlobal;
@@ -204,7 +207,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void doInitConf() throws Exception {
         this.conf.setBrokerShutdownTimeoutMs(0L);
-        this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        this.conf.getLoadBalancerConfiguration().setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
@@ -447,7 +450,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         configuration.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         configuration.setBrokerShutdownTimeoutMs(0L);
-        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        configuration.getLoadBalancerConfiguration().setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         configuration.setBrokerServicePort(Optional.of(0));
         configuration.setBrokerServicePortTls(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));

@@ -43,7 +43,7 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
         }
         brokers.entrySet().removeIf(entry -> {
             BrokerLookupData v = entry.getValue();
-            return !v.getLoadManagerClassName().equals(context.brokerConfiguration().getLoadManagerClassName());
+            return !v.getLoadManagerClassName().equals(context.loadbalancerConfiguration().getLoadManagerClassName());
         });
         return brokers;
     }

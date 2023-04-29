@@ -990,13 +990,13 @@ public abstract class NamespacesBase extends AdminResource {
                     return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration())) {
                         return CompletableFuture.completedFuture(null);
                     }
                     return validateLeaderBrokerAsync();
                 })
                 .thenAccept(__ -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration())) {
                         return;
                     }
                     // For ExtensibleLoadManager, this operation will be ignored.
@@ -1069,7 +1069,7 @@ public abstract class NamespacesBase extends AdminResource {
                     checkNotNull(bundleName, "BundleRange should not be null");
                     log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
                     List<String> supportedNamespaceBundleSplitAlgorithms =
-                            pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
+                            pulsar().getLoadBalancerConfiguration().getSupportedNamespaceBundleSplitAlgorithms();
                     if (StringUtils.isNotBlank(splitAlgorithmName)) {
                         if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
                             throw new RestException(Status.PRECONDITION_FAILED,

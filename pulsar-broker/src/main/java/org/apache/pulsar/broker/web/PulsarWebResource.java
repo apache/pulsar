@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -138,6 +139,10 @@ public abstract class PulsarWebResource {
 
     protected ServiceConfiguration config() {
         return pulsar().getConfiguration();
+    }
+
+    protected LoadBalancerConfiguration loadBalancerConfiguration() {
+        return pulsar.getLoadBalancerConfiguration();
     }
 
     public static String splitPath(String source, int slice) {
@@ -718,7 +723,7 @@ public abstract class PulsarWebResource {
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
                     }
                     // If the load manager is extensible load manager, we don't need check the authoritative.
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config())) {
+                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration())) {
                         return CompletableFuture.completedFuture(null);
                     }
                     return nsService.isServiceUnitOwnedAsync(bundle)
@@ -1001,7 +1006,7 @@ public abstract class PulsarWebResource {
 
     protected static boolean isLeaderBroker(PulsarService pulsar) {
         // For extensible load manager, it doesn't have leader election service on pulsar broker.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getConfig())) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar.getLoadBalancerConfiguration())) {
             return true;
         }
         return  pulsar.getLeaderElectionService().isLeader();

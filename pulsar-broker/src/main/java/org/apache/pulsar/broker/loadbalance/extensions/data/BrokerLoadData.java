@@ -25,7 +25,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
@@ -117,7 +117,7 @@ public class BrokerLoadData {
                        double msgRateOut,
                        int bundleCount,
                        int topics,
-                       ServiceConfiguration conf) {
+                       LoadBalancerConfiguration conf) {
         updateSystemResourceUsage(usage.cpu, usage.memory, usage.directMemory, usage.bandwidthIn, usage.bandwidthOut);
         this.msgThroughputIn = msgThroughputIn;
         this.msgThroughputOut = msgThroughputOut;
@@ -161,7 +161,7 @@ public class BrokerLoadData {
         this.bandwidthOut = bandwidthOut;
     }
 
-    private void updateFeatures(ServiceConfiguration conf) {
+    private void updateFeatures(LoadBalancerConfiguration conf) {
         updateMaxResourceUsage();
         updateWeightedMaxEMA(conf);
         updateMsgThroughputEMA(conf);
@@ -181,7 +181,7 @@ public class BrokerLoadData {
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
-    private void updateWeightedMaxEMA(ServiceConfiguration conf) {
+    private void updateWeightedMaxEMA(LoadBalancerConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         var weightedMax = getMaxResourceUsageWithWeight(
                 conf.getLoadBalancerCPUResourceWeight(),
@@ -192,7 +192,7 @@ public class BrokerLoadData {
                 weightedMaxEMA * historyPercentage + (1 - historyPercentage) * weightedMax;
     }
 
-    private void updateMsgThroughputEMA(ServiceConfiguration conf) {
+    private void updateMsgThroughputEMA(LoadBalancerConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         double msgThroughput = msgThroughputIn + msgThroughputOut;
         msgThroughputEMA = updatedAt == 0 ? msgThroughput :
@@ -218,7 +218,7 @@ public class BrokerLoadData {
         reportedAt = 0;
     }
 
-    public String toString(ServiceConfiguration conf) {
+    public String toString(LoadBalancerConfiguration conf) {
         return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
                         + "bandwithIn= %.2f%%, bandwithOut= %.2f%%, "
                         + "cpuWeight= %f, memoryWeight= %f, directMemoryWeight= %f, "

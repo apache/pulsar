@@ -39,7 +39,7 @@ public class BrokerMaxTopicCountFilter implements BrokerFilter {
     public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> brokers,
                                                 ServiceUnitId serviceUnit,
                                                 LoadManagerContext context) throws BrokerFilterException {
-        int loadBalancerBrokerMaxTopics = context.brokerConfiguration().getLoadBalancerBrokerMaxTopics();
+        int loadBalancerBrokerMaxTopics = context.loadbalancerConfiguration().getLoadBalancerBrokerMaxTopics();
         brokers.keySet().removeIf(broker -> {
             Optional<BrokerLoadData> brokerLoadDataOpt = context.brokerLoadDataStore().get(broker);
             long topics = brokerLoadDataOpt.map(BrokerLoadData::getTopics).orElse(0);

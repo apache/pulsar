@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
@@ -59,7 +60,7 @@ public interface ModularLoadManagerStrategy {
      * @param conf ServiceConfiguration to use.
      * @return A placement strategy from the given configurations.
      */
-    static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
+    static ModularLoadManagerStrategy create(final LoadBalancerConfiguration conf) {
         try {
             return Reflections.createInstance(conf.getLoadBalancerLoadPlacementStrategy(),
                     ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());

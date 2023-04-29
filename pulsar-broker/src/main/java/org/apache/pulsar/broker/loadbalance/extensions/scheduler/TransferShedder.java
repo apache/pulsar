@@ -46,7 +46,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -204,7 +204,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         Optional<UnloadDecision.Reason> update(final LoadDataStore<BrokerLoadData> loadStore,
                                                final Map<String, BrokerLookupData> availableBrokers,
                                                Map<String, Long> recentlyUnloadedBrokers,
-                                               final ServiceConfiguration conf) {
+                                               final LoadBalancerConfiguration conf) {
 
             maxNumberOfBrokerSheddingPerCycle = conf.getLoadBalancerMaxNumberOfBrokerSheddingPerCycle();
             var debug = ExtensibleLoadManagerImpl.debug(conf, log);
@@ -319,7 +319,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
     public Set<UnloadDecision> findBundlesForUnloading(LoadManagerContext context,
                                                   Map<String, Long> recentlyUnloadedBundles,
                                                   Map<String, Long> recentlyUnloadedBrokers) {
-        final var conf = context.brokerConfiguration();
+        final var conf = context.loadbalancerConfiguration();
         decisionCache.clear();
         stats.clear();
         Map<String, BrokerLookupData> availableBrokers;
@@ -682,7 +682,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
         return brokerLoadData.getWeightedMaxEMA()
                 < avgLoad * Math.min(0.5, Math.max(0.0,
-                context.brokerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
+                context.loadbalancerConfiguration().getLoadBalancerBrokerLoadTargetStd() / 2));
     }
 
     private boolean isOverLoaded(LoadManagerContext context, String broker, double avgLoad) {
@@ -690,7 +690,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
         if (brokerLoadDataOptional.isEmpty()) {
             return false;
         }
-        var conf = context.brokerConfiguration();
+        var conf = context.loadbalancerConfiguration();
         var overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         var targetStd = conf.getLoadBalancerBrokerLoadTargetStd();
         var brokerLoadData = brokerLoadDataOptional.get();
@@ -735,7 +735,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
         // Remove the current bundle owner broker.
         candidates.remove(srcBroker);
-        boolean transfer = context.brokerConfiguration().isLoadBalancerTransferEnabled();
+        boolean transfer = context.loadbalancerConfiguration().isLoadBalancerTransferEnabled();
 
         // Unload: Check if there are any more candidates available for selection.
         if (dstBroker.isEmpty() || !transfer) {
@@ -749,12 +749,12 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                                                                        NamespaceBundle namespaceBundle) {
         if (isolationPoliciesHelper != null
                 && isolationPoliciesHelper.hasIsolationPolicy(namespaceBundle.getNamespaceObject())) {
-            return context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            return context.loadbalancerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
         }
 
         if (antiAffinityGroupPolicyHelper != null
                 && antiAffinityGroupPolicyHelper.hasAntiAffinityGroupPolicy(namespaceBundle.toString())) {
-            return context.brokerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            return context.loadbalancerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
         }
 
         return true;

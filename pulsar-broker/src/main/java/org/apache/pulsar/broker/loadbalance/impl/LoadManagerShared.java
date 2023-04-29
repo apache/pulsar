@@ -240,8 +240,8 @@ public class LoadManagerShared {
      * @return true by default
      */
     public static boolean isLoadSheddingEnabled(final PulsarService pulsar) {
-        return pulsar.getConfiguration().isLoadBalancerEnabled()
-                && pulsar.getConfiguration().isLoadBalancerSheddingEnabled();
+        return pulsar.getLoadBalancerConfiguration().isLoadBalancerEnabled()
+                && pulsar.getLoadBalancerConfiguration().isLoadBalancerSheddingEnabled();
     }
 
     /**

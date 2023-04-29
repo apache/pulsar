@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
@@ -32,6 +33,12 @@ public interface LoadManagerContext {
      * The broker configuration.
      */
     ServiceConfiguration brokerConfiguration();
+
+    /**
+     * The loadbalancer configuration.
+     * @return
+     */
+    LoadBalancerConfiguration loadbalancerConfiguration();
 
     /**
      * Broker load data store, each component use the context to access the load data store.

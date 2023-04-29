@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.UnloadManager;
@@ -60,6 +61,8 @@ public class UnloadScheduler implements LoadManagerScheduler {
     private final ServiceUnitStateChannel channel;
 
     private final ServiceConfiguration conf;
+
+    private final LoadBalancerConfiguration loadBalancerConfiguration;
 
     private final UnloadCounter counter;
 
@@ -106,15 +109,17 @@ public class UnloadScheduler implements LoadManagerScheduler {
         this.unloadManager = unloadManager;
         this.context = context;
         this.conf = context.brokerConfiguration();
+        this.loadBalancerConfiguration = context.loadbalancerConfiguration();
         this.channel = channel;
     }
 
     @Override
     public synchronized void execute() {
-        boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
+        boolean debugMode = loadBalancerConfiguration.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
         if (debugMode) {
             log.info("Load balancer enabled: {}, Shedding enabled: {}.",
-                    conf.isLoadBalancerEnabled(), conf.isLoadBalancerSheddingEnabled());
+                    loadBalancerConfiguration.isLoadBalancerEnabled(),
+                    loadBalancerConfiguration.isLoadBalancerSheddingEnabled());
         }
         if (!isLoadBalancerSheddingEnabled()) {
             if (debugMode) {
@@ -124,10 +129,10 @@ public class UnloadScheduler implements LoadManagerScheduler {
         }
         // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
         final long timeout = System.currentTimeMillis()
-                - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
+                - TimeUnit.MINUTES.toMillis(loadBalancerConfiguration.getLoadBalancerSheddingGracePeriodMinutes());
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
-        long asyncOpTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
+        long asyncOpTimeoutMs = loadBalancerConfiguration.getNamespaceBundleUnloadingTimeoutMs();
         synchronized (namespaceUnloadStrategy) {
             try {
                 Boolean isChannelOwner = channel.isChannelOwnerAsync().get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
@@ -194,7 +199,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
     public void start() {
         if (this.task == null) {
             long loadSheddingInterval = TimeUnit.MINUTES
-                    .toMillis(conf.getLoadBalancerSheddingIntervalMinutes());
+                    .toMillis(loadBalancerConfiguration.getLoadBalancerSheddingIntervalMinutes());
             this.task = loadManagerExecutor.scheduleAtFixedRate(
                     this::execute, loadSheddingInterval, loadSheddingInterval, TimeUnit.MILLISECONDS);
         }
@@ -211,7 +216,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
     }
 
     private static NamespaceUnloadStrategy createNamespaceUnloadStrategy(PulsarService pulsar) {
-        ServiceConfiguration conf = pulsar.getConfiguration();
+        LoadBalancerConfiguration conf = pulsar.getLoadBalancerConfiguration();
         NamespaceUnloadStrategy unloadStrategy;
         try {
             unloadStrategy = Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(),
@@ -229,6 +234,7 @@ public class UnloadScheduler implements LoadManagerScheduler {
     }
 
     private boolean isLoadBalancerSheddingEnabled() {
-        return conf.isLoadBalancerEnabled() && conf.isLoadBalancerSheddingEnabled();
+        return loadBalancerConfiguration.isLoadBalancerEnabled()
+                && loadBalancerConfiguration.isLoadBalancerSheddingEnabled();
     }
 }

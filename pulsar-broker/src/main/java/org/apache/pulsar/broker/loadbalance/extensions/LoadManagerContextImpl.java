@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import lombok.Builder;
 import lombok.Setter;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
@@ -37,10 +38,16 @@ public class LoadManagerContextImpl implements LoadManagerContext {
 
     private ServiceConfiguration configuration;
 
+    private LoadBalancerConfiguration loadBalancerConfiguration;
 
     @Override
     public ServiceConfiguration brokerConfiguration() {
         return this.configuration;
+    }
+
+    @Override
+    public LoadBalancerConfiguration loadbalancerConfiguration() {
+        return loadBalancerConfiguration;
     }
 
     @Override

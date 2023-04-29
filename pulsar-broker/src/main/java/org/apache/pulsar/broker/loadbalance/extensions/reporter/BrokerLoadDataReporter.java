@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -49,7 +49,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
 
     private final PulsarService pulsar;
 
-    private final ServiceConfiguration conf;
+    private final LoadBalancerConfiguration conf;
 
     private final LoadDataStore<BrokerLoadData> brokerLoadDataStore;
 
@@ -72,7 +72,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
         this.brokerLoadDataStore = brokerLoadDataStore;
         this.lookupServiceAddress = lookupServiceAddress;
         this.pulsar = pulsar;
-        this.conf = this.pulsar.getConfiguration();
+        this.conf = this.pulsar.getConfiguration().getLoadBalancerConfiguration();
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
         } else {
@@ -97,7 +97,7 @@ public class BrokerLoadDataReporter implements LoadDataReporter<BrokerLoadData>,
                     brokerStats.msgRateOut,
                     brokerStats.bundleCount,
                     brokerStats.topics,
-                    pulsar.getConfiguration());
+                    pulsar.getLoadBalancerConfiguration());
         }
         return this.localData;
     }

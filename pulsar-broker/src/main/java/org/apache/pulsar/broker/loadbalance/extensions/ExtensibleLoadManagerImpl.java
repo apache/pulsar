@@ -41,6 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -112,6 +113,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     private PulsarService pulsar;
 
     private ServiceConfiguration conf;
+
+    private LoadBalancerConfiguration loadBalancerConfiguration;
 
     @Getter
     private BrokerRegistry brokerRegistry;
@@ -197,7 +200,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         this.brokerSelectionStrategy = new LeastResourceUsageWithWeight();
     }
 
-    public static boolean isLoadManagerExtensionEnabled(ServiceConfiguration conf) {
+    public static boolean isLoadManagerExtensionEnabled(LoadBalancerConfiguration conf) {
         return ExtensibleLoadManagerImpl.class.getName().equals(conf.getLoadManagerClassName());
     }
 
@@ -208,7 +211,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return loadManagerWrapper.get();
     }
 
-    public static boolean debug(ServiceConfiguration config, Logger log) {
+    public static boolean debug(LoadBalancerConfiguration config, Logger log) {
         return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
 
@@ -258,6 +261,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
 
         this.context = LoadManagerContextImpl.builder()
                 .configuration(conf)
+                .loadBalancerConfiguration(loadBalancerConfiguration)
                 .brokerRegistry(brokerRegistry)
                 .brokerLoadDataStore(brokerLoadDataStore)
                 .topBundleLoadDataStore(topBundlesLoadDataStore).build();
@@ -269,7 +273,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                 new TopBundleLoadDataReporter(pulsar, brokerRegistry.getBrokerId(), topBundlesLoadDataStore);
         this.serviceUnitStateChannel.listen(brokerLoadDataReporter);
         this.serviceUnitStateChannel.listen(topBundleLoadDataReporter);
-        var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
+        var interval = loadBalancerConfiguration.getLoadBalancerReportUpdateMinIntervalMillis();
         this.brokerLoadDataReportTask = this.pulsar.getLoadManagerExecutor()
                 .scheduleAtFixedRate(() -> {
                             try {
@@ -316,6 +320,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     public void initialize(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.conf = pulsar.getConfiguration();
+        this.loadBalancerConfiguration = pulsar.getLoadBalancerConfiguration();
     }
 
     @Override
@@ -457,7 +462,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                     UnloadDecision unloadDecision =
                             new UnloadDecision(unload, UnloadDecision.Label.Success, UnloadDecision.Reason.Admin);
                     return unloadAsync(unloadDecision,
-                            conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+                            loadBalancerConfiguration.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
                 });
     }
 
@@ -504,7 +509,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
                                 splitDecision.setLabel(Success);
                                 splitDecision.setReason(Admin);
                                 return splitAsync(splitDecision,
-                                        conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+                                        loadBalancerConfiguration.getNamespaceBundleUnloadingTimeoutMs(),
+                                        TimeUnit.MILLISECONDS);
                             });
                 });
     }

@@ -52,6 +52,7 @@ import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
@@ -71,6 +72,13 @@ public class PulsarBrokerStarter {
             ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
             // it validates provided configuration is completed
             isComplete(config);
+
+            LoadBalancerConfiguration loadBalancerConfiguration = create(inputStream, LoadBalancerConfiguration.class);
+            isComplete(loadBalancerConfiguration);
+
+            config.setLoadBalancerConfiguration(loadBalancerConfiguration);
+            loadBalancerConfiguration.setServiceConfiguration(config);
+
             return config;
         }
     }
@@ -174,15 +182,17 @@ public class PulsarBrokerStarter {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 
+            var loadbalancerConfig = brokerConfig.getLoadBalancerConfiguration();
+
             if (!NamespaceBundleSplitAlgorithm.AVAILABLE_ALGORITHMS.containsAll(
-                    brokerConfig.getSupportedNamespaceBundleSplitAlgorithms())) {
+                    loadbalancerConfig.getSupportedNamespaceBundleSplitAlgorithms())) {
                 throw new IllegalArgumentException(
                         "The given supported namespace bundle split algorithm has unavailable algorithm. "
                                 + "Available algorithms are " + NamespaceBundleSplitAlgorithm.AVAILABLE_ALGORITHMS);
             }
 
-            if (!brokerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(
-                    brokerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
+            if (!loadbalancerConfig.getSupportedNamespaceBundleSplitAlgorithms().contains(
+                    loadbalancerConfig.getDefaultNamespaceBundleSplitAlgorithm())) {
                 throw new IllegalArgumentException("Supported namespace bundle split algorithms "
                         + "must contains the default namespace bundle split algorithm");
             }

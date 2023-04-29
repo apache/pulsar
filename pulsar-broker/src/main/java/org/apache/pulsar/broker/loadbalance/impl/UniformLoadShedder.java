@@ -26,7 +26,7 @@ import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Triple;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -37,9 +37,9 @@ import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 /**
  * This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
  * broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
- * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} or
- * {@link ServiceConfiguration#getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()} then it finds out
- * bundles which can be unloaded to distribute traffic evenly across all brokers.
+ * {@link LoadBalancerConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} or
+ * {@link LoadBalancerConfiguration#getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()} then it finds
+ * out bundles which can be unloaded to distribute traffic evenly across all brokers.
  *
  */
 @Slf4j
@@ -57,7 +57,8 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
      * @return A map from bundles to unload to the brokers on which they are loaded.
      */
     @Override
-    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData,
+                                                            final LoadBalancerConfiguration conf) {
         selectedBundlesCache.clear();
         Map<String, BrokerData> brokersData = loadData.getBrokerData();
         Map<String, BundleData> loadBundleData = loadData.getBundleDataForLoadShedding();

@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -49,7 +49,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
 
     // A broker's max resource usage with weight using its historical load and short-term load data with weight.
     private double getMaxResourceUsageWithWeight(final String broker, final BrokerLoadData brokerLoadData,
-                                                 final ServiceConfiguration conf, boolean debugMode) {
+                                                 final LoadBalancerConfiguration conf, boolean debugMode) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final var maxUsageWithWeight = brokerLoadData.getWeightedMaxEMA();
 
@@ -81,7 +81,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
     @Override
     public Optional<String> select(
             Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
-        var conf = context.brokerConfiguration();
+        var conf = context.loadbalancerConfiguration();
         if (candidates.isEmpty()) {
             log.warn("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
@@ -109,7 +109,8 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             var brokerLoadData = brokerLoadDataOptional.get();
 
             double usageWithWeight =
-                    getMaxResourceUsageWithWeight(broker, brokerLoadData, context.brokerConfiguration(), debugMode);
+                    getMaxResourceUsageWithWeight(broker, brokerLoadData,
+                            context.loadbalancerConfiguration(), debugMode);
             totalUsage += usageWithWeight;
         }
 

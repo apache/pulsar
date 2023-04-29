@@ -51,6 +51,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -118,6 +119,9 @@ public class NamespaceService implements AutoCloseable {
     private static final Logger LOG = LoggerFactory.getLogger(NamespaceService.class);
 
     private final ServiceConfiguration config;
+
+    private final LoadBalancerConfiguration loadBalancerConfiguration;
+
     private final AtomicReference<LoadManager> loadManager;
     private final PulsarService pulsar;
     private final OwnershipCache ownershipCache;
@@ -159,6 +163,7 @@ public class NamespaceService implements AutoCloseable {
         this.pulsar = pulsar;
         host = pulsar.getAdvertisedAddress();
         this.config = pulsar.getConfiguration();
+        this.loadBalancerConfiguration = pulsar.getLoadBalancerConfiguration();
         this.loadManager = pulsar.getLoadManager();
         this.bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory, this);
@@ -187,7 +192,7 @@ public class NamespaceService implements AutoCloseable {
                                     pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
                             return CompletableFuture.completedFuture(optResult);
                         }
-                        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
                             return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
                         } else {
                             // TODO: Add unit tests cover it.
@@ -298,7 +303,7 @@ public class NamespaceService implements AutoCloseable {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             CompletableFuture<Optional<LookupResult>> future =
-                    ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+                    ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)
                     ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
                     findBrokerServiceUrl(bundle, options);
 
@@ -750,12 +755,13 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, Optional<String> destinationBroker) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
                     .unloadNamespaceBundleAsync(bundle, destinationBroker);
         }
         // unload namespace bundle
-        return unloadNamespaceBundle(bundle, config.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+        return unloadNamespaceBundle(bundle, loadBalancerConfiguration.getNamespaceBundleUnloadingTimeoutMs(),
+                TimeUnit.MILLISECONDS);
     }
 
     public CompletableFuture<Void> unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) {
@@ -851,7 +857,7 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload,
                                                      NamespaceBundleSplitAlgorithm splitAlgorithm,
                                                      List<Long> boundaries) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             return ExtensibleLoadManagerImpl.get(loadManager.get())
                     .splitNamespaceBundleAsync(bundle, splitAlgorithm, boundaries);
         }
@@ -868,7 +874,7 @@ public class NamespaceService implements AutoCloseable {
                                        CompletableFuture<Void> completionFuture,
                                        NamespaceBundleSplitAlgorithm splitAlgorithm,
                                        List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, loadBalancerConfiguration);
 
         splitAlgorithm.getSplitBoundary(bundleSplitOption).whenComplete((splitBoundaries, ex) -> {
             CompletableFuture<List<NamespaceBundle>> updateFuture = new CompletableFuture<>();
@@ -1010,13 +1016,13 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<Long>> getSplitBoundary(
             NamespaceBundle bundle, List<Long> boundaries, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, loadBalancerConfiguration);
         return nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
     }
 
     private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,
                                                    List<Long> boundaries,
-                                                   ServiceConfiguration config) {
+                                                   LoadBalancerConfiguration config) {
         BundleSplitOption bundleSplitOption;
         if (config.getDefaultNamespaceBundleSplitAlgorithm()
                 .equals(NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE)) {
@@ -1035,7 +1041,8 @@ public class NamespaceService implements AutoCloseable {
     public NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
         NamespaceBundleSplitAlgorithm algorithm = NamespaceBundleSplitAlgorithm.of(algorithmName);
         if (algorithm == null) {
-            algorithm = NamespaceBundleSplitAlgorithm.of(pulsar.getConfig().getDefaultNamespaceBundleSplitAlgorithm());
+            algorithm = NamespaceBundleSplitAlgorithm.of(pulsar.getLoadBalancerConfiguration()
+                    .getDefaultNamespaceBundleSplitAlgorithm());
         }
         if (algorithm == null) {
             algorithm = NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO;
@@ -1125,7 +1132,7 @@ public class NamespaceService implements AutoCloseable {
         }
 
         if (suName instanceof NamespaceBundle) {
-            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
                 return loadManager.get().checkOwnershipAsync(Optional.empty(), suName);
             }
             // TODO: Add unit tests cover it.
@@ -1152,7 +1159,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> isServiceUnitActiveAsync(TopicName topicName) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
@@ -1170,7 +1177,7 @@ public class NamespaceService implements AutoCloseable {
 
     private CompletableFuture<Boolean> isNamespaceOwnedAsync(NamespaceName fqnn) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             return getFullBundleAsync(fqnn)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.empty(), bundle));
         }
@@ -1180,7 +1187,7 @@ public class NamespaceService implements AutoCloseable {
 
     private CompletableFuture<Boolean> isTopicOwnedAsync(TopicName topic) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             return getBundleAsync(topic)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topic), bundle));
         }
@@ -1189,7 +1196,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         // TODO: Add unit tests cover it.
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
@@ -1199,7 +1206,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Void> removeOwnedServiceUnitAsync(NamespaceBundle nsBundle) {
         CompletableFuture<Void> future;
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             future = extensibleLoadManager.unloadNamespaceBundleAsync(nsBundle, Optional.empty());
         } else {
@@ -1485,7 +1492,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle bundle) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             ExtensibleLoadManagerImpl extensibleLoadManager = ExtensibleLoadManagerImpl.get(loadManager.get());
             return extensibleLoadManager.getOwnershipWithLookupDataAsync(bundle)
                     .thenCompose(lookupData -> {
@@ -1506,7 +1513,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Boolean> checkOwnershipPresentAsync(NamespaceBundle bundle) {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             if (bundle.getNamespaceObject().equals(SYSTEM_NAMESPACE)) {
                 return FutureUtil.failedFuture(new UnsupportedOperationException(
                         "Ownership check for system namespace is not supported"));

@@ -246,7 +246,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 new TypeReference<Map<String, String>>() {
                 });
 
-        int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
+        int entryExpiryTime = (int) pulsar.getLoadBalancerConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
         unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
                 .build(new CacheLoader<String, Long>() {
                     @Override
@@ -367,7 +367,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
     private String getLoadBalancerPlacementStrategy() {
         String strategy = this.getDynamicConfigurationFromStore(LOADBALANCER_DYNAMIC_SETTING_STRATEGY_ZPATH,
-                SETTING_NAME_STRATEGY, pulsar.getConfiguration().getLoadBalancerPlacementStrategy());
+                SETTING_NAME_STRATEGY, pulsar.getLoadBalancerConfiguration().getLoadBalancerPlacementStrategy());
         if (!LOADBALANCER_STRATEGY_LLS.equals(strategy) && !LOADBALANCER_STRATEGY_RAND.equals(strategy)
                 && !LOADBALANCER_STRATEGY_LEAST_MSG.equals(strategy)) {
             strategy = LOADBALANCER_STRATEGY_RAND;
@@ -387,25 +387,25 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private long getLoadBalancerBrokerUnderloadedThresholdPercentage() {
         return (long) this.getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_UNDERLOAD_THRESHOLD_ZPATH,
                 SETTING_NAME_UNDERLOAD_THRESHOLD,
-                pulsar.getConfiguration().getLoadBalancerBrokerUnderloadedThresholdPercentage());
+                pulsar.getLoadBalancerConfiguration().getLoadBalancerBrokerUnderloadedThresholdPercentage());
     }
 
     private long getLoadBalancerBrokerOverloadedThresholdPercentage() {
         return (long) this.getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_OVERLOAD_THRESHOLD_ZPATH,
                 SETTING_NAME_OVERLOAD_THRESHOLD,
-                pulsar.getConfiguration().getLoadBalancerBrokerOverloadedThresholdPercentage());
+                pulsar.getLoadBalancerConfiguration().getLoadBalancerBrokerOverloadedThresholdPercentage());
     }
 
     private long getLoadBalancerBrokerComfortLoadThresholdPercentage() {
         return (long) this.getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_COMFORT_LOAD_THRESHOLD_ZPATH,
                 SETTING_NAME_COMFORTLOAD_THRESHOLD,
-                pulsar.getConfiguration().getLoadBalancerBrokerComfortLoadLevelPercentage());
+                pulsar.getLoadBalancerConfiguration().getLoadBalancerBrokerComfortLoadLevelPercentage());
     }
 
     private boolean getLoadBalancerAutoBundleSplitEnabled() {
         return this.getDynamicConfigurationBoolean(LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED,
                 SETTING_NAME_AUTO_BUNDLE_SPLIT_ENABLED,
-                pulsar.getConfiguration().isLoadBalancerAutoBundleSplitEnabled());
+                pulsar.getLoadBalancerConfiguration().isLoadBalancerAutoBundleSplitEnabled());
     }
 
     /*
@@ -1090,7 +1090,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 loadReport.setSystemResourceUsage(systemResourceUsage);
                 loadReport.setBundleStats(pulsar.getBrokerService().getBundleStats());
                 loadReport.setTimestamp(System.currentTimeMillis());
-                loadReport.setLoadManagerClassName(pulsar.getConfig().getLoadManagerClassName());
+                loadReport.setLoadManagerClassName(pulsar.getLoadBalancerConfiguration().getLoadManagerClassName());
                 loadReport.setStartTimestamp(System.currentTimeMillis());
 
                 final Set<String> oldBundles = lastLoadReport.getBundles();
@@ -1157,7 +1157,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     public void writeLoadReportOnZookeeper() throws Exception {
         // update average JVM heap usage to average value of the last 120 seconds
         long realtimeJvmHeapUsage = getRealtimeJvmHeapUsageMBytes();
-        int minInterval = pulsar.getConfiguration().getLoadBalancerReportUpdateMinIntervalMillis();
+        int minInterval = pulsar.getLoadBalancerConfiguration().getLoadBalancerReportUpdateMinIntervalMillis();
         if (this.avgJvmHeapUsageMBytes <= 0) {
             this.avgJvmHeapUsageMBytes = realtimeJvmHeapUsage;
         } else {
@@ -1178,7 +1178,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         } else {
             long timestampNow = System.currentTimeMillis();
             long timeElapsedSinceLastReport = timestampNow - lastLoadReport.getTimestamp();
-            int maxUpdateIntervalInMinutes = pulsar.getConfiguration().getLoadBalancerReportUpdateMaxIntervalMinutes();
+            int maxUpdateIntervalInMinutes = pulsar.getLoadBalancerConfiguration()
+                    .getLoadBalancerReportUpdateMaxIntervalMinutes();
             if (timeElapsedSinceLastReport > TimeUnit.MINUTES.toMillis(maxUpdateIntervalInMinutes)) {
                 needUpdate = true;
             } else if (timeElapsedSinceLastReport > minInterval) {
@@ -1192,7 +1193,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
                 // check resource usage comparing with last LoadReport
                 if (!needUpdate && timestampNow - this.lastResourceUsageTimestamp > TimeUnit.MINUTES
-                        .toMillis(pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes())) {
+                        .toMillis(pulsar.getLoadBalancerConfiguration()
+                                .getLoadBalancerHostUsageCheckIntervalMinutes())) {
                     SystemResourceUsage oldUsage = lastLoadReport.getSystemResourceUsage();
                     SystemResourceUsage newUsage = this.getSystemResourceUsage();
                     this.lastResourceUsageTimestamp = timestampNow;
@@ -1221,7 +1223,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                                     Math.max(Math.abs(directMemChange), Math.max(Math.abs(memChange),
                                             Math.max(Math.abs(bandwidthOutChange), Math.abs(bandwidthInChange))))));
 
-                    if (resourceChange > pulsar.getConfiguration().getLoadBalancerReportUpdateThresholdPercentage()) {
+                    if (resourceChange > pulsar.getLoadBalancerConfiguration()
+                            .getLoadBalancerReportUpdateThresholdPercentage()) {
                         needUpdate = true;
                         log.info("LoadReport update triggered by change on resource usage, detal ({}).", String.format(
                                 "cpu: %.1f%%, mem: %.1f%%, directMemory: %.1f%%,"
@@ -1250,7 +1253,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
      */
     private boolean isLoadReportGenerationIntervalPassed() {
         long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
-        return timeSinceLastGenMillis > pulsar.getConfiguration().getLoadBalancerReportUpdateMinIntervalMillis();
+        return timeSinceLastGenMillis > pulsar.getLoadBalancerConfiguration()
+                .getLoadBalancerReportUpdateMinIntervalMillis();
     }
 
     // todo: changeme: this can be optimized, we don't have to iterate through everytime
@@ -1374,12 +1378,12 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
      */
     @Override
     public void doNamespaceBundleSplit() throws Exception {
-        int maxBundleCount = pulsar.getConfiguration().getLoadBalancerNamespaceMaximumBundles();
-        long maxBundleTopics = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxTopics();
-        long maxBundleSessions = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxSessions();
-        long maxBundleMsgRate = pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate();
+        int maxBundleCount = pulsar.getLoadBalancerConfiguration().getLoadBalancerNamespaceMaximumBundles();
+        long maxBundleTopics = pulsar.getLoadBalancerConfiguration().getLoadBalancerNamespaceBundleMaxTopics();
+        long maxBundleSessions = pulsar.getLoadBalancerConfiguration().getLoadBalancerNamespaceBundleMaxSessions();
+        long maxBundleMsgRate = pulsar.getLoadBalancerConfiguration().getLoadBalancerNamespaceBundleMaxMsgRate();
         long maxBundleBandwidth =
-                pulsar.getConfiguration().getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * MBytes;
+                pulsar.getLoadBalancerConfiguration().getLoadBalancerNamespaceBundleMaxBandwidthMbytes() * MBytes;
 
         log.info(
                 "Running namespace bundle split with thresholds: topics {}, sessions {},"
@@ -1440,7 +1444,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(
                         LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
                         LoadManagerShared.getBundleRangeFromBundleName(bundleName),
-                        pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled(), null);
+                        pulsar.getLoadBalancerConfiguration()
+                                .isLoadBalancerAutoUnloadSplitBundlesEnabled(), null);
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);

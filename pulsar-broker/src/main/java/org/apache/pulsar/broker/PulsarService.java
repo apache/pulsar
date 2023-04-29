@@ -79,6 +79,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -192,6 +193,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private ServiceConfiguration config = null;
+
+    private LoadBalancerConfiguration loadBalancerConfiguration = null;
+
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
@@ -652,6 +656,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     /**
+     * Get the current service loadbalancer configuration.
+     *
+     * @return the current service configuration
+     */
+    public LoadBalancerConfiguration getLoadBalancerConfiguration() {
+        return this.loadBalancerConfiguration;
+    }
+
+    /**
      * Get the current function worker service configuration.
      *
      * @return the current function worker service configuration.
@@ -718,8 +731,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
-            if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
-                    && config.isLoadBalancerEnabled()
+            if (!loadBalancerConfiguration.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
+                    && loadBalancerConfiguration.isLoadBalancerEnabled()
                     && LinuxInfoUtils.isLinux()
                     && !LinuxInfoUtils.checkHasNicSpeeds()) {
                 throw new IllegalStateException("Unable to read VM NIC speed. You must set "
@@ -1108,7 +1121,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     protected void startLeaderElectionService() {
-        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             LOG.info("The load manager extension is enabled. Skipping PulsarService LeaderElectionService.");
             return;
         }
@@ -1116,17 +1129,23 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 state -> {
                     if (state == LeaderElectionState.Leading) {
                         LOG.info("This broker was elected leader");
-                        if (getConfiguration().isLoadBalancerEnabled()) {
+                        if (loadBalancerConfiguration.isLoadBalancerEnabled()) {
                             long resourceQuotaUpdateInterval = TimeUnit.MINUTES
-                                    .toMillis(getConfiguration().getLoadBalancerResourceQuotaUpdateIntervalMinutes());
+                                    .toMillis(loadBalancerConfiguration
+                                            .getLoadBalancerResourceQuotaUpdateIntervalMinutes());
 
                             if (loadSheddingTask != null) {
                                 loadSheddingTask.cancel();
                             }
+
                             if (loadResourceQuotaTask != null) {
                                 loadResourceQuotaTask.cancel(false);
                             }
-                            loadSheddingTask = new LoadSheddingTask(loadManager, loadManagerExecutor, config);
+
+                            loadSheddingTask = new LoadSheddingTask(loadManager,
+                                    loadManagerExecutor,
+                                    loadBalancerConfiguration);
+
                             loadSheddingTask.start();
                             loadResourceQuotaTask = loadManagerExecutor.scheduleAtFixedRate(
                                     new LoadResourceQuotaUpdaterTask(loadManager), resourceQuotaUpdateInterval,
@@ -1222,10 +1241,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         LOG.info("Starting load management service ...");
         this.loadManager.get().start();
 
-        if (config.isLoadBalancerEnabled() && !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+        if (loadBalancerConfiguration.isLoadBalancerEnabled()
+                && !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(loadBalancerConfiguration)) {
             LOG.info("Starting load balancer");
             if (this.loadReportTask == null) {
-                long loadReportMinInterval = config.getLoadBalancerReportUpdateMinIntervalMillis();
+                long loadReportMinInterval = loadBalancerConfiguration.getLoadBalancerReportUpdateMinIntervalMillis();
                 this.loadReportTask = this.loadManagerExecutor.scheduleAtFixedRate(
                         new LoadReportUpdaterTask(loadManager), loadReportMinInterval, loadReportMinInterval,
                         TimeUnit.MILLISECONDS);

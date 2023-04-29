@@ -26,7 +26,7 @@ import java.util.Set;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -61,7 +61,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
 
     @Override
     public synchronized Multimap<String, String> findBundlesForUnloading(final LoadData loadData,
-                                                                         final ServiceConfiguration conf) {
+                                                                         final LoadBalancerConfiguration conf) {
         selectedBundlesCache.clear();
         final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
@@ -149,7 +149,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     }
 
     private double getBrokerAvgUsage(final LoadData loadData, final double historyPercentage,
-                                     final ServiceConfiguration conf) {
+                                     final LoadBalancerConfiguration conf) {
         double totalUsage = 0.0;
         int totalBrokers = 0;
 
@@ -164,7 +164,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
     }
 
     private double updateAvgResourceUsage(String broker, LocalBrokerData localBrokerData,
-                                          final double historyPercentage, final ServiceConfiguration conf) {
+                                          final double historyPercentage, final LoadBalancerConfiguration conf) {
         Double historyUsage =
                 brokerAvgResourceUsage.get(broker);
         double resourceUsage = localBrokerData.getMaxResourceUsageWithWeight(
@@ -179,7 +179,7 @@ public class ThresholdShedder implements LoadSheddingStrategy {
         return historyUsage;
     }
 
-    private void tryLowerBoundaryShedding(LoadData loadData, ServiceConfiguration conf) {
+    private void tryLowerBoundaryShedding(LoadData loadData, LoadBalancerConfiguration conf) {
         // Select the broker with the most resource usage.
         final double threshold = conf.getLoadBalancerBrokerThresholdShedderPercentage() / 100.0;
         final double avgUsage = getBrokerAvgUsage(loadData, conf.getLoadBalancerHistoryResourcePercentage(), conf);

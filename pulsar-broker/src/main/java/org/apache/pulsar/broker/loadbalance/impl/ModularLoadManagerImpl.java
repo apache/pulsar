@@ -47,6 +47,7 @@ import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilter;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
@@ -139,6 +140,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Service configuration belonging to the pulsar service.
     private ServiceConfiguration conf;
+
+    private LoadBalancerConfiguration loadBalancerConfiguration;
 
     // The default bundle stats which are used to initialize historic data.
     // This data is overridden after the bundle receives its first sample.
@@ -258,6 +261,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         bundleSplitStrategy = new BundleSplitterTask();
 
         conf = pulsar.getConfiguration();
+        loadBalancerConfiguration = pulsar.getLoadBalancerConfiguration();
 
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
         defaultStats.msgThroughputIn = DEFAULT_MESSAGE_THROUGHPUT;
@@ -265,7 +269,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        placementStrategy = ModularLoadManagerStrategy.create(loadBalancerConfiguration);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerLoadManagerClassFilter());
         filterPipeline.add(new BrokerVersionFilter());
@@ -302,11 +306,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private LoadSheddingStrategy createLoadSheddingStrategy() {
         try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
+            return Reflections.createInstance(loadBalancerConfiguration.getLoadBalancerLoadSheddingStrategy(),
+                    LoadSheddingStrategy.class,
                     Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
             log.error("Error when trying to create load shedding strategy: {}",
-                    conf.getLoadBalancerLoadPlacementStrategy(), e);
+                    loadBalancerConfiguration.getLoadBalancerLoadPlacementStrategy(), e);
         }
         log.error("create load shedding strategy failed. using OverloadShedder instead.");
         return new OverloadShedder();
@@ -441,12 +446,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Determine if the broker data requires an update by delegating to the update condition.
     private boolean needBrokerDataUpdate() {
         final long updateMaxIntervalMillis = TimeUnit.MINUTES
-                .toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
+                .toMillis(loadBalancerConfiguration.getLoadBalancerReportUpdateMaxIntervalMinutes());
         long timeSinceLastReportWrittenToStore = System.currentTimeMillis() - localData.getLastUpdate();
         if (timeSinceLastReportWrittenToStore > updateMaxIntervalMillis) {
             log.info("Writing local data to metadata store because time since last"
                             + " update exceeded threshold of {} minutes",
-                    conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
+                    loadBalancerConfiguration.getLoadBalancerReportUpdateMaxIntervalMinutes());
             // Always update after surpassing the maximum interval.
             return true;
         }
@@ -458,10 +463,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                                         percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
                                                 localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
                                         percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
-        if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
+        if (maxChange > loadBalancerConfiguration.getLoadBalancerReportUpdateThresholdPercentage()) {
             log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
                             + "time since last report written is {} seconds", maxChange,
-                    conf.getLoadBalancerReportUpdateThresholdPercentage(),
+                    loadBalancerConfiguration.getLoadBalancerReportUpdateThresholdPercentage(),
                     timeSinceLastReportWrittenToStore / 1000.0);
             return true;
         }
@@ -641,12 +646,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
         // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
         final long timeout = System.currentTimeMillis()
-                - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
+                - TimeUnit.MINUTES.toMillis(loadBalancerConfiguration.getLoadBalancerSheddingGracePeriodMinutes());
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
         for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-            final Multimap<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+            final Multimap<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData,
+                    loadBalancerConfiguration);
 
             bundlesToUnload.asMap().forEach((broker, bundles) -> {
                 bundles.forEach(bundle -> {
@@ -741,11 +747,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void checkNamespaceBundleSplit() {
 
-        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
-                || !pulsar.getLeaderElectionService().isLeader() || knownBrokers.size() <= 1) {
+        if (!loadBalancerConfiguration.isLoadBalancerAutoBundleSplitEnabled()
+                || pulsar.getLeaderElectionService() == null
+                || !pulsar.getLeaderElectionService().isLeader()
+                || knownBrokers.size() <= 1) {
             return;
         }
-        final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
+        final boolean unloadSplitBundles = loadBalancerConfiguration.isLoadBalancerAutoUnloadSplitBundlesEnabled();
         synchronized (bundleSplitStrategy) {
             final Map<String, String> bundlesToBeSplit = bundleSplitStrategy.findBundlesToSplit(loadData, pulsar);
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
@@ -846,7 +854,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
                 // filter brokers which owns topic higher than threshold
                 LoadManagerShared.filterBrokersWithLargeTopicCount(brokerCandidateCache, loadData,
-                        conf.getLoadBalancerBrokerMaxTopics());
+                        loadBalancerConfiguration.getLoadBalancerBrokerMaxTopics());
 
                 // distribute namespaces to domain and brokers according to anti-affinity-group
                 LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, serviceUnit.toString(),
@@ -854,7 +862,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
 
                 // distribute bundles evenly to candidate-brokers if enable
-                if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
+                if (loadBalancerConfiguration.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
                     LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(),
                             brokerCandidateCache,
                             brokerToNamespaceToBundleRange);
@@ -895,7 +903,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     return broker;
                 }
 
-                final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+                final double overloadThreshold = loadBalancerConfiguration
+                        .getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
                 final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
                 if (maxUsage > overloadThreshold) {
                     // All brokers that were in the filtered list were overloaded, so check if there is a better broker
@@ -959,7 +968,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // configure broker-topic mode
             localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-            localData.setLoadManagerClassName(conf.getLoadManagerClassName());
+            localData.setLoadManagerClassName(loadBalancerConfiguration.getLoadManagerClassName());
 
             String lookupServiceAddress = pulsar.getLookupServiceAddress();
             brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
