@@ -287,8 +287,9 @@ public class PulsarTestContext implements AutoCloseable {
             }
 
             // adjust managed ledger cache size
-            if (svcConfig.getManagedLedgerCacheSizeMB() == unconfiguredDefaults.getManagedLedgerCacheSizeMB()) {
-                svcConfig.setManagedLedgerCacheSizeMB(8);
+            if (svcConfig.getManagedLedgerConfiguration().getManagedLedgerCacheSizeMB()
+                    == unconfiguredDefaults.getManagedLedgerConfiguration().getManagedLedgerCacheSizeMB()) {
+                svcConfig.getManagedLedgerConfiguration().setManagedLedgerCacheSizeMB(8);
             }
         }
 

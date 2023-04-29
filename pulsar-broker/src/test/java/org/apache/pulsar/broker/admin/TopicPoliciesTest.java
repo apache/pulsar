@@ -768,10 +768,10 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getPersistence(topic));
         assertNull(admin.namespaces().getPersistence(myNamespace));
         PersistencePolicies brokerPolicy
-                = new PersistencePolicies(pulsar.getConfiguration().getManagedLedgerDefaultEnsembleSize(),
-                pulsar.getConfiguration().getManagedLedgerDefaultWriteQuorum(),
-                pulsar.getConfiguration().getManagedLedgerDefaultAckQuorum(),
-                pulsar.getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
+                = new PersistencePolicies(pulsar.getManagedLedgerConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                pulsar.getManagedLedgerConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                pulsar.getManagedLedgerConfiguration().getManagedLedgerDefaultAckQuorum(),
+                pulsar.getManagedLedgerConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit());
         assertEquals(admin.topicPolicies().getPersistence(topic, true), brokerPolicy);
         PersistencePolicies namespacePolicy
                 = new PersistencePolicies(5,4,3,2);
@@ -2525,7 +2525,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30000)
     public void testAutoCreationDisabled() throws Exception {
         cleanup();
-        conf.setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
         setup();
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);

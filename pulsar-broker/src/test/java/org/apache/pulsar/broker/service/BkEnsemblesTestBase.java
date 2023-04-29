@@ -86,10 +86,10 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
-            config.setManagedLedgerMaxEntriesPerLedger(5);
-            config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(5);
+            config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
-            config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             config.setMetadataStoreOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();

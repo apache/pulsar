@@ -1496,7 +1496,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 admin.namespaces().getOffloadThresholdInSeconds(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                pulsar.getConfiguration().getManagedLedgerConfiguration().getManagedLedgerOffloadDeletionLagMs(),
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
@@ -1519,7 +1519,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 admin.namespaces().getOffloadThresholdInSeconds(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                pulsar.getConfiguration().getManagedLedgerConfiguration().getManagedLedgerOffloadDeletionLagMs(),
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
@@ -1542,7 +1542,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES,
                 admin.namespaces().getOffloadThreshold(namespace),
                 admin.namespaces().getOffloadThresholdInSeconds(namespace),
-                pulsar.getConfiguration().getManagedLedgerOffloadDeletionLagMs(),
+                pulsar.getConfiguration().getManagedLedgerConfiguration().getManagedLedgerOffloadDeletionLagMs(),
                 OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY));
         ledgerConf.setLedgerOffloader(offloader);
         assertEquals(ledgerConf.getLedgerOffloader().getOffloadPolicies().getManagedLedgerOffloadThresholdInBytes(),
@@ -1695,8 +1695,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // check producer/consumer auto create partitioned topic
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
-        conf.setDefaultNumPartitions(3);
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(3);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         initAndStartBroker();
 
         admin.tenants().createTenant("testTenant", tenantInfo);
@@ -1724,8 +1724,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         // check producer/consumer auto create non-partitioned topic
         cleanup();
         conf.setMaxTopicsPerNamespace(0);
-        conf.setDefaultNumPartitions(1);
-        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(1);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         initAndStartBroker();
 
         admin.tenants().createTenant("testTenant", tenantInfo);

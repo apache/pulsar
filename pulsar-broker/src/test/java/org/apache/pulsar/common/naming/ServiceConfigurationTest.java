@@ -70,7 +70,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getDefaultNamespaceBundleSplitAlgorithm(), "topic_count_equally_divide");
         assertEquals(config.getSupportedNamespaceBundleSplitAlgorithms().size(), 1);
         assertEquals(config.getMaxMessagePublishBufferSizeInMB(), -1);
-        assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
+        assertEquals(config.getManagedLedgerConfiguration().getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(config.getProperties());
@@ -365,9 +365,9 @@ public class ServiceConfigurationTest {
         // set valid value: partitioned
         properties.setProperty("allowAutoTopicCreationType", "partitioned");
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
-        assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.PARTITIONED);
+        assertEquals(conf.getManagedLedgerConfiguration().getAllowAutoTopicCreationType(), TopicType.PARTITIONED);
         properties.setProperty("allowAutoTopicCreationType", "non-partitioned");
         conf = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
-        assertEquals(conf.getAllowAutoTopicCreationType(), TopicType.NON_PARTITIONED);
+        assertEquals(conf.getManagedLedgerConfiguration().getAllowAutoTopicCreationType(), TopicType.NON_PARTITIONED);
     }
 }

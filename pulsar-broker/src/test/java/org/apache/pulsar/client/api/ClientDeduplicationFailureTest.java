@@ -94,7 +94,7 @@ public class ClientDeduplicationFailureTest {
         config.setLoadBalancerEnabled(false);
         config.setLoadBalancerAutoUnloadSplitBundlesEnabled(false);
 
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
 
         pulsar = new PulsarService(config);

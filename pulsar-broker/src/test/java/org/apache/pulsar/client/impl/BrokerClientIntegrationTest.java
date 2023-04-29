@@ -725,7 +725,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         log.info("-- Starting {} test --", methodName);
 
-        conf.setManagedLedgerAddEntryTimeoutSeconds(1);
+        conf.getManagedLedgerConfiguration().setManagedLedgerAddEntryTimeoutSeconds(1);
 
         final String topicName = "persistent://my-property/my-ns/addEntryTimeoutTopic";
 

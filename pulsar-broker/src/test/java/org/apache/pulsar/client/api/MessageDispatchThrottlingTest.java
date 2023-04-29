@@ -1225,9 +1225,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     public void testBacklogConsumerCacheReads() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setManagedLedgerMinimumBacklogCursorsForCaching(2);
-        conf.setManagedLedgerMinimumBacklogEntriesForCaching(10);
-        conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMinimumBacklogCursorsForCaching(2);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMinimumBacklogEntriesForCaching(10);
+        conf.getManagedLedgerConfiguration().setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
         conf.setStreamingDispatch(false);
         restartBroker();
         final long totalMessages = 200;

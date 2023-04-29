@@ -472,7 +472,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         // Close previous producer to simulate reconnect
         producer.close();
         // Disable auto topic creation
-        conf.setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
         // Check the topic exist in the list.
         Assert.assertTrue(topics.contains(partition2));
         // Check this topic has no partition metadata.

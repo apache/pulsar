@@ -40,9 +40,9 @@ public class BusyWaitServiceTest extends BkEnsemblesTestBase {
 
     protected void configurePulsar(ServiceConfiguration config) {
         config.setEnableBusyWait(true);
-        config.setManagedLedgerDefaultEnsembleSize(1);
-        config.setManagedLedgerDefaultWriteQuorum(1);
-        config.setManagedLedgerDefaultAckQuorum(1);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(1);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(1);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(1);
     }
 
     @Test

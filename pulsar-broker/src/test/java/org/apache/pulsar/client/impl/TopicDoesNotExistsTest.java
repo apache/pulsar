@@ -40,7 +40,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
-        conf.setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
         super.internalSetup();
         super.producerBaseSetup();
     }

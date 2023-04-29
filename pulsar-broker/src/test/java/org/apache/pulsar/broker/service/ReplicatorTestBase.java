@@ -296,7 +296,7 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setTlsTrustStorePassword(keyStorePassword);
         config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
         config.setDefaultNumberOfNamespaceBundles(1);
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
     }

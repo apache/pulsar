@@ -1989,7 +1989,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String persistentTopicName = "persistent://prop-xyz/ns1/test-sub-topic";
 
         // disable auto subscription creation
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(false);
 
         // create a topic and produce some messages
         publishMessagesOnPersistentTopic(persistentTopicName, 5);
@@ -2028,7 +2028,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getSubscriptions(persistentTopicName).size(), 0);
 
         // reset to default
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(true);
 
         client.close();
     }

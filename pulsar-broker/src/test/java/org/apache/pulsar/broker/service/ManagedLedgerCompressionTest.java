@@ -40,7 +40,8 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        conf.getManagedLedgerConfiguration()
+                .setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
         super.baseSetup();
     }
 
@@ -67,17 +68,20 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
+        conf.getManagedLedgerConfiguration()
+                .setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.LZ4.name());
+        conf.getManagedLedgerConfiguration()
+                .setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.LZ4.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType("INVALID");
+        conf.getManagedLedgerConfiguration()
+                .setManagedLedgerInfoCompressionType("INVALID");
         try {
             startBroker();
             Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
@@ -89,7 +93,8 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
                     e.getCause().getMessage());
         }
 
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        conf.getManagedLedgerConfiguration()
+                .setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
     }

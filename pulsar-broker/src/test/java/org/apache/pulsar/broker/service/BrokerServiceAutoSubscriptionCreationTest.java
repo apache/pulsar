@@ -58,7 +58,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     @Test
     public void testAutoSubscriptionCreationDisable() throws Exception {
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(false);
 
         final String topicName = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub";
@@ -76,7 +76,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     @Test
     public void testSubscriptionCreationWithAutoCreationDisable() throws Exception {
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(false);
 
         final String topicName = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub-1";
@@ -100,7 +100,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(false);
         AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
                 .allowAutoSubscriptionCreation(true)
                 .build();
@@ -122,7 +122,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
         admin.topics().createNonPartitionedTopic(topicName.toString());
 
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(true);
         AutoSubscriptionCreationOverride autoSubscriptionCreationOverride = AutoSubscriptionCreationOverride.builder()
                 .allowAutoSubscriptionCreation(false)
                 .build();
@@ -142,7 +142,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     @Test
     public void testNonPersistentTopicSubscriptionCreationWithAutoCreationDisable() throws Exception {
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(false);
 
         final String topicName = "non-persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub";
@@ -157,8 +157,8 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
     @Test
     public void testDynamicConfigurationTopicAutoSubscriptionCreation()
             throws PulsarAdminException, PulsarClientException {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(true);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(true);
         admin.brokers().updateDynamicConfiguration("allowAutoSubscriptionCreation", "false");
         String topicString = "persistent://prop/ns-abc/non-partitioned-topic" + UUID.randomUUID();
         String subscriptionName = "non-partitioned-topic-sub";

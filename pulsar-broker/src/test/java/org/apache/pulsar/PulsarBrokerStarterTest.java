@@ -116,13 +116,13 @@ public class PulsarBrokerStarterTest {
         assertEquals(serviceConfig.getBrokerClientAuthenticationPlugin(), "test.xyz.client.auth.plugin");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
         assertEquals(serviceConfig.getSuperUserRoles(), Sets.newHashSet("appid1", "appid2"));
-        assertEquals(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds(), 3000);
-        assertEquals(serviceConfig.getManagedLedgerMaxEntriesPerLedger(), 25);
-        assertEquals(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger(), 50);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerCursorRolloverTimeInSeconds(), 3000);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerMaxEntriesPerLedger(), 25);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerCursorMaxEntriesPerLedger(), 50);
         assertTrue(serviceConfig.isClientLibraryVersionCheckEnabled());
-        assertEquals(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(), 34);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerMinLedgerRolloverTimeMinutes(), 34);
         assertTrue(serviceConfig.isBacklogQuotaCheckEnabled());
-        assertEquals(serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit(), 5.0);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit(), 5.0);
         assertEquals(serviceConfig.getReplicationProducerQueueSize(), 50);
         assertTrue(serviceConfig.isReplicationMetricsEnabled());
         assertTrue(serviceConfig.isBookkeeperClientHealthCheckEnabled());
@@ -270,9 +270,9 @@ public class PulsarBrokerStarterTest {
         assertEquals(serviceConfig.getBrokerClientAuthenticationPlugin(), "test.xyz.client.auth.plugin");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
         assertEquals(serviceConfig.getSuperUserRoles(), Sets.newHashSet("appid1", "appid2"));
-        assertEquals(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds(), 3000);
-        assertEquals(serviceConfig.getManagedLedgerMaxEntriesPerLedger(), 25);
-        assertEquals(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger(), 50);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerCursorRolloverTimeInSeconds(), 3000);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerMaxEntriesPerLedger(), 25);
+        assertEquals(serviceConfig.getManagedLedgerConfiguration().getManagedLedgerCursorMaxEntriesPerLedger(), 50);
         assertTrue(serviceConfig.isClientLibraryVersionCheckEnabled());
         assertEquals(serviceConfig.getReplicationConnectionsPerBroker(), 12);
     }

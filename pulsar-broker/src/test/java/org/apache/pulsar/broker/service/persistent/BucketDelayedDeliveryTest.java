@@ -60,8 +60,8 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         conf.setDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds(1);
         conf.setDelayedDeliveryMaxIndexesPerBucketSnapshotSegment(10);
         conf.setDelayedDeliveryMinIndexCountPerBucket(50);
-        conf.setManagedLedgerMaxEntriesPerLedger(50);
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(50);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         super.setup();
     }
 

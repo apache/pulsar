@@ -62,8 +62,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        conf.setManagedLedgerMaxEntriesPerLedger(2);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(2);
         super.internalSetup();
 
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());

@@ -1227,8 +1227,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
         // reflection to set/get cache-backlog fields value:
-        final long maxMessageCacheRetentionTimeMillis = conf.getManagedLedgerCacheEvictionTimeThresholdMillis();
-        final long maxActiveCursorBacklogEntries = conf.getManagedLedgerCursorBackloggedThreshold();
+        final long maxMessageCacheRetentionTimeMillis = conf.getManagedLedgerConfiguration()
+                .getManagedLedgerCacheEvictionTimeThresholdMillis();
+        final long maxActiveCursorBacklogEntries = conf.getManagedLedgerConfiguration()
+                .getManagedLedgerCursorBackloggedThreshold();
 
         Message<byte[]> msg;
         final int totalMsgs = (int) maxActiveCursorBacklogEntries + receiverSize + 1;
@@ -4341,7 +4343,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(timeOut = 100000)
     public void testTopicDoesNotExists() throws Exception {
-        pulsar.getConfiguration().setAllowAutoTopicCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
 
         String topic = "persistent://my-property/my-ns/none" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
@@ -4354,7 +4356,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.NotFoundException);
         } finally {
-            conf.setAllowAutoTopicCreation(true);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         }
     }
 

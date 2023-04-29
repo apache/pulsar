@@ -124,9 +124,9 @@ public class BacklogQuotaManagerTest {
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
             config.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-            config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
-            config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-            config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
+            config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             config.setSystemTopicEnabled(false);
             config.setTopicLevelPoliciesEnabled(false);
             config.setForceDeleteNamespaceAllowed(true);

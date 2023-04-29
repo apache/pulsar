@@ -45,10 +45,10 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
     @Override
     protected void configurePulsar(ServiceConfiguration config) {
         // we would like to stripe over 5 bookies
-        config.setManagedLedgerDefaultEnsembleSize(5);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(5);
         // we want 2 copies for each entry
-        config.setManagedLedgerDefaultWriteQuorum(2);
-        config.setManagedLedgerDefaultAckQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(2);
 
         config.setBrokerDeleteInactiveTopicsEnabled(false);
         config.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");

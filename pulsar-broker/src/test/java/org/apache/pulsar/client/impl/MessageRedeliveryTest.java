@@ -84,9 +84,9 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     @Test(dataProvider = "useOpenRangeSet", timeOut = 30000)
     public void testRedelivery(boolean useOpenRangeSet) throws Exception {
 
-        this.conf.setManagedLedgerMaxEntriesPerLedger(5);
-        this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        this.conf.setManagedLedgerUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
+        this.conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(5);
+        this.conf.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        this.conf.getManagedLedgerConfiguration().setManagedLedgerUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
         @Cleanup("shutdownNow")
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
                 new DefaultThreadFactory("pulsar"));

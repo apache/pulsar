@@ -55,11 +55,11 @@ public class AdvertisedAddressTest {
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.ofNullable(0));
         config.setAdvertisedAddress(advertisedAddress);
-        config.setManagedLedgerDefaultEnsembleSize(1);
-        config.setManagedLedgerDefaultWriteQuorum(1);
-        config.setManagedLedgerDefaultAckQuorum(1);
-        config.setManagedLedgerMaxEntriesPerLedger(5);
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(1);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(1);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(1);
+        config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(5);
+        config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsar = new PulsarService(config);
         pulsar.start();
     }

@@ -145,12 +145,12 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         for (int i = 0; i < brokerCount; i++) {
             conf.setClusterName(CLUSTER_NAME);
             conf.setAdvertisedAddress("localhost");
-            conf.setManagedLedgerCacheSizeMB(8);
+            conf.getManagedLedgerConfiguration().setManagedLedgerCacheSizeMB(8);
             conf.setActiveConsumerFailoverDelayTimeMillis(0);
             conf.setDefaultNumberOfNamespaceBundles(1);
             conf.setMetadataStoreUrl("zk:localhost:2181");
             conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
-            conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
             conf.setForceDeleteNamespaceAllowed(true);
             conf.setBrokerShutdownTimeoutMs(0L);

@@ -46,7 +46,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerCacheEvictionIntervalMs(10000);
+        conf.getManagedLedgerConfiguration().setManagedLedgerCacheEvictionIntervalMs(10000);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -59,7 +59,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomainProvider", timeOut = 60000)
     public void testCreateConsumerForPartitionedTopicWhenDisableTopicAutoCreation(TopicDomain domain) throws PulsarAdminException, PulsarClientException {
-        conf.setAllowAutoTopicCreation(domain.equals(TopicDomain.non_persistent));
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(domain.equals(TopicDomain.non_persistent));
         final String topic = domain.value() + "://public/default/testCreateConsumerWhenDisableTopicAutoCreation";
         admin.topics().createPartitionedTopic(topic, 3);
         Assert.assertNotNull(pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe());
@@ -67,7 +67,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomainProvider", timeOut = 60000)
     public void testCreateConsumerForNonPartitionedTopicWhenDisableTopicAutoCreation(TopicDomain domain) throws PulsarClientException {
-        conf.setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
         final String topic = domain.value() + "://public/default/testCreateConsumerForNonPartitionedTopicWhenDisableTopicAutoCreation";
         try {
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
@@ -84,7 +84,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomainProvider", timeOut = 60000)
     public void testCreateConsumerForPartitionedTopicWhenEnableTopicAutoCreation(TopicDomain domain) throws PulsarAdminException, PulsarClientException {
-        conf.setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         final String topic = domain.value() + "://public/default/testCreateConsumerForPartitionedTopicWhenEnableTopicAutoCreation";
         admin.topics().createPartitionedTopic(topic, 3);
         Assert.assertNotNull(pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe());
@@ -92,14 +92,14 @@ public class PartitionCreationTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomainProvider", timeOut = 60000)
     public void testCreateConsumerForNonPartitionedTopicWhenEnableTopicAutoCreation(TopicDomain domain) throws PulsarClientException {
-        conf.setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         final String topic = domain.value() + "://public/default/testCreateConsumerForNonPartitionedTopicWhenEnableTopicAutoCreation";
         Assert.assertNotNull(pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe());
     }
 
     @Test(timeOut = 60000)
     public void testCreateConsumerForPartitionedTopicUpdateWhenDisableTopicAutoCreation() throws Exception {
-        conf.setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
         final String topic = "testCreateConsumerForPartitionedTopicUpdateWhenDisableTopicAutoCreation-" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 3);
         MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic).subscriptionName("sub-1").subscribe();
@@ -119,7 +119,7 @@ public class PartitionCreationTest extends ProducerConsumerBase {
 
     @Test(timeOut = 60000, dataProvider = "restCreateMissedPartitions")
     public void testCreateMissedPartitions(boolean useRestApi) throws PulsarAdminException, PulsarClientException, MetadataStoreException {
-        conf.setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
         final String topic = "testCreateMissedPartitions-useRestApi-" + useRestApi;
         int numPartitions = 3;
         // simulate partitioned topic without partitions

@@ -88,8 +88,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setManagedLedgerMaxEntriesPerLedger(10);
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(10);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
 
         super.internalSetup();
 
@@ -276,8 +276,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetNamespaceOffloadPolicies() throws Exception {
-        conf.setManagedLedgerOffloadThresholdInSeconds(100);
-        conf.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
+        conf.getManagedLedgerConfiguration().setManagedLedgerOffloadThresholdInSeconds(100);
+        conf.getManagedLedgerConfiguration().setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
 
         OffloadPoliciesImpl policies = new OffloadPoliciesImpl();
         policies.setManagedLedgerOffloadThresholdInBytes(200L);
@@ -315,8 +315,8 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSetTopicOffloadPolicies() throws Exception {
-        conf.setManagedLedgerOffloadThresholdInSeconds(100);
-        conf.setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
+        conf.getManagedLedgerConfiguration().setManagedLedgerOffloadThresholdInSeconds(100);
+        conf.getManagedLedgerConfiguration().setManagedLedgerOffloadAutoTriggerSizeThresholdBytes(100);
 
         LedgerOffloader topicOffloader = mock(LedgerOffloader.class);
         when(topicOffloader.getOffloadDriverName()).thenReturn("mock");

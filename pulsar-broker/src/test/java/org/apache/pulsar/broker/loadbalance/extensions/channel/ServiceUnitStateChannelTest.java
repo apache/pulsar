@@ -128,7 +128,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         conf.setLoadBalancerDebugModeEnabled(true);
         conf.setBrokerServiceCompactionMonitorIntervalInSeconds(10);
         super.internalSetup(conf);

@@ -880,7 +880,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
     // Initial set up for transport manager and cluster creation.
     private void prepareForOps() throws PulsarAdminException {
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
-        this.conf.setAllowAutoTopicCreation(true);
+        this.conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
     }
 

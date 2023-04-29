@@ -1766,12 +1766,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Test
     public void testMetricsWithCache() throws Throwable {
         ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
-        Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
+        Mockito.when(configuration.getManagedLedgerConfiguration()
+                .getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
         Mockito.when(configuration.isMetricsBufferResponse()).thenReturn(true);
         Mockito.when(configuration.getClusterName()).thenReturn(configClusterName);
         Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
 
-        int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
+        int period = pulsar.getConfiguration().getManagedLedgerConfiguration()
+                .getManagedLedgerStatsPeriodSeconds();
         TimeWindow<Object> timeWindow = new TimeWindow<>(2, (int) TimeUnit.SECONDS.toMillis(period));
 
         for (int a = 0; a < 4; a++) {

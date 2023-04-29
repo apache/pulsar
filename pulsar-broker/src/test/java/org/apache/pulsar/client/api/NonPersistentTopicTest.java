@@ -103,11 +103,12 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     @Test(timeOut = 90000 /* 1.5mn */)
     public void testNonPersistentPartitionsAreNotAutoCreatedWhenThePartitionedTopicDoesNotExist() throws Exception {
-        final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
+        final boolean defaultAllowAutoTopicCreation = conf.getManagedLedgerConfiguration()
+                .isAllowAutoTopicCreation();
         try {
             // Given the auto topic creation is disabled
             cleanup();
-            conf.setAllowAutoTopicCreation(false);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
             setup();
 
             final String topicPartitionName = "non-persistent://public/default/issue-9173-partition-0";
@@ -124,17 +125,17 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
                 assertTrue(e instanceof PulsarClientException.NotFoundException);
             }
         } finally {
-            conf.setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
         }
     }
 
     @Test(timeOut = 90000 /* 1.5mn */)
     public void testAutoCreateNonPersistentPartitionsWhenThePartitionedTopicExists() throws Exception {
-        final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
+        final boolean defaultAllowAutoTopicCreation = conf.getManagedLedgerConfiguration().isAllowAutoTopicCreation();
         try {
             // Given the auto topic creation is disabled
             cleanup();
-            conf.setAllowAutoTopicCreation(false);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
             setup();
 
             // Given the non-persistent partitioned topic exists
@@ -153,7 +154,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             consumer.close();
             producer.close();
         } finally {
-            conf.setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(defaultAllowAutoTopicCreation);
         }
     }
 
@@ -929,7 +930,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config1.setBrokerServicePort(Optional.of(0));
             config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-            config1.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            config1.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar1 = new PulsarService(config1);
             pulsar1.start();
             ns1 = pulsar1.getBrokerService();
@@ -956,7 +957,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config2.setBrokerServicePort(Optional.of(0));
             config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-            config2.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            config2.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar2 = new PulsarService(config2);
             pulsar2.start();
             ns2 = pulsar2.getBrokerService();
@@ -982,7 +983,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setBrokerShutdownTimeoutMs(0L);
             config3.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config3.setBrokerServicePort(Optional.of(0));
-            config3.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+            config3.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar3 = new PulsarService(config3);
             pulsar3.start();
             ns3 = pulsar3.getBrokerService();

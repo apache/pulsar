@@ -64,7 +64,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        this.conf.setManagedLedgerMaxEntriesPerLedger(10);
+        this.conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(10);
     }
 
     @Override

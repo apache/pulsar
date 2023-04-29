@@ -56,7 +56,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerCacheEvictionIntervalMs(10000);
+        conf.getManagedLedgerConfiguration().setManagedLedgerCacheEvictionIntervalMs(10000);
         super.internalSetup();
         super.producerBaseSetup();
     }
@@ -99,8 +99,8 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
     public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
         String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
-        conf.setManagedLedgerMaxEntriesPerLedger(2);
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(2);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()

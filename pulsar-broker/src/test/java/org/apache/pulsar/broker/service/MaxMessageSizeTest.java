@@ -69,8 +69,8 @@ public class MaxMessageSizeTest {
             configuration.setBrokerServicePort(Optional.of(0));
             configuration.setAuthorizationEnabled(false);
             configuration.setAuthenticationEnabled(false);
-            configuration.setManagedLedgerMaxEntriesPerLedger(5);
-            configuration.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            configuration.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(5);
+            configuration.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             configuration.setMaxMessageSize(10 * 1024 * 1024);
 
             pulsar = new PulsarService(configuration);

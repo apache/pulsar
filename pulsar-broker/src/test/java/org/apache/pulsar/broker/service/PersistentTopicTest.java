@@ -1909,7 +1909,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     @Test
     public void testBacklogCursor() throws Exception {
         int backloggedThreshold = 10;
-        pulsarTestContext.getConfig().setManagedLedgerCursorBackloggedThreshold(backloggedThreshold);
+        pulsarTestContext.getConfig().getManagedLedgerConfiguration()
+                .setManagedLedgerCursorBackloggedThreshold(backloggedThreshold);
 
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_backlog_ledger");
         PersistentTopic topic = new PersistentTopic(successTopicName, ledger, brokerService);

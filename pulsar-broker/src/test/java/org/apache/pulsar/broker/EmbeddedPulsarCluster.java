@@ -103,7 +103,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAdvertisedAddress("localhost");
         conf.setClusterName(CLUSTER_NAME);
-        conf.setManagedLedgerCacheSizeMB(8);
+        conf.getManagedLedgerConfiguration().setManagedLedgerCacheSizeMB(8);
         conf.setDefaultNumberOfNamespaceBundles(1);
         conf.setMetadataStoreUrl(metadataStoreUrl);
         conf.setBrokerShutdownTimeoutMs(0L);
@@ -117,15 +117,15 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setNumOrderedExecutorThreads(1);
         conf.setBookkeeperClientNumWorkerThreads(1);
         conf.setBookkeeperNumberOfChannelsPerBookie(1);
-        conf.setManagedLedgerNumSchedulerThreads(1);
+        conf.getManagedLedgerConfiguration().setManagedLedgerNumSchedulerThreads(1);
         conf.setWebSocketNumIoThreads(1);
         conf.setNumTransactionReplayThreadPoolSize(1);
         conf.setNumHttpServerThreads(4);
 
         if (numBookies < 2) {
-            conf.setManagedLedgerDefaultEnsembleSize(1);
-            conf.setManagedLedgerDefaultWriteQuorum(1);
-            conf.setManagedLedgerDefaultAckQuorum(1);
+            conf.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(1);
+            conf.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(1);
+            conf.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(1);
         }
         return conf;
     }

@@ -289,7 +289,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     public void cumulativePendingAckReplayTest() throws Exception {
         int messageCount = 1000;
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(4 * messageCount + 2);
-        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(10);
+        getPulsarServiceList().get(0).getConfiguration()
+                .getManagedLedgerConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(10);
         String subName = "cumulative-test";
 
         @Cleanup
@@ -447,7 +448,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     @Test(groups = "quarantine")
     public void testDeleteUselessLogDataWhenSubCursorMoved() throws Exception {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(5);
-        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
+        getPulsarServiceList().get(0).getConfiguration()
+                .getManagedLedgerConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
         String subName = "test-log-delete";
         String topic = TopicName.get(TopicDomain.persistent.toString(),
                 NamespaceName.get(NAMESPACE1), "test-log-delete").toString();

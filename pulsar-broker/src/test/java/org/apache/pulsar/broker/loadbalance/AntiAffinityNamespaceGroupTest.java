@@ -89,7 +89,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     }
 
     void setupConfigs(ServiceConfiguration conf){
-        conf.setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(getLoadManagerClassName());
         conf.setFailureDomainsEnabled(true);
         conf.setLoadBalancerEnabled(true);

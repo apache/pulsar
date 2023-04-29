@@ -129,7 +129,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setForceDeleteNamespaceAllowed(true);
-        conf.setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
         conf.setLoadBalancerSheddingEnabled(false);
@@ -137,7 +137,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
         super.internalSetup(conf);
         pulsar1 = pulsar;
         ServiceConfiguration defaultConf = getDefaultConf();
-        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
@@ -476,7 +476,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     public void testDeployAndRollbackLoadManager() throws Exception {
         // Test rollback to modular load manager.
         ServiceConfiguration defaultConf = getDefaultConf();
-        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         defaultConf.setForceDeleteNamespaceAllowed(true);
         defaultConf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         defaultConf.setLoadBalancerSheddingEnabled(false);
@@ -516,7 +516,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
 
             // Test deploy new broker with new load manager
             ServiceConfiguration conf = getDefaultConf();
-            conf.setAllowAutoTopicCreation(true);
+            conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
             conf.setForceDeleteNamespaceAllowed(true);
             conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
             conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());

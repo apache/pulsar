@@ -172,7 +172,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
     @Test
     public void testInitialSubscriptionCreationWithAutoCreationDisable()
             throws PulsarAdminException, PulsarClientException {
-        pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
+        pulsar.getConfiguration().getManagedLedgerConfiguration().setAllowAutoSubscriptionCreation(false);
 
         final TopicName topic =
                 TopicName.get("persistent", "public", "default",

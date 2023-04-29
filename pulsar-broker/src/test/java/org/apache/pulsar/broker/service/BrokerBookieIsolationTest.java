@@ -157,16 +157,16 @@ public class BrokerBookieIsolationTest {
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
-        config.setManagedLedgerDefaultEnsembleSize(2);
-        config.setManagedLedgerDefaultWriteQuorum(2);
-        config.setManagedLedgerDefaultAckQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(2);
 
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
-        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -311,16 +311,16 @@ public class BrokerBookieIsolationTest {
         config.setStrictBookieAffinityEnabled(true);
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
-        config.setManagedLedgerDefaultEnsembleSize(2);
-        config.setManagedLedgerDefaultWriteQuorum(2);
-        config.setManagedLedgerDefaultAckQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(2);
 
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
-        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -454,16 +454,16 @@ public class BrokerBookieIsolationTest {
         config.setSystemTopicEnabled(false);
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
-        config.setManagedLedgerDefaultEnsembleSize(2);
-        config.setManagedLedgerDefaultWriteQuorum(2);
-        config.setManagedLedgerDefaultAckQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(2);
 
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
-        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -611,15 +611,15 @@ public class BrokerBookieIsolationTest {
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
-        config.setManagedLedgerDefaultEnsembleSize(2);
-        config.setManagedLedgerDefaultWriteQuorum(2);
-        config.setManagedLedgerDefaultAckQuorum(2);
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(2);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         int totalEntriesPerLedger = 20;
         int totalLedgers = totalPublish / totalEntriesPerLedger;
-        config.setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(totalEntriesPerLedger);
+        config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -752,12 +752,12 @@ public class BrokerBookieIsolationTest {
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
-        config.setManagedLedgerDefaultEnsembleSize(2);
-        config.setManagedLedgerDefaultWriteQuorum(2);
-        config.setManagedLedgerDefaultAckQuorum(2);
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultEnsembleSize(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultWriteQuorum(2);
+        config.getManagedLedgerConfiguration().setManagedLedgerDefaultAckQuorum(2);
+        config.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
-        config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.getManagedLedgerConfiguration().setManagedLedgerMinLedgerRolloverTimeMinutes(0);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 

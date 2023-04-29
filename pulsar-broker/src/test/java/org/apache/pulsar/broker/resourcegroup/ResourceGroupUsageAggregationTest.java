@@ -272,7 +272,7 @@ public class ResourceGroupUsageAggregationTest extends ProducerConsumerBase {
     private void prepareData() throws PulsarAdminException {
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
 
-        this.conf.setAllowAutoTopicCreation(true);
+        this.conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
 
         final String clusterName = "test";
         admin.clusters().createCluster(clusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());

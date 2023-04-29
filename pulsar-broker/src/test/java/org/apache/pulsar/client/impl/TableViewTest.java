@@ -70,7 +70,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
         super.internalSetup(conf);
 
         admin.clusters().createCluster("test",

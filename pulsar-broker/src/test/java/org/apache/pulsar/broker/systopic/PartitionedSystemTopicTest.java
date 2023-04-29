@@ -72,10 +72,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        conf.setAllowAutoTopicCreation(false);
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setDefaultNumPartitions(PARTITIONS);
-        conf.setManagedLedgerMaxEntriesPerLedger(1);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(false);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(PARTITIONS);
+        conf.getManagedLedgerConfiguration().setManagedLedgerMaxEntriesPerLedger(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
 
         super.baseSetup();
