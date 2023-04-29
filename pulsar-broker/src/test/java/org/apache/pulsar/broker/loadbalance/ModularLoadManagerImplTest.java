@@ -151,15 +151,15 @@ public class ModularLoadManagerImplTest {
 
         // Start broker 1
         ServiceConfiguration config1 = new ServiceConfiguration();
-        config1.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        config1.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
+        config1.getLoadBalancerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config1.getLoadBalancerConfiguration().setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config1.setClusterName("use");
         config1.setWebServicePort(Optional.of(0));
         config1.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
 
         config1.setAdvertisedAddress("localhost");
         config1.setBrokerShutdownTimeoutMs(0L);
-        config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config1.getLoadBalancerConfiguration().setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
         config1.setBrokerServicePortTls(Optional.of(0));
         config1.setWebServicePortTls(Optional.of(0));
@@ -172,14 +172,14 @@ public class ModularLoadManagerImplTest {
 
         // Start broker 2
         ServiceConfiguration config2 = new ServiceConfiguration();
-        config2.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        config2.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
+        config2.getLoadBalancerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config2.getLoadBalancerConfiguration().setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config2.setClusterName("use");
         config2.setWebServicePort(Optional.of(0));
         config2.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config2.setAdvertisedAddress("localhost");
         config2.setBrokerShutdownTimeoutMs(0L);
-        config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config2.getLoadBalancerConfiguration().setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
         config2.setBrokerServicePortTls(Optional.of(0));
         config2.setWebServicePortTls(Optional.of(0));
@@ -187,14 +187,14 @@ public class ModularLoadManagerImplTest {
         pulsar2.start();
 
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
-        config.setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
+        config.getLoadBalancerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.getLoadBalancerConfiguration().setLoadBalancerLoadSheddingStrategy("org.apache.pulsar.broker.loadbalance.impl.OverloadShedder");
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setAdvertisedAddress("localhost");
         config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config.getLoadBalancerConfiguration().setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
@@ -380,7 +380,7 @@ public class ModularLoadManagerImplTest {
                 totalBundles);
         final BundleData bundleData = new BundleData(10, 1000);
         // it sets max topics under this bundle so, owner of this broker reaches max-topic threshold
-        bundleData.setTopics(pulsar1.getConfiguration().getLoadBalancerBrokerMaxTopics() + 10);
+        bundleData.setTopics(pulsar1.getConfiguration().getLoadBalancerConfiguration().getLoadBalancerBrokerMaxTopics() + 10);
         final TimeAverageMessageData longTermMessageData = new TimeAverageMessageData(1000);
         longTermMessageData.setMsgRateIn(1000);
         bundleData.setLongTermData(longTermMessageData);
@@ -412,7 +412,7 @@ public class ModularLoadManagerImplTest {
             return null;
         }).when(namespacesSpy1).unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString());
         setField(pulsar1.getAdminClient(), "namespaces", namespacesSpy1);
-        pulsar1.getConfiguration().setLoadBalancerEnabled(true);
+        pulsar1.getConfiguration().getLoadBalancerConfiguration().setLoadBalancerEnabled(true);
         final LoadData loadData = (LoadData) getField(primaryLoadManager, "loadData");
         final Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
         final BrokerData brokerDataSpy1 = spy(brokerDataMap.get(primaryHost));
@@ -454,7 +454,7 @@ public class ModularLoadManagerImplTest {
         final LocalBrokerData currentData = new LocalBrokerData();
         final ServiceConfiguration conf = pulsar1.getConfiguration();
         // Set this manually in case the default changes.
-        conf.setLoadBalancerReportUpdateThresholdPercentage(5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerReportUpdateThresholdPercentage(5);
         // Easier to test using an uninitialized ModularLoadManagerImpl.
         final ModularLoadManagerImpl loadManager = new ModularLoadManagerImpl();
         setField(loadManager, "lastData", lastData);
@@ -709,12 +709,12 @@ public class ModularLoadManagerImplTest {
     public void testOwnBrokerZnodeByMultipleBroker() throws Exception {
 
         ServiceConfiguration config = new ServiceConfiguration();
-        config.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
+        config.getLoadBalancerConfiguration().setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
         config.setClusterName("use");
         config.setWebServicePort(Optional.of(0));
         config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
-        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        config.getLoadBalancerConfiguration().setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         PulsarService pulsar = new PulsarService(config);
         // create znode using different zk-session

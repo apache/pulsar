@@ -75,7 +75,7 @@ public class SplitSchedulerTest {
     public void setUp() {
 
         config = new ServiceConfiguration();
-        config.setLoadBalancerDebugModeEnabled(true);
+        config.getLoadBalancerConfiguration().setLoadBalancerDebugModeEnabled(true);
 
         pulsar = mock(PulsarService.class);
         namespaceBundleFactory = mock(NamespaceBundleFactory.class);
@@ -156,15 +156,15 @@ public class SplitSchedulerTest {
     @Test(timeOut = 30 * 1000)
     public void testDisableLoadBalancer() {
 
-        config.setLoadBalancerEnabled(false);
+        config.getLoadBalancerConfiguration().setLoadBalancerEnabled(false);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, null, null, null, context, strategy);
 
         scheduler.execute();
 
         verify(strategy, times(0)).findBundlesToSplit(any(), any());
 
-        config.setLoadBalancerEnabled(true);
-        config.setLoadBalancerAutoBundleSplitEnabled(false);
+        config.getLoadBalancerConfiguration().setLoadBalancerEnabled(true);
+        config.getLoadBalancerConfiguration().setLoadBalancerAutoBundleSplitEnabled(false);
         scheduler.execute();
 
         verify(strategy, times(0)).findBundlesToSplit(any(), any());

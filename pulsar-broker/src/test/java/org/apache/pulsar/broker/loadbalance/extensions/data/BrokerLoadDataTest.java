@@ -38,12 +38,12 @@ public class BrokerLoadDataTest {
     public void testUpdateBySystemResourceUsage() {
 
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(0.5);
-        conf.setLoadBalancerMemoryResourceWeight(0.5);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.5);
-        conf.setLoadBalancerBandwithInResourceWeight(0.5);
-        conf.setLoadBalancerBandwithOutResourceWeight(0.5);
-        conf.setLoadBalancerHistoryResourcePercentage(0.75);
+        conf.getLoadBalancerConfiguration().setLoadBalancerCPUResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerMemoryResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerDirectMemoryResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithInResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithOutResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerHistoryResourcePercentage(0.75);
 
         BrokerLoadData data = new BrokerLoadData();
 
@@ -59,7 +59,8 @@ public class BrokerLoadDataTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        data.update(usage1, 1, 2, 3, 4, 5, 6, conf);
+        data.update(usage1, 1, 2, 3, 4, 5, 6,
+                conf.getLoadBalancerConfiguration());
         
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
@@ -89,7 +90,8 @@ public class BrokerLoadDataTest {
         usage2.setDirectMemory(directMemory);
         usage2.setBandwidthIn(bandwidthIn);
         usage2.setBandwidthOut(bandwidthOut);
-        data.update(usage2, 5, 6, 7, 8, 9, 10, conf);
+        data.update(usage2, 5, 6, 7, 8, 9, 10,
+                conf.getLoadBalancerConfiguration());
 
         assertEquals(data.getCpu(), cpu);
         assertEquals(data.getMemory(), memory);
@@ -107,7 +109,7 @@ public class BrokerLoadDataTest {
         assertEquals(data.getMsgThroughputEMA(), 5);
         assertThat(data.getUpdatedAt(), greaterThanOrEqualTo(now));
         assertEquals(data.getReportedAt(), 0l);
-        assertEquals(data.toString(conf), "cpu= 300.00%, memory= 100.00%, directMemory= 2.00%, "
+        assertEquals(data.toString(conf.getLoadBalancerConfiguration()), "cpu= 300.00%, memory= 100.00%, directMemory= 2.00%, "
                 + "bandwithIn= 3.00%, bandwithOut= 4.00%, "
                 + "cpuWeight= 0.500000, memoryWeight= 0.500000, directMemoryWeight= 0.500000, "
                 + "bandwithInResourceWeight= 0.500000, bandwithOutResourceWeight= 0.500000, "
@@ -123,12 +125,12 @@ public class BrokerLoadDataTest {
     @Test
     public void testUpdateByBrokerLoadData() {
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(0.5);
-        conf.setLoadBalancerMemoryResourceWeight(0.5);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.5);
-        conf.setLoadBalancerBandwithInResourceWeight(0.5);
-        conf.setLoadBalancerBandwithOutResourceWeight(0.5);
-        conf.setLoadBalancerHistoryResourcePercentage(0.75);
+        conf.getLoadBalancerConfiguration().setLoadBalancerCPUResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerMemoryResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerDirectMemoryResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithInResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithOutResourceWeight(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerHistoryResourcePercentage(0.75);
 
         BrokerLoadData data = new BrokerLoadData();
         BrokerLoadData other = new BrokerLoadData();
@@ -144,7 +146,8 @@ public class BrokerLoadDataTest {
         usage1.setDirectMemory(directMemory);
         usage1.setBandwidthIn(bandwidthIn);
         usage1.setBandwidthOut(bandwidthOut);
-        other.update(usage1, 1, 2, 3, 4, 5, 6, conf);
+        other.update(usage1, 1, 2, 3, 4, 5, 6,
+                conf.getLoadBalancerConfiguration());
         data.update(other);
 
         assertEquals(data, other);

@@ -85,13 +85,13 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("4", brokerData4);
 
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(1.0);
-        conf.setLoadBalancerMemoryResourceWeight(0.1);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
-        conf.setLoadBalancerHistoryResourcePercentage(0.5);
-        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerCPUResourceWeight(1.0);
+        conf.getLoadBalancerConfiguration().setLoadBalancerMemoryResourceWeight(0.1);
+        conf.getLoadBalancerConfiguration().setLoadBalancerDirectMemoryResourceWeight(0.1);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithInResourceWeight(1.0);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.getLoadBalancerConfiguration().setLoadBalancerHistoryResourcePercentage(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 
         ModularLoadManagerStrategy strategy = new LeastResourceUsageWithWeight();
 
@@ -164,13 +164,13 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("4", brokerData4);
 
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setLoadBalancerCPUResourceWeight(1.0);
-        conf.setLoadBalancerMemoryResourceWeight(0.1);
-        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
-        conf.setLoadBalancerBandwithInResourceWeight(1.0);
-        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
-        conf.setLoadBalancerHistoryResourcePercentage(0.5);
-        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerCPUResourceWeight(1.0);
+        conf.getLoadBalancerConfiguration().setLoadBalancerMemoryResourceWeight(0.1);
+        conf.getLoadBalancerConfiguration().setLoadBalancerDirectMemoryResourceWeight(0.1);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithInResourceWeight(1.0);
+        conf.getLoadBalancerConfiguration().setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.getLoadBalancerConfiguration().setLoadBalancerHistoryResourcePercentage(0.5);
+        conf.getLoadBalancerConfiguration().setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 
         LeastResourceUsageWithWeight strategy = new LeastResourceUsageWithWeight();
 

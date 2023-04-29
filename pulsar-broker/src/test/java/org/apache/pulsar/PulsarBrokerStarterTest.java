@@ -205,14 +205,14 @@ public class PulsarBrokerStarterTest {
 
         assertTrue(returnValue instanceof ServiceConfiguration);
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
-        assertFalse(serviceConfig.isLoadBalancerEnabled());
-        assertEquals(serviceConfig.getLoadBalancerHostUsageCheckIntervalMinutes(), 4);
-        assertEquals(serviceConfig.getLoadBalancerReportUpdateThresholdPercentage(), 15);
-        assertEquals(serviceConfig.getLoadBalancerReportUpdateMaxIntervalMinutes(), 20);
-        assertEquals(serviceConfig.getLoadBalancerBrokerOverloadedThresholdPercentage(), 80);
-        assertEquals(serviceConfig.getLoadBalancerBrokerUnderloadedThresholdPercentage(), 40);
-        assertEquals(serviceConfig.getLoadBalancerSheddingIntervalMinutes(), 8);
-        assertEquals(serviceConfig.getLoadBalancerSheddingGracePeriodMinutes(), 29);
+        assertFalse(serviceConfig.getLoadBalancerConfiguration().isLoadBalancerEnabled());
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(), 4);
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerReportUpdateThresholdPercentage(), 15);
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerReportUpdateMaxIntervalMinutes(), 20);
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerBrokerOverloadedThresholdPercentage(), 80);
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerBrokerUnderloadedThresholdPercentage(), 40);
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerSheddingIntervalMinutes(), 8);
+        assertEquals(serviceConfig.getLoadBalancerConfiguration().getLoadBalancerSheddingGracePeriodMinutes(), 29);
     }
 
     /**

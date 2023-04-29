@@ -49,7 +49,7 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
     protected ServiceConfiguration getDefaultConf() {
         ServiceConfiguration conf = super.getDefaultConf();
         conf.setBrokerShutdownTimeoutMs(1000 * 60 * 5);
-        conf.setLoadBalancerSheddingIntervalMinutes(30);
+        conf.getLoadBalancerConfiguration().setLoadBalancerSheddingIntervalMinutes(30);
         return conf;
     }
 
