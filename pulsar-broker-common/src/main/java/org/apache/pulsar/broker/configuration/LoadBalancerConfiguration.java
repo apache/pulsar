@@ -18,19 +18,17 @@
  */
 package org.apache.pulsar.broker.configuration;
 
+import static org.apache.pulsar.broker.ServiceConfiguration.CATEGORY_LOAD_BALANCER;
 import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Optional;
+import java.util.Properties;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.Properties;
-
-import static org.apache.pulsar.broker.ServiceConfiguration.CATEGORY_LOAD_BALANCER;
 
 @Getter
 @Setter
