@@ -54,7 +54,7 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
 
     @Test
     public void testTopicLevelMetrics() throws Exception {
-        conf.setExposeTopicLevelMetricsInPrometheus(true);
+        conf.getMetricConfiguration().setExposeTopicLevelMetricsInPrometheus(true);
         super.baseSetup();
 
         String ns1 = "prop/ns-abc1";
@@ -90,7 +90,7 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
 
     @Test(priority = 1)
     public void testNamespaceLevelMetrics() throws Exception {
-        conf.setExposeTopicLevelMetricsInPrometheus(false);
+        conf.getMetricConfiguration().setExposeTopicLevelMetricsInPrometheus(false);
         super.baseSetup();
 
         String ns1 = "prop/ns-abc1";

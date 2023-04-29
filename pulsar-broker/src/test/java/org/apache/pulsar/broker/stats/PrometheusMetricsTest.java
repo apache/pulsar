@@ -136,7 +136,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             conf.setBrokerPublisherThrottlingMaxMessageRate(1);
             conf.setBrokerPublisherThrottlingMaxByteRate(1);
         }
-        conf.setStatsUpdateFrequencyInSecs(100000000);
+        conf.getMetricConfiguration().setStatsUpdateFrequencyInSecs(100000000);
         conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
         setup();
         String ns1 = "prop/ns-abc1" + UUID.randomUUID();
@@ -1579,7 +1579,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         }
 
         // enable ExposeManagedCursorMetricsInPrometheus
-        pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(true);
+        pulsar.getConfiguration().getMetricConfiguration().setExposeManagedCursorMetricsInPrometheus(true);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
         String metricsStr = statsOut.toString();
@@ -1592,7 +1592,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("cursor_name"), subName);
 
         // disable ExposeManagedCursorMetricsInPrometheus
-        pulsar.getConfiguration().setExposeManagedCursorMetricsInPrometheus(false);
+        pulsar.getConfiguration().getMetricConfiguration().setExposeManagedCursorMetricsInPrometheus(false);
         ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
         String metricsStr2 = statsOut2.toString();
@@ -1767,7 +1767,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testMetricsWithCache() throws Throwable {
         ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
         Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
-        Mockito.when(configuration.isMetricsBufferResponse()).thenReturn(true);
+        Mockito.when(configuration.getMetricConfiguration().isMetricsBufferResponse()).thenReturn(true);
         Mockito.when(configuration.getClusterName()).thenReturn(configClusterName);
         Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
 

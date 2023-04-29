@@ -319,6 +319,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
+        this.metricConfiguration = config.getMetricConfiguration();
         this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
