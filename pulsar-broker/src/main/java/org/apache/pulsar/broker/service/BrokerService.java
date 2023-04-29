@@ -970,7 +970,7 @@ public class BrokerService implements Closeable {
                                 if (rateLimiter != null) {
                                     rateLimiter.acquire(1);
                                 }
-                                long timeout = pulsar.getLoadBalancerConfiguration()
+                                long timeout = pulsar.getConfiguration()
                                         .getNamespaceBundleUnloadingTimeoutMs();
                                 pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
                                         closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
