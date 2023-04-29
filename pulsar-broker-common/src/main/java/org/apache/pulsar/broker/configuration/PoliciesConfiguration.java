@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.configuration;
 
+import static org.apache.pulsar.broker.ServiceConfiguration.CATEGORY_POLICIES;
 import com.google.common.collect.Sets;
+import java.util.Properties;
+import java.util.Set;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -27,11 +30,6 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
-
-import java.util.Properties;
-import java.util.Set;
-
-import static org.apache.pulsar.broker.ServiceConfiguration.CATEGORY_POLICIES;
 
 @Getter
 @Setter
@@ -48,7 +46,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Whether to enable precise time based backlog quota check. "
-                    + "Enabling precise time based backlog quota check will cause broker to read first entry in backlog "
+                    + "Enabling precise time based backlog quota check will cause broker to "
+                    + "read first entry in backlog "
                     + "of the slowest cursor on a ledger which will mostly result in reading entry from BookKeeper's "
                     + "disk which can have negative impact on overall performance. "
                     + "Disabling precise time based backlog quota check will just use the timestamp indicating when a "
@@ -91,7 +90,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
                     + "'producer_request_hold' Policy which holds producer's send request until the"
                     + "resource becomes available (or holding times out)\n"
                     + "'producer_exception' Policy which throws javax.jms.ResourceAllocationException to the producer\n"
-                    + "'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog"
+                    + "'consumer_backlog_eviction' Policy which evicts the oldest message"
+                    + " from the slowest consumer's backlog"
     )
     private BacklogQuota.RetentionPolicy backlogQuotaDefaultRetentionPolicy = BacklogQuota.RetentionPolicy
             .producer_request_hold;
@@ -131,7 +131,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Set the inactive topic delete mode. Default is delete_when_no_subscriptions\n"
-                    + "'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active "
+                    + "'delete_when_no_subscriptions' mode only delete the topic which has "
+                    + "no subscriptions and no active "
                     + "producers\n"
                     + "'delete_when_subscriptions_caught_up' mode only delete the topic that all subscriptions has no "
                     + "backlogs(caught up) and no active producers/consumers"
@@ -187,7 +188,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
     private long subscriptionBacklogScanMaxTimeMs = 1000 * 60 * 2L;
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = "Maximum number of entries to process while scanning a subscription to calculate the accurate backlog"
+            doc = "Maximum number of entries to process while scanning a subscription to "
+                    + "calculate the accurate backlog"
     )
     private long subscriptionBacklogScanMaxEntries = 10_000;
     @FieldContext(
@@ -291,7 +293,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
             category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "The maximum number of namespaces that each tenant can create."
-                    + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded")
+                    + "This configuration is not precise control, "
+                    + "in a concurrent scenario, the threshold will be exceeded")
     private int maxNamespacesPerTenant = 0;
 
     @FieldContext(
@@ -320,7 +323,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             dynamic = true,
-            doc = "Allow schema to be auto updated at broker level. User can override this by 'is_allow_auto_update_schema'"
+            doc = "Allow schema to be auto updated at broker level. "
+                    + "User can override this by 'is_allow_auto_update_schema'"
                     + " of namespace policy. This is enabled by default."
     )
     private boolean isAllowAutoUpdateSchemaEnabled = true;
@@ -346,13 +350,15 @@ public class PoliciesConfiguration implements PulsarConfiguration {
             doc = "Max number of unacknowledged messages allowed per broker. \n\n"
                     + " Once this limit reaches, broker will stop dispatching messages to all shared subscription "
                     + " which has higher number of unack messages until subscriptions start acknowledging messages "
-                    + " back and unack count reaches to `limit/2`. Using a value of 0, is disabling unackedMessage-limit"
+                    + " back and unack count reaches to `limit/2`. "
+                    + "Using a value of 0, is disabling unackedMessage-limit"
                     + " check and broker doesn't block dispatchers")
     private int maxUnackedMessagesPerBroker = 0;
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Once broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which has higher "
-                    + " unacked messages than this percentage limit and subscription will not receive any new messages "
+                    + " unacked messages than this percentage limit "
+                    + "and subscription will not receive any new messages "
                     + " until that subscription acks back `limit/2` messages")
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
@@ -433,7 +439,8 @@ public class PoliciesConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
-            doc = "Default number of message-bytes dispatching throttling-limit for every replicator in replication. \n\n"
+            doc = "Default number of message-bytes dispatching "
+                    + "throttling-limit for every replicator in replication. \n\n"
                     + "Using a value of 0, is disabling replication message-byte dispatch-throttling")
     private long dispatchThrottlingRatePerReplicatorInByte = 0;
     @FieldContext(
