@@ -1061,8 +1061,8 @@ public class PersistentTopicsBase extends AdminResource {
                     if (applied) {
                         Integer maxUnackedNum = getNamespacePolicies(namespaceName)
                                 .max_unacked_messages_per_subscription;
-                        return maxUnackedNum == null ?
-                                policiesConfiguration().getMaxUnackedMessagesPerSubscription() : maxUnackedNum;
+                        return maxUnackedNum == null
+                                ? policiesConfiguration().getMaxUnackedMessagesPerSubscription() : maxUnackedNum;
                     }
                     return null;
                 }));
@@ -1090,8 +1090,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .orElseGet(() -> {
                     if (applied) {
                         Integer maxUnacked = getNamespacePolicies(namespaceName).max_unacked_messages_per_consumer;
-                        return maxUnacked == null ?
-                                policiesConfiguration().getMaxUnackedMessagesPerConsumer() : maxUnacked;
+                        return maxUnacked == null
+                                ? policiesConfiguration().getMaxUnackedMessagesPerConsumer() : maxUnacked;
                     }
                     return null;
                 }));
