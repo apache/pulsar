@@ -31,9 +31,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+
+import io.grpc.LoadBalancer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
@@ -75,7 +78,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
         decisionCache.clear();
         namespaceBundleCount.clear();
         splittingBundles.clear();
-        final ServiceConfiguration conf = pulsar.getConfiguration();
+        final LoadBalancerConfiguration conf = pulsar.getLoadBalancerConfiguration();
         int maxBundleCount = conf.getLoadBalancerNamespaceMaximumBundles();
         long maxBundleTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
         long maxBundleSessions = conf.getLoadBalancerNamespaceBundleMaxSessions();
@@ -241,7 +244,7 @@ public class DefaultNamespaceBundleSplitStrategyImpl implements NamespaceBundleS
             try {
                 splitBoundary = namespaceService
                         .getSplitBoundary(namespaceBundle,  null, algorithm)
-                        .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
+                        .get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
             } catch (Throwable e) {
                 counter.update(Failure, Unknown);
                 log.warn(String.format(CANNOT_SPLIT_BUNDLE_MSG + " Failed to get split boundaries.", bundle, e));

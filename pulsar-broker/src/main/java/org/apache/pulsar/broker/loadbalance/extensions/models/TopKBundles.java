@@ -67,7 +67,7 @@ public class TopKBundles {
         arr.clear();
         try {
             var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
-                    pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+                    pulsar.getLoadBalancerConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
             for (var etr : bundleStats.entrySet()) {
                 String bundle = etr.getKey();
                 if (bundle.startsWith(NamespaceName.SYSTEM_NAMESPACE.toString())) {

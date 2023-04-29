@@ -42,7 +42,7 @@ public class GenericBrokerHostUsageImpl implements BrokerHostUsage {
 
     public GenericBrokerHostUsageImpl(PulsarService pulsar) {
         this(
-            pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
+            pulsar.getLoadBalancerConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
             pulsar.getLoadManagerExecutor()
         );
     }

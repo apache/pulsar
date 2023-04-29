@@ -51,7 +51,8 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
     // long-term message rate, which is itself the sum of the long-term message rate of every allocated bundle.
     // Any broker at (or above) the overload threshold will have a score of POSITIVE_INFINITY.
     private static double getScore(final BrokerData brokerData, final ServiceConfiguration conf) {
-        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        final double overloadThreshold = conf.getLoadBalancerConfiguration()
+                .getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final double maxUsage = brokerData.getLocalData().getMaxResourceUsage();
         if (maxUsage > overloadThreshold) {
             log.warn("Broker {} is overloaded: max usage={}", brokerData.getLocalData().getWebServiceUrl(), maxUsage);

@@ -20,8 +20,11 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.HashMap;
 import java.util.Map;
+
+import io.grpc.LoadBalancer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.BundleSplitStrategy;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -65,7 +68,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
     public Map<String, String> findBundlesToSplit(final LoadData loadData, final PulsarService pulsar) {
         bundleCache.clear();
         namespaceBundleCount.clear();
-        final ServiceConfiguration conf = pulsar.getConfiguration();
+        final LoadBalancerConfiguration conf = pulsar.getLoadBalancerConfiguration();
         int maxBundleCount = conf.getLoadBalancerNamespaceMaximumBundles();
         long maxBundleTopics = conf.getLoadBalancerNamespaceBundleMaxTopics();
         long maxBundleSessions = conf.getLoadBalancerNamespaceBundleMaxSessions();

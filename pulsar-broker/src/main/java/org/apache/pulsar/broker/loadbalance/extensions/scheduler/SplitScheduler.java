@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
@@ -55,6 +56,7 @@ public class SplitScheduler implements LoadManagerScheduler {
     private final LoadManagerContext context;
 
     private final ServiceConfiguration conf;
+    private final LoadBalancerConfiguration loadBalancerConfiguration;
 
     private final ServiceUnitStateChannel serviceUnitStateChannel;
 
@@ -84,6 +86,7 @@ public class SplitScheduler implements LoadManagerScheduler {
         this.splitMetrics = splitMetrics;
         this.context = context;
         this.conf = pulsar.getConfiguration();
+        this.loadBalancerConfiguration = conf.getLoadBalancerConfiguration();
         this.bundleSplitStrategy = bundleSplitStrategy;
         this.serviceUnitStateChannel = serviceUnitStateChannel;
     }
@@ -100,10 +103,11 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     @Override
     public void execute() {
-        boolean debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
+        boolean debugMode = ExtensibleLoadManagerImpl.debug(loadBalancerConfiguration, log);
         if (debugMode) {
             log.info("Load balancer enabled: {}, Split enabled: {}.",
-                    conf.isLoadBalancerEnabled(), conf.isLoadBalancerAutoBundleSplitEnabled());
+                    loadBalancerConfiguration.isLoadBalancerEnabled(),
+                    loadBalancerConfiguration.isLoadBalancerAutoBundleSplitEnabled());
         }
 
         if (!isLoadBalancerAutoBundleSplitEnabled()) {
@@ -120,7 +124,7 @@ public class SplitScheduler implements LoadManagerScheduler {
             }
             if (!decisions.isEmpty()) {
                 // currently following the unloading timeout
-                var asyncOpTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
+                var asyncOpTimeoutMs = loadBalancerConfiguration.getNamespaceBundleUnloadingTimeoutMs();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
                 for (SplitDecision decision : decisions) {
                     if (decision.getLabel() == Success) {
@@ -156,11 +160,11 @@ public class SplitScheduler implements LoadManagerScheduler {
     @Override
     public void start() {
         long interval = TimeUnit.MINUTES
-                .toMillis(conf.getLoadBalancerSplitIntervalMinutes());
+                .toMillis(loadBalancerConfiguration.getLoadBalancerSplitIntervalMinutes());
         task = loadManagerExecutor.scheduleAtFixedRate(() -> {
             try {
                 execute();
-                var debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
+                var debugMode = ExtensibleLoadManagerImpl.debug(loadBalancerConfiguration, log);
                 if (debugMode) {
                     StringJoiner joiner = new StringJoiner("\n");
                     joiner.add("### OwnershipEntrySet start ###");
@@ -183,7 +187,7 @@ public class SplitScheduler implements LoadManagerScheduler {
     }
 
     private boolean isLoadBalancerAutoBundleSplitEnabled() {
-        return conf.isLoadBalancerEnabled() && conf.isLoadBalancerAutoBundleSplitEnabled();
+        return loadBalancerConfiguration.isLoadBalancerEnabled() && loadBalancerConfiguration.isLoadBalancerAutoBundleSplitEnabled();
     }
 
 }

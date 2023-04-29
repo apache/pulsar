@@ -70,6 +70,7 @@ import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -119,6 +120,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
+
+    private final LoadBalancerConfiguration loadBalancerConfiguration;
     private final Schema<ServiceUnitStateData> schema;
     private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
     private final String lookupServiceAddress;
@@ -197,14 +200,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
+        this.loadBalancerConfiguration = pulsar.getConfiguration().getLoadBalancerConfiguration();
         this.lookupServiceAddress = pulsar.getLookupServiceAddress();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
         this.getOwnerRequests = ConcurrentOpenHashMap.<String,
                 CompletableFuture<String>>newBuilder().build();
         this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
         this.stateChangeListeners = new StateChangeListeners();
-        this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
-                * 1000;
+        this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerConfiguration()
+                .getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds() * 1000;
         this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
         this.ownershipMonitorDelayTimeInSecs = OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS;
         if (semiTerminalStateWaitingTimeInMillis < inFlightStateWaitingTimeInMillis) {
@@ -402,7 +406,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private boolean debug() {
-        return ExtensibleLoadManagerImpl.debug(config, log);
+        return ExtensibleLoadManagerImpl.debug(config.getLoadBalancerConfiguration(), log);
     }
 
     public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
@@ -820,7 +824,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
                         true,
-                        pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
+                        pulsar.getLoadBalancerConfiguration().getNamespaceBundleUnloadingTimeoutMs(),
                         TimeUnit.MILLISECONDS)
                 .thenApply(numUnloadedTopics -> {
                     unloadedTopics.setValue(numUnloadedTopics);
@@ -852,7 +856,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         List<Long> boundaries = null;
         NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm =
                 namespaceService.getNamespaceBundleSplitAlgorithmByName(
-                        config.getDefaultNamespaceBundleSplitAlgorithm());
+                        loadBalancerConfiguration.getDefaultNamespaceBundleSplitAlgorithm());
         if (bundleToDestBroker != null && bundleToDestBroker.size() == 2) {
             Set<Long> boundariesSet = new HashSet<>();
             String namespace = bundle.getNamespaceObject().toString();

@@ -33,7 +33,7 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
                        ServiceConfiguration conf) throws BrokerFilterException {
         loadData.getBrokerData().forEach((key, value) -> {
             if (!value.getLocalData().getLoadManagerClassName()
-                    .equals(conf.getLoadManagerClassName())) {
+                    .equals(conf.getLoadBalancerConfiguration().getLoadManagerClassName())) {
                 brokers.remove(key);
             }
         });

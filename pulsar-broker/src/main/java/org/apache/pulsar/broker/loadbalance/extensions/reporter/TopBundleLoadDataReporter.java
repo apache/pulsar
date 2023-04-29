@@ -72,7 +72,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
             var pulsarStatsUpdatedAt = pulsarStats.getUpdatedAt();
             if (pulsarStatsUpdatedAt > lastBundleStatsUpdatedAt) {
                 var bundleStats = pulsar.getBrokerService().getBundleStats();
-                int topk = pulsar.getConfiguration().getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
+                int topk = pulsar.getLoadBalancerConfiguration().getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
                 topKBundles.update(bundleStats, topk);
                 lastBundleStatsUpdatedAt = pulsarStatsUpdatedAt;
                 result = topKBundles.getLoadData();
@@ -85,7 +85,7 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
     public CompletableFuture<Void> reportAsync(boolean force) {
         var topBundlesLoadData = generateLoadData();
         if (topBundlesLoadData != null || force) {
-            if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
+            if (ExtensibleLoadManagerImpl.debug(pulsar.getLoadBalancerConfiguration(), log)) {
                 log.info("Reporting TopBundlesLoadData:{}", topKBundles.getLoadData());
             }
             return this.bundleLoadDataStore.pushAsync(lookupServiceAddress, topKBundles.getLoadData())
@@ -112,7 +112,8 @@ public class TopBundleLoadDataReporter implements LoadDataReporter<TopBundlesLoa
                                 log.error("Failed to clean broker load data.", e);
                                 lastTombstonedAt = lastSuccessfulTombstonedAt;
                             } else {
-                                boolean debug = ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log);
+                                boolean debug = ExtensibleLoadManagerImpl.debug(
+                                        pulsar.getLoadBalancerConfiguration(), log);
                                 if (debug) {
                                     log.info("Cleaned broker load data.");
                                 }

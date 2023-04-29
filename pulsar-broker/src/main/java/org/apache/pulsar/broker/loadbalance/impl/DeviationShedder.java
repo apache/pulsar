@@ -25,6 +25,7 @@ import java.util.TreeSet;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -49,14 +50,14 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
     }
 
     // Measure the load incurred by a bundle.
-    protected abstract double bundleValue(String bundle, BrokerData brokerData, ServiceConfiguration conf);
+    protected abstract double bundleValue(String bundle, BrokerData brokerData, LoadBalancerConfiguration conf);
 
     // Measure the load suffered by a broker.
-    protected abstract double brokerValue(BrokerData brokerData, ServiceConfiguration conf);
+    protected abstract double brokerValue(BrokerData brokerData, LoadBalancerConfiguration conf);
 
     // Get the threshold above which the standard deviation of a broker is large
     // enough to warrant unloading bundles.
-    protected abstract double getDeviationThreshold(ServiceConfiguration conf);
+    protected abstract double getDeviationThreshold(LoadBalancerConfiguration conf);
 
     /**
      * Recommend that all of the returned bundles be unloaded based on observing excessive standard deviations according
@@ -69,7 +70,7 @@ public abstract class DeviationShedder implements LoadSheddingStrategy {
      * @return A map from all selected bundles to the brokers on which they reside.
      */
     @Override
-    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final LoadBalancerConfiguration conf) {
         final Multimap<String, String> result = ArrayListMultimap.create();
         bundleTreeSetCache.clear();
         metricTreeSetCache.clear();

@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.LoadBalancerConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -52,7 +53,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
     // A broker's max resource usage with weight using its historical load and short-term load data with weight.
     private double getMaxResourceUsageWithWeight(final String broker, final BrokerData brokerData,
                                          final ServiceConfiguration conf) {
-        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        final LoadBalancerConfiguration loadBalancerConfiguration = conf.getLoadBalancerConfiguration();
+        final double overloadThreshold = conf.getLoadBalancerConfiguration()
+                .getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final double maxUsageWithWeight =
                 updateAndGetMaxResourceUsageWithWeight(broker, brokerData, conf);
 
@@ -66,10 +69,12 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                     broker, maxUsageWithWeight * 100,
                     localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
                     localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
-                    localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    localData.getBandwidthOut().percentUsage(),
+                    loadBalancerConfiguration.getLoadBalancerCPUResourceWeight(),
+                    loadBalancerConfiguration.getLoadBalancerMemoryResourceWeight(),
+                    loadBalancerConfiguration.getLoadBalancerDirectMemoryResourceWeight(),
+                    loadBalancerConfiguration.getLoadBalancerBandwithInResourceWeight(),
+                    loadBalancerConfiguration.getLoadBalancerBandwithOutResourceWeight());
         }
 
         if (log.isDebugEnabled()) {
@@ -89,7 +94,9 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
      */
     private double updateAndGetMaxResourceUsageWithWeight(String broker, BrokerData brokerData,
                                                           ServiceConfiguration conf) {
-        final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
+        var loadBalancerConfig = conf.getLoadBalancerConfiguration();
+
+        final double historyPercentage = loadBalancerConfig.getLoadBalancerHistoryResourcePercentage();
         Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
         LocalBrokerData localData = brokerData.getLocalData();
         // If the broker restarted or MsgRate is 0, should use current resourceUsage to cover the historyUsage
@@ -97,10 +104,10 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
             historyUsage = null;
         }
         double resourceUsage = brokerData.getLocalData().getMaxResourceUsageWithWeight(
-                conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
+                loadBalancerConfig.getLoadBalancerCPUResourceWeight(),
+                loadBalancerConfig.getLoadBalancerDirectMemoryResourceWeight(),
+                loadBalancerConfig.getLoadBalancerBandwithInResourceWeight(),
+                loadBalancerConfig.getLoadBalancerBandwithOutResourceWeight());
         historyUsage = historyUsage == null
                 ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
         if (log.isDebugEnabled()) {
@@ -108,10 +115,12 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
                     "Broker {} get max resource usage with weight: {}, history resource percentage: {}%, CPU weight: "
                             + "{}, MEMORY weight: {}, DIRECT MEMORY weight: {}, BANDWIDTH IN weight: {}, BANDWIDTH "
                             + "OUT weight: {} ",
-                    broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+                    broker, historyUsage, historyPercentage,
+                    loadBalancerConfig.getLoadBalancerCPUResourceWeight(),
+                    loadBalancerConfig.getLoadBalancerMemoryResourceWeight(),
+                    loadBalancerConfig.getLoadBalancerDirectMemoryResourceWeight(),
+                    loadBalancerConfig.getLoadBalancerBandwithInResourceWeight(),
+                    loadBalancerConfig.getLoadBalancerBandwithOutResourceWeight());
         }
         brokerAvgResourceUsageWithWeight.put(broker, historyUsage);
         return historyUsage;
@@ -148,7 +157,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
 
         final double avgUsage = totalUsage / candidates.size();
         final double diffThreshold =
-                conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
+                conf.getLoadBalancerConfiguration()
+                        .getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
         candidates.forEach(broker -> {
             Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, MAX_RESOURCE_USAGE);
             if ((avgResUsage + diffThreshold <= avgUsage)) {
