@@ -395,6 +395,28 @@ public class ServerManagedLedgerConfiguration implements PulsarConfiguration {
     )
     private long managedLedgerOffloadThresholdInSeconds = -1L;
 
+    public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper > 0
+                ? managedLedgerMaxUnackedRangesToPersistInZooKeeper :
+                managedLedgerMaxUnackedRangesToPersistInMetadataStore;
+    }
+
+
+    private static final double MIN_ML_CACHE_EVICTION_FREQUENCY = 0.001;
+    private static final double MAX_ML_CACHE_EVICTION_FREQUENCY = 1000.0;
+    private static final long MAX_ML_CACHE_EVICTION_INTERVAL_MS = 1000000L;
+
+    public long getManagedLedgerCacheEvictionIntervalMs() {
+        return managedLedgerCacheEvictionFrequency > 0
+                ? (long) (1000 / Math.max(
+                Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
+                MIN_ML_CACHE_EVICTION_FREQUENCY))
+                : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
+    }
+
+    public boolean isDefaultTopicTypePartitioned() {
+        return TopicType.PARTITIONED.equals(allowAutoTopicCreationType);
+    }
 
     @ToString.Exclude
     @com.fasterxml.jackson.annotation.JsonIgnore

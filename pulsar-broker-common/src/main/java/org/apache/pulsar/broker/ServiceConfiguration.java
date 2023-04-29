@@ -104,9 +104,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Category
     private static final String CATEGORY_PLUGIN = "Broker Plugin";
 
-    private static final double MIN_ML_CACHE_EVICTION_FREQUENCY = 0.001;
-    private static final double MAX_ML_CACHE_EVICTION_FREQUENCY = 1000.0;
-    private static final long MAX_ML_CACHE_EVICTION_INTERVAL_MS = 1000000L;
 
     /***** --- pulsar configuration. --- ****/
     @FieldContext(
@@ -3050,9 +3047,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.properties = properties;
     }
 
-    public boolean isDefaultTopicTypePartitioned() {
-        return TopicType.PARTITIONED.equals(allowAutoTopicCreationType);
-    }
 
     public int getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() {
         if (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds == null) {
@@ -3069,11 +3063,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return schemaCompatibilityStrategy;
     }
 
-    public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
-        return managedLedgerMaxUnackedRangesToPersistInZooKeeper > 0
-                ? managedLedgerMaxUnackedRangesToPersistInZooKeeper :
-                managedLedgerMaxUnackedRangesToPersistInMetadataStore;
-    }
 
     public long getMetadataStoreSessionTimeoutMillis() {
         return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
@@ -3092,11 +3081,4 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return zooKeeperAllowReadOnlyOperations || metadataStoreAllowReadOnlyOperations;
     }
 
-    public long getManagedLedgerCacheEvictionIntervalMs() {
-        return managedLedgerCacheEvictionFrequency > 0
-                ? (long) (1000 / Math.max(
-                        Math.min(managedLedgerCacheEvictionFrequency, MAX_ML_CACHE_EVICTION_FREQUENCY),
-                                   MIN_ML_CACHE_EVICTION_FREQUENCY))
-                : Math.min(MAX_ML_CACHE_EVICTION_INTERVAL_MS, managedLedgerCacheEvictionIntervalMs);
-    }
 }

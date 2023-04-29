@@ -1849,7 +1849,7 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
                             managedLedgerConfiguration.isPersistentUnackedRangesWithMultipleEntriesEnabled());
                     managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(
-                            serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
+                            managedLedgerConfiguration.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
                     managedLedgerConfig.setMaxEntriesPerLedger(
                             managedLedgerConfiguration.getManagedLedgerMaxEntriesPerLedger());
                     managedLedgerConfig
@@ -3339,7 +3339,7 @@ public class BrokerService implements Closeable {
         if (autoTopicCreationOverride != null) {
             return TopicType.PARTITIONED.toString().equals(autoTopicCreationOverride.getTopicType());
         } else {
-            return pulsar.getConfiguration().isDefaultTopicTypePartitioned();
+            return pulsar.getManagedLedgerConfiguration().isDefaultTopicTypePartitioned();
         }
     }
 
