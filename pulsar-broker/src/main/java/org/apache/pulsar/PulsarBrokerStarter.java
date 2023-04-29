@@ -52,6 +52,7 @@ import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.ServerManagedLedgerConfiguration;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
@@ -71,6 +72,14 @@ public class PulsarBrokerStarter {
             ServiceConfiguration config = create(inputStream, ServiceConfiguration.class);
             // it validates provided configuration is completed
             isComplete(config);
+
+            ServerManagedLedgerConfiguration managedLedgerConfiguration =
+                    create(inputStream, ServerManagedLedgerConfiguration.class);
+            isComplete(managedLedgerConfiguration);
+
+            config.setManagedLedgerConfiguration(managedLedgerConfiguration);
+            managedLedgerConfiguration.setServiceConfiguration(config);
+
             return config;
         }
     }
