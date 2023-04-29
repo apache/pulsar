@@ -42,6 +42,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.ServerManagedLedgerConfiguration;
 import org.apache.pulsar.broker.service.plugin.InvalidEntryFilterException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -429,7 +430,8 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     protected AutoSubscriptionCreationOverrideImpl autoSubscriptionCreationOverride() {
-        boolean allowAutoSubscriptionCreation = pulsar().getConfiguration().isAllowAutoSubscriptionCreation();
+        boolean allowAutoSubscriptionCreation = pulsar().getManagedLedgerConfiguration()
+                .isAllowAutoSubscriptionCreation();
         return AutoSubscriptionCreationOverrideImpl.builder()
                 .allowAutoSubscriptionCreation(allowAutoSubscriptionCreation)
                 .build();
@@ -771,7 +773,8 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected void validatePersistencePolicies(PersistencePolicies persistence) {
         checkNotNull(persistence, "persistence policies should not be null");
-        final ServiceConfiguration config = pulsar().getConfiguration();
+        final ServerManagedLedgerConfiguration config = pulsar().getConfiguration().getManagedLedgerConfiguration();
+
         checkArgument(persistence.getBookkeeperEnsemble() <= config.getManagedLedgerMaxEnsembleSize()
                         && persistence.getBookkeeperEnsemble() > 0,
                 "Bookkeeper-Ensemble must be <= " + config.getManagedLedgerMaxEnsembleSize() + " and > 0.");

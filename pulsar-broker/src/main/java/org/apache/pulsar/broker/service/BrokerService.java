@@ -95,6 +95,7 @@ import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.BundlesQuotas;
+import org.apache.pulsar.broker.configuration.ServerManagedLedgerConfiguration;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -1761,6 +1762,7 @@ public class BrokerService implements Closeable {
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(TopicName topicName) {
         NamespaceName namespace = topicName.getNamespaceObject();
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
+        ServerManagedLedgerConfiguration managedLedgerConfiguration = pulsar.getManagedLedgerConfiguration();
 
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         LocalPoliciesResources lpr = pulsar.getPulsarResources().getLocalPolicies();
@@ -1783,10 +1785,11 @@ public class BrokerService implements Closeable {
 
                     if (persistencePolicies == null) {
                         persistencePolicies = policies.map(p -> p.persistence).orElseGet(
-                                () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
-                                        serviceConfig.getManagedLedgerDefaultWriteQuorum(),
-                                        serviceConfig.getManagedLedgerDefaultAckQuorum(),
-                                        serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
+                                () -> new PersistencePolicies(
+                                        managedLedgerConfiguration.getManagedLedgerDefaultEnsembleSize(),
+                                        managedLedgerConfiguration.getManagedLedgerDefaultWriteQuorum(),
+                                        managedLedgerConfiguration.getManagedLedgerDefaultAckQuorum(),
+                                        managedLedgerConfiguration.getManagedLedgerDefaultMarkDeleteRateLimit()));
                     }
 
                     if (retentionPolicies == null) {
@@ -1837,55 +1840,68 @@ public class BrokerService implements Closeable {
                     }
 
                     managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
-                    managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
-                    managedLedgerConfig.setPassword(serviceConfig.getManagedLedgerPassword());
+                    managedLedgerConfig.setDigestType(managedLedgerConfiguration.getManagedLedgerDigestType());
+                    managedLedgerConfig.setPassword(managedLedgerConfiguration.getManagedLedgerPassword());
 
                     managedLedgerConfig
-                            .setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
+                            .setMaxUnackedRangesToPersist(
+                                    managedLedgerConfiguration.getManagedLedgerMaxUnackedRangesToPersist());
                     managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
-                            serviceConfig.isPersistentUnackedRangesWithMultipleEntriesEnabled());
+                            managedLedgerConfiguration.isPersistentUnackedRangesWithMultipleEntriesEnabled());
                     managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(
                             serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
-                    managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
+                    managedLedgerConfig.setMaxEntriesPerLedger(
+                            managedLedgerConfiguration.getManagedLedgerMaxEntriesPerLedger());
                     managedLedgerConfig
-                            .setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
+                            .setMinimumRolloverTime(
+                                    managedLedgerConfiguration.getManagedLedgerMinLedgerRolloverTimeMinutes(),
                                     TimeUnit.MINUTES);
                     managedLedgerConfig
-                            .setMaximumRolloverTime(serviceConfig.getManagedLedgerMaxLedgerRolloverTimeMinutes(),
+                            .setMaximumRolloverTime(
+                                    managedLedgerConfiguration.getManagedLedgerMaxLedgerRolloverTimeMinutes(),
                                     TimeUnit.MINUTES);
-                    managedLedgerConfig.setMaxSizePerLedgerMb(serviceConfig.getManagedLedgerMaxSizePerLedgerMbytes());
+                    managedLedgerConfig.setMaxSizePerLedgerMb(
+                            managedLedgerConfiguration.getManagedLedgerMaxSizePerLedgerMbytes());
 
                     managedLedgerConfig.setMetadataOperationsTimeoutSeconds(
-                            serviceConfig.getManagedLedgerMetadataOperationsTimeoutSeconds());
+                            managedLedgerConfiguration.getManagedLedgerMetadataOperationsTimeoutSeconds());
                     managedLedgerConfig
-                            .setReadEntryTimeoutSeconds(serviceConfig.getManagedLedgerReadEntryTimeoutSeconds());
+                            .setReadEntryTimeoutSeconds(
+                                    managedLedgerConfiguration.getManagedLedgerReadEntryTimeoutSeconds());
                     managedLedgerConfig
-                            .setAddEntryTimeoutSeconds(serviceConfig.getManagedLedgerAddEntryTimeoutSeconds());
-                    managedLedgerConfig.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
+                            .setAddEntryTimeoutSeconds(
+                                    managedLedgerConfiguration.getManagedLedgerAddEntryTimeoutSeconds());
+                    managedLedgerConfig.setMetadataEnsembleSize(
+                            managedLedgerConfiguration.getManagedLedgerDefaultEnsembleSize());
                     managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(
-                            serviceConfig.isManagedLedgerUnackedRangesOpenCacheSetEnabled());
-                    managedLedgerConfig.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
-                    managedLedgerConfig.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
+                            managedLedgerConfiguration.isManagedLedgerUnackedRangesOpenCacheSetEnabled());
+                    managedLedgerConfig.setMetadataWriteQuorumSize(
+                            managedLedgerConfiguration.getManagedLedgerDefaultWriteQuorum());
+                    managedLedgerConfig.setMetadataAckQuorumSize(
+                            managedLedgerConfiguration.getManagedLedgerDefaultAckQuorum());
                     managedLedgerConfig
-                            .setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());
+                            .setMetadataMaxEntriesPerLedger(
+                                    managedLedgerConfiguration.getManagedLedgerCursorMaxEntriesPerLedger());
 
                     managedLedgerConfig
-                            .setLedgerRolloverTimeout(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds());
+                            .setLedgerRolloverTimeout(
+                                    managedLedgerConfiguration.getManagedLedgerCursorRolloverTimeInSeconds());
                     managedLedgerConfig
                             .setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
                     managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
-                    managedLedgerConfig.setAutoSkipNonRecoverableData(serviceConfig.isAutoSkipNonRecoverableData());
+                    managedLedgerConfig.setAutoSkipNonRecoverableData(
+                            managedLedgerConfiguration.isAutoSkipNonRecoverableData());
                     managedLedgerConfig.setLazyCursorRecovery(serviceConfig.isLazyCursorRecovery());
                     managedLedgerConfig.setInactiveLedgerRollOverTime(
-                            serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
+                            managedLedgerConfiguration.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
                     managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
-                            serviceConfig.isCacheEvictionByMarkDeletedPosition());
+                            managedLedgerConfiguration.isCacheEvictionByMarkDeletedPosition());
                     managedLedgerConfig.setMinimumBacklogCursorsForCaching(
-                            serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
+                            managedLedgerConfiguration.getManagedLedgerMinimumBacklogCursorsForCaching());
                     managedLedgerConfig.setMinimumBacklogEntriesForCaching(
-                            serviceConfig.getManagedLedgerMinimumBacklogEntriesForCaching());
+                            managedLedgerConfiguration.getManagedLedgerMinimumBacklogEntriesForCaching());
                     managedLedgerConfig.setMaxBacklogBetweenCursorsForCaching(
-                            serviceConfig.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
+                            managedLedgerConfiguration.getManagedLedgerMaxBacklogBetweenCursorsForCaching());
 
                     OffloadPoliciesImpl nsLevelOffloadPolicies =
                             (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);
@@ -1914,7 +1930,7 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(
                             serviceConfig.isAcknowledgmentAtBatchIndexLevelEnabled());
                     managedLedgerConfig.setNewEntriesCheckDelayInMillis(
-                            serviceConfig.getManagedLedgerNewEntriesCheckDelayInMillis());
+                            managedLedgerConfiguration.getManagedLedgerNewEntriesCheckDelayInMillis());
                     return managedLedgerConfig;
                 });
     }
@@ -2693,9 +2709,9 @@ public class BrokerService implements Closeable {
     private void updateDefaultNumPartitions(int numPartitions) {
         int maxNumPartitions = pulsar.getConfiguration().getMaxNumPartitionsPerPartitionedTopic();
         if (maxNumPartitions == 0 || maxNumPartitions > numPartitions) {
-            this.pulsar.getConfiguration().setDefaultNumPartitions(numPartitions);
+            this.pulsar.getManagedLedgerConfiguration().setDefaultNumPartitions(numPartitions);
         } else {
-            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+            this.pulsar.getManagedLedgerConfiguration().setDefaultNumPartitions(maxNumPartitions);
         }
     }
 
@@ -2704,8 +2720,8 @@ public class BrokerService implements Closeable {
             this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
             return;
         }
-        if (this.pulsar.getConfiguration().getDefaultNumPartitions() > maxNumPartitions) {
-            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        if (this.pulsar.getManagedLedgerConfiguration().getDefaultNumPartitions() > maxNumPartitions) {
+            this.pulsar.getManagedLedgerConfiguration().setDefaultNumPartitions(maxNumPartitions);
         }
         this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
     }
@@ -2832,7 +2848,7 @@ public class BrokerService implements Closeable {
                         PersistentTopic persistentTopic = (PersistentTopic) topic;
                         // update skipNonRecoverableLedger configuration
                         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
-                                pulsar.getConfiguration().isAutoSkipNonRecoverableData());
+                                pulsar.getManagedLedgerConfiguration().isAutoSkipNonRecoverableData());
                     }
                 } catch (Exception e) {
                     log.warn("[{}] failed to update managed-ledger config", topic.getName(), e);
@@ -3304,7 +3320,7 @@ public class BrokerService implements Closeable {
         if (autoTopicCreationOverride != null) {
             allowed = autoTopicCreationOverride.isAllowAutoTopicCreation();
         } else {
-            allowed = pulsar.getConfiguration().isAllowAutoTopicCreation();
+            allowed = pulsar.getManagedLedgerConfiguration().isAllowAutoTopicCreation();
         }
 
         if (allowed && topicName.isPartitioned()) {
@@ -3332,7 +3348,7 @@ public class BrokerService implements Closeable {
         if (autoTopicCreationOverride != null) {
             return autoTopicCreationOverride.getDefaultNumPartitions();
         } else {
-            return pulsar.getConfiguration().getDefaultNumPartitions();
+            return pulsar.getManagedLedgerConfiguration().getDefaultNumPartitions();
         }
     }
 
@@ -3357,7 +3373,7 @@ public class BrokerService implements Closeable {
         if (autoSubscriptionCreationOverride != null) {
             return autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation();
         } else {
-            return pulsar.getConfiguration().isAllowAutoSubscriptionCreation();
+            return pulsar.getManagedLedgerConfiguration().isAllowAutoSubscriptionCreation();
         }
     }
 

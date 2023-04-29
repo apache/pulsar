@@ -3584,10 +3584,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 .persistence;
                         return namespacePolicy == null
                                 ? new PersistencePolicies(
-                                pulsar().getConfiguration().getManagedLedgerDefaultEnsembleSize(),
-                                pulsar().getConfiguration().getManagedLedgerDefaultWriteQuorum(),
-                                pulsar().getConfiguration().getManagedLedgerDefaultAckQuorum(),
-                                pulsar().getConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit())
+                                pulsar().getManagedLedgerConfiguration().getManagedLedgerDefaultEnsembleSize(),
+                                pulsar().getManagedLedgerConfiguration().getManagedLedgerDefaultWriteQuorum(),
+                                pulsar().getManagedLedgerConfiguration().getManagedLedgerDefaultAckQuorum(),
+                                pulsar().getManagedLedgerConfiguration().getManagedLedgerDefaultMarkDeleteRateLimit())
                                 : namespacePolicy;
                     }
                     return null;

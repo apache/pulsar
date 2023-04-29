@@ -35,6 +35,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration.Configuration;
+import org.apache.pulsar.broker.configuration.ServerManagedLedgerConfiguration;
 import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
@@ -55,28 +56,30 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
                            BookKeeperClientFactory bookkeeperProvider,
                            EventLoopGroup eventLoopGroup) throws Exception {
+        ServerManagedLedgerConfiguration mlConf = conf.getManagedLedgerConfiguration();
+        
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
-        managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
-        managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
-        managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(conf.getManagedLedgerNumSchedulerThreads());
-        managedLedgerFactoryConfig.setCacheEvictionIntervalMs(conf.getManagedLedgerCacheEvictionIntervalMs());
+        managedLedgerFactoryConfig.setMaxCacheSize(mlConf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
+        managedLedgerFactoryConfig.setCacheEvictionWatermark(mlConf.getManagedLedgerCacheEvictionWatermark());
+        managedLedgerFactoryConfig.setNumManagedLedgerSchedulerThreads(mlConf.getManagedLedgerNumSchedulerThreads());
+        managedLedgerFactoryConfig.setCacheEvictionIntervalMs(mlConf.getManagedLedgerCacheEvictionIntervalMs());
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
-                conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
-        managedLedgerFactoryConfig.setCopyEntriesInCache(conf.isManagedLedgerCacheCopyEntries());
+                mlConf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        managedLedgerFactoryConfig.setCopyEntriesInCache(mlConf.isManagedLedgerCacheCopyEntries());
         managedLedgerFactoryConfig.setManagedLedgerMaxReadsInFlightSize(
-                conf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L);
+                mlConf.getManagedLedgerMaxReadsInFlightSizeInMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setPrometheusStatsLatencyRolloverSeconds(
-                conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
-        managedLedgerFactoryConfig.setTraceTaskExecution(conf.isManagedLedgerTraceTaskExecution());
-        managedLedgerFactoryConfig.setCursorPositionFlushSeconds(conf.getManagedLedgerCursorPositionFlushSeconds());
-        managedLedgerFactoryConfig.setManagedLedgerInfoCompressionType(conf.getManagedLedgerInfoCompressionType());
-        managedLedgerFactoryConfig.setStatsPeriodSeconds(conf.getManagedLedgerStatsPeriodSeconds());
-        managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(conf.getManagedCursorInfoCompressionType());
+                mlConf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+        managedLedgerFactoryConfig.setTraceTaskExecution(mlConf.isManagedLedgerTraceTaskExecution());
+        managedLedgerFactoryConfig.setCursorPositionFlushSeconds(mlConf.getManagedLedgerCursorPositionFlushSeconds());
+        managedLedgerFactoryConfig.setManagedLedgerInfoCompressionType(mlConf.getManagedLedgerInfoCompressionType());
+        managedLedgerFactoryConfig.setStatsPeriodSeconds(mlConf.getManagedLedgerStatsPeriodSeconds());
+        managedLedgerFactoryConfig.setManagedCursorInfoCompressionType(mlConf.getManagedCursorInfoCompressionType());
 
         Configuration configuration = new ClientConfiguration();
         if (conf.isBookkeeperClientExposeStatsToPrometheus()) {
             configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
-                    conf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+                    mlConf.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
             configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, conf.getClusterName());
             statsProvider = new PrometheusMetricsProvider();
         }

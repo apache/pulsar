@@ -37,6 +37,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.configuration.ServerManagedLedgerConfiguration;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -49,6 +50,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
+    private final ServerManagedLedgerConfiguration managedLedgerConfiguration;
     private BookKeeper bookKeeper;
 
     private final Map<Long, CompletableFuture<LedgerHandle>> ledgerHandleFutureCache = new ConcurrentHashMap<>();
@@ -56,6 +58,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     public BookkeeperBucketSnapshotStorage(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
+        this.managedLedgerConfiguration = pulsar.getManagedLedgerConfiguration();
     }
 
     @Override
@@ -171,10 +174,10 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
                 topicName, cursorName);
         bookKeeper.asyncCreateLedger(
-                config.getManagedLedgerDefaultEnsembleSize(),
-                config.getManagedLedgerDefaultWriteQuorum(),
-                config.getManagedLedgerDefaultAckQuorum(),
-                BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
+                managedLedgerConfiguration.getManagedLedgerDefaultEnsembleSize(),
+                managedLedgerConfiguration.getManagedLedgerDefaultWriteQuorum(),
+                managedLedgerConfiguration.getManagedLedgerDefaultAckQuorum(),
+                BookKeeper.DigestType.fromApiDigestType(managedLedgerConfiguration.getManagedLedgerDigestType()),
                 LedgerPassword,
                 (rc, handle, ctx) -> {
                     if (rc != BKException.Code.OK) {
@@ -202,7 +205,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         bookKeeper.asyncOpenLedger(
                 ledgerId,
-                BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
+                BookKeeper.DigestType.fromApiDigestType(managedLedgerConfiguration.getManagedLedgerDigestType()),
                 LedgerPassword,
                 (rc, handle, ctx) -> {
                     if (rc != BKException.Code.OK) {

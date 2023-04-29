@@ -79,6 +79,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.configuration.ServerManagedLedgerConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
@@ -192,6 +193,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarService.class);
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
     private ServiceConfiguration config = null;
+    private ServerManagedLedgerConfiguration managedLedgerConfiguration = null;
     private NamespaceService nsService = null;
     private ManagedLedgerStorage managedLedgerClientFactory = null;
     private LeaderElectionService leaderElectionService = null;
@@ -317,6 +319,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.bindAddress = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getBindAddress());
         this.brokerVersion = PulsarVersion.getVersion();
         this.config = config;
+        this.managedLedgerConfiguration = config.getManagedLedgerConfiguration();
         this.processTerminator = processTerminator;
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new ExecutorProvider.ExtendedThreadFactory("pulsar-load-manager"));
@@ -651,6 +654,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         return this.config;
     }
 
+    public ServerManagedLedgerConfiguration getManagedLedgerConfiguration() {
+        return this.managedLedgerConfiguration;
+    }
+
     /**
      * Get the current function worker service configuration.
      *
@@ -773,7 +780,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
 
             OrderedScheduler offloaderScheduler = getOffloaderScheduler(defaultOffloadPolicies);
-            int interval = config.getManagedLedgerStatsPeriodSeconds();
+            int interval = config.getManagedLedgerConfiguration().getManagedLedgerStatsPeriodSeconds();
             boolean exposeTopicMetrics = config.isExposeTopicLevelMetricsInPrometheus();
 
             offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
@@ -1401,7 +1408,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
                 synchronized (this) {
                     Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
-                            offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
+                            offloadPolicies.getOffloadersDirectory(),
+                            config.getManagedLedgerConfiguration().getNarExtractionDirectory());
 
                     LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
                             offloadPolicies.getManagedLedgerOffloadDriver());

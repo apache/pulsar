@@ -52,9 +52,9 @@ public class TopicAutoCreationTest extends ProducerConsumerBase {
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
-        conf.setAllowAutoTopicCreation(true);
-        conf.setDefaultNumPartitions(3);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
+        conf.getManagedLedgerConfiguration().setAllowAutoTopicCreation(true);
+        conf.getManagedLedgerConfiguration().setDefaultNumPartitions(3);
         super.internalSetup();
         super.producerBaseSetup();
     }
