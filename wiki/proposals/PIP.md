@@ -115,5 +115,6 @@ Some examples:
 
 
 ## Template for a PIP design doc
-Located at https://github.com/apache/pulsar/blob/master/.github/ISSUE_TEMPLATE/pip.md
+
+Read [the template file](/.github/ISSUE_TEMPLATE/pip.md).
 
