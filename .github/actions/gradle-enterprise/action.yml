@@ -29,7 +29,6 @@ runs:
     - run: |
         if [[ -n "${{ inputs.token }}" ]]; then
             echo "::group::Configuring Gradle Enterprise for build"
-            cp .mvn/ge-extensions.xml .mvn/extensions.xml
             echo "GRADLE_ENTERPRISE_ACCESS_KEY=${{ inputs.token }}" >> $GITHUB_ENV
             echo "::endgroup::"  
         fi
