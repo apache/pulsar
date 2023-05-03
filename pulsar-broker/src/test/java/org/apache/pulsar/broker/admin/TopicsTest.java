@@ -252,18 +252,15 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             try {
                 PersistentTopic mockPersistentTopic = spy((PersistentTopic) topic.get());
                 AtomicInteger count = new AtomicInteger();
-                doAnswer(new Answer() {
-                    @Override
-                    public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                        Topic.PublishContext publishContext = invocationOnMock.getArgument(1);
-                        if (count.getAndIncrement() < 2) {
-                            publishContext.completed(null, -1, -1);
-                        } else {
-                            publishContext.completed(new BrokerServiceException.TopicFencedException("Fake exception"),
-                                    -1, -1);
-                        }
-                        return null;
+                doAnswer(invocationOnMock -> {
+                    Topic.PublishContext publishContext = invocationOnMock.getArgument(1);
+                    if (count.getAndIncrement() < 2) {
+                        publishContext.completed(null, -1, -1);
+                    } else {
+                        publishContext.completed(new BrokerServiceException.TopicFencedException("Fake exception"),
+                                -1, -1);
                     }
+                    return null;
                 }).when(mockPersistentTopic).publishMessage(any(), any());
                 BrokerService mockBrokerService = spy(pulsar.getBrokerService());
                 doReturn(CompletableFuture.completedFuture(Optional.of(mockPersistentTopic)))

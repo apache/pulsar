@@ -225,12 +225,9 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         when(pendingAckHandle.changeToReadyState()).thenReturn(true);
         // Process controller, mark the replay task already finish.
         final AtomicInteger processController = new AtomicInteger();
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                processController.incrementAndGet();
-                return null;
-            }
+        doAnswer(invocation -> {
+            processController.incrementAndGet();
+            return null;
         }).when(pendingAckHandle).completeHandleFuture();
         mlPendingAckStoreForRead.replayAsync(pendingAckHandle, internalPinnedExecutor);
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> processController.get() == 1);

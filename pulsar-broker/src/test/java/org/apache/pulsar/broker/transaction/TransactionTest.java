@@ -1433,18 +1433,15 @@ public class TransactionTest extends TransactionTestBase {
         when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorService);
         // Mock pendingAckStore.
         PendingAckStore pendingAckStore = mock(PendingAckStore.class);
-        doAnswer(new Answer() {
-            @Override
-            public Object answer(InvocationOnMock invocation) throws Throwable {
-                executorService.execute(()->{
-                    PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) invocation.getArguments()[0];
-                    pendingAckHandle.closeAsync();
-                    MLPendingAckReplyCallBack mlPendingAckReplyCallBack
-                            = new MLPendingAckReplyCallBack(pendingAckHandle);
-                    mlPendingAckReplyCallBack.replayComplete();
-                });
-                return null;
-            }
+        doAnswer(invocation -> {
+            executorService.execute(()->{
+                PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) invocation.getArguments()[0];
+                pendingAckHandle.closeAsync();
+                MLPendingAckReplyCallBack mlPendingAckReplyCallBack
+                        = new MLPendingAckReplyCallBack(pendingAckHandle);
+                mlPendingAckReplyCallBack.replayComplete();
+            });
+            return null;
         }).when(pendingAckStore).replayAsync(any(), any());
         // Mock executorProvider.
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);

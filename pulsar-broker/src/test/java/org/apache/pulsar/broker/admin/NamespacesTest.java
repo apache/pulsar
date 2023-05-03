@@ -740,12 +740,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         // setup to redirect to another broker in the same cluster
         doReturn(Optional.of(new URL("http://otherhost" + ":" + 8080))).when(nsSvc)
-                .getWebServiceUrl(Mockito.argThat(new ArgumentMatcher<NamespaceName>() {
-                    @Override
-                    public boolean matches(NamespaceName nsname) {
-                        return nsname.equals(NamespacesTest.this.testGlobalNamespaces.get(0));
-                    }
-                }), Mockito.any());
+                .getWebServiceUrl(Mockito.argThat(
+                        (ArgumentMatcher<NamespaceName>) nsname -> nsname.equals(NamespacesTest.this.testGlobalNamespaces.get(0))), Mockito.any());
 
         admin.namespaces().setNamespaceReplicationClusters(testGlobalNamespaces.get(0).toString(),
                 Set.of("usw"));

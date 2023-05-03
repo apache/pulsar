@@ -59,18 +59,15 @@ public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSo
                         }
                     });
             ChannelFuture future = bootstrap.connect(msg.dstAddr(), msg.dstPort());
-            future.addListener(new ChannelFutureListener() {
-
-                public void operationComplete(final ChannelFuture future) throws Exception {
-                    if (future.isSuccess()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("connected : {} {}", msg.dstAddr(), msg.dstPort());
-                        }
-                        clientChannelContext.pipeline().addLast(new TargetHandler(future));
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
-                    } else {
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
+            future.addListener((ChannelFutureListener) future1 -> {
+                if (future1.isSuccess()) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("connected : {} {}", msg.dstAddr(), msg.dstPort());
                     }
+                    clientChannelContext.pipeline().addLast(new TargetHandler(future1));
+                    clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
+                } else {
+                    clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
                 }
             });
         } else {

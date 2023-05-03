@@ -215,13 +215,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         when(clientCnx.ctx()).thenReturn(cnx);
         Channel channel = mock(Channel.class);
         when(cnx.channel()).thenReturn(channel);
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
+        when(pulsarService.getClient()).thenAnswer((Answer<PulsarClient>) invocation -> mockClient);
 
         when(channel.isActive()).thenReturn(true);
 
@@ -268,13 +262,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         when(cnx.channel()).thenReturn(channel);
 
         when(channel.isActive()).thenReturn(false);
-        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
-
-            @Override
-            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
-                return mockClient;
-            }
-        });
+        when(pulsarService.getClient()).thenAnswer((Answer<PulsarClient>) invocation -> mockClient);
 
         @Cleanup("stop")
         HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();

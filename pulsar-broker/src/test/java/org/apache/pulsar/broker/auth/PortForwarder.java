@@ -112,16 +112,13 @@ public class PortForwarder implements AutoCloseable {
                     .option(ChannelOption.AUTO_READ, false);
             ChannelFuture f = b.connect(targetAddress);
             outboundChannel = f.channel();
-            f.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) {
-                    if (future.isSuccess()) {
-                        // connection complete start to read first data
-                        inboundChannel.read();
-                    } else {
-                        // Close the connection if the connection attempt has failed.
-                        inboundChannel.close();
-                    }
+            f.addListener((ChannelFutureListener) future -> {
+                if (future.isSuccess()) {
+                    // connection complete start to read first data
+                    inboundChannel.read();
+                } else {
+                    // Close the connection if the connection attempt has failed.
+                    inboundChannel.close();
                 }
             });
         }
@@ -129,15 +126,12 @@ public class PortForwarder implements AutoCloseable {
         @Override
         public void channelRead(final ChannelHandlerContext ctx, Object msg) {
             if (outboundChannel.isActive()) {
-                outboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) {
-                        if (future.isSuccess()) {
-                            // was able to flush out data, start to read the next chunk
-                            ctx.channel().read();
-                        } else {
-                            future.channel().close();
-                        }
+                outboundChannel.writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
+                    if (future.isSuccess()) {
+                        // was able to flush out data, start to read the next chunk
+                        ctx.channel().read();
+                    } else {
+                        future.channel().close();
                     }
                 });
             }
@@ -172,14 +166,11 @@ public class PortForwarder implements AutoCloseable {
 
         @Override
         public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-            inboundChannel.writeAndFlush(msg).addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) {
-                    if (future.isSuccess()) {
-                        ctx.channel().read();
-                    } else {
-                        future.channel().close();
-                    }
+            inboundChannel.writeAndFlush(msg).addListener((ChannelFutureListener) future -> {
+                if (future.isSuccess()) {
+                    ctx.channel().read();
+                } else {
+                    future.channel().close();
                 }
             });
         }

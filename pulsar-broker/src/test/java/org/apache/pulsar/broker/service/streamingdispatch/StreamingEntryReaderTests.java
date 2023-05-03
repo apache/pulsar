@@ -90,12 +90,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
         when(mockBrokerService.executor()).thenReturn(eventLoopGroup);
         when(mockBrokerService.getTopicOrderedExecutor()).thenReturn(orderedExecutor);
-        doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocationOnMock) {
-                return null;
-            }
-        }).when(mockDispatcher).notifyConsumersEndOfTopic();
+        doAnswer((Answer<Void>) invocationOnMock -> null).when(mockDispatcher).notifyConsumersEndOfTopic();
     }
 
     @Override
@@ -173,16 +168,13 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
         PositionImpl position = ledger.getPositionAfterN(ledger.getFirstPosition(), 3, ManagedLedgerImpl.PositionBound.startExcluded);
         // Make reading from mledger return out of order.
-        doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-                AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
-                executor.schedule(() -> {
-                    cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(), "mmmmmmmmmmessage-2".getBytes()),
-                            invocationOnMock.getArgument(2));
-                }, 200, TimeUnit.MILLISECONDS);
-                return null;
-            }
+        doAnswer((Answer<Void>) invocationOnMock -> {
+            AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
+            executor.schedule(() -> {
+                cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(), "mmmmmmmmmmessage-2".getBytes()),
+                        invocationOnMock.getArgument(2));
+            }, 200, TimeUnit.MILLISECONDS);
+            return null;
         }).when(ledger).asyncReadEntry(eq(position), any(), any());
 
         // Only 2 entries should be read with this request.
@@ -283,19 +275,16 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         // Only return 5 entries
-        doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocationOnMock) {
-                AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
-                PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
-                int c = count.getAndIncrement();
-                if (c < 5) {
-                    cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
-                            messages.get(position).getBytes()),
-                            invocationOnMock.getArgument(2));
-                }
-                return null;
+        doAnswer((Answer<Void>) invocationOnMock -> {
+            AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
+            PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
+            int c = count.getAndIncrement();
+            if (c < 5) {
+                cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
+                        messages.get(position).getBytes()),
+                        invocationOnMock.getArgument(2));
             }
+            return null;
         }).when(ledger).asyncReadEntry(any(), any(), any());
 
         streamingEntryReader.asyncReadEntries(20,  200, null);
@@ -347,22 +336,19 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         // Make reading from mledger throw exception randomly.
-        doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-                AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
-                PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
-                int c = count.getAndIncrement();
-                if (c >= 3 && c < 5 || c >= 9 && c < 11) {
-                    cb.readEntryFailed(new ManagedLedgerException.TooManyRequestsException("Fake exception."),
-                            invocationOnMock.getArgument(2));
-                } else {
-                    cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
-                            messages.get(position).getBytes()),
-                            invocationOnMock.getArgument(2));
-                }
-                return null;
+        doAnswer((Answer<Void>) invocationOnMock -> {
+            AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
+            PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
+            int c = count.getAndIncrement();
+            if (c >= 3 && c < 5 || c >= 9 && c < 11) {
+                cb.readEntryFailed(new ManagedLedgerException.TooManyRequestsException("Fake exception."),
+                        invocationOnMock.getArgument(2));
+            } else {
+                cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
+                        messages.get(position).getBytes()),
+                        invocationOnMock.getArgument(2));
             }
+            return null;
         }).when(ledger).asyncReadEntry(any(), any(), any());
 
         streamingEntryReader.asyncReadEntries(6,  100, null);
@@ -404,22 +390,19 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         ).when(mockDispatcher).readEntryComplete(any(Entry.class), any(PendingReadEntryRequest.class));
 
         // Fail after first 3 read.
-        doAnswer(new Answer<Void>() {
-            @Override
-            public Void answer(InvocationOnMock invocationOnMock) throws Throwable {
-                AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
-                PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
-                int c = count.getAndIncrement();
-                if (c >= 3) {
-                    cb.readEntryFailed(new ManagedLedgerException.TooManyRequestsException("Fake exception."),
-                            invocationOnMock.getArgument(2));
-                } else {
-                    cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
-                            messages.get(position).getBytes()),
-                            invocationOnMock.getArgument(2));
-                }
-                return null;
+        doAnswer((Answer<Void>) invocationOnMock -> {
+            AsyncCallbacks.ReadEntryCallback cb = invocationOnMock.getArgument(1, AsyncCallbacks.ReadEntryCallback.class);
+            PositionImpl position = invocationOnMock.getArgument(0, PositionImpl.class);
+            int c = count.getAndIncrement();
+            if (c >= 3) {
+                cb.readEntryFailed(new ManagedLedgerException.TooManyRequestsException("Fake exception."),
+                        invocationOnMock.getArgument(2));
+            } else {
+                cb.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
+                        messages.get(position).getBytes()),
+                        invocationOnMock.getArgument(2));
             }
+            return null;
         }).when(ledger).asyncReadEntry(any(), any(), any());
 
         streamingEntryReader.asyncReadEntries(5,  100, null);
