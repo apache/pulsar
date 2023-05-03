@@ -226,7 +226,7 @@ public class PersistentTopicsBase extends AdminResource {
                 String topicUri = topicName.toString();
                 AuthPolicies auth = policies.get().auth_policies;
                 // First add namespace level permissions
-                auth.getNamespaceAuthentication().forEach(permissions::put);
+                permissions.putAll(auth.getNamespaceAuthentication());
 
                 // Then add topic level permissions
                 if (auth.getTopicAuthentication().containsKey(topicUri)) {
