@@ -96,6 +96,7 @@ jobs:
     name: Build and License check
     env:
       JOB_NAME: Build and License check
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ubuntu-20.04
     timeout-minutes: 60
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -105,11 +106,6 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -176,6 +172,7 @@ jobs:
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
       COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ubuntu-20.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -215,11 +212,6 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -396,17 +388,14 @@ jobs:
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true'}}
+    env:
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -474,6 +463,7 @@ jobs:
     env:
       JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -517,11 +507,6 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -726,11 +711,6 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
-
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
@@ -744,17 +724,14 @@ jobs:
     timeout-minutes: 60
     needs: ['preconditions', 'build-and-license-check']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    env:
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -856,6 +833,7 @@ jobs:
     env:
       JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -890,11 +868,6 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -1086,6 +1059,7 @@ jobs:
     env:
       JOB_NAME: CI Flaky - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -1102,11 +1076,6 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
@@ -1213,11 +1182,6 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
-
       - name: Install gh-actions-artifact-client.js
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
@@ -1231,17 +1195,14 @@ jobs:
     timeout-minutes: 120
     needs: ['preconditions', 'integration-tests']
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    env:
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Cache Maven dependencies
         uses: actions/cache@v3
@@ -1269,17 +1230,14 @@ jobs:
     timeout-minutes: 120
     needs: [ 'preconditions', 'integration-tests' ]
     if: ${{ needs.preconditions.outputs.need_owasp == 'true' }}
+    env:
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     steps:
       - name: checkout
         uses: actions/checkout@v3
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
