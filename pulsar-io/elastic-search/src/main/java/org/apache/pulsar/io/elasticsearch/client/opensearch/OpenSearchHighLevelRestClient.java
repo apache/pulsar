@@ -302,6 +302,10 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         }
         indexRequest.type(config.getTypeName());
         indexRequest.source(request.getDocumentSource(), XContentType.JSON);
+        if (log.isDebugEnabled()) {
+            log.debug("append index request id={}, type={}, source={}", request.getDocumentId(), config.getTypeName(),
+                    request.getDocumentSource());
+        }
         internalBulkProcessor.add(indexRequest);
     }
 
@@ -310,6 +314,9 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         DeleteRequest deleteRequest = new DeleteRequestWithPulsarRecord(request.getIndex(), request.getRecord());
         deleteRequest.id(request.getDocumentId());
         deleteRequest.type(config.getTypeName());
+        if (log.isDebugEnabled()) {
+            log.debug("append delete request id={}, type={}", request.getDocumentId(), config.getTypeName());
+        }
         internalBulkProcessor.add(deleteRequest);
     }
 

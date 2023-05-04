@@ -100,6 +100,10 @@ public class ElasticBulkProcessor implements BulkProcessor {
         if (config.getBulkSizeInMb() > 0) {
             sourceLength = request.getDocumentSource().getBytes(StandardCharsets.UTF_8).length;
         }
+        if (log.isDebugEnabled()) {
+            log.debug("append index request id={}, type={}, source={}, length={}",
+                    request.getDocumentId(), config.getTypeName(), mapped, sourceLength);
+        }
         add(BulkOperationWithPulsarRecord.indexOperation(indexOperation, request.getRecord(), sourceLength));
     }
 
@@ -109,6 +113,9 @@ public class ElasticBulkProcessor implements BulkProcessor {
                 .index(request.getIndex())
                 .id(request.getDocumentId())
                 .build();
+        if (log.isDebugEnabled()) {
+            log.debug("append delete request id={}, type={}", request.getDocumentId(), config.getTypeName());
+        }
         add(BulkOperationWithPulsarRecord.deleteOperation(deleteOperation, request.getRecord()));
     }
 
