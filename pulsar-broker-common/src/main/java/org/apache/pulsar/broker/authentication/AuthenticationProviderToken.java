@@ -99,6 +99,12 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenAudienceClaimSettingName;
     private String confTokenAudienceSettingName;
 
+    public enum ErrorCode {
+        INVALID_AUTH_DATA,
+        INVALID_TOKEN,
+        INVALID_AUDIENCES,
+    }
+
     @Override
     public void close() throws IOException {
         // noop
@@ -145,19 +151,18 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        String token;
         try {
             // Get Token
-            String token;
             token = getToken(authData);
-            // Parse Token by validating
-            String role = getPrincipal(authenticateToken(token));
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
-            return role;
         } catch (AuthenticationException exception) {
-            AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(),
-                    exception.getMessage());
+            incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
             throw exception;
         }
+        // Parse Token by validating
+        String role = getPrincipal(authenticateToken(token));
+        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        return role;
     }
 
     @Override
@@ -209,16 +214,19 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     List<String> audiences = (List<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
-                        throw new AuthenticationException("Audiences in token: [" + String.join(", ", audiences)
-                                                          + "] not contains this broker: " + audience);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException("Audiences in token: ["
+                                + String.join(", ", audiences) + "] not contains this broker: " + audience);
                     }
                 } else if (object instanceof String) {
                     if (!object.equals(audience)) {
-                        throw new AuthenticationException("Audiences in token: [" + object
-                                                          + "] not contains this broker: " + audience);
+                        incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
+                        throw new AuthenticationException(
+                                "Audiences in token: [" + object + "] not contains this broker: " + audience);
                     }
                 } else {
                     // should not reach here.
+                    incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
                     throw new AuthenticationException("Audiences in token is not in expected format: " + object);
                 }
             }
@@ -232,6 +240,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             if (e instanceof ExpiredJwtException) {
                 expiredTokenMetrics.inc();
             }
+            incrementFailureMetric(ErrorCode.INVALID_TOKEN);
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }

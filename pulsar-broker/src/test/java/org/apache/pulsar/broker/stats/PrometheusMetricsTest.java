@@ -1141,15 +1141,12 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         conf.setProperties(properties);
         provider.initialize(conf);
 
-        String authExceptionMessage = "";
-
         try {
             provider.authenticate(new AuthenticationDataSource() {
             });
             fail("Should have failed");
         } catch (AuthenticationException e) {
             // expected, no credential passed
-            authExceptionMessage = e.getMessage();
         }
 
         String token = AuthTokenUtils.createToken(secretKey, "subject", Optional.empty());
@@ -1186,7 +1183,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         boolean haveFailed = false;
         for (Metric metric : cm) {
             if (Objects.equals(metric.tags.get("auth_method"), "token")
-                    && Objects.equals(metric.tags.get("reason"), authExceptionMessage)
+                    && Objects.equals(metric.tags.get("reason"),
+                    AuthenticationProviderToken.ErrorCode.INVALID_AUTH_DATA.name())
                     && Objects.equals(metric.tags.get("provider_name"), provider.getClass().getSimpleName())) {
                 haveFailed = true;
             }
