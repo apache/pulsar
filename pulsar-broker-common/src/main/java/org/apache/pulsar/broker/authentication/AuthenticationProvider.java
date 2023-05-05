@@ -29,6 +29,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 
 /**
@@ -74,6 +75,10 @@ public interface AuthenticationProvider extends Closeable {
                                              SSLSession sslSession)
         throws AuthenticationException {
         return new OneStageAuthenticationState(authData, remoteAddress, sslSession, this);
+    }
+
+    default void incrementFailureMetric(Enum<?> errorCode) {
+        AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), errorCode);
     }
 
     /**
