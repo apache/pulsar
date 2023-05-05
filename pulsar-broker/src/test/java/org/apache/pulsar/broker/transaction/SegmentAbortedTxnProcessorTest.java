@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.junit.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -44,10 +45,15 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -247,8 +253,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {
         SystemTopicClient.Reader<TransactionBufferSnapshotSegment> reader =
                 pulsarService.getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotSegmentService()
-                .createReader(TopicName.get(topic)).get();
+                        .getTxnBufferSnapshotSegmentService()
+                        .createReader(TopicName.get(topic)).get();
         int segmentCount = 0;
         while (reader.hasMoreEvents()) {
             Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
@@ -285,5 +291,79 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         snapshotTopic.triggerCompaction();
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(snapshotTopic);
         org.awaitility.Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
+    }
+
+    /**
+     * This test verifies the compatibility of the transaction buffer segmented snapshot feature
+     * when enabled on an existing topic.
+     * It performs the following steps:
+     * 1. Creates a topic with segmented snapshot disabled.
+     * 2. Sends 10 messages without using transactions.
+     * 3. Sends 10 messages using transactions and aborts them.
+     * 4. Verifies that only the non-transactional messages are received.
+     * 5. Enables the segmented snapshot feature and sets the snapshot segment size.
+     * 6. Unloads the topic and re-verifies that only the non-transactional messages are received.
+     * 7. Sends a new message, and checks if the topic has exactly one segment.
+     */
+    @Test
+    public void testSnapshotProcessorUpdate() throws Exception {
+        this.pulsarService = getPulsarServiceList().get(0);
+        this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
+
+        // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
+        // Abort these transactions and verify the data.
+        final String topicName = "persistent://" + NAMESPACE1 + "/testSnapshotProcessorUpdate";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+
+        // Send 10 messages without using transactions
+        for (int i = 0; i < 10; i++) {
+            producer.send(("test-message-" + i).getBytes());
+        }
+
+        // Send 10 messages using transactions and abort them
+        for (int i = 0; i < 10; i++) {
+            Transaction txn = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build().get();
+            producer.newMessage(txn).value(("test-txn-message-" + i).getBytes()).sendAsync();
+            txn.abort().get();
+        }
+
+        // Verify the data
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive();
+            assertEquals("test-message-" + i, new String(msg.getData()));
+            consumer.acknowledge(msg);
+        }
+
+        // Enable segmented snapshot
+        this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
+                SEGMENT_SIZE * 3);
+
+        // Unload the topic and re-verify the data
+        admin.topics().unload(topicName);
+        consumer.close();
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+        for (int i = 0; i < 10; i++) {
+            Message<byte[]> msg = consumer.receive();
+            assertEquals("test-message-" + i, new String(msg.getData()));
+            consumer.acknowledge(msg);
+        }
+
+        // Send a message, unload the topic, and verify that the topic has exactly one segment
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage(txn).value("test-message-new".getBytes()).send();
+        txn.abort().get();
+
+        // Check if the topic has only one segment
+        Awaitility.await().untilAsserted(() -> {
+            String segmentTopic = "persistent://" + NAMESPACE1 + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
+            TopicStats topicStats = admin.topics().getStats(segmentTopic);
+            assertEquals(1, topicStats.getMsgInCounter());
+        });
     }
 }
