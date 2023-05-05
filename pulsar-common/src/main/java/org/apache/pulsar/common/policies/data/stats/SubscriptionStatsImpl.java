@@ -166,6 +166,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         backlogSize = 0;
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
+        type = null;
         msgRateExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
@@ -199,6 +200,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;
+        this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
