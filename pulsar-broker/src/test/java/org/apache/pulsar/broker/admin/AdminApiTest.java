@@ -1192,6 +1192,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getEarliestMsgPublishTimeInBacklog(), 0);
     }
 
+    @Test
+    public void testGetPartitionedStatsContainSubscriptionType() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/my-topic" + UUID.randomUUID();
+        final int numPartitions = 4;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        // create consumer and subscription
+        final String subName = "my-sub";
+        @Cleanup Consumer<byte[]> exclusiveConsumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+
+        TopicStats topicStats = admin.topics().getPartitionedStats(topic, false);
+        assertEquals(topicStats.getSubscriptions().size(), 1);
+        assertEquals(topicStats.getSubscriptions().get(subName).getType(), SubscriptionType.Exclusive.toString());
+    }
+
 
     @Test
     public void testGetPartitionedStatsInternal() throws Exception {
