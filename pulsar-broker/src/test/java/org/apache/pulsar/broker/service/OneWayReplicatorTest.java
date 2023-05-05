@@ -46,7 +46,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     @Test
-    public void testReplicatedCluster() throws Exception {
+    public void testReplicatorProducerStatInTopic() throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + defaultNamespace + "/tp_");
         final String subscribeName = "subscribe_1";
         final byte[] msgValue = "test".getBytes();
