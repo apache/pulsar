@@ -361,7 +361,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Check if the topic has only one segment
         Awaitility.await().untilAsserted(() -> {
-            String segmentTopic = "persistent://" + NAMESPACE1 + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
+            String segmentTopic = "persistent://" + NAMESPACE1 + "/" +
+                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
             TopicStats topicStats = admin.topics().getStats(segmentTopic);
             assertEquals(1, topicStats.getMsgInCounter());
         });
