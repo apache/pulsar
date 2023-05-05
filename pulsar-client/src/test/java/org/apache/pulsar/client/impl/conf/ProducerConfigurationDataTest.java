@@ -22,24 +22,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link ClientConfigurationData}.
+ * Unit tests for {@link ProducerConfigurationData}.
  */
-public class ClientConfigurationDataTest {
-
+public class ProducerConfigurationDataTest {
     @Test
-    public void testDoNotPrintSensitiveInfo() throws JsonProcessingException {
-        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
-        clientConfigurationData.setTlsTrustStorePassword("xxxx");
-        clientConfigurationData.setSocks5ProxyPassword("yyyy");
-        clientConfigurationData.setAuthentication(new AuthenticationToken("zzzz"));
+    public void testProducerConfigurationDataSerializedWithoutIgnoredTransientFields() throws JsonProcessingException {
+        ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
-        String serializedConf = objectMapper.writeValueAsString(clientConfigurationData);
-        assertThat(serializedConf).doesNotContain("xxxx", "yyyy", "zzzz", "serviceUrlProvider");
+        String serializedConf = objectMapper.writeValueAsString(producerConfigurationData);
+        assertThat(serializedConf).doesNotContain("messageCrypto");
     }
-
 }
