@@ -2153,9 +2153,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         MessageIdAdv originSeekMessageId = seekMessageId;
         seekMessageId = (MessageIdAdv) seekId;
-        duringSeek.set(true);
+        
+        if (!duringSeek.compareAndSet(false, true)) {
+            log.warn("[{}][{}] Attempting to seek operation that is already in progress, cancelling {}", 
+                    topic, subscription, seekBy);
+            seekFuture.cancel(true);
+            return seekFuture;
+        }
         log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
-
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
             log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
             acknowledgmentsGroupingTracker.flushAndClean();
