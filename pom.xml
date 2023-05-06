@@ -220,7 +220,7 @@ flexible messaging model and an intuitive client API.</description>
     <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring.version>5.3.20</spring.version>
+    <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
