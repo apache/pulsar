@@ -104,6 +104,12 @@
       <groupId>io.prestosql</groupId>
       <artifactId>presto-cli</artifactId>
       <version>${presto.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>logback-core</artifactId>
+          <groupId>ch.qos.logback</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
