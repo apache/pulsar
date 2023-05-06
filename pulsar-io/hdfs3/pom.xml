@@ -49,11 +49,15 @@
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-collections4</artifactId>
     </dependency>
+    <dependency>
+      <groupId>commons-net</groupId>
+      <artifactId>commons-net</artifactId>
+    </dependency>
     
   	<dependency>
   		<groupId>org.apache.hadoop</groupId>
   		<artifactId>hadoop-client</artifactId>
-  		<version>3.1.1</version>
+  		<version>3.2.3</version>
         <exclusions>
           <exclusion>
             <groupId>jakarta.activation</groupId>
@@ -66,6 +70,10 @@
           <exclusion>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
           </exclusion>
         </exclusions>
   	</dependency>

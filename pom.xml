@@ -192,6 +192,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-lang3.version>3.11</commons-lang3.version>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
+    <commons-net.version>3.9.0</commons-net.version>
     <commons-codec.version>1.15</commons-codec.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
@@ -670,6 +671,11 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>commons-configuration</groupId>
         <artifactId>commons-configuration</artifactId>
         <version>${commons-configuration.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>commons-net</groupId>
+        <artifactId>commons-net</artifactId>
+        <version>${commons-net.version}</version>
       </dependency>
 
       <dependency>
