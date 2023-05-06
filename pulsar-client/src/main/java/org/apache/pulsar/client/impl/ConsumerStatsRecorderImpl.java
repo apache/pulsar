@@ -238,7 +238,11 @@ public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
     @Override
     public Integer getMsgNumInReceiverQueue() {
         if (consumer instanceof ConsumerBase) {
-            return ((ConsumerBase<?>) consumer).incomingMessages.size();
+            ConsumerBase<?> consumerBase = (ConsumerBase<?>) consumer;
+            if (consumerBase.listener != null){
+                return consumerBase.messageListenerQueueSize.get();
+            }
+            return consumerBase.incomingMessages.size();
         }
         return null;
     }
