@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
@@ -182,7 +181,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         config.setBrokerServicePortTls(Optional.of(0));
         config.setBacklogQuotaCheckIntervalInSeconds(5);
         config.setDefaultNumberOfNamespaceBundles(1);
-        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        config.setAllowAutoTopicCreationType("non-partitioned");
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
     }
