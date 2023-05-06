@@ -314,6 +314,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         // Abort these transactions and verify the data.
         final String topicName = "persistent://" + NAMESPACE1 + "/testSnapshotProcessorUpdate";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
 
         // Send 10 messages without using transactions
         for (int i = 0; i < 10; i++) {
@@ -330,9 +331,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         }
 
         // Verify the data
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertEquals("test-message-" + i, new String(msg.getData()));
             consumer.acknowledge(msg);
         }
@@ -347,7 +347,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
         for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertEquals("test-message-" + i, new String(msg.getData()));
             consumer.acknowledge(msg);
         }
