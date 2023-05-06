@@ -95,6 +95,12 @@
       <groupId>com.github.wnameless.json</groupId>
       <artifactId>json-flattener</artifactId>
       <version>${json-flattener.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-text</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
