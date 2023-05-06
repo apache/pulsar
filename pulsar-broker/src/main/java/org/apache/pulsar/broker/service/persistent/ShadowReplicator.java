@@ -58,6 +58,10 @@ public class ShadowReplicator extends PersistentReplicator {
         boolean atLeastOneMessageSentForReplication = false;
 
         try {
+            if (!checkNoMessageSkipped(entries)) {
+                return false;
+            }
+
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
             boolean isLocalMessageSkippedOnce = false;
@@ -113,6 +117,7 @@ public class ShadowReplicator extends PersistentReplicator {
 
                 // Increment pending messages for messages produced locally
                 PENDING_MESSAGES_UPDATER.incrementAndGet(this);
+                lastSent = entry.getPosition();
                 producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg));
                 atLeastOneMessageSentForReplication = true;
             }

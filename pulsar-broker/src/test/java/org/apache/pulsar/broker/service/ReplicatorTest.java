@@ -34,8 +34,10 @@ import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,6 +45,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,6 +54,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -67,6 +72,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -90,6 +96,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -1755,5 +1762,94 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer2.produce(1);
 
         Assert.assertThrows(PulsarClientException.ProducerBusyException.class, () -> new MessageProducer(url2, dest2));
+    }
+
+    @Test
+    public void testDiscontinuousMessages() throws Exception {
+        final Field fieldReadPosition = ManagedCursorImpl.class.getDeclaredField("readPosition");
+        fieldReadPosition.setAccessible(true);
+        final Field fieldPendingMessages = PersistentReplicator.class.getDeclaredField("pendingMessages");
+        fieldPendingMessages.setAccessible(true);
+        final String namespace = "pulsar/ns1";
+        final TopicName tName = TopicName.get(BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp_"));
+        final String tpName = tName.toString();
+        final String ignoredSubName = "sub_ignore";
+        final String replicatorSubName = "pulsar.repl.r2";
+
+        // create topics.
+        admin1.topics().createNonPartitionedTopic(tpName);
+        admin1.topics().createSubscription(tpName, ignoredSubName, MessageId.earliest);
+        admin1.topicPolicies().setDeduplicationStatus(tpName, true);
+        try {
+            admin2.topics().createNonPartitionedTopic(tpName);
+        } catch (Exception ex){/* Maybe ConflictException: because replicator will create this topic too.*/}
+        admin2.topics().createSubscription(tpName, ignoredSubName, MessageId.earliest);
+        admin2.schemas().createSchema(tpName, Schema.STRING.getSchemaInfo());
+        admin2.topicPolicies().setDeduplicationStatus(tpName, true);
+
+        // init clients.
+        final PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).build();
+        final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
+        final Producer producer1 = client1.newProducer().topic(tpName).enableBatching(false).create();
+        final Consumer consumer2 = client2.newConsumer().topic(tpName).subscriptionName(ignoredSubName).subscribe();
+        final PersistentTopic tp =
+                (PersistentTopic) pulsar1.getBrokerService().getTopic(tName.toString(), false).join().get();
+        final ManagedLedgerImpl ml = (ManagedLedgerImpl) tp.getManagedLedger();
+        final ManagedCursorImpl replicatorCursor = (ManagedCursorImpl) ml.openCursor(replicatorSubName,
+                CommandSubscribe.InitialPosition.Earliest);
+        tp.checkReplication().join();
+        final GeoPersistentReplicator replicator = (GeoPersistentReplicator) tp.getReplicators().values().get(0);
+
+        // pause replication.
+        fieldPendingMessages.set(replicator, Integer.MAX_VALUE);
+        // sleep some seconds to skip the first reading.
+        Thread.sleep(2000);
+
+        // Set a wrong read position to mock discontinuous read.
+        BiConsumer<MessageId, Throwable> actionToMakeReadPositionError = (messageId, ex) -> {
+            MessageIdImpl messageIdImpl = (MessageIdImpl) messageId;
+            PositionImpl wrongReadPosition =
+                    PositionImpl.get(messageIdImpl.getLedgerId(), messageIdImpl.getEntryId());
+            Position originalPos = replicatorCursor.getReadPosition();
+            try {
+                fieldReadPosition.set(replicatorCursor, wrongReadPosition);
+            } catch (IllegalAccessException e) {
+            }
+            log.info("original read-pos: {}, set wrong pos: {}", originalPos,
+                    replicatorCursor.getReadPosition());
+        };
+
+        // Send messages.
+        final int sentCount = 200;
+        for (int i = 0; i < sentCount; i++){
+            CompletableFuture<MessageId> sendFuture =
+                    producer1.sendAsync(Integer.valueOf(i).toString().getBytes(Charset.defaultCharset()));
+            if (i % 10 == 0 && i > 10) {
+                sendFuture.whenComplete(actionToMakeReadPositionError);
+            }
+        }
+
+        // Start replication.
+        fieldPendingMessages.set(replicator, 0);
+        replicator.readEntriesComplete(Collections.emptyList(), null);
+
+        // Receive replicated messages.
+        final AtomicInteger receivedCounter = new AtomicInteger();
+        final ArrayBlockingQueue<Integer> receivedMessages = new ArrayBlockingQueue<>(sentCount);
+        // 60s is set only to avoid flaky test, which is slow to run locally.
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+            Message<byte[]> msg = consumer2.receive(2, TimeUnit.SECONDS);
+            if (msg != null) {
+                String receivedMsg = new String(msg.getValue(), Charset.defaultCharset());
+                log.info("received: {}", receivedMsg);
+                receivedMessages.add(Integer.valueOf(receivedMsg));
+                receivedCounter.incrementAndGet();
+            }
+            assertEquals(receivedCounter.get(), sentCount);
+        });
+
+        // Verify the order in which messages are received.
+        ArrayList<Integer> sortedReceivedMessages = new ArrayList<>(receivedMessages);
+        assertEquals(receivedMessages, sortedReceivedMessages);
     }
 }
