@@ -300,19 +300,22 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
      * 1. Creates a topic with segmented snapshot disabled.
      * 2. Sends 10 messages without using transactions.
      * 3. Sends 10 messages using transactions and aborts them.
-     * 4. Verifies that only the non-transactional messages are received.
-     * 5. Enables the segmented snapshot feature and sets the snapshot segment size.
-     * 6. Unloads the topic and re-verifies that only the non-transactional messages are received.
-     * 7. Sends a new message, and checks if the topic has exactly one segment.
+     * 4. Sends 10 messages without using transactions.
+     * 5. Verifies that only the non-transactional messages are received.
+     * 6. Enables the segmented snapshot feature and sets the snapshot segment size.
+     * 7. Unloads the topic.
+     * 8. Sends a new message using a transaction and aborts it.
+     * 9. Verifies that the topic has exactly one segment.
+     * 10. Re-subscribes the consumer and re-verifies that only the non-transactional messages are received.
      */
     @Test
-    public void testSnapshotProcessorUpdate() throws Exception {
+    public void testSnapshotProcessorUpgrade() throws Exception {
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
 
         // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
         // Abort these transactions and verify the data.
-        final String topicName = "persistent://" + NAMESPACE1 + "/testSnapshotProcessorUpdate";
+        final String topicName = "persistent://" + NAMESPACE1 + "/testSnapshotProcessorUpgrade";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
 
@@ -330,11 +333,15 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
             txn.abort().get();
         }
 
+        // Send 10 messages without using transactions
+        for (int i = 10; i < 20; i++) {
+            producer.send(("test-message-" + i).getBytes());
+        }
+
         // Verify the data
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 20; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertEquals("test-message-" + i, new String(msg.getData()));
-            consumer.acknowledge(msg);
         }
 
         // Enable segmented snapshot
@@ -342,29 +349,30 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
                 SEGMENT_SIZE * 3);
 
-        // Unload the topic and re-verify the data
+        // Unload the topic
         admin.topics().unload(topicName);
-        consumer.close();
-        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
-        for (int i = 0; i < 10; i++) {
-            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
-            assertEquals("test-message-" + i, new String(msg.getData()));
-            consumer.acknowledge(msg);
-        }
 
-        // Send a message, unload the topic, and verify that the topic has exactly one segment
+        // Sends a new message using a transaction and aborts it.
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
         producer.newMessage(txn).value("test-message-new".getBytes()).send();
         txn.abort().get();
 
-        // Check if the topic has only one segment
+        // Verifies that the topic has exactly one segment.
         Awaitility.await().untilAsserted(() -> {
             String segmentTopic = "persistent://" + NAMESPACE1 + "/" +
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
             TopicStats topicStats = admin.topics().getStats(segmentTopic);
             assertEquals(1, topicStats.getMsgInCounter());
         });
+
+        // Re-subscribes the consumer and re-verifies that only the non-transactional messages are received.
+        consumer.close();
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+        for (int i = 0; i < 20; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertEquals("test-message-" + i, new String(msg.getData()));
+        }
     }
 }

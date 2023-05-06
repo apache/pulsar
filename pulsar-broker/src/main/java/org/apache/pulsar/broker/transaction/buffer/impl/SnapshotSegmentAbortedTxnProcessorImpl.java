@@ -266,7 +266,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
                     TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes = persistentSnapshotIndexes;
                     if (persistentSnapshotIndexes == null) {
-                       return recoverOldSnapshot();
+                        return recoverOldSnapshot();
                     } else {
                         this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
                                 .getSnapshot().getAborts());
@@ -416,7 +416,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                         closeReader(snapshotReader);
                     }
                     return CompletableFuture.completedFuture(startReadCursorPositionInOldSnapshot);
-                });
+                }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this));
     }
 
     // This method will be deprecated and removed in version 4.x.0
