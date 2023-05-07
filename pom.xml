@@ -102,7 +102,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
-    <snakeyaml.version>1.32</snakeyaml.version>
+    <snakeyaml.version>2.0</snakeyaml.version>
     <bookkeeper.version>4.14.7</bookkeeper.version>
     <zookeeper.version>3.6.3</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
@@ -179,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
+    <commons-net.version>3.9.0</commons-net.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
@@ -226,7 +227,7 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.0.3</awaitility.version>
-    <jettison.version>1.5.3</jettison.version>
+    <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
 
     <!-- Plugin dependencies -->
@@ -660,6 +661,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${commons-lang3.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>commons-net</groupId>
+        <artifactId>commons-net</artifactId>
+        <version>${commons-net.version}</version>
       </dependency>
 
       <dependency>
