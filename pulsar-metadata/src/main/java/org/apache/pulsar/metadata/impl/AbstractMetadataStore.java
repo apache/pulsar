@@ -130,7 +130,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                             return existsFromStore(key).thenApplyAsync(Function.identity());
                         } else {
                             // Do not refresh if we're not connected
-                            return CompletableFuture.supplyAsync(() -> oldValue);
+                            return CompletableFuture.completedFuture(oldValue);
                         }
                     }
                 });
