@@ -263,7 +263,7 @@ public class ConsumerImplTest {
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
     }
 
-    @Test
+    @Test(invocationTimeOut = 1000)
     public void testSeekAsyncInternal() {
         // given
         ClientCnx cnx = mock(ClientCnx.class);
