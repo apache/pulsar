@@ -126,6 +126,14 @@
                     <artifactId>jetty-security</artifactId>
                     <groupId>org.eclipse.jetty</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>async-http-client</artifactId>
+                    <groupId>com.ning</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>http2-server</artifactId>
+                    <groupId>org.eclipse.jetty.http2</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
 
