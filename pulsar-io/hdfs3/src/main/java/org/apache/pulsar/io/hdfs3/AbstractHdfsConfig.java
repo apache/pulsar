@@ -21,7 +21,7 @@ package org.apache.pulsar.io.hdfs3;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Configuration object for all HDFS components.

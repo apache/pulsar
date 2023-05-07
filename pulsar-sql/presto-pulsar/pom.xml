@@ -41,6 +41,12 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>bootstrap</artifactId>
+            <exclusions>
+                <exclusion>
+                    <artifactId>logback-core</artifactId>
+                    <groupId>ch.qos.logback</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
