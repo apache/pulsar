@@ -2150,9 +2150,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId, String seekBy) {
         final CompletableFuture<Void> seekFuture = new CompletableFuture<>();
         ClientCnx cnx = cnx();
-
-        MessageIdAdv originSeekMessageId = seekMessageId;
-        seekMessageId = (MessageIdAdv) seekId;
         
         if (!duringSeek.compareAndSet(false, true)) {
             log.warn("[{}][{}] Attempting to seek operation that is already in progress, cancelling {}", 
@@ -2160,7 +2157,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             seekFuture.cancel(true);
             return seekFuture;
         }
+
+        MessageIdAdv originSeekMessageId = seekMessageId;
+        seekMessageId = (MessageIdAdv) seekId;
         log.info("[{}][{}] Seeking subscription to {}", topic, subscription, seekBy);
+
         cnx.sendRequestWithId(seek, requestId).thenRun(() -> {
             log.info("[{}][{}] Successfully reset subscription to {}", topic, subscription, seekBy);
             acknowledgmentsGroupingTracker.flushAndClean();
