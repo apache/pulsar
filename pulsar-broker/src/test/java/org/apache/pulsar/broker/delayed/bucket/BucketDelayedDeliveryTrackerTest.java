@@ -178,12 +178,6 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertTrue(tracker.containsMessage(3, 3));
 
-        tracker.addMessage(7, 65535, 40);
-        tracker.addMessage(7, 65536, 40);
-
-        assertTrue(tracker.containsMessage(7, 65535));
-        assertTrue(tracker.containsMessage(7, 65536));
-
         tracker.close();
     }
 

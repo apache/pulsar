@@ -82,7 +82,7 @@ abstract class Bucket {
         if (bitSet == null) {
             return false;
         }
-        return bitSet.contains((int) entryId);
+        return bitSet.contains(entryId, entryId + 1);
     }
 
     void putIndexBit(long ledgerId, long entryId) {
@@ -92,7 +92,7 @@ abstract class Bucket {
     boolean removeIndexBit(long ledgerId, long entryId) {
         boolean contained = false;
         RoaringBitmap bitSet = delayedIndexBitMap.get(ledgerId);
-        if (bitSet != null && bitSet.contains((int) entryId)) {
+        if (bitSet != null && bitSet.contains(entryId, entryId + 1)) {
             contained = true;
             bitSet.remove(entryId, entryId + 1);
 
