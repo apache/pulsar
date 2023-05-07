@@ -134,6 +134,10 @@
                     <artifactId>http2-server</artifactId>
                     <groupId>org.eclipse.jetty.http2</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>http-server</artifactId>
+                    <groupId>io.airlift</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
 
