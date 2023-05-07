@@ -545,6 +545,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void deleteFailed(ManagedLedgerException exception, Object ctx) {
         log.error("[{}] Failed to delete message at {}: {}", replicatorId, ctx,
                 exception.getMessage(), exception);
+        if (exception instanceof CursorAlreadyClosedException) {
+            log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
+                            + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
+            // replicator is already deleted and cursor is already closed so, producer should also be stopped
+            closeProducerAsync();
+            return;
+        }
         if (ctx instanceof PositionImpl) {
             PositionImpl deletedEntry = (PositionImpl) ctx;
             if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
