@@ -65,6 +65,10 @@
                     <artifactId>avro</artifactId>
                     <groupId>org.apache.avro</groupId>
                 </exclusion>
+                <exclusion>
+                    <artifactId>commons-collections</artifactId>
+                    <groupId>commons-collections</groupId>
+                </exclusion>
             </exclusions>
         </dependency>
         <dependency>
