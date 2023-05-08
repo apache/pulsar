@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -185,8 +186,10 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             statement.setString(index, (String) value);
         } else if (value instanceof Short) {
             statement.setShort(index, (Short) value);
+        } else if (value instanceof ByteString) {
+            statement.setBytes(index, ((ByteString) value).toByteArray());
         } else {
-            throw new Exception("Not support value type, need to add it. " + value.getClass());
+            throw new Exception("Not supported value type, need to add it. " + value.getClass());
         }
     }
 
