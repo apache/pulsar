@@ -182,7 +182,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             @Override
             public void operationFailed(MetaStoreException e) {
                 if (e instanceof MetadataNotFoundException) {
-                    result.complete(Collections.emptyMap());
+                    result.complete(new HashMap<>());
                 } else {
                     result.completeExceptionally(e);
                 }
