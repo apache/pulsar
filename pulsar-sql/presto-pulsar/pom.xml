@@ -117,6 +117,28 @@
             <artifactId>presto-main</artifactId>
             <version>${presto.version}</version>
             <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>jetty-client</artifactId>
+                    <groupId>org.eclipse.jetty</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>jetty-security</artifactId>
+                    <groupId>org.eclipse.jetty</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>async-http-client</artifactId>
+                    <groupId>com.ning</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>http2-server</artifactId>
+                    <groupId>org.eclipse.jetty.http2</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>http-server</artifactId>
+                    <groupId>io.airlift</groupId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>

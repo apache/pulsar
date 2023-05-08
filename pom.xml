@@ -102,7 +102,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
-    <snakeyaml.version>1.32</snakeyaml.version>
+    <snakeyaml.version>2.0</snakeyaml.version>
     <bookkeeper.version>4.14.7</bookkeeper.version>
     <zookeeper.version>3.6.3</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
@@ -111,7 +111,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.87.Final</netty.version>
     <netty-tc-native.version>2.0.56.Final</netty-tc-native.version>
-    <jetty.version>9.4.48.v20220622</jetty.version>
+    <jetty.version>9.4.51.v20230217</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.9</athenz.version>
@@ -123,9 +123,9 @@ flexible messaging model and an intuitive client API.</description>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
-    <jackson.version>2.13.4.20221013</jackson.version>
+    <jackson.version>2.14.2</jackson.version>
     <reflections.version>0.9.11</reflections.version>
-    <swagger.version>1.6.2</swagger.version>
+    <swagger.version>1.6.10</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
@@ -179,6 +179,7 @@ flexible messaging model and an intuitive client API.</description>
     <commons-configuration.version>1.10</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
+    <commons-net.version>3.9.0</commons-net.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
@@ -201,10 +202,10 @@ flexible messaging model and an intuitive client API.</description>
     <!-- use okio version that matches the okhttp3 version -->
     <okio.version>2.8.0</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
-    <kotlin-stdlib.version>1.4.32</kotlin-stdlib.version>
+    <kotlin-stdlib.version>1.6.0</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring-context.version>5.3.19</spring-context.version>
+    <spring-context.version>5.3.27</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
@@ -226,7 +227,7 @@ flexible messaging model and an intuitive client API.</description>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.0.3</awaitility.version>
-    <jettison.version>1.5.3</jettison.version>
+    <jettison.version>1.5.4</jettison.version>
     <woodstox.version>5.4.0</woodstox.version>
 
     <!-- Plugin dependencies -->
@@ -660,6 +661,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${commons-lang3.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>commons-net</groupId>
+        <artifactId>commons-net</artifactId>
+        <version>${commons-net.version}</version>
       </dependency>
 
       <dependency>
