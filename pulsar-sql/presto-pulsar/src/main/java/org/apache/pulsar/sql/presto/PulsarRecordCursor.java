@@ -595,43 +595,45 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         for (DecoderColumnHandle columnHandle : columnHandles) {
-            switch (columnHandle.getName()) {
-                case "__partition__":
-                    currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
-                    break;
-                case "__event_time__":
-                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
-                            this.currentMessage.getEventTime(), this.currentMessage.getEventTime() == 0));
-                    break;
-                case "__publish_time__":
-                    currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
-                            this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
-                    break;
-                case "__message_id__":
-                    currentRowValuesMap.put(columnHandle, bytesValueProvider(
-                            this.currentMessage.getMessageId().toString().getBytes()));
-                    break;
-                case "__sequence_id__":
-                    currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
-                    break;
-                case "__producer_name__":
-                    currentRowValuesMap.put(columnHandle,
-                            bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
-                    break;
-                case "__key__":
-                    String key = this.currentMessage.getKey().orElse(null);
-                    currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));
-                    break;
-                case "__properties__":
-                    try {
+            if (columnHandle.isInternal()) {
+                switch (columnHandle.getName()) {
+                    case "__partition__":
+                        currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
+                        break;
+                    case "__event_time__":
+                        currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                                this.currentMessage.getEventTime(), this.currentMessage.getEventTime() == 0));
+                        break;
+                    case "__publish_time__":
+                        currentRowValuesMap.put(columnHandle, PulsarFieldValueProviders.timeValueProvider(
+                                this.currentMessage.getPublishTime(), this.currentMessage.getPublishTime() == 0));
+                        break;
+                    case "__message_id__":
                         currentRowValuesMap.put(columnHandle, bytesValueProvider(
-                                new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
-                    } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
-                    }
-                    break;
-                default:
-                    throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
+                                this.currentMessage.getMessageId().toString().getBytes()));
+                        break;
+                    case "__sequence_id__":
+                        currentRowValuesMap.put(columnHandle, longValueProvider(this.currentMessage.getSequenceId()));
+                        break;
+                    case "__producer_name__":
+                        currentRowValuesMap.put(columnHandle,
+                                bytesValueProvider(this.currentMessage.getProducerName().getBytes()));
+                        break;
+                    case "__key__":
+                        String key = this.currentMessage.getKey().orElse(null);
+                        currentRowValuesMap.put(columnHandle, bytesValueProvider(key == null ? null : key.getBytes()));
+                        break;
+                    case "__properties__":
+                        try {
+                            currentRowValuesMap.put(columnHandle, bytesValueProvider(
+                                    new ObjectMapper().writeValueAsBytes(this.currentMessage.getProperties())));
+                        } catch (JsonProcessingException e) {
+                            throw new RuntimeException(e);
+                        }
+                        break;
+                    default:
+                        throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
+                }
             }
         }
         for (int i = 0; i < columnHandles.size(); i++) {
