@@ -20,3 +20,4 @@
 name: dynamodb
 description: DynamoDB connectors
 sourceClass: org.apache.pulsar.io.dynamodb.DynamoDBSource
+sourceConfigClass: org.apache.pulsar.io.dynamodb.DynamoDBSourceConfig

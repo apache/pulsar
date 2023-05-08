@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromCompressionType;
+import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFunctionDetailsCompressionType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.convertProcessingGuarantee;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -138,7 +140,9 @@ public class SourceConfigUtils {
             sinkSpecBuilder.setSerDeClassName(sourceConfig.getSerdeClassName());
         }
 
-        sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
+        if (!isEmpty(sourceConfig.getTopicName())) {
+            sinkSpecBuilder.setTopic(sourceConfig.getTopicName());
+        }
 
         if (sourceDetails.getTypeArg() != null) {
             sinkSpecBuilder.setTypeClassName(sourceDetails.getTypeArg());
@@ -161,6 +165,11 @@ public class SourceConfigUtils {
             }
             if (conf.getBatchBuilder() != null) {
                 pbldr.setBatchBuilder(conf.getBatchBuilder());
+            }
+            if (conf.getCompressionType() != null) {
+                pbldr.setCompressionType(convertFromCompressionType(conf.getCompressionType()));
+            } else {
+                pbldr.setCompressionType(Function.CompressionType.LZ4);
             }
             sinkSpecBuilder.setProducerSpec(pbldr.build());
         }
@@ -262,6 +271,7 @@ public class SourceConfigUtils {
                 producerConfig.setBatchBuilder(spec.getBatchBuilder());
             }
             producerConfig.setUseThreadLocalProducers(spec.getUseThreadLocalProducers());
+            producerConfig.setCompressionType(convertFromFunctionDetailsCompressionType(spec.getCompressionType()));
             sourceConfig.setProducerConfig(producerConfig);
         }
         if (functionDetails.hasResources()) {
@@ -295,10 +305,7 @@ public class SourceConfigUtils {
         if (isEmpty(sourceConfig.getName())) {
             throw new IllegalArgumentException("Source name cannot be null");
         }
-        if (isEmpty(sourceConfig.getTopicName())) {
-            throw new IllegalArgumentException("Topic name cannot be null");
-        }
-        if (!TopicName.isValid(sourceConfig.getTopicName())) {
+        if (!isEmpty(sourceConfig.getTopicName()) && !TopicName.isValid(sourceConfig.getTopicName())) {
             throw new IllegalArgumentException("Topic name is invalid");
         }
         if (sourceConfig.getParallelism() != null && sourceConfig.getParallelism() <= 0) {
@@ -381,8 +388,8 @@ public class SourceConfigUtils {
 
     @SneakyThrows
     public static SourceConfig clone(SourceConfig sourceConfig) {
-        return ObjectMapperFactory.getThreadLocal().readValue(
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(sourceConfig), SourceConfig.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(sourceConfig), SourceConfig.class);
     }
 
     public static SourceConfig validateUpdate(SourceConfig existingConfig, SourceConfig newConfig) {
@@ -457,7 +464,7 @@ public class SourceConfigUtils {
                     new TypeReference<HashMap<String, Object>>() {
             };
             try {
-                return ObjectMapperFactory.getThreadLocal().readValue(sourceSpec.getConfigs(), typeRef);
+                return ObjectMapperFactory.getMapper().reader().forType(typeRef).readValue(sourceSpec.getConfigs());
             } catch (IOException e) {
                 log.error("Failed to read configs for source {}", fqfn, e);
                 throw new RuntimeException(e);
@@ -532,7 +539,8 @@ public class SourceConfigUtils {
     public static void validateSourceConfig(SourceConfig sourceConfig, Class configClass) {
         try {
             Object configObject =
-                    ObjectMapperFactory.getThreadLocal().convertValue(sourceConfig.getConfigs(), configClass);
+                    ObjectMapperFactory.getMapper().getObjectMapper()
+                            .convertValue(sourceConfig.getConfigs(), configClass);
             if (configObject != null) {
                 ConfigValidation.validateConfig(configObject);
             }

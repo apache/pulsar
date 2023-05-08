@@ -49,6 +49,8 @@ public interface MessageAcknowledger {
      *
      * @throws PulsarClientException.AlreadyClosedException}
      *             if the consumer was already closed
+     * @throws PulsarClientException.NotAllowedException
+     *             if `messageId` is not a {@link TopicMessageId} when multiple topics are subscribed
      */
     void acknowledge(MessageId messageId) throws PulsarClientException;
 
@@ -59,6 +61,8 @@ public interface MessageAcknowledger {
     /**
      * Acknowledge the consumption of a list of message.
      * @param messageIdList the list of message IDs.
+     * @throws PulsarClientException.NotAllowedException
+     *     if any message id in the list is not a {@link TopicMessageId} when multiple topics are subscribed
      */
     void acknowledge(List<MessageId> messageIdList) throws PulsarClientException;
 
@@ -82,6 +86,8 @@ public interface MessageAcknowledger {
      *            The {@code MessageId} to be cumulatively acknowledged
      * @throws PulsarClientException.AlreadyClosedException
      *             if the consumer was already closed
+     * @throws PulsarClientException.NotAllowedException
+     *             if `messageId` is not a {@link TopicMessageId} when multiple topics are subscribed
      */
     void acknowledgeCumulative(MessageId messageId) throws PulsarClientException;
 

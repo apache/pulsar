@@ -40,8 +40,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
@@ -219,7 +219,7 @@ public class SemanticsTest extends PulsarTestSuite {
                     Message<String> m = consumer.receive();
                     int topicIdx;
                     if (numTopics > 1) {
-                        String topic = ((TopicMessageIdImpl) m.getMessageId()).getTopicPartitionName();
+                        String topic = ((TopicMessageId) m.getMessageId()).getOwnerTopic();
 
                         String[] topicParts = StringUtils.split(topic, '-');
                         topicIdx = Integer.parseInt(topicParts[topicParts.length - 1]);

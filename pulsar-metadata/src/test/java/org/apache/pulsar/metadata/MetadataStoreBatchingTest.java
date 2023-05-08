@@ -104,7 +104,8 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         CompletableFuture<Stat> f3 = store.put(key1 + "/c", new byte[0], Optional.of(-1L)); // Should succeed
         CompletableFuture<Void> f4 = store.delete(key1 + "/d", Optional.empty()); // Should fail
 
-        assertEquals(f1.join().getVersion(), 0L);
+        assertTrue(f1.join().getVersion() >= 0L);
+        assertTrue(f1.join().isFirstVersion());
 
         try {
             f2.join();
@@ -112,7 +113,9 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
             assertEquals(ce.getCause().getClass(), BadVersionException.class);
         }
 
-        assertEquals(f3.join().getVersion(), 0L);
+        assertTrue(f3.join().getVersion() >= 0L);
+        assertTrue(f3.join().isFirstVersion());
+
 
         try {
             f4.join();

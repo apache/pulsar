@@ -256,6 +256,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 LedgerEntry ledgerEntry = iterator.next();
                                 EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
 
+                                ml.getMbean().recordReadEntriesOpsCacheMisses();
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
                                 callback.readEntryComplete(returnEntry, ctx);
@@ -267,7 +268,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                         } finally {
                             ledgerEntries.close();
                         }
-                    }, ml.getExecutor().chooseThread(ml.getName())).exceptionally(exception -> {
+                    }, ml.getExecutor()).exceptionally(exception -> {
                         ml.invalidateLedgerHandle(lh);
                         pendingReadsManager.invalidateLedger(lh.getId());
                         callback.readEntryFailed(createManagedLedgerException(exception), ctx);
@@ -378,10 +379,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                         new ManagedLedgerException.TooManyRequestsException(message), ctx);
                 return null;
             }
-            ml.getExecutor().submitOrdered(lh.getId(), () -> {
+            ml.getExecutor().execute(() -> {
                 asyncReadEntry0WithLimits(lh, firstEntry, lastEntry, shouldCacheEntry,
                         originalCallback, ctx, newHandle);
-                return null;
             });
             return null;
         } else {
@@ -450,6 +450,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     }
                                 }
 
+                                ml.getMbean().recordReadEntriesOpsCacheMisses();
                                 manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
                                 ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 

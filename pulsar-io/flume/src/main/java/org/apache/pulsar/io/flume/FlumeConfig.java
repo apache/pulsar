@@ -67,6 +67,6 @@ public class FlumeConfig {
 
     public static FlumeConfig load(Map<String, Object> map) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), FlumeConfig.class);
+        return mapper.readValue(mapper.writeValueAsString(map), FlumeConfig.class);
     }
 }

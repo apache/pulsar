@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 
@@ -256,4 +258,29 @@ func TestUserMetrics(t *testing.T) {
 	resp.Body.Close()
 	gi.close()
 	metricsServicer.close()
+}
+
+func TestInstanceControlMetrics(t *testing.T) {
+	instance := newGoInstance()
+	t.Cleanup(instance.close)
+	instanceClient := instanceCommunicationClient(t, instance)
+	_, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	assert.NoError(t, err, "err communicating with instance control: %v", err)
+
+	testLabels := []string{"userMetricControlTest1", "userMetricControlTest2"}
+	for _, label := range testLabels {
+		assert.NotContainsf(t, label, "user metrics should not yet contain %s", label)
+	}
+
+	for value, label := range testLabels {
+		instance.context.RecordMetric(label, float64(value+1))
+	}
+	time.Sleep(time.Second)
+
+	metrics, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	assert.NoError(t, err, "err communicating with instance control: %v", err)
+	for value, label := range testLabels {
+		assert.Containsf(t, metrics.UserMetrics, label, "user metrics should contain metric %s", label)
+		assert.EqualValuesf(t, value+1, metrics.UserMetrics[label], "user metric %s != %d", label, value+1)
+	}
 }

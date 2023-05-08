@@ -27,11 +27,13 @@ import static org.testng.AssertJUnit.fail;
 public class DefaultRangeSetTest {
     static final LongPairRangeSet.LongPairConsumer<LongPairRangeSet.LongPair> consumer =
             LongPairRangeSet.LongPair::new;
+    static final LongPairRangeSet.RangeBoundConsumer<LongPairRangeSet.LongPair> reverseConsumer =
+            pair -> pair;
 
     @Test
     public void testBehavior() {
         LongPairRangeSet.DefaultRangeSet<LongPairRangeSet.LongPair> set =
-                new LongPairRangeSet.DefaultRangeSet<>(consumer);
+                new LongPairRangeSet.DefaultRangeSet<>(consumer, reverseConsumer);
         ConcurrentOpenLongPairRangeSet<LongPairRangeSet.LongPair> rangeSet =
                 new ConcurrentOpenLongPairRangeSet<>(consumer);
 

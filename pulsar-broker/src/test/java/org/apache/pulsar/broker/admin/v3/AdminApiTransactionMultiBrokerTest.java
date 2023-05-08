@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
+import static org.mockito.Mockito.spy;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.SystemTopicNames;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -46,21 +47,26 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
+    /**
+     * This test is used to verify the redirect request of `getCoordinatorInternalStats`.
+     * <p>
+     *     1. Set up 16 broker and create 3 transaction coordinator topic.
+     *     2. The 3 transaction coordinator topic will be assigned to these brokers through some kind of
+     *     load-balancing strategy. (In current implementations, they tend to be assigned to a broker.)
+     *     3. Find a broker x which is not the owner of the transaction coordinator topic.
+     *     4. Create a admin connected to broker x, and use the admin to call ` getCoordinatorInternalStats`.
+     * </p>
+     */
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
-        Map<String, String> map = admin.lookups()
+        PulsarAdmin localAdmin = this.admin;
+        Map<String, String> map = localAdmin.lookups()
                 .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
-        while (map.containsValue(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
-            pulsarServiceList.get(0).getPulsarResources()
-                    .getNamespaceResources()
-                    .getPartitionedTopicResources()
-                            .deletePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
-            pulsarServiceList.get(0).getPulsarResources()
-                    .getNamespaceResources()
-                    .getPartitionedTopicResources()
-                    .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                            new PartitionedTopicMetadata(NUM_PARTITIONS));
-            map = admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
+
+        for (int i = 0; map.containsValue(getPulsarServiceList().get(i).getBrokerServiceUrl()); i++) {
+            if (!map.containsValue(getPulsarServiceList().get(i + 1).getBrokerServiceUrl()))
+                localAdmin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
+                        .serviceHttpUrl(pulsarServiceList.get(i + 1).getWebServiceAddress())));
         }
         if (pulsarClient != null) {
             pulsarClient.shutdown();
@@ -72,7 +78,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
                 .enableTransaction(true)
                 .build();
         for (int i = 0; i < NUM_PARTITIONS; i++) {
-            admin.transactions().getCoordinatorInternalStats(i, false);
+            localAdmin.transactions().getCoordinatorInternalStats(i, false);
         }
     }
 }

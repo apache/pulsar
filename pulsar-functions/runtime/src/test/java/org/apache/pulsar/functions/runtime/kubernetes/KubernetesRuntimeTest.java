@@ -175,7 +175,7 @@ public class KubernetesRuntimeTest {
     public void setup() {
         System.setProperty(FUNCTIONS_INSTANCE_CLASSPATH, "/pulsar/lib/*");
     }
-    
+
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
         if (null != this.factory) {
@@ -229,7 +229,7 @@ public class KubernetesRuntimeTest {
         kubernetesRuntimeFactoryConfig.setNarExtractionDirectory(narExtractionDirectory);
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         workerConfig.setFunctionInstanceMinResources(null);
         workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
         workerConfig.setAuthenticationEnabled(false);
@@ -578,9 +578,9 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getRequests().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
-    
+
     @Test
-    public void testCreateJobName() throws Exception {    
+    public void testCreateJobName() throws Exception {
         verifyCreateJobNameWithBackwardCompatibility();
         verifyCreateJobNameWithUpperCaseFunctionName();
         verifyCreateJobNameWithDotFunctionName();
@@ -682,28 +682,28 @@ public class KubernetesRuntimeTest {
         assertEquals(jobName, "pf-tenant-namespace-test-function-name-b5a215ad");
         KubernetesRuntime.doChecks(functionDetails, null);
     }
-    
+
     private void verifyCreateJobNameWithOverriddenK8sPodName() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
         final String jobName = KubernetesRuntime.createJobName(functionDetails, "custom-k8s-pod-name");
         assertEquals(jobName, "custom-k8s-pod-name-dedfc7cf");
         KubernetesRuntime.doChecks(functionDetails, "custom-k8s-pod-name");
     }
-    
+
     private void verifyCreateJobNameWithOverriddenK8sPodNameWithInvalidMarks() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
         final String jobName = KubernetesRuntime.createJobName(functionDetails, "invalid_pod*name");
         assertEquals(jobName, "invalid-pod-name-af8c3a6c");
         KubernetesRuntime.doChecks(functionDetails, "invalid_pod*name");
     }
-    
+
     private void verifyCreateJobNameWithOverriddenK8sPodNameNoCollisionWithSameName() throws Exception {
         final String CUSTOM_JOB_NAME = "custom-name";
         final String FUNCTION_NAME = "clazz.testfunction";
-        
+
     	final FunctionDetails functionDetails1 = createFunctionDetails(FUNCTION_NAME);
         final String jobName1 = KubernetesRuntime.createJobName(functionDetails1, CUSTOM_JOB_NAME);
-        
+
         // create a second function with the same name, but in different tenant/namespace to make sure collision does not
         // happen. If tenant, namespace, and function name are the same kubernetes handles collision issues
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
@@ -713,7 +713,7 @@ public class KubernetesRuntimeTest {
         functionDetailsBuilder.setName(FUNCTION_NAME);
         final FunctionDetails functionDetails2 = functionDetailsBuilder.build();
         final String jobName2 = KubernetesRuntime.createJobName(functionDetails2, CUSTOM_JOB_NAME);
-        
+
         // create a third function with different name but in same tenant/namespace to make sure
         // collision does not happen. If tenant, namespace, and function name are the same kubernetes handles collision issues
         final FunctionDetails functionDetails3 = createFunctionDetails(FUNCTION_NAME + "-extra");
@@ -724,14 +724,14 @@ public class KubernetesRuntimeTest {
 
         assertEquals(jobName2, CUSTOM_JOB_NAME + "-c66edfe1");
         KubernetesRuntime.doChecks(functionDetails2, CUSTOM_JOB_NAME);
-        
+
         assertEquals(jobName3, CUSTOM_JOB_NAME + "-0fc9c728");
         KubernetesRuntime.doChecks(functionDetails3, CUSTOM_JOB_NAME);
     }
-    
+
     private void verifyCreateJobNameWithNameOverMaxCharLimit() throws Exception {
         final FunctionDetails functionDetails = createFunctionDetails("clazz.testfunction");
-        assertThrows(RuntimeException.class, () -> KubernetesRuntime.doChecks(functionDetails, 
+        assertThrows(RuntimeException.class, () -> KubernetesRuntime.doChecks(functionDetails,
         		"custom-k8s-pod-name-over-kuberenetes-max-character-limit-123456789"));
     }
 
@@ -773,7 +773,7 @@ public class KubernetesRuntimeTest {
 
         V1Service serviceSpec = container.createService();
         assertEquals(serviceSpec.getMetadata().getNamespace(), "default");
-        assertEquals(serviceSpec.getMetadata().getName(), "pf-" + TEST_TENANT + "-" + 
+        assertEquals(serviceSpec.getMetadata().getName(), "pf-" + TEST_TENANT + "-" +
         		TEST_NAMESPACE + "-" + TEST_NAME);
     }
 
@@ -838,6 +838,32 @@ public class KubernetesRuntimeTest {
     public void testCustomKubernetesDownloadCommandsWithAuth() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionAuthenticationSpec(Function.FunctionAuthenticationSpec.newBuilder().build());
+        config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false));
+
+        factory = createKubernetesRuntimeFactory(null,
+                10, 1.0, 1.0, Optional.empty(), null, wconfig -> {
+                    wconfig.setAuthenticationEnabled(true);
+                }, AuthenticationConfig.builder()
+                        .clientAuthenticationPlugin("com.MyAuth")
+                        .clientAuthenticationParameters("{\"authParam1\": \"authParamValue1\"}")
+                        .build());
+
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
+        V1StatefulSet spec = container.createStatefulSet();
+        String expectedDownloadCommand = "pulsar-admin --admin-url " + pulsarAdminUrl
+                + " --auth-plugin com.MyAuth --auth-params {\"authParam1\": \"authParamValue1\"}"
+                + " functions download "
+                + "--tenant " + TEST_TENANT
+                + " --namespace " + TEST_NAMESPACE
+                + " --name " + TEST_NAME
+                + " --destination-file " + pulsarRootDir + "/" + userJarFile;
+        String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
+        assertTrue(containerCommand.contains(expectedDownloadCommand), "Found:" + containerCommand);
+    }
+
+    @Test
+    public void testCustomKubernetesDownloadCommandsWithAuthWithoutAuthSpec() throws Exception {
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false));
 
         factory = createKubernetesRuntimeFactory(null,
@@ -1006,7 +1032,7 @@ public class KubernetesRuntimeTest {
         kubernetesRuntimeFactoryConfig.setNarExtractionDirectory(narExtractionDirectory);
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         workerConfig.setFunctionInstanceMinResources(null);
         workerConfig.setStateStorageServiceUrl(stateStorageServiceUrl);
         workerConfig.setAuthenticationEnabled(false);

@@ -55,6 +55,7 @@ import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -72,7 +73,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
     @Override
     protected void setup() throws Exception {
         conf.setAllowAutoTopicCreation(false);
-        conf.setAllowAutoTopicCreationType("partitioned");
+        conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setDefaultNumPartitions(PARTITIONS);
         conf.setManagedLedgerMaxEntriesPerLedger(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);

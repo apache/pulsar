@@ -28,6 +28,8 @@ FILE_PREFIX='META-INF/native'
 FILES_TO_RENAME=(
     'libnetty_transport_native_epoll_x86_64.so liborg_apache_pulsar_shade_netty_transport_native_epoll_x86_64.so'
     'libnetty_tcnative_linux_x86_64.so liborg_apache_pulsar_shade_netty_tcnative_linux_x86_64.so'
+    'libnetty_resolver_dns_native_macos_aarch_64.jnilib liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_aarch_64.jnilib'
+    'libnetty_resolver_dns_native_macos_x86_64.jnilib liborg_apache_pulsar_shade_netty_resolver_dns_native_macos_x86_64.jnilib'
 )
 
 echo "----- Renaming epoll lib in $JAR_PATH ------"

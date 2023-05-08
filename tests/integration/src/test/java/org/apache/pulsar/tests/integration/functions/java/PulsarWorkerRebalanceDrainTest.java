@@ -78,7 +78,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     }
 
     private List<WorkerInfo> workerInfoDecode(String json) throws IOException {
-	    try (MappingIterator<WorkerInfo> it = ObjectMapperFactory.getThreadLocal().readerFor(WorkerInfo.class)
+        try (MappingIterator<WorkerInfo> it = ObjectMapperFactory.getMapper().getObjectMapper().readerFor(WorkerInfo.class)
                 .readValues(json)) {
             return it.readAll();
         }

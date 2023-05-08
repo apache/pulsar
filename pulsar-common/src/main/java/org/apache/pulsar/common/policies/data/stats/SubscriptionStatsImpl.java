@@ -58,7 +58,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Number of entries in the subscription backlog. */
     public long msgBacklog;
 
-    /** Size of backlog in byte. **/
+    /** Size of backlog in byte, -1 means that the argument "subscriptionBacklogSize" is false when calling the API. **/
     public long backlogSize;
 
     /** Get the publish time of the earliest message in the backlog. */
@@ -132,7 +132,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     public int nonContiguousDeletedMessagesRangesSerializedSize;
 
     /** The size of InMemoryDelayedDeliveryTracer memory usage. */
-    public long delayedTrackerMemoryUsage;
+    public long delayedMessageIndexSizeInBytes;
+
+    public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     public Map<String, String> subscriptionProperties;
@@ -149,6 +151,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
         this.subscriptionProperties = new HashMap<>();
+        this.bucketDelayedIndexStats = new HashMap<>();
     }
 
     public void reset() {
@@ -157,10 +160,13 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         bytesOutCounter = 0;
         msgOutCounter = 0;
         msgRateRedeliver = 0;
+        messageAckRate = 0;
+        chunkedMessageRate = 0;
         msgBacklog = 0;
         backlogSize = 0;
         msgBacklogNoDelayed = 0;
         unackedMessages = 0;
+        type = null;
         msgRateExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
@@ -169,12 +175,13 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         consumersAfterMarkDeletePosition.clear();
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
-        delayedTrackerMemoryUsage = 0;
+        delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
         filterAcceptedMsgCount = 0;
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
+        bucketDelayedIndexStats.clear();
     }
 
     // if the stats are added for the 1st time, we will need to make a copy of these stats and add it to the current
@@ -186,11 +193,14 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;
         this.msgRateRedeliver += stats.msgRateRedeliver;
+        this.messageAckRate += stats.messageAckRate;
+        this.chunkedMessageRate += stats.chunkedMessageRate;
         this.msgBacklog += stats.msgBacklog;
         this.backlogSize += stats.backlogSize;
         this.msgBacklogNoDelayed += stats.msgBacklogNoDelayed;
         this.msgDelayed += stats.msgDelayed;
         this.unackedMessages += stats.unackedMessages;
+        this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
@@ -209,12 +219,20 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
-        this.delayedTrackerMemoryUsage += stats.delayedTrackerMemoryUsage;
+        this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
+        stats.bucketDelayedIndexStats.forEach((k, v) -> {
+            TopicMetricBean topicMetricBean =
+                    this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            topicMetricBean.name = v.name;
+            topicMetricBean.labelsAndValues = v.labelsAndValues;
+            topicMetricBean.value += v.value;
+        });
+
         return this;
     }
 }

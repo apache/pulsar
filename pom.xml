@@ -26,13 +26,13 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>23</version>
+    <version>29</version>
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>2.11.0-SNAPSHOT</version>
+  <version>3.1.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,7 +92,14 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <project.build.outputTimestamp>2023-05-03T02:53:27Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+
+    <!-- By default build for local Docker platform.
+         To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
+    -->
+    <docker.platforms></docker.platforms>
+
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -102,13 +109,21 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
+      --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
+    <testFailFast>true</testFailFast>
+    <testFailFastFile></testFailFastFile>
     <testJacocoAgentArgument/>
+    <integrationtest.coverage.enabled>false</integrationtest.coverage.enabled>
+    <integrationtest.coverage.dir>${project.build.directory}</integrationtest.coverage.dir>
+    <!-- skip jacoco report by default since it's not a proper aggregate report -->
+    <jacoco.report.skip>true</jacoco.report.skip>
     <testHeapDumpPath>/tmp</testHeapDumpPath>
+    <surefire.shutdown>kill</surefire.shutdown>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
@@ -118,33 +133,33 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.15.3</bookkeeper.version>
-    <zookeeper.version>3.8.0</zookeeper.version>
+    <bookkeeper.version>4.16.1</bookkeeper.version>
+    <zookeeper.version>3.8.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
     <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.77.Final</netty.version>
-    <netty-iouring.version>0.0.15.Final</netty-iouring.version>
+    <netty.version>4.1.89.Final</netty.version>
+    <netty-iouring.version>0.0.18.Final</netty-iouring.version>
     <jetty.version>9.4.48.v20220622</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.29.4.1</rocksdb.version>
+    <vertx.version>4.3.8</vertx.version>
+    <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
-    <jackson.version>2.13.4.20221013</jackson.version>
-    <reflections.version>0.9.11</reflections.version>
+    <jackson.version>2.14.2</jackson.version>
+    <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.40.2</docker-maven.version>
+    <docker-maven.version>0.42.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.19.6</protobuf3.version>
@@ -159,7 +174,7 @@ flexible messaging model and an intuitive client API.</description>
     <hbc-core.version>2.2.0</hbc-core.version>
     <cassandra.version>3.11.2</cassandra.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
-    <kafka-client.version>2.7.2</kafka-client.version>
+    <kafka-client.version>3.4.0</kafka-client.version>
     <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.12.262</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
@@ -168,28 +183,29 @@ flexible messaging model and an intuitive client API.</description>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
-    <postgresql-jdbc.version>42.4.1</postgresql-jdbc.version>
-    <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
+    <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
+    <clickhouse-jdbc.version>0.3.2-patch11</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
-    <json-smart.version>2.4.7</json-smart.version>
+    <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
+    <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>363</trino.version>
-    <scala.binary.version>2.13</scala.binary.version>
+    <trino.version>368</trino.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
+    <!-- Override version that brings CVE-2022-3143 with debezium -->
+    <wildfly-elytron.version>1.15.16.Final</wildfly-elytron.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
-    <hbase.version>2.4.9</hbase.version>
+    <hadoop2.version>2.10.2</hadoop2.version>
+    <hadoop3.version>3.3.4</hadoop3.version>
+    <hbase.version>2.4.15</hbase.version>
     <guava.version>31.0.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
-    <confluent.version>7.0.1</confluent.version>
-    <kafka.confluent.schemaregistryclient.version>5.3.0</kafka.confluent.schemaregistryclient.version>
-    <kafka.confluent.avroserializer.version>5.3.0</kafka.confluent.avroserializer.version>
+    <confluent.version>6.2.8</confluent.version>
     <aircompressor.version>0.20</aircompressor.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <jcommander.version>1.82</jcommander.version>
@@ -200,14 +216,14 @@ flexible messaging model and an intuitive client API.</description>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
-    <caffeine.version>3.1.2</caffeine.version>
+    <caffeine.version>2.9.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline.version>2.14.6</jline.version>
     <jline3.version>3.21.0</jline3.version>
     <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
-    <lombok.version>1.18.24</lombok.version>
+    <lombok.version>1.18.26</lombok.version>
     <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
     <jaxb-api>2.3.1</jaxb-api>
     <javax.activation.version>1.2.0</javax.activation.version>
@@ -215,19 +231,19 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
     <jna.version>5.12.1</jna.version>
-    <kubernetesclient.version>12.0.1</kubernetesclient.version>
+    <kubernetesclient.version>18.0.0</kubernetesclient.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
     <okio.version>2.8.0</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
-    <kotlin-stdlib.version>1.4.32</kotlin-stdlib.version>
+    <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring.version>5.3.20</spring.version>
+    <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
-    <snakeyaml.version>1.32</snakeyaml.version>
+    <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
@@ -241,14 +257,15 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.13</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>7.6.1</testng.version>
+    <testng.version>7.7.0</testng.version>
     <mockito.version>3.12.4</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
     <objenesis.version>3.1</objenesis.version>
     <awaitility.version>4.2.0</awaitility.version>
     <reload4j.version>1.2.22</reload4j.version>
-    <jettison.version>1.5.1</jettison.version>
+    <jettison.version>1.5.4</jettison.version>
+    <woodstox.version>5.4.0</woodstox.version>
     <wiremock.version>2.33.2</wiremock.version>
 
     <!-- Plugin dependencies -->
@@ -261,30 +278,30 @@ flexible messaging model and an intuitive client API.</description>
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
     <surefire.version>3.0.0-M3</surefire.version>
-    <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
+    <maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+    <maven-dependency-plugin.version>3.4.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
-    <maven-shade-plugin>3.4.0</maven-shade-plugin>
-    <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
-    <properties-maven-plugin.version>1.0.0</properties-maven-plugin.version>
-    <nifi-nar-maven-plugin.version>1.2.0</nifi-nar-maven-plugin.version>
+    <maven-shade-plugin>3.4.1</maven-shade-plugin>
+    <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
+    <properties-maven-plugin.version>1.1.0</properties-maven-plugin.version>
+    <nifi-nar-maven-plugin.version>1.3.4</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
-    <jacoco-maven-plugin.version>0.8.7</jacoco-maven-plugin.version>
-    <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
-    <spotbugs.version>4.2.2</spotbugs.version>
+    <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
+    <spotbugs-maven-plugin.version>4.7.3.0</spotbugs-maven-plugin.version>
+    <spotbugs.version>4.7.3</spotbugs.version>
     <errorprone.version>2.5.1</errorprone.version>
     <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
+    <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
     <roaringbitmap.version>0.9.15</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
-    <lombok.plugin.version>1.18.20.0</lombok.plugin.version>
+    <oshi.version>6.4.0</oshi.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -831,6 +848,12 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jettison.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>com.fasterxml.woodstox</groupId>
+        <artifactId>woodstox-core</artifactId>
+        <version>${woodstox.version}</version>
+      </dependency>
+
 
       <dependency>
         <groupId>org.hdrhistogram</groupId>
@@ -863,6 +886,24 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcpkix-jdk15on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.cronutils</groupId>
+        <artifactId>cron-utils</artifactId>
+        <version>${cron-utils.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.glassfish</groupId>
+            <artifactId>javax.el</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zts-java-client-core</artifactId>
         <version>${athenz.version}</version>
@@ -871,6 +912,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.yahoo.athenz</groupId>
         <artifactId>athenz-zpe-java-client</artifactId>
+        <version>${athenz.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.athenz</groupId>
+        <artifactId>athenz-cert-refresher</artifactId>
         <version>${athenz.version}</version>
       </dependency>
 
@@ -1337,7 +1384,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>RoaringBitmap</artifactId>
         <version>${roaringbitmap.version}</version>
       </dependency>
-
+      <dependency>
+        <groupId>com.github.oshi</groupId>
+        <artifactId>oshi-core-java11</artifactId>
+        <version>${oshi.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1474,17 +1525,20 @@ flexible messaging model and an intuitive client API.</description>
           </argLine>
           <reuseForks>${testReuseFork}</reuseForks>
           <forkCount>${testForkCount}</forkCount>
-          <shutdown>kill</shutdown>
+          <shutdown>${surefire.shutdown}</shutdown>
+          <forkedProcessExitTimeoutInSeconds>60</forkedProcessExitTimeoutInSeconds>
           <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
           <systemPropertyVariables>
             <testRealAWS>${testRealAWS}</testRealAWS>
             <testRetryCount>${testRetryCount}</testRetryCount>
+            <testFailFast>${testFailFast}</testFailFast>
+            <testFailFastFile>${testFailFastFile}</testFailFastFile>
           </systemPropertyVariables>
           <properties>
             <property>
               <name>listener</name>
-              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener</value>
+              <value>org.apache.pulsar.tests.PulsarTestListener,org.apache.pulsar.tests.JacocoDumpListener,org.apache.pulsar.tests.AnnotationListener,org.apache.pulsar.tests.FailFastNotifier,org.apache.pulsar.tests.MockitoCleanupListener,org.apache.pulsar.tests.FastThreadLocalCleanupListener,org.apache.pulsar.tests.ThreadLeakDetectorListener,org.apache.pulsar.tests.SingletonCleanerListener</value>
             </property>
           </properties>
         </configuration>
@@ -1812,21 +1866,7 @@ flexible messaging model and an intuitive client API.</description>
           <configuration>
             <doclint>none</doclint>
             <notimestamp>true</notimestamp>
-            <sourcepath>${project.build.directory}/generated-sources/delombok</sourcepath>
           </configuration>
-        </plugin>
-        <plugin>
-          <groupId>org.projectlombok</groupId>
-          <artifactId>lombok-maven-plugin</artifactId>
-          <version>${lombok.plugin.version}</version>
-          <executions>
-            <execution>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>delombok</goal>
-              </goals>
-            </execution>
-          </executions>
         </plugin>
         <plugin>
           <artifactId>maven-antrun-plugin</artifactId>
@@ -1933,14 +1973,15 @@ flexible messaging model and an intuitive client API.</description>
         <test.additional.args/>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
-        <pulsar.client.compiler.release></pulsar.client.compiler.release>
+        <pulsar.broker.compiler.release/>
+        <pulsar.client.compiler.release/>
       </properties>
     </profile>
     <profile>
       <id>coverage</id>
       <properties>
         <testJacocoAgentArgument>@{jacoco.agent.argument}</testJacocoAgentArgument>
+        <surefire.shutdown>exit</surefire.shutdown>
       </properties>
       <build>
         <plugins>
@@ -1953,14 +1994,29 @@ flexible messaging model and an intuitive client API.</description>
             </configuration>
             <executions>
               <execution>
-                <id>pre-unit-test</id>
+                <id>prepare-agent</id>
                 <goals>
                   <goal>prepare-agent</goal>
                 </goals>
+                <configuration>
+                  <!-- use unique jacoco exec files for every forked test process -->
+                  <destFile>${project.build.directory}/jacoco_${maven.build.timestamp}_${surefire.forkNumber}.exec</destFile>
+                  <append>true</append>
+                  <jmx>true</jmx>
+                  <includes>
+                    <include>org.apache.pulsar.*</include>
+                    <include>org.apache.bookkeeper.mledger.*</include>
+                  </includes>
+                  <excludes>
+                    <exclude>*.proto.*</exclude>
+                    <exclude>*.shade.*</exclude>
+                    <exclude>*.shaded.*</exclude>
+                  </excludes>
+                </configuration>
               </execution>
               <execution>
-                <id>post-test</id>
-                <phase>test</phase>
+                <id>report</id>
+                <phase>verify</phase>
                 <goals>
                   <goal>report</goal>
                 </goals>
@@ -1968,6 +2024,7 @@ flexible messaging model and an intuitive client API.</description>
                   <excludes>
                     <exclude>META-INF/**</exclude>
                   </excludes>
+                  <skip>${jacoco.report.skip}</skip>
                 </configuration>
               </execution>
             </executions>
@@ -2109,6 +2166,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
         <module>pulsar-sql</module>
+        <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
@@ -2123,9 +2181,6 @@ flexible messaging model and an intuitive client API.</description>
 
         <!-- connector-related modules -->
         <module>pulsar-io</module>
-
-        <!-- kafka connect avro converter shaded, because version mismatch    -->
-        <module>kafka-connect-avro-converter-shaded</module>
 
         <!-- Bouncy Castle Provider loaders-->
         <module>bouncy-castle</module>
@@ -2170,6 +2225,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-testclient</module>
+        <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
@@ -2410,5 +2466,4 @@ flexible messaging model and an intuitive client API.</description>
       </snapshots>
     </repository>
   </repositories>
-
 </project>

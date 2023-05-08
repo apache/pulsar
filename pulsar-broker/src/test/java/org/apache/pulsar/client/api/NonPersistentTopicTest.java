@@ -61,6 +61,7 @@ import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.slf4j.Logger;
@@ -928,7 +929,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config1.setBrokerServicePort(Optional.of(0));
             config1.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-            config1.setAllowAutoTopicCreationType("non-partitioned");
+            config1.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar1 = new PulsarService(config1);
             pulsar1.start();
             ns1 = pulsar1.getBrokerService();
@@ -955,7 +956,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config2.setBrokerServicePort(Optional.of(0));
             config2.setBacklogQuotaCheckIntervalInSeconds(TIME_TO_CHECK_BACKLOG_QUOTA);
-            config2.setAllowAutoTopicCreationType("non-partitioned");
+            config2.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar2 = new PulsarService(config2);
             pulsar2.start();
             ns2 = pulsar2.getBrokerService();
@@ -981,7 +982,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setBrokerShutdownTimeoutMs(0L);
             config3.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config3.setBrokerServicePort(Optional.of(0));
-            config3.setAllowAutoTopicCreationType("non-partitioned");
+            config3.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             pulsar3 = new PulsarService(config3);
             pulsar3.start();
             ns3 = pulsar3.getBrokerService();

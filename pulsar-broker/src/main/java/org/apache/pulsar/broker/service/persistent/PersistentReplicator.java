@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 public abstract class PersistentReplicator extends AbstractReplicator
         implements Replicator, ReadEntriesCallback, DeleteCallback {
 
-    private final PersistentTopic topic;
+    protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
 
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
@@ -165,8 +165,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    protected long getNumberOfEntriesInBacklog() {
-        return cursor.getNumberOfEntriesInBacklog(false);
+    public long getNumberOfEntriesInBacklog() {
+        return cursor.getNumberOfEntriesInBacklog(true);
     }
 
     @Override
@@ -249,7 +249,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     log.debug("[{}] Schedule read of {} messages", replicatorId, messagesToRead);
                 }
                 cursor.asyncReadEntriesOrWait(messagesToRead, readMaxSizeBytes, this,
-                        null, PositionImpl.LATEST);
+                        null, topic.getMaxReadPosition());
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Not scheduling read due to pending read. Messages To Read {}",
@@ -545,6 +545,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void deleteFailed(ManagedLedgerException exception, Object ctx) {
         log.error("[{}] Failed to delete message at {}: {}", replicatorId, ctx,
                 exception.getMessage(), exception);
+        if (exception instanceof CursorAlreadyClosedException) {
+            log.error("[{}] Asynchronous ack failure because replicator is already deleted and cursor is already"
+                            + " closed {}, ({})", replicatorId, ctx, exception.getMessage(), exception);
+            // replicator is already deleted and cursor is already closed so, producer should also be stopped
+            closeProducerAsync();
+            return;
+        }
         if (ctx instanceof PositionImpl) {
             PositionImpl deletedEntry = (PositionImpl) ctx;
             if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
@@ -558,6 +565,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
     public void updateRates() {
         msgOut.calculateRate();
         msgExpired.calculateRate();
+        expiryMonitor.updateRates();
+
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateExpired = msgExpired.getRate() + expiryMonitor.getMessageExpiryRate();

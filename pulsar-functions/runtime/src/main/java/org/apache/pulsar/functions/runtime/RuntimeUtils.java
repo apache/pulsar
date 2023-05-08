@@ -247,7 +247,7 @@ public class RuntimeUtils {
         goInstanceConfig.setPort(instanceConfig.getPort());
 
         // Parse the contents of goInstanceConfig into json form string
-        ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
+        ObjectMapper objectMapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String configContent = objectMapper.writeValueAsString(goInstanceConfig);
 
         args.add(originalCodeFileName);
@@ -435,10 +435,14 @@ public class RuntimeUtils {
         args.add("--metrics_port");
         args.add(String.valueOf(instanceConfig.getMetricsPort()));
 
-        // only the Java instance supports --pending_async_requests right now.
+        // params supported only by the Java instance runtime.
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("--pending_async_requests");
             args.add(String.valueOf(instanceConfig.getMaxPendingAsyncRequests()));
+
+            if (instanceConfig.isIgnoreUnknownConfigFields()) {
+                args.add("--ignore_unknown_config_fields");
+            }
         }
 
         // state storage configs
@@ -499,7 +503,7 @@ public class RuntimeUtils {
     }
 
     public static <T> T getRuntimeFunctionConfig(Map<String, Object> configMap, Class<T> functionRuntimeConfigClass) {
-        return ObjectMapperFactory.getThreadLocal().convertValue(configMap, functionRuntimeConfigClass);
+        return ObjectMapperFactory.getMapper().getObjectMapper().convertValue(configMap, functionRuntimeConfigClass);
     }
 
     public static void registerDefaultCollectors(FunctionCollectorRegistry registry) {

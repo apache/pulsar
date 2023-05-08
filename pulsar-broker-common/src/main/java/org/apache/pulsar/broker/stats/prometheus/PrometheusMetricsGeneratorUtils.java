@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
@@ -27,6 +26,7 @@ import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.List;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -38,7 +38,7 @@ public class PrometheusMetricsGeneratorUtils {
     public static void generate(String cluster, OutputStream out,
                                 List<PrometheusRawMetricsProvider> metricsProviders)
             throws IOException {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
             generateSystemMetrics(stream, cluster);

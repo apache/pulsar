@@ -82,16 +82,21 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         this.eventExecutors = new NioEventLoopGroup();
         this.isTcpLookup = true;
         String host = InetAddress.getLocalHost().getHostAddress();
-        int brokerPort = getFreePort();
+        Pair<Integer, Integer> freePorts = getFreePorts();
+        int brokerPort = freePorts.getLeft();
         brokerAddress = InetSocketAddress.createUnresolved(host, brokerPort);
-        int brokerPortSsl = getFreePort();
+        int brokerPortSsl = freePorts.getRight();
         brokerSslAddress = InetSocketAddress.createUnresolved(host, brokerPortSsl);
         super.internalSetup();
     }
 
-    private static int getFreePort() {
-        try (ServerSocket serverSocket = new ServerSocket(0)) {
-            return serverSocket.getLocalPort();
+    private static Pair<Integer, Integer> getFreePorts() {
+        try (ServerSocket serverSocket = new ServerSocket(); ServerSocket serverSocket2 = new ServerSocket()) {
+            serverSocket.setReuseAddress(true);
+            serverSocket.bind(new InetSocketAddress(0));
+            serverSocket2.setReuseAddress(true);
+            serverSocket2.bind(new InetSocketAddress(0));
+            return Pair.of(serverSocket.getLocalPort(), serverSocket2.getLocalPort());
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

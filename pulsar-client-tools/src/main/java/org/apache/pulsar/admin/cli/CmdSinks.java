@@ -291,6 +291,10 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = { "-t", "--sink-type" }, description = "The sinks's connector provider")
         protected String sinkType;
 
+        @Parameter(names = "--cleanup-subscription", description = "Whether delete the subscription "
+                + "when sink is deleted")
+        protected Boolean cleanupSubscription;
+
         @Parameter(names = { "-i",
                 "--inputs" }, description = "The sink's input topic or topics "
                 + "(multiple topics can be specified as a comma-separated list)")
@@ -469,6 +473,10 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setProcessingGuarantees(processingGuarantees);
             }
 
+            if (null != cleanupSubscription) {
+                sinkConfig.setCleanupSubscription(cleanupSubscription);
+            }
+
             if (retainOrdering != null) {
                 sinkConfig.setRetainOrdering(retainOrdering);
             }
@@ -605,7 +613,7 @@ public class CmdSinks extends CmdBase {
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
+            ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
             TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
             return mapper.readValue(str, typeRef);
