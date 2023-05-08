@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -374,5 +375,44 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertEquals("test-message-" + i, new String(msg.getData()));
         }
+    }
+
+    /**
+     * This test verifies that when the segmented snapshot feature is enabled, creating a new topic
+     * does not create a __transaction_buffer_snapshot topic in the same namespace.
+     * The test performs the following steps:
+     * 1. Enable the segmented snapshot feature.
+     * 2. Create a new namespace.
+     * 3. Create a new topic in the namespace.
+     * 4. Check that the __transaction_buffer_snapshot topic is not created in the same namespace.
+     * 5. Destroy the namespace after the test.
+     */
+    @Test
+    public void testSegmentedSnapshotWithoutCreatingOldSnapshotTopic() throws Exception {
+        // Enable the segmented snapshot feature
+        pulsarService = getPulsarServiceList().get(0);
+        pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+
+        // Create a new namespace
+        String namespaceName = "tnx/testSegmentedSnapshotWithoutCreatingOldSnapshotTopic";
+        admin.namespaces().createNamespace(namespaceName);
+
+        // Create a new topic in the namespace
+        String topicName = "persistent://" + namespaceName + "/newTopic";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+
+        // Check that the __transaction_buffer_snapshot topic is not created in the same namespace
+        String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/" +
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        try {
+            admin.topics().getStats(transactionBufferSnapshotTopic);
+            fail("The __transaction_buffer_snapshot topic should not exist");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+
+        // Destroy the namespace after the test
+        admin.namespaces().deleteNamespace(namespaceName, true);
     }
 }

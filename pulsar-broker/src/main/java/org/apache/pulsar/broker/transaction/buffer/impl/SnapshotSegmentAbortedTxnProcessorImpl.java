@@ -381,42 +381,52 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     // This method will be deprecated and removed in version 4.x.0
     private CompletableFuture<PositionImpl> recoverOldSnapshot() {
-        return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotService()
-                .createReader(TopicName.get(topic.getName())).thenComposeAsync(snapshotReader -> {
-                    PositionImpl startReadCursorPositionInOldSnapshot = null;
-                    try {
-                        while (snapshotReader.hasMoreEvents()) {
-                            Message<TransactionBufferSnapshot> message = snapshotReader.readNextAsync()
-                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
-                            if (topic.getName().equals(message.getKey())) {
-                                TransactionBufferSnapshot transactionBufferSnapshot =
-                                        message.getValue();
-                                if (transactionBufferSnapshot != null) {
-                                    handleOldSnapshot(transactionBufferSnapshot);
-                                    startReadCursorPositionInOldSnapshot = PositionImpl.get(
-                                            transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                            transactionBufferSnapshot.getMaxReadPositionEntryId());
-                                }
-                            }
-                        }
-                    } catch (TimeoutException ex) {
-                        Throwable t = FutureUtil.unwrapCompletionException(ex);
-                        String errorMessage = String.format("[%s] Transaction buffer recover fail by "
-                                + "read transactionBufferSnapshot timeout!", topic.getName());
-                        log.error(errorMessage, t);
-                        return FutureUtil.failedFuture(new BrokerServiceException
-                                .ServiceUnitNotReadyException(errorMessage, t));
-                    } catch (Exception ex) {
-                        log.error("[{}] Transaction buffer recover fail when read "
-                                + "transactionBufferSnapshot!", topic.getName(), ex);
-                        return FutureUtil.failedFuture(ex);
-                    } finally {
-                        assert snapshotReader != null;
-                        closeReader(snapshotReader);
+        return topic.getBrokerService().getTopic(TopicName.get(topic.getName()).getNamespace() + "/" +
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT, false)
+                .thenCompose(topicOption -> {
+                    if (!topicOption.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
+                                .getTxnBufferSnapshotService()
+                                .createReader(TopicName.get(topic.getName())).thenComposeAsync(snapshotReader -> {
+                                    PositionImpl startReadCursorPositionInOldSnapshot = null;
+                                    try {
+                                        while (snapshotReader.hasMoreEvents()) {
+                                            Message<TransactionBufferSnapshot> message = snapshotReader.readNextAsync()
+                                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+                                            if (topic.getName().equals(message.getKey())) {
+                                                TransactionBufferSnapshot transactionBufferSnapshot =
+                                                        message.getValue();
+                                                if (transactionBufferSnapshot != null) {
+                                                    handleOldSnapshot(transactionBufferSnapshot);
+                                                    startReadCursorPositionInOldSnapshot = PositionImpl.get(
+                                                            transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                                            transactionBufferSnapshot.getMaxReadPositionEntryId());
+                                                }
+                                            }
+                                        }
+                                    } catch (TimeoutException ex) {
+                                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                        String errorMessage = String.format("[%s] Transaction buffer recover fail by "
+                                                + "read transactionBufferSnapshot timeout!", topic.getName());
+                                        log.error(errorMessage, t);
+                                        return FutureUtil.failedFuture(new BrokerServiceException
+                                                .ServiceUnitNotReadyException(errorMessage, t));
+                                    } catch (Exception ex) {
+                                        log.error("[{}] Transaction buffer recover fail when read "
+                                                + "transactionBufferSnapshot!", topic.getName(), ex);
+                                        return FutureUtil.failedFuture(ex);
+                                    } finally {
+                                        assert snapshotReader != null;
+                                        closeReader(snapshotReader);
+                                    }
+                                    return CompletableFuture.completedFuture(startReadCursorPositionInOldSnapshot);
+                                },
+                                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                                .getExecutor(this));
                     }
-                    return CompletableFuture.completedFuture(startReadCursorPositionInOldSnapshot);
-                }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this));
+                });
     }
 
     // This method will be deprecated and removed in version 4.x.0
