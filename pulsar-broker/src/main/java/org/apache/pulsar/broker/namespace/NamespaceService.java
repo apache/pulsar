@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.manager.RedirectManager;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -136,6 +137,7 @@ public class NamespaceService implements AutoCloseable {
     private final ConcurrentOpenHashMap<ClusterDataImpl, PulsarClientImpl> namespaceClients;
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
+    private final RedirectManager redirectManager;
 
 
     private static final Counter lookupRedirects = Counter.build("pulsar_broker_lookup_redirects", "-").register();
@@ -164,6 +166,7 @@ public class NamespaceService implements AutoCloseable {
                 ConcurrentOpenHashMap.<ClusterDataImpl, PulsarClientImpl>newBuilder().build();
         this.bundleOwnershipListeners = new CopyOnWriteArrayList<>();
         this.localBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(LocalBrokerData.class);
+        this.redirectManager = new RedirectManager(pulsar);
     }
 
     public void initialize() {
@@ -177,12 +180,20 @@ public class NamespaceService implements AutoCloseable {
 
         CompletableFuture<Optional<LookupResult>> future = getBundleAsync(topic)
                 .thenCompose(bundle -> {
-                    if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
-                        return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
-                    } else {
-                        // TODO: Add unit tests cover it.
-                        return findBrokerServiceUrl(bundle, options);
-                    }
+                    // Do redirection if the cluster is in rollback or deploying.
+                    return redirectManager.findRedirectLookupResultAsync().thenCompose(optResult -> {
+                        if (optResult.isPresent()) {
+                            LOG.info("[{}] Redirect lookup request to {} for topic {}",
+                                    pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
+                            return CompletableFuture.completedFuture(optResult);
+                        }
+                        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+                            return loadManager.get().findBrokerServiceUrl(Optional.of(topic), bundle);
+                        } else {
+                            // TODO: Add unit tests cover it.
+                            return findBrokerServiceUrl(bundle, options);
+                        }
+                    });
                 });
 
         future.thenAccept(optResult -> {
@@ -271,22 +282,40 @@ public class NamespaceService implements AutoCloseable {
                                                                       NamespaceBundle bundle,
                                                                       LookupOptions options) {
 
-        return (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
-                ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
-                // TODO: Add unit tests cover it.
-                findBrokerServiceUrl(bundle, options)).thenApply(lookupResult -> {
-            if (lookupResult.isPresent()) {
+        return redirectManager.findRedirectLookupResultAsync().thenCompose(optResult -> {
+            if (optResult.isPresent()) {
+                LOG.info("[{}] Redirect lookup request to {} for topic {}",
+                        pulsar.getSafeWebServiceAddress(), optResult.get(), topic);
                 try {
-                    LookupData lookupData = lookupResult.get().getLookupData();
+                    LookupData lookupData = optResult.get().getLookupData();
                     final String redirectUrl = options.isRequestHttps()
                             ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
-                    return Optional.of(new URL(redirectUrl));
+                    return CompletableFuture.completedFuture(Optional.of(new URL(redirectUrl)));
                 } catch (Exception e) {
                     // just log the exception, nothing else to do
                     LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
                 }
+                return CompletableFuture.completedFuture(Optional.empty());
             }
-            return Optional.empty();
+            CompletableFuture<Optional<LookupResult>> future =
+                    ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)
+                    ? loadManager.get().findBrokerServiceUrl(topic, bundle) :
+                    findBrokerServiceUrl(bundle, options);
+
+            return future.thenApply(lookupResult -> {
+                if (lookupResult.isPresent()) {
+                    try {
+                        LookupData lookupData = lookupResult.get().getLookupData();
+                        final String redirectUrl = options.isRequestHttps()
+                                ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
+                        return Optional.of(new URL(redirectUrl));
+                    } catch (Exception e) {
+                        // just log the exception, nothing else to do
+                        LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
+                    }
+                }
+                return Optional.empty();
+            });
         });
     }
 
@@ -967,9 +996,7 @@ public class NamespaceService implements AutoCloseable {
      */
     public CompletableFuture<Pair<NamespaceBundles, List<NamespaceBundle>>> getSplitBoundary(
             NamespaceBundle bundle, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm, List<Long> boundaries) {
-        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
-        CompletableFuture<List<Long>> splitBoundary =
-                nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
+        CompletableFuture<List<Long>> splitBoundary = getSplitBoundary(bundle, boundaries, nsBundleSplitAlgorithm);
         return splitBoundary.thenCompose(splitBoundaries -> {
                     if (splitBoundaries == null || splitBoundaries.size() == 0) {
                         LOG.info("[{}] No valid boundary found in {} to split bundle {}",
@@ -979,6 +1006,12 @@ public class NamespaceService implements AutoCloseable {
                     return pulsar.getNamespaceService().getNamespaceBundleFactory()
                             .splitBundles(bundle, splitBoundaries.size() + 1, splitBoundaries);
                 });
+    }
+
+    public CompletableFuture<List<Long>> getSplitBoundary(
+            NamespaceBundle bundle, List<Long> boundaries, NamespaceBundleSplitAlgorithm nsBundleSplitAlgorithm) {
+        BundleSplitOption bundleSplitOption = getBundleSplitOption(bundle, boundaries, config);
+        return nsBundleSplitAlgorithm.getSplitBoundary(bundleSplitOption);
     }
 
     private BundleSplitOption getBundleSplitOption(NamespaceBundle bundle,

@@ -207,19 +207,19 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
 
   * Jackson
-    - jackson-annotations-2.13.4.jar
-    - jackson-core-2.13.4.jar
-    - jackson-databind-2.13.4.2.jar
-    - jackson-dataformat-smile-2.13.4.jar
-    - jackson-datatype-guava-2.13.4.jar
-    - jackson-datatype-jdk8-2.13.4.jar
-    - jackson-datatype-joda-2.13.4.jar
-    - jackson-datatype-jsr310-2.13.4.jar
-    - jackson-dataformat-yaml-2.13.4.jar
-    - jackson-jaxrs-base-2.13.4.jar
-    - jackson-jaxrs-json-provider-2.13.4.jar
-    - jackson-module-jaxb-annotations-2.13.4.jar
-    - jackson-module-jsonSchema-2.13.4.jar
+    - jackson-annotations-2.14.2.jar
+    - jackson-core-2.14.2.jar
+    - jackson-databind-2.14.2.jar
+    - jackson-dataformat-smile-2.14.2.jar
+    - jackson-datatype-guava-2.14.2.jar
+    - jackson-datatype-jdk8-2.14.2.jar
+    - jackson-datatype-joda-2.14.2.jar
+    - jackson-datatype-jsr310-2.14.2.jar
+    - jackson-dataformat-yaml-2.14.2.jar
+    - jackson-jaxrs-base-2.14.2.jar
+    - jackson-jaxrs-json-provider-2.14.2.jar
+    - jackson-module-jaxb-annotations-2.14.2.jar
+    - jackson-module-jsonSchema-2.14.2.jar
  * Guava
     - guava-31.0.1-jre.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
@@ -303,28 +303,28 @@ The Apache Software License, Version 2.0
     - bytecode-1.2.jar
   * Airlift
     - aircompressor-0.20.jar
-    - bootstrap-208.jar
-    - concurrent-208.jar
-    - configuration-208.jar
-    - discovery-208.jar
+    - bootstrap-213.jar
+    - concurrent-213.jar
+    - configuration-213.jar
+    - discovery-213.jar
     - discovery-server-1.30.jar
-    - event-208.jar
-    - event-http-208.jar
-    - http-client-208.jar
-    - http-server-208.jar
-    - jmx-208.jar
-    - jmx-http-208.jar
-    - jmx-http-rpc-208.jar
+    - event-213.jar
+    - event-http-213.jar
+    - http-client-213.jar
+    - http-server-213.jar
+    - jmx-213.jar
+    - jmx-http-213.jar
+    - jmx-http-rpc-213.jar
     - joni-2.1.5.3.jar
-    - json-208.jar
-    - log-208.jar
-    - log-manager-208.jar
-    - node-208.jar
+    - json-213.jar
+    - log-213.jar
+    - log-manager-213.jar
+    - node-213.jar
     - parameternames-1.4.jar
-    - security-208.jar
-    - slice-0.39.jar
-    - stats-208.jar
-    - trace-token-208.jar
+    - security-213.jar
+    - slice-0.41.jar
+    - stats-213.jar
+    - trace-token-213.jar
     - units-1.6.jar
    * Apache HTTP Client
     - httpclient-4.5.13.jar
@@ -340,7 +340,9 @@ The Apache Software License, Version 2.0
   * J2ObjC Annotations
     - j2objc-annotations-1.3.jar
   * JSON Web Token Support For The JVM
-    - jjwt-0.9.0.jar
+    - jjwt-api-0.11.1.jar
+    - jjwt-impl-0.11.1.jar
+    - jjwt-jackson-0.11.1.jar
   * Jmxutils
     - jmxutils-1.21.jar
   * LevelDB
@@ -384,22 +386,22 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.17.2.jar
   * Trino
-    - trino-array-363.jar
-    - trino-cli-363.jar
-    - trino-client-363.jar
-    - trino-geospatial-toolkit-363.jar
-    - trino-main-363.jar
-    - trino-matching-363.jar
-    - trino-memory-context-363.jar
-    - trino-parser-363.jar
-    - trino-plugin-toolkit-363.jar
-    - trino-server-main-363.jar
-    - trino-spi-363.jar
-    - trino-record-decoder-363.jar
+    - trino-array-368.jar
+    - trino-cli-368.jar
+    - trino-client-368.jar
+    - trino-geospatial-toolkit-368.jar
+    - trino-main-368.jar
+    - trino-matching-368.jar
+    - trino-memory-context-368.jar
+    - trino-parser-368.jar
+    - trino-plugin-toolkit-368.jar
+    - trino-server-main-368.jar
+    - trino-spi-368.jar
+    - trino-record-decoder-368.jar
   * RocksDB JNI
-    - rocksdbjni-6.29.4.1.jar
+    - rocksdbjni-7.9.2.jar
   * SnakeYAML
-    - snakeyaml-1.32.jar
+    - snakeyaml-2.0.jar
   * Bean Validation API
     - validation-api-2.0.1.Final.jar
   * Objectsize
@@ -424,18 +426,21 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.15.4.jar
-    - bookkeeper-common-allocator-4.15.4.jar
-    - bookkeeper-proto-4.15.4.jar
-    - bookkeeper-server-4.15.4.jar
-    - bookkeeper-stats-api-4.15.4.jar
-    - bookkeeper-tools-framework-4.15.4.jar
-    - circe-checksum-4.15.4.jar
-    - codahale-metrics-provider-4.15.4.jar
-    - cpu-affinity-4.15.4.jar
-    - http-server-4.15.4.jar
-    - prometheus-metrics-provider-4.15.4.jar
-    - codahale-metrics-provider-4.15.4.jar
+    - bookkeeper-common-4.16.1.jar
+    - bookkeeper-common-allocator-4.16.1.jar
+    - bookkeeper-proto-4.16.1.jar
+    - bookkeeper-server-4.16.1.jar
+    - bookkeeper-stats-api-4.16.1.jar
+    - bookkeeper-tools-framework-4.16.1.jar
+    - circe-checksum-4.16.1.jar
+    - codahale-metrics-provider-4.16.1.jar
+    - cpu-affinity-4.16.1.jar
+    - http-server-4.16.1.jar
+    - prometheus-metrics-provider-4.16.1.jar
+    - codahale-metrics-provider-4.16.1.jar
+    - bookkeeper-slogger-api-4.16.1.jar
+    - bookkeeper-slogger-slf4j-4.16.1.jar
+    - native-io-4.16.1.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
@@ -451,11 +456,12 @@ The Apache Software License, Version 2.0
   * Snappy
     - snappy-java-1.1.8.4.jar
   * Jackson
-    - jackson-module-parameter-names-2.13.4.jar
+    - jackson-module-parameter-names-2.14.2.jar
   * Java Assist
     - javassist-3.25.0-GA.jar
   * Java Native Access
     - jna-5.12.1.jar
+    - jna-platform-5.10.0.jar
   * Java Object Layout: Core
     - jol-core-0.2.jar
   * Yahoo Datasketches
@@ -476,6 +482,8 @@ The Apache Software License, Version 2.0
     - amqp-client-5.5.3.jar
   * Stream Lib
     - stream-2.9.5.jar
+  * High Performance Primitive Collections for Java
+    - hppc-0.9.1.jar
 
 
 Protocol Buffers License
@@ -493,7 +501,7 @@ BSD License
  * ANTLR 4 Runtime
     - antlr4-runtime-4.9.2.jar
  * ASM, a very small and fast Java bytecode manipulation framework
-    - asm-6.2.1.jar
+    - asm-9.1.jar
     - asm-analysis-6.2.1.jar
     - asm-tree-6.2.1.jar
     - asm-util-6.2.1.jar
@@ -518,6 +526,8 @@ MIT License
  * ScribeJava
    - scribejava-apis-6.9.0.jar
    - scribejava-core-6.9.0.jar
+ * OSHI
+   - oshi-core-5.8.5.jar
 
 CDDL - 1.0
  * OSGi Resource Locator
@@ -533,8 +543,9 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - hk2-utils-2.6.1.jar
    - aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - jaxrs-208.jar
+    - jaxrs-213.jar
     - jersey-client-2.34.jar
+    - jersey-common-2.34.jar
     - jersey-container-servlet-2.34.jar
     - jersey-container-servlet-core-2.34.jar
     - jersey-entity-filtering-2.34.jar
@@ -542,7 +553,6 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
     - jersey-media-json-jackson-2.34.jar
     - jersey-media-multipart-2.34.jar
     - jersey-server-2.34.jar
-    - jersey-common-2.34.jar
  * JAXB
     - jaxb-api-2.3.1.jar
     - jaxb-runtime-2.3.4.jar

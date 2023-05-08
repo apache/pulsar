@@ -1,4 +1,4 @@
-/*
+/**
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,32 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+syntax = "proto2";
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+package pulsar.delay;
+option java_package = "org.apache.pulsar.broker.delayed.proto";
+option optimize_for = SPEED;
+option java_multiple_files = true;
 
-import org.testng.annotations.Test;
+message SnapshotSegmentMetadata {
+    map<uint64, bytes> delayed_index_bit_map = 1;
+    required uint64 max_schedule_timestamp = 2;
+    required uint64 min_schedule_timestamp = 3;
+}
 
-public class BatchMessageAckerDisabledTest {
-
-    @Test
-    public void testAckIndividual() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
-        }
-    }
-
-    @Test
-    public void testAckCumulative() {
-        for (int i = 0; i < 10; i++) {
-            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
-        }
-    }
-
-    @Test
-    public void testGetOutstandingAcks() {
-        assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
-    }
-
+message SnapshotMetadata {
+    repeated SnapshotSegmentMetadata metadata_list = 1;
 }

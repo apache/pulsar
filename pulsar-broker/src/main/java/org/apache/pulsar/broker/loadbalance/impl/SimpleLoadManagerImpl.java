@@ -1090,6 +1090,8 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 loadReport.setSystemResourceUsage(systemResourceUsage);
                 loadReport.setBundleStats(pulsar.getBrokerService().getBundleStats());
                 loadReport.setTimestamp(System.currentTimeMillis());
+                loadReport.setLoadManagerClassName(pulsar.getConfig().getLoadManagerClassName());
+                loadReport.setStartTimestamp(System.currentTimeMillis());
 
                 final Set<String> oldBundles = lastLoadReport.getBundles();
                 final Set<String> newBundles = loadReport.getBundles();

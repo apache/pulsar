@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
@@ -49,10 +48,5 @@ public class AntiAffinityGroupPolicyFilter implements BrokerFilter {
     @Override
     public String name() {
         return FILTER_NAME;
-    }
-
-    @Override
-    public void initialize(PulsarService pulsar) {
-        return;
     }
 }

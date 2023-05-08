@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Lists;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -30,7 +29,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.streamingdispatch.PendingReadEntryRequest;
@@ -105,13 +103,13 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
             // setting sendInProgress here, because sendMessagesToConsumers will be executed
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
-            dispatchMessagesThread.execute(safeRun(() -> {
+            dispatchMessagesThread.execute(() -> {
                 if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), false)) {
                     readMoreEntries();
                 } else {
                     updatePendingBytesToDispatch(-size);
                 }
-            }));
+            });
         } else {
             if (sendMessagesToConsumers(readType, Lists.newArrayList(entry), true)) {
                 readMoreEntriesAsync();
@@ -129,7 +127,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
     public void canReadMoreEntries(boolean withBackoff) {
         havePendingRead = false;
         topic.getBrokerService().executor().schedule(() -> {
-            topicExecutor.execute(SafeRun.safeRun(() -> {
+            topicExecutor.execute(() -> {
                 synchronized (PersistentStreamingDispatcherMultipleConsumers.this) {
                     if (!havePendingRead) {
                         log.info("[{}] Scheduling read operation", name);
@@ -138,7 +136,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                         log.info("[{}] Skipping read since we have pendingRead", name);
                     }
                 }
-            }));
+            });
         }, withBackoff
                 ? readFailureBackoff.next() : 0, TimeUnit.MILLISECONDS);
     }
@@ -216,7 +214,7 @@ public class PersistentStreamingDispatcherMultipleConsumers extends PersistentDi
                     havePendingReplayRead = false;
                     // We should not call readMoreEntries() recursively in the same thread
                     // as there is a risk of StackOverflowError
-                    topic.getBrokerService().executor().execute(safeRun(this::readMoreEntries));
+                    topic.getBrokerService().executor().execute(this::readMoreEntries);
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,

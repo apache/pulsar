@@ -26,7 +26,7 @@ import com.carrotsearch.hppc.ObjectObjectHashMap;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -199,7 +199,8 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             // entry internally retains data so, duplicateBuffer should be release here
             duplicateBuffer.release();
             if (subscription.getDispatcher() != null) {
-                subscription.getDispatcher().sendMessages(Collections.singletonList(entry));
+                // Dispatcher needs to call the set method to support entry filter feature.
+                subscription.getDispatcher().sendMessages(Arrays.asList(entry));
             } else {
                 // it happens when subscription is created but dispatcher is not created as consumer is not added
                 // yet
@@ -234,6 +235,11 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
     @Override
     public void checkMessageDeduplicationInfo() {
         // No-op
+    }
+
+    @Override
+    public boolean isReplicationBacklogExist() {
+        return false;
     }
 
     @Override

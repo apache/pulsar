@@ -54,6 +54,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
@@ -143,6 +144,14 @@ public abstract class PulsarWebResource {
         return PolicyPath.splitPath(source, slice);
     }
 
+    public AuthenticationParameters authParams() {
+        return AuthenticationParameters.builder()
+                .originalPrincipal(originalPrincipal())
+                .clientRole(clientAppId())
+                .clientAuthenticationDataSource(clientAuthData())
+                .build();
+    }
+
     /**
      * Gets a caller id (IP + role).
      *
@@ -185,8 +194,8 @@ public abstract class PulsarWebResource {
         return true;
     }
 
-    public CompletableFuture<Void> validateSuperUserAccessAsync(){
-        if (!config().isAuthenticationEnabled()) {
+    public CompletableFuture<Void> validateSuperUserAccessAsync() {
+        if (!config().isAuthenticationEnabled() || !config().isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
         String appId = clientAppId();
@@ -221,22 +230,15 @@ public abstract class PulsarWebResource {
                         }
                     });
         } else {
-            if (config().isAuthorizationEnabled()) {
-                return pulsar.getBrokerService()
-                        .getAuthorizationService()
-                        .isSuperUser(appId, clientAuthData())
-                        .thenAccept(proxyAuthorizationSuccess -> {
-                            if (!proxyAuthorizationSuccess) {
-                                throw new RestException(Status.UNAUTHORIZED,
-                                        "This operation requires super-user access");
-                            }
-                        });
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("Successfully authorized {} as super-user",
-                        appId);
-            }
-            return CompletableFuture.completedFuture(null);
+            return pulsar.getBrokerService()
+                    .getAuthorizationService()
+                    .isSuperUser(appId, clientAuthData())
+                    .thenAccept(proxyAuthorizationSuccess -> {
+                        if (!proxyAuthorizationSuccess) {
+                            throw new RestException(Status.UNAUTHORIZED,
+                                    "This operation requires super-user access");
+                        }
+                    });
         }
     }
 

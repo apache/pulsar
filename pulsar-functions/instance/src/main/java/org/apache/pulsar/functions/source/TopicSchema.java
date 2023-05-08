@@ -44,8 +44,6 @@ import org.apache.pulsar.functions.instance.InstanceUtils;
 @Slf4j
 public class TopicSchema {
 
-    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
-    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
