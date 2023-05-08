@@ -309,6 +309,14 @@ public class ContextImplTest {
                 new String[0],
                 FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
                 pulsarAdmin, clientBuilder);
+
+        try {
+            context.getConsumer("z", 1);
+            Assert.fail("Expected exception");
+        } catch (PulsarClientException.NotSupportedException e) {
+            // pass
+        }
+
         Consumer<?> mockConsumer = Mockito.mock(Consumer.class);
         when(mockConsumer.getTopic()).thenReturn(TopicName.get("z").toString());
         context.setInputConsumers(Lists.newArrayList(mockConsumer));
@@ -317,7 +325,7 @@ public class ContextImplTest {
         try {
             context.getConsumer("z", 1);
             Assert.fail("Expected exception");
-        } catch (PulsarClientException e) {
+        } catch (PulsarClientException.NotFoundException e) {
             // pass
         }
     }

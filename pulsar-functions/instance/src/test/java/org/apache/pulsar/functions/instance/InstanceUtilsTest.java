@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.testng.annotations.Test;
@@ -76,5 +77,10 @@ public class InstanceUtilsTest {
         assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.SOURCE);
         builder.setComponentType(FunctionDetails.ComponentType.FUNCTION);
         assertEquals(InstanceUtils.calculateSubjectType(builder.build()), FunctionDetails.ComponentType.FUNCTION);
+    }
+
+    @Test(expectedExceptions = PulsarClientException.InvalidServiceURL.class)
+    public void testInvalidServiceURL() throws PulsarClientException {
+        InstanceUtils.createPulsarClient("an-invalid-pulsar-service-url", AuthenticationConfig.builder().build());
     }
 }

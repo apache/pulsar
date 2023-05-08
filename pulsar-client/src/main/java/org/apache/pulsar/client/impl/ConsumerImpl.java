@@ -417,7 +417,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         } else {
             unsubscribeFuture.completeExceptionally(
-                new PulsarClientException(
+                new PulsarClientException.NotConnectedException(
                     String.format("The client is not connected to the broker when unsubscribing the "
                             + "subscription %s of the topic %s", subscription, topicName.toString())));
         }
@@ -2127,7 +2127,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return seekAsync((long) seekPosition);
         }
         return FutureUtil.failedFuture(
-                new PulsarClientException("Only support seek by messageId or timestamp"));
+                new PulsarClientException.NotSupportedException("Only support seek by messageId or timestamp"));
     }
 
     private Optional<CompletableFuture<Void>> seekAsyncCheckState(String seekBy) {
@@ -2139,7 +2139,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (!isConnected()) {
-            return Optional.of(FutureUtil.failedFuture(new PulsarClientException(
+            return Optional.of(FutureUtil.failedFuture(new PulsarClientException.NotConnectedException(
                     String.format("The client is not connected to the broker when seeking the subscription %s of the "
                             + "topic %s to %s", subscription, topicName.toString(), seekBy))));
         }
