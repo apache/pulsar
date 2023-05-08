@@ -23,7 +23,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,25 +31,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.OldPolicies;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class NamespaceIsolationPolicyImplTest {
-    private final String defaultPolicyJson = "{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"policy_type\":\"min_available\",\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"90\"}}}";
 
-    private NamespaceIsolationPolicyImpl getDefaultPolicy() throws Exception {
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        return new NamespaceIsolationPolicyImpl(
-                jsonMapper.readValue(this.defaultPolicyJson.getBytes(), NamespaceIsolationData.class));
+    private NamespaceIsolationPolicyImpl getDefaultPolicy() {
+        return new NamespaceIsolationPolicyImpl(getDefaultData(false));
+    }
+
+    private static NamespaceIsolationData getDefaultData(boolean withPort) {
+        final String port = withPort ? ":8080" : "";
+        return NamespaceIsolationDataImpl.builder()
+                .namespaces(Collections.singletonList("pulsar/use/test.*"))
+                .primary(Collections.singletonList("prod1-broker[1-3].messaging.use.example.com" + port))
+                .secondary(Collections.singletonList("prod1-broker.*.use.example.com" + port))
+                .autoFailoverPolicy(AutoFailoverPolicyData.builder()
+                        .policyType(AutoFailoverPolicyType.min_available)
+                        .parameters(new HashMap<String, String>() {{
+                            put("min_limit", "3");
+                            put("usage_threshold", "90");
+                        }})
+                        .build())
+                .build();
     }
 
     @Test
@@ -102,10 +112,15 @@ public class NamespaceIsolationPolicyImplTest {
         assertFalse(defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com"));
     }
 
-    @Test
-    public void testFindBrokers() throws Exception {
-        NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
-        List<URL> brokers = new ArrayList<URL>();
+    @DataProvider(name = "withPort")
+    public Object[][] dataWithPort() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "withPort")
+    public void testFindBrokers(boolean withPort) throws Exception {
+        NamespaceIsolationPolicyImpl defaultPolicy = new NamespaceIsolationPolicyImpl(getDefaultData(withPort));
+        List<URL> brokers = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
             String broker = String.format("prod1-broker%d.messaging.use.example.com", i);
             brokers.add(new URL(String.format("http://%s:8080", broker)));

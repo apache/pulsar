@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.AutoFailoverPolicy;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
@@ -35,24 +37,26 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
  */
 public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
-    private List<String> namespaces;
-    private List<String> primary;
-    private List<String> secondary;
-    private AutoFailoverPolicy autoFailoverPolicy;
+    private final List<String> namespaces;
+    private final List<String> primary;
+    private final List<Pattern> primaryPattens;
+    private final List<String> secondary;
+    private final List<Pattern> secondaryPatterns;
+    private final AutoFailoverPolicy autoFailoverPolicy;
 
-    private boolean matchNamespaces(String fqnn) {
+    private boolean matchNamespaces(String fqn) {
         for (String nsRegex : namespaces) {
-            if (fqnn.matches(nsRegex)) {
+            if (fqn.matches(nsRegex)) {
                 return true;
             }
         }
         return false;
     }
 
-    private List<URL> getMatchedBrokers(List<String> brkRegexList, List<URL> availableBrokers) {
-        List<URL> matchedBrokers = new ArrayList<URL>();
+    private List<URL> getMatchedBrokers(List<Pattern> brkRegexList, List<URL> availableBrokers) {
+        List<URL> matchedBrokers = new ArrayList<>();
         for (URL brokerUrl : availableBrokers) {
-            if (this.matchesBrokerRegex(brkRegexList, brokerUrl.getHost())) {
+            if (this.matchesBrokerRegex(brkRegexList, brokerUrl.toString())) {
                 matchedBrokers.add(brokerUrl);
             }
         }
@@ -62,7 +66,9 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     public NamespaceIsolationPolicyImpl(NamespaceIsolationData policyData) {
         this.namespaces = policyData.getNamespaces();
         this.primary = policyData.getPrimary();
+        this.primaryPattens = primary.stream().map(Pattern::compile).collect(Collectors.toList());
         this.secondary = policyData.getSecondary();
+        this.secondaryPatterns = secondary.stream().map(Pattern::compile).collect(Collectors.toList());
         this.autoFailoverPolicy = AutoFailoverPolicyFactory.create(policyData.getAutoFailoverPolicy());
     }
 
@@ -79,10 +85,10 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
     @Override
     public List<URL> findPrimaryBrokers(List<URL> availableBrokers, NamespaceName namespace) {
         if (!this.matchNamespaces(namespace.toString())) {
-            throw new IllegalArgumentException("Namespace " + namespace.toString() + " does not match policy");
+            throw new IllegalArgumentException("Namespace " + namespace + " does not match policy");
         }
         // find the available brokers that matches primary brokers regex list
-        return this.getMatchedBrokers(this.primary, availableBrokers);
+        return this.getMatchedBrokers(this.primaryPattens, availableBrokers);
     }
 
     @Override
@@ -91,7 +97,7 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
             throw new IllegalArgumentException("Namespace " + namespace.toString() + " does not match policy");
         }
         // find the available brokers that matches primary brokers regex list
-        return this.getMatchedBrokers(this.secondary, availableBrokers);
+        return this.getMatchedBrokers(this.secondaryPatterns, availableBrokers);
     }
 
     @Override
@@ -100,9 +106,9 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
         return false;
     }
 
-    private boolean matchesBrokerRegex(List<String> brkRegexList, String broker) {
-        for (String brkRegex : brkRegexList) {
-            if (broker.matches(brkRegex)) {
+    private boolean matchesBrokerRegex(List<Pattern> brkRegexList, String broker) {
+        for (Pattern brkRegex : brkRegexList) {
+            if (brkRegex.matcher(broker).find()) {
                 return true;
             }
         }
@@ -111,12 +117,12 @@ public class NamespaceIsolationPolicyImpl implements NamespaceIsolationPolicy {
 
     @Override
     public boolean isPrimaryBroker(String broker) {
-        return this.matchesBrokerRegex(this.primary, broker);
+        return this.matchesBrokerRegex(this.primaryPattens, broker);
     }
 
     @Override
     public boolean isSecondaryBroker(String broker) {
-        return this.matchesBrokerRegex(this.secondary, broker);
+        return this.matchesBrokerRegex(this.secondaryPatterns, broker);
     }
 
     @Override
