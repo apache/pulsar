@@ -595,7 +595,6 @@ public class PulsarRecordCursor implements RecordCursor {
         }
 
         for (DecoderColumnHandle columnHandle : columnHandles) {
-            //String names = PulsarInternalColumn.getNameByColumnHandle(columnHandle);
             switch (columnHandle.getName()) {
                 case "__partition__":
                     currentRowValuesMap.put(columnHandle, longValueProvider(this.partition));
@@ -632,11 +631,7 @@ public class PulsarRecordCursor implements RecordCursor {
                     }
                     break;
                 default:
-                    try {
-                        throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
-                    } finally {
-                        break;
-                    }
+                    throw new IllegalArgumentException("unknown internal field " + columnHandle.getName());
             }
         }
         for (int i = 0; i < columnHandles.size(); i++) {
