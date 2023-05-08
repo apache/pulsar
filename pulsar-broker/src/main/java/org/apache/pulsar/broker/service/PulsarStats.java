@@ -204,11 +204,10 @@ public class PulsarStats implements Closeable {
                 }
             });
             if (clusterReplicationMetrics.isMetricsEnabled()) {
-                clusterReplicationMetrics.get().forEach(clusterMetric -> tempMetricsCollection.add(clusterMetric));
+                tempMetricsCollection.addAll(clusterReplicationMetrics.get());
                 clusterReplicationMetrics.reset();
             }
-            brokerOperabilityMetrics.getMetrics()
-                    .forEach(brokerOperabilityMetric -> tempMetricsCollection.add(brokerOperabilityMetric));
+            tempMetricsCollection.addAll(brokerOperabilityMetrics.getMetrics());
 
             // json end
             topicStatsStream.endObject();
