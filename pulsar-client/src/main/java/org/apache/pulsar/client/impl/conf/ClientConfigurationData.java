@@ -172,7 +172,7 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             name = "tlsHostnameVerificationEnable",
             value = "Whether the hostname is validated when the client creates a TLS connection with brokers."
     )
-    private boolean tlsHostnameVerificationEnable = false;
+    private boolean tlsHostnameVerificationEnable = true;
     @ApiModelProperty(
             name = "concurrentLookupRequest",
             value = "The number of concurrent lookup requests that can be sent on each broker connection. "

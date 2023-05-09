@@ -99,7 +99,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     public String tlsAllowInsecureConnection = Boolean.TRUE.toString();
 
     @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
-    public String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
+    public String tlsHostNameVerificationEnabled = Boolean.TRUE.toString();
 
     @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     public String tlsTrustCertFilePath;

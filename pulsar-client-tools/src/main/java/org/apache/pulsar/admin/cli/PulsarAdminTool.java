@@ -126,7 +126,7 @@ public class PulsarAdminTool {
                 .getProperty("tlsAllowInsecureConnection", "false"));
 
         boolean tlsEnableHostnameVerification = Boolean.parseBoolean(properties
-                .getProperty("tlsEnableHostnameVerification", "false"));
+                .getProperty("tlsEnableHostnameVerification", "true"));
         final String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
         return PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)

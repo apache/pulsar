@@ -95,12 +95,11 @@ public class WebSocketProxyConfigurationTest {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         // Use non-default values for testing
         config.setTlsAllowInsecureConnection(true);
-        Assert.assertFalse(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
-        config.setTlsHostnameVerificationEnabled(true);
+        config.setTlsHostnameVerificationEnabled(false);
         ServiceConfiguration brokerConf = PulsarConfigurationLoader.convertFrom(config);
         Assert.assertTrue(brokerConf.isTlsAllowInsecureConnection(),
                 "TlsAllowInsecureConnection should convert correctly");
-        Assert.assertTrue(brokerConf.isTlsHostnameVerificationEnabled(),
+        Assert.assertFalse(brokerConf.isTlsHostnameVerificationEnabled(),
                 "TlsHostnameVerificationEnabled should convert correctly");
     }
 }

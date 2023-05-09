@@ -139,7 +139,7 @@ public abstract class PerformanceBaseArguments {
 
         if (tlsHostnameVerificationEnable == null) {
             tlsHostnameVerificationEnable = Boolean.parseBoolean(prop
-                    .getProperty("tlsEnableHostnameVerification", ""));
+                    .getProperty("tlsEnableHostnameVerification", "true"));
 
         }
 
