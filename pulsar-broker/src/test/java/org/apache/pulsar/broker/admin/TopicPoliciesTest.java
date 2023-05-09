@@ -141,10 +141,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 "test-" + UUID.randomUUID()
         );
         String testTopic = topicName.toString();
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(testTopic).create();
         HashMap<String, String> properties = new HashMap<>();
         properties.put("backlogQuotaType", "message_age");
         admin.topics().updateProperties(testTopic, properties);
+        admin.topics().delete(topicName.toString(), true);
     }
 
     @Test

@@ -665,7 +665,7 @@ public class PersistentTopicsBase extends AdminResource {
         return validateTopicOwnershipAsync(topicName, authoritative)
             .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.UPDATE_METADATA))
             .thenCompose(__ -> {
-                if (!topicName.isPartitioned()) {
+                if (topicName.isPartitioned()) {
                     return internalUpdateNonPartitionedTopicProperties(properties);
                 } else {
                     return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
