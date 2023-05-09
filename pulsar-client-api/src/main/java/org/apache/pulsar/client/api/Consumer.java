@@ -523,11 +523,15 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * The asynchronous version of {@link Consumer#seek(MessageId)}.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and return a canceled future.
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and return a canceled future.
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
