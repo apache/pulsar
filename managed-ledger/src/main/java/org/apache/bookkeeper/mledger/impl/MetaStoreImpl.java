@@ -23,7 +23,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -182,7 +181,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
             @Override
             public void operationFailed(MetaStoreException e) {
                 if (e instanceof MetadataNotFoundException) {
-                    result.complete(Collections.emptyMap());
+                    result.complete(new HashMap<>());
                 } else {
                     result.completeExceptionally(e);
                 }
