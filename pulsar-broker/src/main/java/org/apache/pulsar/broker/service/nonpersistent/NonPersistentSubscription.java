@@ -28,6 +28,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
@@ -65,25 +66,17 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
-    // Timestamp of when this subscription was last seen active
-    private volatile long lastActive;
-
     private volatile Map<String, String> subscriptionProperties;
-
-    // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
-    private final boolean isDurable;
 
     private KeySharedMode keySharedMode = null;
 
-    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable,
+    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName,
                                      Map<String, String> properties) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
         IS_FENCED_UPDATER.set(this, FALSE);
-        this.lastActive = System.currentTimeMillis();
-        this.isDurable = isDurable;
         this.subscriptionProperties = properties != null
                 ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
     }
@@ -110,7 +103,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
-        updateLastActive();
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
             return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
@@ -177,7 +169,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     @Override
     public synchronized void removeConsumer(Consumer consumer, boolean isResetCursor) throws BrokerServiceException {
-        updateLastActive();
         if (dispatcher != null) {
             dispatcher.removeConsumer(consumer);
         }
@@ -185,7 +176,8 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
         ConsumerStatsImpl stats = consumer.getStats();
         bytesOutFromRemovedConsumers.add(stats.bytesOutCounter);
         msgOutFromRemovedConsumer.add(stats.msgOutCounter);
-        if (!isDurable) {
+        // Unsubscribe when all the consumers disconnected.
+        if (dispatcher != null && CollectionUtils.isEmpty(dispatcher.getConsumers())) {
             topic.unsubscribe(subName);
         }
 
@@ -523,14 +515,6 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);
-
-    public long getLastActive() {
-        return lastActive;
-    }
-
-    public void updateLastActive() {
-        this.lastActive = System.currentTimeMillis();
-    }
 
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
