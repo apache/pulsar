@@ -209,7 +209,7 @@ public class BrokerBookieIsolationTest {
                         .build());
 
         //Checks the namespace bundles after setting the bookie affinity
-        assertEquals(admin.namespaces().getBundles(ns1).getNumBundles(), config.getDefaultNumberOfNamespaceBundles());
+        assertEquals(admin.namespaces().getBundles(ns2).getNumBundles(), config.getDefaultNumberOfNamespaceBundles());
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
