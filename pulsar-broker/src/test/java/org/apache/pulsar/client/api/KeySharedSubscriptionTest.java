@@ -112,6 +112,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        this.conf.setUnblockStuckSubscriptionEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
         this.conf.setSubscriptionKeySharedUseConsistentHashing(true);
@@ -1537,5 +1538,80 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         // wait for all the messages to be delivered
         count3.await();
         assertTrue(sentMessages.isEmpty(), "didn't receive " + sentMessages);
+    }
+
+    @Test
+    public void testContinueDispatchMessagesWhenMessageDelayed() throws Exception {
+        int delayedMessages = 40;
+        int messages = 40;
+        int sum = 0;
+        final String topic = "persistent://public/default/key_shared-" + UUID.randomUUID();
+        final String subName = "my-sub";
+
+        @Cleanup
+        Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < delayedMessages; i++) {
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(100 + i)
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .send();
+            log.info("Published delayed message :{}", messageId);
+        }
+
+        for (int i = 0; i < messages; i++) {
+            MessageId messageId = producer.newMessage()
+                    .key(String.valueOf(random.nextInt(NUMBER_OF_KEYS)))
+                    .value(i)
+                    .send();
+            log.info("Published message :{}", messageId);
+        }
+
+        @Cleanup
+        Consumer<Integer> consumer2 = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(subName)
+                .receiverQueueSize(30)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        for (int i = 0; i < delayedMessages + messages; i++) {
+            Message<Integer> msg = consumer1.receive(30, TimeUnit.SECONDS);
+            if (msg != null) {
+                log.info("c1 message: {}, {}", msg.getValue(), msg.getMessageId());
+                consumer1.acknowledge(msg);
+            } else {
+                break;
+            }
+            sum++;
+        }
+
+        log.info("Got {} messages...", sum);
+
+        int remaining = delayedMessages + messages - sum;
+        for (int i = 0; i < remaining; i++) {
+            Message<Integer> msg = consumer2.receive(30, TimeUnit.SECONDS);
+            if (msg != null) {
+                log.info("c2 message: {}, {}", msg.getValue(), msg.getMessageId());
+                consumer2.acknowledge(msg);
+            } else {
+                break;
+            }
+            sum++;
+        }
+
+        log.info("Got {} other messages...", sum);
+        Assert.assertEquals(sum, delayedMessages + messages);
     }
 }
