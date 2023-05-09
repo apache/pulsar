@@ -45,6 +45,10 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
@@ -64,6 +68,10 @@
                 <exclusion>
                     <artifactId>avro</artifactId>
                     <groupId>org.apache.avro</groupId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>commons-collections</artifactId>
+                    <groupId>commons-collections</groupId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -89,6 +97,10 @@
                 <exclusion>
                     <groupId>io.netty</groupId>
                     <artifactId>netty</artifactId>
+                </exclusion>
+                <exclusion>
+                    <artifactId>commons-collections</artifactId>
+                    <groupId>commons-collections</groupId>
                 </exclusion>
             </exclusions>
         </dependency>
