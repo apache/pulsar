@@ -95,7 +95,8 @@ public class OwnershipCache {
 
         @Override
         public CompletableFuture<OwnedBundle> asyncLoad(NamespaceBundle namespaceBundle, Executor executor) {
-            return lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
+            CompletableFuture<OwnedBundle> res = new CompletableFuture<>();
+            lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
                     .thenApplyAsync(rl -> {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
@@ -106,12 +107,14 @@ public class OwnershipCache {
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });
                         return new OwnedBundle(namespaceBundle);
-                    }, executor).exceptionallyAsync(ex -> {
-                        if (ex instanceof RuntimeException){
-                            throw (RuntimeException) ex;
+                    }, executor).whenCompleteAsync((bundle, ex) -> {
+                        if (ex != null){
+                            res.completeExceptionally(ex);
+                        } else {
+                            res.complete(bundle);
                         }
-                        throw new RuntimeException(ex);
                     }, executor);
+            return res;
         }
     }
 
