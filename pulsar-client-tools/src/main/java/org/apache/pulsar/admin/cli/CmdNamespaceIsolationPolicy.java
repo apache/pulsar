@@ -57,7 +57,7 @@ public class CmdNamespaceIsolationPolicy extends CmdBase {
                 + "a secondary regex to select desired brokers. If no broker matches the specified regex, you cannot "
                 + "create a topic. If there are not enough primary brokers, topics are assigned to secondary brokers. "
                 + "If there are not enough secondary brokers, topics are assigned to other brokers which do not have "
-                + "any isolation policies.", required = true)
+                + "any isolation policies.", required = true, splitter = CommaParameterSplitter.class)
         private List<String> primary;
 
         @Parameter(names = "--secondary", description = "comma separated secondary-broker-regex list",
