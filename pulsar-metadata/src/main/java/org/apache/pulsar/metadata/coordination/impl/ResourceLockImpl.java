@@ -21,7 +21,6 @@ package org.apache.pulsar.metadata.coordination.impl;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -47,8 +46,6 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
     private boolean revalidateAfterReconnection = false;
     private final FutureUtil.Sequencer<Void> sequencer;
 
-    private final Executor executor;
-
     private enum State {
         Init,
         Valid,
@@ -58,7 +55,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     private State state;
 
-    public ResourceLockImpl(MetadataStoreExtended store, MetadataSerde<T> serde, String path, Executor executor) {
+    public ResourceLockImpl(MetadataStoreExtended store, MetadataSerde<T> serde, String path) {
         this.store = store;
         this.serde = serde;
         this.path = path;
@@ -66,7 +63,6 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         this.expiredFuture = new CompletableFuture<>();
         this.sequencer = FutureUtil.Sequencer.create();
         this.state = State.Init;
-        this.executor = executor;
     }
 
     @Override
@@ -100,13 +96,13 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         CompletableFuture<Void> result = new CompletableFuture<>();
 
         store.delete(path, Optional.of(version))
-                .thenRunAsync(() -> {
+                .thenRun(() -> {
                     synchronized (ResourceLockImpl.this) {
                         state = State.Released;
                     }
                     expiredFuture.complete(null);
                     result.complete(null);
-                }, executor).exceptionallyAsync(ex -> {
+                }).exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
                         // The lock is not there on release. We can anyway proceed
                         synchronized (ResourceLockImpl.this) {
@@ -118,7 +114,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                         result.completeExceptionally(ex);
                     }
                     return null;
-                }, executor);
+                });
 
         return result;
     }
@@ -173,7 +169,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
         CompletableFuture<Void> result = new CompletableFuture<>();
         store.put(path, payload, Optional.of(version), EnumSet.of(CreateOption.Ephemeral))
-                .thenAcceptAsync(stat -> {
+                .thenAccept(stat -> {
                     synchronized (ResourceLockImpl.this) {
                         state = State.Valid;
                         version = stat.getVersion();
@@ -181,7 +177,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
                     log.info("Acquired resource lock on {}", path);
                     result.complete(null);
-                }, executor).exceptionallyAsync(ex -> {
+                }).exceptionally(ex -> {
             if (ex.getCause() instanceof BadVersionException) {
                 result.completeExceptionally(
                         new LockBusyException("Resource at " + path + " is already locked"));
@@ -189,7 +185,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 result.completeExceptionally(ex.getCause());
             }
             return null;
-        }, executor);
+        });
 
         return result;
     }
@@ -247,7 +243,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             log.debug("doRevalidate with newValue={}, version={}", newValue, version);
         }
         return store.get(path)
-                .thenComposeAsync(optGetResult -> {
+                .thenCompose(optGetResult -> {
                     if (!optGetResult.isPresent()) {
                         // The lock just disappeared, try to acquire it again
                         // Reset the expectation on the version
@@ -290,7 +286,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                                             // Reset the expectation that the key is not there anymore
                                             setVersion(-1L)
                                         )
-                                        .thenComposeAsync(__ -> acquireWithNoRevalidation(newValue), executor)
+                                        .thenCompose(__ -> acquireWithNoRevalidation(newValue))
                                         .thenRun(() -> log.info("Successfully re-acquired stale lock at {}", path));
                             }
                         }
@@ -309,10 +305,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                                     // Reset the expectation that the key is not there anymore
                                     setVersion(-1L)
                                 )
-                                .thenComposeAsync(__ -> acquireWithNoRevalidation(newValue), executor)
+                                .thenCompose(__ -> acquireWithNoRevalidation(newValue))
                                 .thenRun(() -> log.info("Successfully re-acquired lock at {}", path));
                     }
-                }, executor);
+                });
     }
 
     private synchronized void setVersion(long version) {

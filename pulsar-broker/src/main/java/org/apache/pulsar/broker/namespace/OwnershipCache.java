@@ -96,7 +96,7 @@ public class OwnershipCache {
         @Override
         public CompletableFuture<OwnedBundle> asyncLoad(NamespaceBundle namespaceBundle, Executor executor) {
             return lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
-                    .thenApply(rl -> {
+                    .thenApplyAsync(rl -> {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
@@ -106,7 +106,12 @@ public class OwnershipCache {
                                     namespaceService.onNamespaceBundleUnload(namespaceBundle);
                                 });
                         return new OwnedBundle(namespaceBundle);
-                    });
+                    }, executor).exceptionallyAsync(ex -> {
+                        if (ex instanceof RuntimeException){
+                            throw (RuntimeException) ex;
+                        }
+                        throw new RuntimeException(ex);
+                    }, executor);
         }
     }
 
@@ -288,10 +293,10 @@ public class OwnershipCache {
 
     /**
      * Disable bundle in local cache and on zk.
-     *
-     * @param bundle
-     * @throws Exception
+     * @Deprecated This is a dangerous method that will occupy the ZK thread. Please switch to your own thread after
+     * calling this method, which is currently only used for test
      */
+    @Deprecated
     public CompletableFuture<Void> disableOwnership(NamespaceBundle bundle) {
         return updateBundleState(bundle, false)
                 .thenCompose(__ -> {
