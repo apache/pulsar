@@ -878,14 +878,15 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected synchronized Set<PositionImpl> getMessagesToReplayNow(int maxMessagesToRead) {
-        if (!redeliveryMessages.isEmpty()) {
-            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
-        } else if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
+        if (delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable()) {
             delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
             Set<PositionImpl> messagesAvailableNow =
                     delayedDeliveryTracker.get().getScheduledMessages(maxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
-            return messagesAvailableNow;
+        }
+
+        if (!redeliveryMessages.isEmpty()) {
+            return redeliveryMessages.getMessagesToReplayNow(maxMessagesToRead);
         } else {
             return Collections.emptySet();
         }
