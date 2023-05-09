@@ -311,17 +311,17 @@ This projects includes binary packages with the following licenses:
 The Apache Software License, Version 2.0
  * JCommander -- jcommander-1.82.jar
  * Jackson
-     - jackson-annotations-2.13.4.jar
-     - jackson-core-2.13.4.jar
-     - jackson-databind-2.13.4.2.jar
-     - jackson-dataformat-yaml-2.13.4.jar
-     - jackson-jaxrs-base-2.13.4.jar
-     - jackson-jaxrs-json-provider-2.13.4.jar
-     - jackson-module-jaxb-annotations-2.13.4.jar
-     - jackson-module-jsonSchema-2.13.4.jar
-     - jackson-datatype-jdk8-2.13.4.jar
-     - jackson-datatype-jsr310-2.13.4.jar
-     - jackson-module-parameter-names-2.13.4.jar
+     - jackson-annotations-2.14.2.jar
+     - jackson-core-2.14.2.jar
+     - jackson-databind-2.14.2.jar
+     - jackson-dataformat-yaml-2.14.2.jar
+     - jackson-jaxrs-base-2.14.2.jar
+     - jackson-jaxrs-json-provider-2.14.2.jar
+     - jackson-module-jaxb-annotations-2.14.2.jar
+     - jackson-module-jsonSchema-2.14.2.jar
+     - jackson-datatype-jdk8-2.14.2.jar
+     - jackson-datatype-jsr310-2.14.2.jar
+     - jackson-module-parameter-names-2.14.2.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.5.2.jar
  * Gson
     - gson-2.8.9.jar
@@ -390,9 +390,9 @@ The Apache Software License, Version 2.0
     - log4j-web-2.18.0.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.15.4.jar
-    - cpu-affinity-4.15.4.jar
-    - circe-checksum-4.15.4.jar
+    - bookkeeper-common-allocator-4.16.1.jar
+    - cpu-affinity-4.16.1.jar
+    - circe-checksum-4.16.1.jar
   * AirCompressor
      - aircompressor-0.20.jar
  * AsyncHttpClient
@@ -407,7 +407,7 @@ The Apache Software License, Version 2.0
     - websocket-api-9.4.48.v20220622.jar
     - websocket-client-9.4.48.v20220622.jar
     - websocket-common-9.4.48.v20220622.jar
- * SnakeYaml -- snakeyaml-1.32.jar
+ * SnakeYaml -- snakeyaml-2.0.jar
  * Google Error Prone Annotations - error_prone_annotations-2.5.1.jar
  * Javassist -- javassist-3.25.0-GA.jar
   * Apache Avro

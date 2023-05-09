@@ -37,14 +37,6 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
-    <suppress>
-        <notes><![CDATA[
-       file name: snakeyaml-1.32.jar
-       ]]></notes>
-        <sha1>e80612549feb5c9191c498de628c1aa80693cf0b</sha1>
-        <cve>CVE-2022-1471</cve>
-    </suppress>
-
     <!-- influxdb dependencies -->
     <suppress>
         <notes><![CDATA[
@@ -462,6 +454,13 @@
         <sha1>e0aad9f8611e710b9a0ce49747f7465ce07d8404</sha1>
         <cve>CVE-2020-17516</cve>
         <cve>CVE-2021-44521</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       The vulnerable method is deprecated in Guava, but isn't removed. It's necessary to suppress this CVE.
+       See https://github.com/google/guava/issues/4011
+       ]]></notes>
+        <cve>CVE-2020-8908</cve>
     </suppress>
 
 </suppressions>

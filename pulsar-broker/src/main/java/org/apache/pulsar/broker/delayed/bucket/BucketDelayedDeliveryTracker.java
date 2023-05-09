@@ -19,9 +19,8 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.broker.delayed.bucket.Bucket.DELAYED_BUCKET_KEY_PREFIX;
+import static org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.broker.delayed.bucket.Bucket.DELIMITER;
-import static org.apache.pulsar.broker.delayed.bucket.Bucket.MaxRetryTimes;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Range;
@@ -54,9 +53,10 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.AbstractDelayedDeliveryTracker;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.roaringbitmap.RoaringBitmap;
@@ -65,9 +65,15 @@ import org.roaringbitmap.RoaringBitmap;
 @ThreadSafe
 public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
 
+    public static final String DELAYED_BUCKET_KEY_PREFIX = CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket";
+
     static final CompletableFuture<Long> NULL_LONG_PROMISE = CompletableFuture.completedFuture(null);
 
     static final int AsyncOperationTimeoutSeconds = 60;
+
+    private static final Long INVALID_BUCKET_ID = -1L;
+
+    private static final int MAX_MERGE_NUM = 4;
 
     private final long minIndexCountPerBucket;
 
@@ -77,7 +83,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final int maxNumBuckets;
 
-    private long numberDelayedMessages;
+    private volatile long numberDelayedMessages;
 
     @Getter
     @VisibleForTesting
@@ -93,9 +99,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private final Table<Long, Long, ImmutableBucket> snapshotSegmentLastIndexTable;
 
-    private static final Long INVALID_BUCKET_ID = -1L;
+    private final BucketDelayedMessageIndexStats stats;
 
-    private static final int MAX_MERGE_NUM = 4;
+    private CompletableFuture<Void> pendingLoad = null;
 
     public BucketDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher,
                                  Timer timer, long tickTimeMillis,
@@ -125,6 +131,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         this.lastMutableBucket =
                 new MutableBucket(dispatcher.getName(), dispatcher.getCursor(), FutureUtil.Sequencer.create(),
                         bucketSnapshotStorage);
+        this.stats = new BucketDelayedMessageIndexStats();
         this.numberDelayedMessages = recoverBucketSnapshot();
     }
 
@@ -161,8 +168,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         try {
-            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+            FutureUtil.waitForAll(futures.values()).get(AsyncOperationTimeoutSeconds * 5, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            log.error("[{}] Failed to recover delayed message index bucket snapshot.", dispatcher.getName(), e);
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
@@ -193,7 +201,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             ImmutableBucket immutableBucket = mapEntry.getValue();
             immutableBucketMap.remove(key);
             // delete asynchronously without waiting for completion
-            immutableBucket.asyncDeleteBucketSnapshot();
+            immutableBucket.asyncDeleteBucketSnapshot(stats);
         }
 
         MutableLong numberDelayedMessages = new MutableLong(0);
@@ -246,7 +254,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         return Optional.ofNullable(immutableBuckets.get(ledgerId));
     }
 
-    private void afterCreateImmutableBucket(Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair) {
+    private void afterCreateImmutableBucket(Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair,
+                                            long startTime) {
         if (immutableBucketDelayedIndexPair != null) {
             ImmutableBucket immutableBucket = immutableBucketDelayedIndexPair.getLeft();
             immutableBuckets.put(Range.closed(immutableBucket.startLedgerId, immutableBucket.endLedgerId),
@@ -260,20 +269,24 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 CompletableFuture<Long> future = createFuture.handle((bucketId, ex) -> {
                     if (ex == null) {
                         immutableBucket.setSnapshotSegments(null);
-                        log.info("[{}] Creat bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
+                        immutableBucket.asyncUpdateSnapshotLength();
+                        log.info("[{}] Create bucket snapshot finish, bucketKey: {}", dispatcher.getName(),
                                 immutableBucket.bucketKey());
+
+                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
+                                System.currentTimeMillis() - startTime);
+
                         return bucketId;
                     }
 
-                    //TODO Record create snapshot failed
-                    log.error("[{}] Failed to create bucket snapshot, bucketKey: {}",
-                            dispatcher.getName(), immutableBucket.bucketKey(), ex);
+                    log.error("[{}] Failed to create bucket snapshot, bucketKey: {}", dispatcher.getName(),
+                            immutableBucket.bucketKey(), ex);
+                    stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.create);
 
                     // Put indexes back into the shared queue and downgrade to memory mode
                     synchronized (BucketDelayedDeliveryTracker.this) {
                         immutableBucket.getSnapshotSegments().ifPresent(snapshotSegments -> {
-                            for (DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment snapshotSegment :
-                                    snapshotSegments) {
+                            for (SnapshotSegment snapshotSegment : snapshotSegments) {
                                 for (DelayedIndex delayedIndex : snapshotSegment.getIndexesList()) {
                                     sharedBucketPriorityQueue.add(delayedIndex.getTimestamp(),
                                             delayedIndex.getLedgerId(), delayedIndex.getEntryId());
@@ -311,15 +324,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         if (!existBucket && ledgerId > lastMutableBucket.endLedgerId
                 && lastMutableBucket.size() >= minIndexCountPerBucket
                 && !lastMutableBucket.isEmpty()) {
+            long createStartTime = System.currentTimeMillis();
+            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
                     lastMutableBucket.sealBucketAndAsyncPersistent(
                             this.timeStepPerBucketSnapshotSegmentInMillis,
                             this.maxIndexesPerBucketSnapshotSegment,
                             this.sharedBucketPriorityQueue);
-            afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
+            afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
             lastMutableBucket.resetLastMutableBucketRange();
 
-            if (immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
+            if (maxNumBuckets > 0 && immutableBuckets.asMapOfRanges().size() > maxNumBuckets) {
                 asyncMergeBucketSnapshot();
             }
         }
@@ -328,6 +343,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             // If (ledgerId < startLedgerId || existBucket) means that message index belong to previous bucket range,
             // enter sharedBucketPriorityQueue directly
             sharedBucketPriorityQueue.add(deliverAt, ledgerId, entryId);
+            lastMutableBucket.putIndexBit(ledgerId, entryId);
         } else {
             checkArgument(ledgerId >= lastMutableBucket.endLedgerId);
             lastMutableBucket.addMessage(ledgerId, entryId, deliverAt);
@@ -374,7 +390,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
 
         if (minIndex >= 0) {
-            return values.subList(minIndex, minIndex + MAX_MERGE_NUM);
+            return values.subList(minIndex, minIndex + mergeNum);
         } else if (mergeNum > 2){
             return selectMergedBuckets(values, mergeNum - 1);
         } else {
@@ -400,6 +416,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         for (ImmutableBucket immutableBucket : toBeMergeImmutableBuckets) {
             immutableBucket.merging = true;
         }
+
+        long mergeStartTime = System.currentTimeMillis();
+        stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.merge);
         return asyncMergeBucketSnapshot(toBeMergeImmutableBuckets).whenComplete((__, ex) -> {
             synchronized (this) {
                 for (ImmutableBucket immutableBucket : toBeMergeImmutableBuckets) {
@@ -409,9 +428,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             if (ex != null) {
                 log.error("[{}] Failed to merge bucket snapshot, bucketKeys: {}",
                         dispatcher.getName(), bucketsStr, ex);
+
+                stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.merge);
             } else {
                 log.info("[{}] Merge bucket snapshot finish, bucketKeys: {}, bucketNum: {}",
                         dispatcher.getName(), bucketsStr, immutableBuckets.asMapOfRanges().size());
+
+                stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.merge,
+                        System.currentTimeMillis() - mergeStartTime);
             }
         });
     }
@@ -426,7 +450,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 return FutureUtil.failedFuture(new RuntimeException("Can't merge buckets due to bucket create failed"));
             }
 
-            List<CompletableFuture<List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment>>> getRemainFutures =
+            List<CompletableFuture<List<SnapshotSegment>>> getRemainFutures =
                     buckets.stream().map(ImmutableBucket::getRemainSnapshotSegment).toList();
 
             return FutureUtil.waitForAll(getRemainFutures)
@@ -436,6 +460,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     })
                     .thenAccept(combinedDelayedIndexQueue -> {
                         synchronized (BucketDelayedDeliveryTracker.this) {
+                            long createStartTime = System.currentTimeMillis();
+                            stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.create);
                             Pair<ImmutableBucket, DelayedIndex> immutableBucketDelayedIndexPair =
                                     lastMutableBucket.createImmutableBucketAndAsyncPersistent(
                                             timeStepPerBucketSnapshotSegmentInMillis,
@@ -459,14 +485,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                     });
                                 });
                             }
+
+                            // optimize bm
+                            delayedIndexBitMap.values().forEach(RoaringBitmap::runOptimize);
                             immutableBucketDelayedIndexPair.getLeft().setDelayedIndexBitMap(delayedIndexBitMap);
 
-                            afterCreateImmutableBucket(immutableBucketDelayedIndexPair);
+                            afterCreateImmutableBucket(immutableBucketDelayedIndexPair, createStartTime);
 
                             immutableBucketDelayedIndexPair.getLeft().getSnapshotCreateFuture()
                                     .orElse(NULL_LONG_PROMISE).thenCompose(___ -> {
                                         List<CompletableFuture<Void>> removeFutures =
-                                                buckets.stream().map(ImmutableBucket::asyncDeleteBucketSnapshot)
+                                                buckets.stream().map(bucket -> bucket.asyncDeleteBucketSnapshot(stats))
                                                         .toList();
                                         return FutureUtil.waitForAll(removeFutures);
                                     });
@@ -504,17 +533,25 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return numberDelayedMessages;
     }
 
     @Override
-    public synchronized long getBufferMemoryUsage() {
+    public long getBufferMemoryUsage() {
         return this.lastMutableBucket.getBufferMemoryUsage() + sharedBucketPriorityQueue.bytesCapacity();
     }
 
     @Override
     public synchronized NavigableSet<PositionImpl> getScheduledMessages(int maxMessages) {
+        if (!checkPendingLoadDone()) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Skip getScheduledMessages to wait for bucket snapshot load finish.",
+                        dispatcher.getName());
+            }
+            return Collections.emptyNavigableSet();
+        }
+
         long cutoffTime = getCutoffTime();
 
         lastMutableBucket.moveScheduledMessageToSharedQueue(cutoffTime, sharedBucketPriorityQueue);
@@ -533,6 +570,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
             ImmutableBucket bucket = snapshotSegmentLastIndexTable.get(ledgerId, entryId);
             if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+                // All message of current snapshot segment are scheduled, try load next snapshot segment
                 if (bucket.merging) {
                     log.info("[{}] Skip load to wait for bucket snapshot merge finish, bucketKey:{}",
                             dispatcher.getName(), bucket.bucketKey());
@@ -544,58 +582,63 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     log.debug("[{}] Loading next bucket snapshot segment, bucketKey: {}, nextSegmentEntryId: {}",
                             dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1);
                 }
-                // All message of current snapshot segment are scheduled, load next snapshot segment
-                // TODO make it asynchronous and not blocking this process
-                try {
-                    boolean createFutureDone = bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).isDone();
+                boolean createFutureDone = bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE).isDone();
+                if (!createFutureDone) {
+                    log.info("[{}] Skip load to wait for bucket snapshot create finish, bucketKey:{}",
+                            dispatcher.getName(), bucket.bucketKey());
+                    break;
+                }
 
-                    if (!createFutureDone) {
-                        log.info("[{}] Skip load to wait for bucket snapshot create finish, bucketKey:{}",
-                                dispatcher.getName(), bucket.bucketKey());
-                        break;
-                    }
-
-                    if (bucket.currentSegmentEntryId == bucket.lastSegmentEntryId) {
-                        immutableBuckets.asMapOfRanges().remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                        bucket.asyncDeleteBucketSnapshot();
-                        continue;
-                    }
-
-                    bucket.asyncLoadNextBucketSnapshotEntry().thenAccept(indexList -> {
+                long loadStartTime = System.currentTimeMillis();
+                stats.recordTriggerEvent(BucketDelayedMessageIndexStats.Type.load);
+                CompletableFuture<Void> loadFuture = pendingLoad = bucket.asyncLoadNextBucketSnapshotEntry()
+                        .thenAccept(indexList -> {
+                    synchronized (BucketDelayedDeliveryTracker.this) {
+                        this.snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
                         if (CollectionUtils.isEmpty(indexList)) {
                             immutableBuckets.asMapOfRanges()
                                     .remove(Range.closed(bucket.startLedgerId, bucket.endLedgerId));
-                            bucket.asyncDeleteBucketSnapshot();
+                            bucket.asyncDeleteBucketSnapshot(stats);
                             return;
                         }
-                        DelayedMessageIndexBucketSnapshotFormat.DelayedIndex
+                        DelayedIndex
                                 lastDelayedIndex = indexList.get(indexList.size() - 1);
                         this.snapshotSegmentLastIndexTable.put(lastDelayedIndex.getLedgerId(),
                                 lastDelayedIndex.getEntryId(), bucket);
-                        for (DelayedMessageIndexBucketSnapshotFormat.DelayedIndex index : indexList) {
+                        for (DelayedIndex index : indexList) {
                             sharedBucketPriorityQueue.add(index.getTimestamp(), index.getLedgerId(),
                                     index.getEntryId());
                         }
-                    }).whenComplete((__, ex) -> {
-                        if (ex != null) {
-                            // Back bucket state
-                            bucket.setCurrentSegmentEntryId(preSegmentEntryId);
+                    }
+                }).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        // Back bucket state
+                        bucket.setCurrentSegmentEntryId(preSegmentEntryId);
 
-                            log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}, segmentEntryId: {}",
-                                    dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1, ex);
-                        } else {
-                            log.info("[{}] Load next bucket snapshot segment finish, bucketKey: {}, segmentEntryId: {}",
-                                    dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1);
+                        log.error("[{}] Failed to load bucket snapshot segment, bucketKey: {}, segmentEntryId: {}",
+                                dispatcher.getName(), bucket.bucketKey(), preSegmentEntryId + 1, ex);
+
+                        stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.load);
+                    } else {
+                        log.info("[{}] Load next bucket snapshot segment finish, bucketKey: {}, segmentEntryId: {}",
+                                dispatcher.getName(), bucket.bucketKey(),
+                                (preSegmentEntryId == bucket.lastSegmentEntryId) ? "-1" : preSegmentEntryId + 1);
+
+                        stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
+                                System.currentTimeMillis() - loadStartTime);
+                    }
+                    synchronized (this) {
+                        if (timeout != null) {
+                            timeout.cancel();
                         }
-                    }).get(AsyncOperationTimeoutSeconds * (MaxRetryTimes + 1), TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    // Ignore exception to reload this segment on the next schedule.
-                    log.error("[{}] An exception occurs when load next bucket snapshot, bucketKey:{}",
-                            dispatcher.getName(), bucket.bucketKey(), e);
+                        timeout = timer.newTimeout(this, 0, TimeUnit.MILLISECONDS);
+                    }
+                });
+
+                if (!checkPendingLoadDone() || loadFuture.isCompletedExceptionally()) {
                     break;
                 }
             }
-            snapshotSegmentLastIndexTable.remove(ledgerId, entryId);
 
             positions.add(new PositionImpl(ledgerId, entryId));
 
@@ -609,6 +652,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         updateTimer();
 
         return positions;
+    }
+
+    private synchronized boolean checkPendingLoadDone() {
+        if (pendingLoad == null || pendingLoad.isDone()) {
+            pendingLoad = null;
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -645,7 +696,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         Iterator<ImmutableBucket> iterator = immutableBuckets.asMapOfRanges().values().iterator();
         while (iterator.hasNext()) {
             ImmutableBucket bucket = iterator.next();
-            futures.add(bucket.clear());
+            futures.add(bucket.clear(stats));
             numberDelayedMessages -= bucket.getNumberBucketDelayedMessages();
             iterator.remove();
         }
@@ -661,7 +712,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 .orElse(false);
     }
 
-    @Override
     public boolean containsMessage(long ledgerId, long entryId) {
         if (lastMutableBucket.containsMessage(ledgerId, entryId)) {
             return true;
@@ -669,5 +719,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         return findImmutableBucket(ledgerId).map(bucket -> bucket.containsMessage(ledgerId, entryId))
                 .orElse(false);
+    }
+
+    public Map<String, TopicMetricBean> genTopicMetricMap() {
+        stats.recordNumOfBuckets(immutableBuckets.asMapOfRanges().size() + 1);
+        stats.recordDelayedMessageIndexLoaded(this.sharedBucketPriorityQueue.size() + this.lastMutableBucket.size());
+        MutableLong totalSnapshotLength = new MutableLong();
+        immutableBuckets.asMapOfRanges().values().forEach(immutableBucket -> {
+            totalSnapshotLength.add(immutableBucket.getSnapshotLength());
+        });
+        stats.recordBucketSnapshotSizeBytes(totalSnapshotLength.longValue());
+        return stats.genTopicMetricMap();
     }
 }

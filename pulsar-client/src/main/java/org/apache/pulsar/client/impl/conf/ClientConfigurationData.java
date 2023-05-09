@@ -379,6 +379,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     @Secret
     private String socks5ProxyPassword;
 
+    @ApiModelProperty(
+            name = "description",
+            value = "The extra description of the client version. The length cannot exceed 64."
+    )
+    private String description;
+
     /**
      * Gets the authentication settings for the client.
      *

@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.0.0-SNAPSHOT</version>
+  <version>3.1.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,8 +92,14 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-05-03T02:53:27Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+
+    <!-- By default build for local Docker platform.
+         To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
+    -->
+    <docker.platforms></docker.platforms>
+
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -103,6 +109,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
+      --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -126,7 +133,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.15.4</bookkeeper.version>
+    <bookkeeper.version>4.16.1</bookkeeper.version>
     <zookeeper.version>3.8.1</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <commons-text.version>1.10.0</commons-text.version>
@@ -140,19 +147,19 @@ flexible messaging model and an intuitive client API.</description>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.16.0</prometheus.version>
-    <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.29.4.1</rocksdb.version>
+    <vertx.version>4.3.8</vertx.version>
+    <rocksdb.version>7.9.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.18.0</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastle.bcpkix-fips.version>1.0.6</bouncycastle.bcpkix-fips.version>
     <bouncycastle.bc-fips.version>1.0.2.3</bouncycastle.bc-fips.version>
-    <jackson.version>2.13.4.20221013</jackson.version>
+    <jackson.version>2.14.2</jackson.version>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.40.2</docker-maven.version>
+    <docker-maven.version>0.42.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.19.6</protobuf3.version>
@@ -184,7 +191,7 @@ flexible messaging model and an intuitive client API.</description>
     <json-smart.version>2.4.10</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.5.2</elasticsearch-java.version>
-    <trino.version>363</trino.version>
+    <trino.version>368</trino.version>
     <debezium.version>1.9.7.Final</debezium.version>
     <debezium.postgresql.version>42.5.0</debezium.postgresql.version>
     <debezium.mysql.version>8.0.30</debezium.mysql.version>
@@ -224,19 +231,19 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.xml.bind.version>2.3.3</jakarta.xml.bind.version>
     <jakarta.validation.version>2.0.2</jakarta.validation.version>
     <jna.version>5.12.1</jna.version>
-    <kubernetesclient.version>12.0.1</kubernetesclient.version>
+    <kubernetesclient.version>18.0.0</kubernetesclient.version>
     <okhttp3.version>4.9.3</okhttp3.version>
     <!-- use okio version that matches the okhttp3 version -->
     <okio.version>2.8.0</okio.version>
     <!-- override kotlin-stdlib used by okio in order to address CVE-2020-29582 -->
-    <kotlin-stdlib.version>1.4.32</kotlin-stdlib.version>
+    <kotlin-stdlib.version>1.8.20</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring.version>5.3.20</spring.version>
+    <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
-    <snakeyaml.version>1.32</snakeyaml.version>
+    <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
@@ -292,7 +299,7 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
-    <roaringbitmap.version>0.9.15</roaringbitmap.version>
+    <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
 
@@ -1966,8 +1973,8 @@ flexible messaging model and an intuitive client API.</description>
         <test.additional.args/>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
-        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
-        <pulsar.client.compiler.release></pulsar.client.compiler.release>
+        <pulsar.broker.compiler.release/>
+        <pulsar.client.compiler.release/>
       </properties>
     </profile>
     <profile>
@@ -2159,6 +2166,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-broker-auth-athenz</module>
         <module>pulsar-client-auth-athenz</module>
         <module>pulsar-sql</module>
+        <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>
@@ -2217,6 +2225,7 @@ flexible messaging model and an intuitive client API.</description>
         <module>pulsar-websocket</module>
         <module>pulsar-proxy</module>
         <module>pulsar-testclient</module>
+        <module>pulsar-broker-auth-oidc</module>
         <module>pulsar-broker-auth-sasl</module>
         <module>pulsar-client-auth-sasl</module>
         <module>pulsar-config-validation</module>

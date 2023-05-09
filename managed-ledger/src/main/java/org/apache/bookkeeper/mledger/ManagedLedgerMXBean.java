@@ -100,6 +100,11 @@ public interface ManagedLedgerMXBean {
      */
     long getReadEntriesErrors();
 
+    /**
+     * @return the number of readEntries requests that cache miss Rate
+     */
+    double getReadEntriesOpsCacheMissesRate();
+
     // Entry size statistics
 
     double getEntrySizeAverage();

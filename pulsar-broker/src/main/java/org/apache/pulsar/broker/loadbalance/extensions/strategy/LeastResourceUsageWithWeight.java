@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.concurrent.ThreadSafe;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -35,14 +36,15 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
  * cause cluster fluctuations due to short-term load jitter.
  */
 @Slf4j
+@ThreadSafe
 public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
     // Maintain this list to reduce object creation.
-    private final ArrayList<String> bestBrokers;
-    private final Set<String> noLoadDataBrokers;
+    private final ThreadLocal<ArrayList<String>> bestBrokers;
+    private final ThreadLocal<HashSet<String>> noLoadDataBrokers;
 
     public LeastResourceUsageWithWeight() {
-        this.bestBrokers = new ArrayList<>();
-        this.noLoadDataBrokers = new HashSet<>();
+        this.bestBrokers = ThreadLocal.withInitial(ArrayList::new);
+        this.noLoadDataBrokers = ThreadLocal.withInitial(HashSet::new);
     }
 
     // A broker's max resource usage with weight using its historical load and short-term load data with weight.
@@ -70,7 +72,6 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
 
     /**
      * Find a suitable broker to assign the given bundle to.
-     * This method is not thread safety.
      *
      * @param candidates     The candidates for which the bundle may be assigned.
      * @param bundleToAssign The data for the bundle to assign.
@@ -85,6 +86,9 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             log.warn("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
         }
+
+        ArrayList<String> bestBrokers = this.bestBrokers.get();
+        HashSet<String> noLoadDataBrokers = this.noLoadDataBrokers.get();
 
         bestBrokers.clear();
         noLoadDataBrokers.clear();
@@ -135,9 +139,7 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
                 log.info("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
                         + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
             }
-            for (String broker : candidates) {
-                bestBrokers.add(broker);
-            }
+            bestBrokers.addAll(candidates);
         }
 
         if (debugMode) {

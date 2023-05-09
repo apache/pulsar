@@ -30,6 +30,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -232,6 +233,48 @@ public class GetLastMessageIdCompactedTest extends ProducerConsumerBase {
         String subName = "sub";
         Consumer<String> consumer = createConsumer(topicName, subName);
         Producer<String> producer = createProducer(enabledBatch, topicName);
+
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());
+        sendFutures.add(producer.newMessage().key("k0").value("v1").sendAsync());
+        sendFutures.add(producer.newMessage().key("k0").value("v2").sendAsync());
+        producer.flush();
+        sendFutures.add(producer.newMessage().key("k1").value("v0").sendAsync());
+        sendFutures.add(producer.newMessage().key("k1").value("v1").sendAsync());
+        sendFutures.add(producer.newMessage().key("k1").value("v2").sendAsync());
+        producer.flush();
+        FutureUtil.waitForAll(sendFutures).join();
+
+        triggerCompactionAndWait(topicName);
+
+        MessageIdImpl lastMessageIdByTopic = getLastMessageIdByTopic(topicName);
+        MessageIdImpl messageId = (MessageIdImpl) consumer.getLastMessageId();
+        assertEquals(messageId.getLedgerId(), lastMessageIdByTopic.getLedgerId());
+        assertEquals(messageId.getEntryId(), lastMessageIdByTopic.getEntryId());
+        if (enabledBatch){
+            BatchMessageIdImpl lastBatchMessageIdByTopic = (BatchMessageIdImpl) lastMessageIdByTopic;
+            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+            assertEquals(batchMessageId.getBatchSize(), lastBatchMessageIdByTopic.getBatchSize());
+            assertEquals(batchMessageId.getBatchIndex(), lastBatchMessageIdByTopic.getBatchIndex());
+        }
+
+        // cleanup.
+        consumer.close();
+        producer.close();
+        admin.topics().delete(topicName, false);
+    }
+
+    @Test(dataProvider = "enabledBatch")
+    public void testGetLastMessageIdAfterCompactionWithCompression(boolean enabledBatch) throws Exception {
+        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String subName = "sub";
+        Consumer<String> consumer = createConsumer(topicName, subName);
+        var producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .batchingMaxPublishDelay(3, TimeUnit.HOURS)
+                .batchingMaxBytes(Integer.MAX_VALUE)
+                .compressionType(CompressionType.ZSTD)
+                .enableBatching(enabledBatch).create();
 
         List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         sendFutures.add(producer.newMessage().key("k0").value("v0").sendAsync());

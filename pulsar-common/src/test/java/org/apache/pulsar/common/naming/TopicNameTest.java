@@ -289,4 +289,12 @@ public class TopicNameTest {
             // Ok
         }
     }
+
+    @Test
+    public void testTwoKeyWordPartition(){
+        TopicName tp1 = TopicName.get("tenant1/namespace1/tp1-partition-0-DLQ");
+        TopicName tp2 = tp1.getPartition(0);
+        assertNotEquals(tp2.toString(), tp1.toString());
+        assertEquals(tp2.toString(), "persistent://tenant1/namespace1/tp1-partition-0-DLQ-partition-0");
+    }
 }
