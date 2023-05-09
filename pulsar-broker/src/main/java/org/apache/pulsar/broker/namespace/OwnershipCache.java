@@ -97,23 +97,23 @@ public class OwnershipCache {
         public CompletableFuture<OwnedBundle> asyncLoad(NamespaceBundle namespaceBundle, Executor executor) {
             CompletableFuture<OwnedBundle> res = new CompletableFuture<>();
             lockManager.acquireLock(ServiceUnitUtils.path(namespaceBundle), selfOwnerInfo)
-                    .thenApplyAsync(rl -> {
-                        locallyAcquiredLocks.put(namespaceBundle, rl);
-                        rl.getLockExpiredFuture()
-                                .thenRun(() -> {
-                                    log.info("Resource lock for {} has expired", rl.getPath());
-                                    namespaceService.unloadNamespaceBundle(namespaceBundle);
-                                    invalidateLocalOwnerCache(namespaceBundle);
-                                    namespaceService.onNamespaceBundleUnload(namespaceBundle);
-                                });
-                        return new OwnedBundle(namespaceBundle);
-                    }, executor).whenCompleteAsync((bundle, ex) -> {
-                        if (ex != null){
-                            res.completeExceptionally(ex);
-                        } else {
-                            res.complete(bundle);
-                        }
-                    }, executor);
+                .thenApplyAsync(rl -> {
+                    locallyAcquiredLocks.put(namespaceBundle, rl);
+                    rl.getLockExpiredFuture()
+                            .thenRun(() -> {
+                                log.info("Resource lock for {} has expired", rl.getPath());
+                                namespaceService.unloadNamespaceBundle(namespaceBundle);
+                                invalidateLocalOwnerCache(namespaceBundle);
+                                namespaceService.onNamespaceBundleUnload(namespaceBundle);
+                            });
+                    return new OwnedBundle(namespaceBundle);
+                }, executor).whenCompleteAsync((bundle, ex) -> {
+                    if (ex != null){
+                        res.completeExceptionally(ex);
+                    } else {
+                        res.complete(bundle);
+                    }
+                }, executor);
             return res;
         }
     }
