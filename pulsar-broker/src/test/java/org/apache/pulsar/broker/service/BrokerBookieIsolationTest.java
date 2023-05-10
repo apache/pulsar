@@ -150,6 +150,7 @@ public class BrokerBookieIsolationTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
+        config.setDefaultNumberOfNamespaceBundles(8);
 
         config.setManagedLedgerDefaultEnsembleSize(2);
         config.setManagedLedgerDefaultWriteQuorum(2);
@@ -200,6 +201,9 @@ public class BrokerBookieIsolationTest {
                 BookieAffinityGroupData.builder()
                         .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroups)
                         .build());
+
+        //Checks the namespace bundles after setting the bookie affinity
+        assertEquals(admin.namespaces().getBundles(ns2).getNumBundles(), config.getDefaultNumberOfNamespaceBundles());
 
         try {
             admin.namespaces().getBookieAffinityGroup(ns1);
