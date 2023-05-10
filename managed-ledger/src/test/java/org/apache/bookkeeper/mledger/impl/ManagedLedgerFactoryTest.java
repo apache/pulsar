@@ -87,15 +87,17 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         config.setMaximumRolloverTime(Integer.MAX_VALUE, TimeUnit.SECONDS);
         config.setMaxEntriesPerLedger(5);
 
-        // call "switch ledger" and "managedLedger.close" concurrently.
+        // create managedLedger once and close it.
         ManagedLedgerImpl managedLedger1 = (ManagedLedgerImpl) factory.open(managedLedgerName, config);
         waitManagedLedgerStateEquals(managedLedger1, ManagedLedgerImpl.State.LedgerOpened);
         managedLedger1.close();
 
+        // create managedLedger the second time.
         ManagedLedgerImpl managedLedger2 = (ManagedLedgerImpl) factory.open(managedLedgerName, config);
         waitManagedLedgerStateEquals(managedLedger2, ManagedLedgerImpl.State.LedgerOpened);
 
         // Mock the task create ledger complete now, it will change the state to another value which not is Closed.
+        // Close managedLedger1 the second time.
         managedLedger1.createComplete(1, null, null);
         managedLedger1.close();
 
