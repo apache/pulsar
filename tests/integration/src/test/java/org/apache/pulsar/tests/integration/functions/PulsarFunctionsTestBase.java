@@ -151,6 +151,8 @@ public abstract class PulsarFunctionsTestBase extends PulsarTestSuite {
             } else {
                 return EXCLAMATION_PYTHON_CLASS;
             }
+        } else if (Runtime.GO == runtime) {
+            return null;
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
