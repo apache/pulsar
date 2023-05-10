@@ -87,8 +87,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setHttpMaxRequestHeaderSize(20000);
 
         // enable tls and auth&auth at proxy
-        proxyConfig.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-        proxyConfig.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        proxyConfig.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
+        proxyConfig.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
         proxyConfig.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
