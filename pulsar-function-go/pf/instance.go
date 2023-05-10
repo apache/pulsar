@@ -439,7 +439,6 @@ func (gi *goInstance) addLogTopicHandler() {
 	}()
 
 	if gi.context.logAppender == nil {
-		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return
 	}
 
@@ -571,6 +570,9 @@ func (gi *goInstance) getMatchingMetricFunc() func(lbl *prometheus_client.LabelP
 
 func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheus_client.Metric {
 	filteredMetricFamilies := gi.getFilteredMetricFamilies(metricName)
+	if len(filteredMetricFamilies) == 0 {
+		return prometheus_client.Metric{}
+	}
 	metricFunc := gi.getMatchingMetricFunc()
 	matchingMetric := getFirstMatch(filteredMetricFamilies[0].Metric, metricFunc)
 	return *matchingMetric
