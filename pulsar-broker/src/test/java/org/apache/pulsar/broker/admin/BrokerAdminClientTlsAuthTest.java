@@ -63,7 +63,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setAuthenticationEnabled(true);
-        conf.setSuperUserRoles(Set.of("superproxy", "broker.pulsar.apache.org"));
+        conf.setSuperUserRoles(Set.of("superproxy", "broker-localhost-SAN"));
         conf.setAuthenticationProviders(
                 Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
         conf.setAuthorizationEnabled(true);
@@ -85,7 +85,6 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     PulsarAdmin buildAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
             .allowTlsInsecureConnection(false)
-            .enableTlsHostnameVerification(false)
             .serviceHttpUrl(brokerUrlTls.toString())
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",
