@@ -118,7 +118,7 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.29.4.1</rocksdb.version>
+    <rocksdb.version>6.10.2</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.18.0</log4j2.version>
