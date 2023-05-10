@@ -50,7 +50,6 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.tls.NoopHostnameVerifier;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
@@ -120,7 +119,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                 false, trustCertificates,
                 SecurityUtility.loadCertificatesFromPemFile(getTLSFile(user + ".cert")),
                 SecurityUtility.loadPrivateKeyFromPemFile(getTLSFile(user + ".key-pk8")));
-        clientBuilder.sslContext(sslCtx).hostnameVerifier(NoopHostnameVerifier.INSTANCE);
+        clientBuilder.sslContext(sslCtx);
         Client client = clientBuilder.build();
 
         return client.target(brokerUrlTls.toString());
@@ -129,7 +128,6 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     PulsarAdmin buildAdminClient(String user) throws Exception {
         return PulsarAdmin.builder()
             .allowTlsInsecureConnection(false)
-            .enableTlsHostnameVerification(false)
             .serviceHttpUrl(brokerUrlTls.toString())
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",
@@ -477,7 +475,6 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             Files.copy(Paths.get(getTLSFile(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
             PulsarAdmin admin = PulsarAdmin.builder()
                     .allowTlsInsecureConnection(false)
-                    .enableTlsHostnameVerification(false)
                     .serviceHttpUrl(brokerUrlTls.toString())
                     .autoCertRefreshTime(autoCertRefreshTimeSec, TimeUnit.SECONDS)
                     .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
