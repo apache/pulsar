@@ -67,12 +67,14 @@ import org.testng.annotations.DataProvider;
  */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     // All certificate-authority files are copied from the tests/certificate-authority directory
-    public final static String BROKER_CERT_CA_FILE_PATH =
-            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
     public final static String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
     public final static String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    public final static String PROXY_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.cert.pem");
+    public final static String PROXY_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/proxy.key-pk8.pem");
     public final static String BROKER_KEYSTORE_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/jks/broker.keystore.jks");
     public final static String BROKER_TRUSTSTORE_FILE_PATH =

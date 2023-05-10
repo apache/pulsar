@@ -98,7 +98,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
                 String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                              getTlsFile("proxy.cert"), getTlsFile("proxy.key-pk8")));
+                              PROXY_CERT_FILE_PATH, PROXY_KEY_FILE_PATH));
         proxyConfig.setBrokerClientTrustCertsFilePath(getTlsFile("ca.cert"));
         proxyConfig.setAuthenticationProviders(ImmutableSet.of(AuthenticationProviderTls.class.getName()));
 
