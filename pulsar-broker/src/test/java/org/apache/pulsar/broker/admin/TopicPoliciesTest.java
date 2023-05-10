@@ -134,6 +134,22 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void updatePropertiesForAutoCreatedTopicTest() throws Exception {
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-" + UUID.randomUUID()
+        );
+        String testTopic = topicName.toString();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(testTopic).create();
+        HashMap<String, String> properties = new HashMap<>();
+        properties.put("backlogQuotaType", "message_age");
+        admin.topics().updateProperties(testTopic, properties);
+        admin.topics().delete(topicName.toString(), true);
+    }
+
+    @Test
     public void testTopicPolicyInitialValueWithNamespaceAlreadyLoaded() throws Exception{
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(),
