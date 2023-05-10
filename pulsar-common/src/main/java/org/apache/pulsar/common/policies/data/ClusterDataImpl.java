@@ -113,7 +113,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
             name = "tlsHostnameVerificationEnabled",
             value = "Enable TLS hostname verification"
     )
-    private boolean tlsHostnameVerificationEnabled = false;
+    private boolean tlsHostnameVerificationEnabled = true;
     @ApiModelProperty(
         name = "brokerClientTlsEnabledWithKeyStore",
         value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
@@ -237,7 +237,7 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private LinkedHashSet<String> peerClusterNames;
         private boolean brokerClientTlsEnabled = false;
         private boolean tlsAllowInsecureConnection = false;
-        private boolean tlsHostnameVerificationEnabled = false;
+        private boolean tlsHostnameVerificationEnabled = true;
         private boolean brokerClientTlsEnabledWithKeyStore = false;
         private String brokerClientTlsTrustStoreType = "JKS";
         private String brokerClientTlsTrustStore;
