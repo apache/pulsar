@@ -27,7 +27,7 @@ default_ca = CA_default
 
 [ CA_default ]
 # Directory and file locations.
-dir               = $ENV::CA_HOME
+dir               = .
 certs             = $dir/certs
 crl_dir           = $dir/crl
 new_certs_dir     = $dir/newcerts
@@ -98,6 +98,7 @@ basicConstraints = CA:FALSE
 nsCertType = server
 nsComment = "OpenSSL Generated Server Certificate"
 subjectKeyIdentifier = hash
+subjectAltName = DNS:localhost, IP:127.0.0.1
 authorityKeyIdentifier = keyid,issuer:always
 keyUsage = critical, digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
