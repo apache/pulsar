@@ -63,8 +63,8 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     private void buildConf(ServiceConfiguration conf) {
         conf.setLoadBalancerEnabled(true);
-        conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
-        conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
         conf.setAuthenticationEnabled(true);
         conf.setSuperUserRoles(Set.of("superproxy", "broker.pulsar.apache.org"));
@@ -72,7 +72,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
                 Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
         conf.setAuthorizationEnabled(true);
         conf.setBrokerClientTlsEnabled(true);
-        String str = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("broker.cert"), getTLSFile("broker.key-pk8"));
+        String str = String.format("tlsCertFile:%s,tlsKeyFile:%s", BROKER_CERT_FILE_PATH, BROKER_KEY_FILE_PATH);
         conf.setBrokerClientAuthenticationParameters(str);
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));

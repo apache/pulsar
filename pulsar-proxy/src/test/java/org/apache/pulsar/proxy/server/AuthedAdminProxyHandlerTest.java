@@ -68,8 +68,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTlsTrustCertsFilePath(getTlsFile("ca.cert"));
-        conf.setTlsCertificateFilePath(getTlsFile("broker.cert"));
-        conf.setTlsKeyFilePath(getTlsFile("broker.key-pk8"));
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
         conf.setSuperUserRoles(ImmutableSet.of("admin"));
         conf.setProxyRoles(ImmutableSet.of("proxy"));
@@ -91,8 +91,8 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setHttpMaxRequestHeaderSize(20000);
 
         // enable tls and auth&auth at proxy
-        proxyConfig.setTlsCertificateFilePath(getTlsFile("broker.cert"));
-        proxyConfig.setTlsKeyFilePath(getTlsFile("broker.key-pk8"));
+        proxyConfig.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        proxyConfig.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         proxyConfig.setTlsTrustCertsFilePath(getTlsFile("ca.cert"));
 
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
