@@ -25,6 +25,11 @@ package org.apache.pulsar.common.tls;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLSession;
 
+/**
+ * A {@link HostnameVerifier} that does not perform hostname verification.
+ * This verifier was deprecated in 3.1.0 and is planned to be removed in a future release.
+ */
+@Deprecated
 public class NoopHostnameVerifier implements HostnameVerifier {
 
     public static final NoopHostnameVerifier INSTANCE = new NoopHostnameVerifier();
