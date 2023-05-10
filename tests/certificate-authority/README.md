@@ -21,13 +21,13 @@ SAN: ```DNS:localhost, IP:127.0.0.1```.
 ```bash
 openssl genrsa -out server-keys/broker.key.pem 2048
 openssl req -config openssl.cnf -subj "/CN=broker-localhost-SAN" -key server-keys/broker.key.pem -new -sha256 -out server-keys/broker.csr.pem
-openssl ca -config openssl.cnf -extensions server_cert -days 100000 -md sha256 -in server-keys/broker.csr.pem \
+openssl ca -config openssl.cnf -extensions broker_cert -days 100000 -md sha256 -in server-keys/broker.csr.pem \
     -out server-keys/broker.cert.pem -batch -key PulsarTesting
 openssl pkcs8 -topk8 -inform PEM -outform PEM -in server-keys/broker.key.pem -out server-keys/broker.key-pk8.pem -nocrypt
 
 openssl genrsa -out server-keys/proxy.key.pem 2048
 openssl req -config openssl.cnf -subj "/CN=proxy-localhost-SAN" -key server-keys/proxy.key.pem -new -sha256 -out server-keys/proxy.csr.pem
-openssl ca -config openssl.cnf -extensions server_cert -days 100000 -md sha256 -in server-keys/proxy.csr.pem \
+openssl ca -config openssl.cnf -extensions proxy_cert -days 100000 -md sha256 -in server-keys/proxy.csr.pem \
     -out server-keys/proxy.cert.pem -batch -key PulsarTesting
 openssl pkcs8 -topk8 -inform PEM -outform PEM -in server-keys/proxy.key.pem -out server-keys/proxy.key-pk8.pem -nocrypt
 ```
