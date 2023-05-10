@@ -3047,7 +3047,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 producer.getTopic().disableCnxAutoRead();
                 return;
             }
-            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
+            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded(numMessages, msgSize);
         } else {
             if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
                 final boolean resourceGroupPublishRateExceeded =
