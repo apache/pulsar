@@ -27,6 +27,7 @@ channel_name=$4
 cluster_rest_domian=$5
 rest_port=$6
 datahubapi=$7
+area_code=$8
 
 workdir=$( cd $(dirname $0) && pwd )
 
@@ -41,8 +42,8 @@ register_cluster() {
     fi
     echo $content | sed -e 's/ //g' | grep -q '"result":true' && return
 
-    echo curl -s -XPOST -H "Content-Type: application/json" -d '{"component":"'${component}'","module":"'${module}'","channel_name":"'${channel_name}'","cluster_name": "'${cluster_name}'", "cluster_rest_port": '${rest_port}', "cluster_rest_domain": "'${cluster_rest_domian}'", "tags": ["inland"], "cluster_type": "pulsar"}' http://$datahubapi/v3/databus/clusters/
-    content=$(curl -s -XPOST -H "Content-Type: application/json" -d '{"component":"'${component}'","module":"'${module}'","channel_name":"'${channel_name}'","cluster_name": "'${cluster_name}'", "cluster_rest_port": '${rest_port}', "cluster_rest_domain": "'${cluster_rest_domian}'", "tags": ["inland"], "cluster_type": "pulsar"}' http://$datahubapi/v3/databus/clusters/)
+    echo curl -s -XPOST -H "Content-Type: application/json" -d '{"component":"'${component}'","module":"'${module}'","channel_name":"'${channel_name}'","cluster_name": "'${cluster_name}'", "cluster_rest_port": '${rest_port}', "cluster_rest_domain": "'${cluster_rest_domian}'", "tags": ["'${area_code}'"], "cluster_type": "pulsar"}' http://$datahubapi/v3/databus/clusters/
+    content=$(curl -s -XPOST -H "Content-Type: application/json" -d '{"component":"'${component}'","module":"'${module}'","channel_name":"'${channel_name}'","cluster_name": "'${cluster_name}'", "cluster_rest_port": '${rest_port}', "cluster_rest_domain": "'${cluster_rest_domian}'", "tags": ["'${area_code}'"], "cluster_type": "pulsar"}' http://$datahubapi/v3/databus/clusters/)
     if [[ $? != 0 ]]; then
         echo "register error $content"
         exit 1
