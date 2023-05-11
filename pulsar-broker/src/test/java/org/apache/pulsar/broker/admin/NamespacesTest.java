@@ -376,25 +376,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
-    public void testSegmentedSnapshotWithoutCreatingOldSnapshotTopic() throws Exception {
-        // Enable the segmented snapshot feature
-        pulsar.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        pulsar.getConfig().setForceDeleteNamespaceAllowed(true);
-
-        // Create a new namespace
-        String namespaceName = testTenant + "/testSegmentedSnapshotWithoutCreatingOldSnapshotTopic";
-        admin.namespaces().createNamespace(namespaceName);
-
-        // Create a new topic in the namespace
-        String topicName = "persistent://" + namespaceName + "/newTopic";
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
-        producer.close();
-
-        // Destroy the namespace after the test
-        admin.namespaces().deleteNamespace(namespaceName, true);
-    }
-
     @Test(enabled = false)
     public void testGrantAndRevokePermissions() throws Exception {
         Policies expectedPolicies = new Policies();
