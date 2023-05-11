@@ -217,6 +217,13 @@ public class PulsarFunctionTlsTest {
     }
 
     @Test
+    public void testTLSTrustCertsConfigMapping() throws Exception {
+        WorkerConfig workerConfig = fnWorkerServices[0].getWorkerConfig();
+        assertEquals(workerConfig.getTlsTrustCertsFilePath(), CA_CERT_FILE_PATH);
+        assertEquals(workerConfig.getBrokerClientTrustCertsFilePath(), CA_CERT_FILE_PATH);
+    }
+
+    @Test
     public void testFunctionsCreation() throws Exception {
 
         String jarFilePathUrl = String.format("%s:%s", org.apache.pulsar.common.functions.Utils.FILE,
