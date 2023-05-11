@@ -1137,6 +1137,10 @@ public class NamespaceService implements AutoCloseable {
                 new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName()));
     }
 
+    /**
+     * @Deprecated This method is only used by test. call "isServiceUnitActiveAsync" is better.
+     */
+    @Deprecated
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
             OwnedBundle ownedBundle = ownershipCache.getOwnedBundle(getBundle(topicName));
