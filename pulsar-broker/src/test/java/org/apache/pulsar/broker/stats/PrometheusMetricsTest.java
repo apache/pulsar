@@ -36,7 +36,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -75,7 +74,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.zookeeper.CreateMode;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -550,10 +548,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             c1.acknowledge(c1.receive());
         }
 
-        // Mock another broker to make split task work.
-        String mockedBroker = "/loadbalance/brokers/127.0.0.1:0";
-        mockZooKeeper.create(mockedBroker, new byte[]{0}, Collections.emptyList(), CreateMode.EPHEMERAL);
-
         pulsar.getBrokerService().updateRates();
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
         ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
@@ -577,9 +571,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_in_usage"));
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
-        assertTrue(metrics.containsKey("pulsar_lb_bundles_split_total"));
-
-        mockZooKeeper.delete(mockedBroker, 0);
+        assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
     }
 
     @Test
