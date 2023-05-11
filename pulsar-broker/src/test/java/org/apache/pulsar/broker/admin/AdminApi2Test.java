@@ -211,6 +211,23 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         return new Object[][] { { true }, { false } };
     }
 
+
+    /**
+     * It verifies http error code when updating partitions to ensure compatibility.
+     */
+    @Test
+    public void testUpdatePartitionsErrorCode() {
+        final String nonPartitionedTopicName = "non-partitioned-topic-name" + UUID.randomUUID();
+        try {
+            // Update a non-partitioned topic
+            admin.topics().updatePartitionedTopic(nonPartitionedTopicName, 2);
+            Assert.fail("Expect conflict exception.");
+        } catch (PulsarAdminException ex) {
+            Assert.assertEquals(ex.getStatusCode(), 409 /*Conflict*/);
+            Assert.assertTrue(ex instanceof PulsarAdminException.ConflictException);
+        }
+    }
+
     /**
      * <pre>
      * It verifies increasing partitions for partitioned-topic.
@@ -414,7 +431,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
-        assertTrue(topicStats.getSubscriptions().containsKey("my-sub"));
+        assertFalse(topicStats.getSubscriptions().containsKey("my-sub"));
         assertEquals(topicStats.getPublishers().size(), 0);
         // test partitioned-topic
         final String partitionedTopicName = "non-persistent://prop-xyz/ns1/paritioned";

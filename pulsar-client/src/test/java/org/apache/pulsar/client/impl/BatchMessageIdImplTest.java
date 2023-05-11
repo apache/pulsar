@@ -20,13 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import java.util.Collections;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class BatchMessageIdImplTest {
@@ -124,35 +119,9 @@ public class BatchMessageIdImplTest {
     }
 
     @Test
-    public void deserializationTest() {
-        // initialize BitSet with null
-        BatchMessageAcker ackerDisabled = new BatchMessageAcker(null, 0);
-        BatchMessageIdImpl batchMsgId = new BatchMessageIdImpl(0, 0, 0, 0, 0, ackerDisabled);
-
-        ObjectWriter writer = ObjectMapperFactory.create().writerWithDefaultPrettyPrinter();
-
-        try {
-            writer.writeValueAsString(batchMsgId);
-            fail("Shouldn't be deserialized");
-        } catch (JsonProcessingException e) {
-            // expected
-            assertTrue(e.getCause() instanceof NullPointerException);
-        }
-
-        // use the default BatchMessageAckerDisabled
-        BatchMessageIdImpl batchMsgIdToDeserialize = new BatchMessageIdImpl(0, 0, 0, 0);
-
-        try {
-            writer.writeValueAsString(batchMsgIdToDeserialize);
-        } catch (JsonProcessingException e) {
-            fail("Should be successful");
-        }
-    }
-
-    @Test
     public void serializeAndDeserializeTest() throws IOException {
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, 0,
-            1, 10, BatchMessageAcker.newAcker(10));
+            1, 10, BatchMessageIdImpl.newAckSet(10));
         byte[] serialized = batchMessageId.toByteArray();
         BatchMessageIdImpl deserialized = (BatchMessageIdImpl) MessageIdImpl.fromByteArray(serialized);
         assertEquals(deserialized.getBatchSize(), batchMessageId.getBatchSize());

@@ -25,6 +25,7 @@ import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
@@ -106,7 +107,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         }
         if (brokerProxyReadTimeoutMs > 0) {
             ch.pipeline().addLast("readTimeoutHandler",
-                    new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+                    new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
         }
         if (proxyService.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());

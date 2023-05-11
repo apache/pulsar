@@ -249,7 +249,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     } else {
                                         if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
                                             topicPolicy.add(topic);
-                                        } else {
+                                        } else if (!isDeletedAlongWithUserCreatedTopic(topic)) {
                                             allSystemTopics.add(topic);
                                         }
                                     }
@@ -297,11 +297,11 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(ignore -> pulsar().getNamespaceService()
                         .getNamespaceBundleFactory().getBundlesAsync(namespaceName))
                 .thenCompose(bundles -> FutureUtil.waitForAll(bundles.getBundles().stream()
-                        .map(bundle -> pulsar().getNamespaceService().getOwnerAsync(bundle)
-                                .thenCompose(owner -> {
+                        .map(bundle -> pulsar().getNamespaceService().checkOwnershipPresentAsync(bundle)
+                                .thenCompose(present -> {
                                     // check if the bundle is owned by any broker,
                                     // if not then we do not need to delete the bundle
-                                    if (owner.isPresent()) {
+                                    if (present) {
                                         PulsarAdmin admin;
                                         try {
                                             admin = pulsar().getAdminClient();
@@ -342,6 +342,11 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     callback.complete(result);
                 });
+    }
+
+    private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
+        // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
+        return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
     }
 
     private CompletableFuture<Void> internalDeletePartitionedTopicsAsync(List<String> topicNames) {
@@ -878,7 +883,7 @@ public abstract class NamespacesBase extends AdminResource {
                         policies -> new LocalPolicies(policies.bundles,
                                 bookieAffinityGroup,
                                 policies.namespaceAntiAffinityGroup))
-                        .orElseGet(() -> new LocalPolicies(defaultBundle(),
+                        .orElseGet(() -> new LocalPolicies(getBundles(config().getDefaultNumberOfNamespaceBundles()),
                                 bookieAffinityGroup,
                                 null));
                 log.info("[{}] Successfully updated local-policies configuration: namespace={}, map={}", clientAppId(),
@@ -1406,7 +1411,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to clear
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces()
                             .clearNamespaceBundleBacklogAsync(namespaceName.toString(), nsBundle.getBundleRange()));
                 }
@@ -1471,7 +1476,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there is no backlog on this bundle to clear
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces().clearNamespaceBundleBacklogForSubscriptionAsync(
                             namespaceName.toString(), nsBundle.getBundleRange(), subscription));
                 }
@@ -1538,7 +1543,7 @@ public abstract class NamespacesBase extends AdminResource {
                     .getBundles(namespaceName);
             for (NamespaceBundle nsBundle : bundles.getBundles()) {
                 // check if the bundle is owned by any broker, if not then there are no subscriptions
-                if (pulsar().getNamespaceService().getOwner(nsBundle).isPresent()) {
+                if (pulsar().getNamespaceService().checkOwnershipPresent(nsBundle)) {
                     futures.add(pulsar().getAdminClient().namespaces().unsubscribeNamespaceBundleAsync(
                             namespaceName.toString(), nsBundle.getBundleRange(), subscription));
                 }

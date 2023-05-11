@@ -41,12 +41,17 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 
 @Slf4j
 public abstract class TransactionTestBase extends TestRetrySupport {
@@ -223,4 +228,19 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             throws Exception {
         MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
     }
+
+    public void checkSnapshotPublisherCount(String namespace, int expectCount) {
+        TopicName snTopicName = TopicName.get(TopicDomain.persistent.value(), NamespaceName.get(namespace),
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> {
+                    List<PublisherStats> publisherStatsList =
+                            (List<PublisherStats>) admin.topics()
+                                    .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
+                    Assert.assertEquals(publisherStatsList.size(), expectCount);
+                });
+    }
+
 }

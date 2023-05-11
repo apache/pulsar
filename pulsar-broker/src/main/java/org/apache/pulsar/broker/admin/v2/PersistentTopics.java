@@ -775,14 +775,14 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     /**
-     * It updates number of partitions of an existing non-global partitioned topic. It requires partitioned-topic to be
+     * It updates number of partitions of an existing partitioned topic. It requires partitioned-topic to be
      * already exist and number of new partitions must be greater than existing number of partitions. Decrementing
      * number of partitions requires deletion of topic which is not supported.
      */
     @POST
     @Path("/{tenant}/{namespace}/{topic}/partitions")
     @ApiOperation(value = "Increment partitions of an existing partitioned topic.",
-            notes = "It only increments partitions of existing non-global partitioned-topic")
+            notes = "It increments partitions of existing partitioned-topic")
     @ApiResponses(value = {
             @ApiResponse(code = 204, message = "Update topic partition successful."),
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
@@ -1106,7 +1106,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
                                 t.getMessage());
                     }
-                    if (isManagedLedgerNotFoundException(t)) {
+                    if (t instanceof IllegalStateException){
+                        ex = new RestException(422/* Unprocessable entity*/, t.getMessage());
+                    } else if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
                     } else if (!isRedirectException(ex)) {

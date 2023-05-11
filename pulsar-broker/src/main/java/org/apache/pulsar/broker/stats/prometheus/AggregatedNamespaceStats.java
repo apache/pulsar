@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
@@ -65,6 +66,8 @@ public class AggregatedNamespaceStats {
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
     int delayedMessageIndexSizeInBytes;
 
+    Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
+
     void updateStats(TopicStats stats) {
         topicsCount++;
 
@@ -83,6 +86,14 @@ public class AggregatedNamespaceStats {
         msgOutCounter += stats.msgOutCounter;
         delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
 
+        stats.bucketDelayedIndexStats.forEach((k, v) -> {
+            TopicMetricBean topicMetricBean =
+                    bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            topicMetricBean.name = v.name;
+            topicMetricBean.labelsAndValues = v.labelsAndValues;
+            topicMetricBean.value += v.value;
+        });
+
         this.ongoingTxnCount += stats.ongoingTxnCount;
         this.abortedTxnCount += stats.abortedTxnCount;
         this.committedTxnCount += stats.committedTxnCount;
@@ -96,6 +107,7 @@ public class AggregatedNamespaceStats {
 
         managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
+        managedLedgerStats.storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
 
         msgBacklog += stats.msgBacklog;
 
@@ -132,6 +144,13 @@ public class AggregatedNamespaceStats {
             subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
             subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
             subsStats.delayedMessageIndexSizeInBytes += as.delayedMessageIndexSizeInBytes;
+            as.bucketDelayedIndexStats.forEach((k, v) -> {
+                TopicMetricBean topicMetricBean =
+                        subsStats.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+                topicMetricBean.name = v.name;
+                topicMetricBean.labelsAndValues = v.labelsAndValues;
+                topicMetricBean.value += v.value;
+            });
             as.consumerStat.forEach((c, v) -> {
                 AggregatedConsumerStats consumerStats =
                         subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());
@@ -172,5 +191,6 @@ public class AggregatedNamespaceStats {
         replicationStats.clear();
         subscriptionStats.clear();
         delayedMessageIndexSizeInBytes = 0;
+        bucketDelayedIndexStats.clear();
     }
 }

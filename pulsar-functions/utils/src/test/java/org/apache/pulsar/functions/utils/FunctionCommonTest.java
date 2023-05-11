@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import java.io.File;
 import java.util.Collection;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -26,16 +31,10 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
+import org.assertj.core.util.Files;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.util.UUID;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test of {@link Exceptions}.
@@ -78,12 +77,22 @@ public class FunctionCommonTest {
 
     @Test
     public void testDownloadFile() throws Exception {
-        String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
-        String testDir = FunctionCommonTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-        File pkgFile = new File(testDir, UUID.randomUUID().toString());
-        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, pkgFile);
-        Assert.assertTrue(pkgFile.exists());
-        pkgFile.delete();
+        final String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
+        final File file = Files.newTemporaryFile();
+        file.deleteOnExit();
+        assertThat(file.length()).isZero();
+        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, file);
+        assertThat(file.length()).isGreaterThan(0);
+    }
+
+    @Test
+    public void testDownloadFileWithBasicAuth() throws Exception {
+        final String jarHttpUrl = "https://foo:bar@httpbin.org/basic-auth/foo/bar";
+        final File file = Files.newTemporaryFile();
+        file.deleteOnExit();
+        assertThat(file.length()).isZero();
+        FunctionCommon.downloadFromHttpUrl(jarHttpUrl, file);
+        assertThat(file.length()).isGreaterThan(0);
     }
 
     @Test

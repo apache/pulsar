@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -44,6 +45,24 @@ type instanceConf struct {
 }
 
 func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
+	inputSpecs := make(map[string]*pb.ConsumerSpec)
+	// for backward compatibility
+	if cfg.SourceSpecTopic != "" {
+		inputSpecs[cfg.SourceSpecTopic] = &pb.ConsumerSpec{
+			SchemaType:     cfg.SourceSchemaType,
+			IsRegexPattern: cfg.IsRegexPatternSubscription,
+			ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
+				Value: cfg.ReceiverQueueSize,
+			},
+		}
+	}
+	for topic, value := range cfg.SourceInputSpecs {
+		spec := &pb.ConsumerSpec{}
+		if err := json.Unmarshal([]byte(value), spec); err != nil {
+			panic(fmt.Sprintf("Failed to unmarshal consume specs: %v", err))
+		}
+		inputSpecs[topic] = spec
+	}
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -66,16 +85,8 @@ func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 			AutoAck:              cfg.AutoACK,
 			Parallelism:          cfg.Parallelism,
 			Source: &pb.SourceSpec{
-				SubscriptionType: pb.SubscriptionType(cfg.SubscriptionType),
-				InputSpecs: map[string]*pb.ConsumerSpec{
-					cfg.SourceSpecTopic: {
-						SchemaType:     cfg.SourceSchemaType,
-						IsRegexPattern: cfg.IsRegexPatternSubscription,
-						ReceiverQueueSize: &pb.ConsumerSpec_ReceiverQueueSize{
-							Value: cfg.ReceiverQueueSize,
-						},
-					},
-				},
+				SubscriptionType:     pb.SubscriptionType(cfg.SubscriptionType),
+				InputSpecs:           inputSpecs,
 				TimeoutMs:            cfg.TimeoutMs,
 				SubscriptionName:     cfg.SubscriptionName,
 				CleanupSubscription:  cfg.CleanupSubscription,
