@@ -4354,6 +4354,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (inactiveLedgerRollOverTimeMs > 0 && currentTimeMs > (lastAddEntryTimeMs + inactiveLedgerRollOverTimeMs)) {
             log.info("[{}] Closing inactive ledger, last-add entry {}", name, lastAddEntryTimeMs);
             if (STATE_UPDATER.compareAndSet(this, State.LedgerOpened, State.ClosingLedger)) {
+                LedgerHandle currentLedger = this.currentLedger;
                 currentLedger.asyncClose((rc, lh, o) -> {
                     checkArgument(currentLedger.getId() == lh.getId(), "ledgerId %s doesn't match with "
                             + "acked ledgerId %s", currentLedger.getId(), lh.getId());
