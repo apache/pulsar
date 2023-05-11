@@ -33,12 +33,12 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
     @Test
     public void testTlsHostVerificationAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         String websocketTlsAddress = pulsar.getWebServiceAddressTls();
         PulsarAdmin adminClientTls = PulsarAdmin.builder()
                 .serviceHttpUrl(websocketTlsAddress.replace("localhost", "127.0.0.1"))
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(true)
                 .build();
 
@@ -53,11 +53,11 @@ public class TlsHostVerificationTest extends TlsProducerConsumerBase {
     @Test
     public void testTlsHostVerificationDisabledAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         PulsarAdmin adminClient = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsar.getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).enableTlsHostnameVerification(false)
                 .build();
 
