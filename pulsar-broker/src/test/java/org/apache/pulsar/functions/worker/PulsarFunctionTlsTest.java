@@ -243,7 +243,8 @@ public class PulsarFunctionTlsTest {
             // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
             // does not have retries.
             final PulsarAdmin admin = pulsarAdmins[i];
-            Awaitility.await().untilAsserted(() -> admin.functions().getFunction(testTenant, "my-ns", functionName));
+            Awaitility.await().ignoreExceptions()
+                    .untilAsserted(() -> admin.functions().getFunction(testTenant, "my-ns", functionName));
 
             FunctionConfig config = pulsarAdmins[i].functions().getFunction(testTenant, "my-ns", functionName);
             assertEquals(config.getTenant(), testTenant);
