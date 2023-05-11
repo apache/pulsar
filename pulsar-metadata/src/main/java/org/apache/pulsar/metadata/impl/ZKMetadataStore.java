@@ -207,25 +207,26 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 for (int i = 0; i < ops.size(); i++) {
                     OpResult opr = results.get(i);
                     MetadataOp op = ops.get(i);
+                    execute(() -> {
+                        switch (op.getType()) {
+                            case PUT:
+                                handlePutResult(op.asPut(), opr);
+                                break;
+                            case DELETE:
+                                handleDeleteResult(op.asDelete(), opr);
+                                break;
+                            case GET:
+                                handleGetResult(op.asGet(), opr);
+                                break;
+                            case GET_CHILDREN:
+                                handleGetChildrenResult(op.asGetChildren(), opr);
+                                break;
 
-                    switch (op.getType()) {
-                        case PUT:
-                            handlePutResult(op.asPut(), opr);
-                            break;
-                        case DELETE:
-                            handleDeleteResult(op.asDelete(), opr);
-                            break;
-                        case GET:
-                            handleGetResult(op.asGet(), opr);
-                            break;
-                        case GET_CHILDREN:
-                            handleGetChildrenResult(op.asGetChildren(), opr);
-                            break;
-
-                        default:
-                            op.getFuture().completeExceptionally(new MetadataStoreException(
-                                    "Operation type not supported in multi: " + op.getType()));
-                    }
+                            default:
+                                op.getFuture().completeExceptionally(new MetadataStoreException(
+                                        "Operation type not supported in multi: " + op.getType()));
+                        }
+                    }, op.getFuture());
                 }
             }, null);
         } catch (Throwable t) {

@@ -530,7 +530,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         try {
             executor.execute(task);
         } catch (Throwable t) {
-            future.completeExceptionally(t);
+            executor.execute(() -> future.completeExceptionally(t));
         }
     }
 
