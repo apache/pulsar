@@ -1156,12 +1156,13 @@ public class NamespaceService implements AutoCloseable {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
-        Optional<CompletableFuture<OwnedBundle>> res = ownershipCache.getOwnedBundleAsync(getBundle(topicName));
-        if (!res.isPresent()) {
-            return CompletableFuture.completedFuture(false);
-        }
-
-        return res.get().thenApply(ob -> ob != null && ob.isActive());
+        return getBundleAsync(topicName).thenCompose(bundle -> {
+            Optional<CompletableFuture<OwnedBundle>> optionalFuture = ownershipCache.getOwnedBundleAsync(bundle);
+            if (!optionalFuture.isPresent()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return optionalFuture.get().thenApply(ob -> ob != null && ob.isActive());
+        });
     }
 
     private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
