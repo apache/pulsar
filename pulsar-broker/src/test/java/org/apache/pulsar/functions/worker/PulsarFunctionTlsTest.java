@@ -66,6 +66,7 @@ public class PulsarFunctionTlsTest {
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
+    private static final String CA_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
@@ -112,9 +113,9 @@ public class PulsarFunctionTlsTest {
             config.setAuthenticationProviders(providers);
             config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
             config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-            config.setTlsAllowInsecureConnection(true);
+            config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
             config.setBrokerClientTlsEnabled(true);
-            config.setBrokerClientTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+            config.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
             config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
             config.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
@@ -142,7 +143,6 @@ public class PulsarFunctionTlsTest {
             workerConfig.setUseTls(true);
             workerConfig.setTlsEnableHostnameVerification(true);
             workerConfig.setTlsAllowInsecureConnection(false);
-            workerConfig.setBrokerClientTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 
             configurations[i] = config;
@@ -164,8 +164,7 @@ public class PulsarFunctionTlsTest {
 
             pulsarAdmins[i] = PulsarAdmin.builder()
                 .serviceHttpUrl(pulsarServices[i].getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH)
-                .allowTlsInsecureConnection(true)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .authentication(authTls)
                 .build();
         }
