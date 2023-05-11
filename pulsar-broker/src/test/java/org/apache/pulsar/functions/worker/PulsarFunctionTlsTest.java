@@ -51,6 +51,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.sink.PulsarSink;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -232,6 +233,11 @@ public class PulsarFunctionTlsTest {
             pulsarAdmins[i].functions().createFunctionWithUrl(
                 functionConfig, jarFilePathUrl
             );
+
+            // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
+            // does not have retries.
+            final PulsarAdmin admin = pulsarAdmins[i];
+            Awaitility.await().untilAsserted(() -> admin.functions().getFunction(testTenant, "my-ns", functionName));
 
             FunctionConfig config = pulsarAdmins[i].functions().getFunction(testTenant, "my-ns", functionName);
             assertEquals(config.getTenant(), testTenant);
