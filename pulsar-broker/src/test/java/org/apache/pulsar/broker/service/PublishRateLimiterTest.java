@@ -97,9 +97,9 @@ public class PublishRateLimiterTest {
 
     @Test
     public void testPrecisePublishRateLimiterAcquire() throws Exception {
-        Class precisPublishLimiterClass = Class.forName("org.apache.pulsar.broker.service.PrecisePublishLimiter");
-        Field topicPublishRateLimiterOnMessageField = precisPublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnMessage");
-        Field topicPublishRateLimiterOnByteField = precisPublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnByte");
+        Class precisePublishLimiterClass = Class.forName("org.apache.pulsar.broker.service.PrecisePublishLimiter");
+        Field topicPublishRateLimiterOnMessageField = precisePublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnMessage");
+        Field topicPublishRateLimiterOnByteField = precisePublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnByte");
         topicPublishRateLimiterOnMessageField.setAccessible(true);
         topicPublishRateLimiterOnByteField.setAccessible(true);
 
