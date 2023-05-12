@@ -234,8 +234,8 @@ public class TopicLookupBase extends PulsarWebResource {
                                         validationFuture.complete(null);
                                         return;
                                     }
-                                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
-                                    // request should be redirect to the peer-cluster
+                                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster
+                                    // and request should be redirect to the peer-cluster
                                     if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
                                             && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
                                         validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
