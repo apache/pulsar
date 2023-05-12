@@ -381,8 +381,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     // This method will be deprecated and removed in version 4.x.0
     private CompletableFuture<PositionImpl> recoverOldSnapshot() {
-        return topic.getBrokerService().getTopic(TopicName.get(topic.getName()).getNamespace() + "/" +
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT, false)
+        return topic.getBrokerService().getTopic(TopicName.get(topic.getName()).getNamespace() + "/"
+                        + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT, false)
                 .thenCompose(topicOption -> {
                     if (!topicOption.isPresent()) {
                         return CompletableFuture.completedFuture(null);
