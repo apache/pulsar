@@ -1173,7 +1173,6 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
 
             // create 3 topic
-
             String topicName = "persistent://" + namespace + "/my-topic";
 
             for (int i = 0; i < 3; i++) {
@@ -1182,9 +1181,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             needDeleteTopic = true;
 
-
             // try to load 10 topic
-
             ArrayList<CompletableFuture<Optional<Topic>>> loadFutures = new ArrayList<>();
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
@@ -1195,20 +1192,16 @@ public class BrokerServiceTest extends BrokerTestBase {
 
             CompletableFuture<?>[] o = (CompletableFuture<?>[]) Array.newInstance(CompletableFuture.class, 10);
             CompletableFuture<?>[] completableFutures = loadFutures.toArray(o);
-
             CompletableFuture.allOf(completableFutures).get();
 
             // check topic load CompletableFuture. only first three topic should be success.
-
             for (int i = 0; i < 10; i++) {
                 CompletableFuture<Optional<Topic>> load = loadFutures.get(i);
                 if (i < 3) {
                     Assert.assertTrue(load.isDone());
                     Assert.assertFalse(load.isCompletedExceptionally());
                 } else {
-
                     // check topic should not be created if disable autoCreateTopic.
-
                     Assert.assertTrue(load.isDone());
                     Assert.assertTrue(load.get().isEmpty());
                 }
