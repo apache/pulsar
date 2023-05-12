@@ -380,12 +380,22 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
+        return selectAsync(bundle, Optional.empty());
+    }
+
+    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
+                                                           Optional<Set<String>> excludeBrokerSet) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
+                    if (excludeBrokerSet.isPresent()) {
+                        for (String exclude : excludeBrokerSet.get()) {
+                            availableBrokerCandidates.remove(exclude);
+                        }
+                    }
 
                     // Filter out brokers that do not meet the rules.
                     List<BrokerFilter> filterPipeline = getBrokerFilterPipeline();
@@ -684,5 +694,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
+    }
+
+    public void disableBroker() throws Exception {
+        serviceUnitStateChannel.cleanOwnerships();
+        leaderElectionService.close();
+        brokerRegistry.unregister();
     }
 }

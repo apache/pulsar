@@ -110,6 +110,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
     private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
+
+    private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
+    private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
+    private static final int OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS = 3000;
     public static final long VERSION_ID_INIT = 1; // initial versionId
     private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
@@ -694,6 +698,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (isTargetBroker(data.dstBroker())) {
             log(null, serviceUnit, data, null);
             lastOwnEventHandledAt = System.currentTimeMillis();
+        } else if (data.force() && isTargetBroker(data.sourceBroker())) {
+            closeServiceUnit(serviceUnit);
         }
     }
 
@@ -1108,21 +1114,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
 
     private ServiceUnitStateData getOverrideInactiveBrokerStateData(ServiceUnitStateData orphanData,
-                                                                    String selectedBroker) {
+                                                                    String selectedBroker,
+                                                                    String inactiveBroker) {
         if (orphanData.state() == Splitting) {
             return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
                     Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
                     true, getNextVersionId(orphanData));
         } else {
-            return new ServiceUnitStateData(Owned, selectedBroker, true, getNextVersionId(orphanData));
+            return new ServiceUnitStateData(Owned, selectedBroker, inactiveBroker,
+                    true, getNextVersionId(orphanData));
         }
     }
 
-    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData) {
-
-        Optional<String> selectedBroker = selectBroker(serviceUnit);
+    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData, String inactiveBroker) {
+        Optional<String> selectedBroker = selectBroker(serviceUnit, inactiveBroker);
         if (selectedBroker.isPresent()) {
-            var override = getOverrideInactiveBrokerStateData(orphanData, selectedBroker.get());
+            var override = getOverrideInactiveBrokerStateData(
+                    orphanData, selectedBroker.get(), inactiveBroker);
             log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
                     serviceUnit, orphanData, override);
             publishOverrideEventAsync(serviceUnit, orphanData, override)
@@ -1140,8 +1148,37 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    public void cleanOwnerships() {
+        doCleanup(lookupServiceAddress);
+        long started = System.currentTimeMillis();
+        while (System.currentTimeMillis() - started < OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS) {
+            boolean cleaned = true;
+            for (var data : tableview.values()) {
+                if (data.state() == Owned && data.dstBroker().equals(lookupServiceAddress)) {
+                    cleaned = false;
+                    break;
+                }
+            }
+            if (cleaned) {
+                try {
+                    MILLISECONDS.sleep(OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS);
+                } catch (InterruptedException e) {
+                    log.warn("Interrupted while gracefully waiting for the cleanup convergence.");
+                }
+                break;
+            } else {
+                try {
+                    MILLISECONDS.sleep(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS);
+                } catch (InterruptedException e) {
+                    log.warn("Interrupted while delaying the next service unit clean-up. Cleaning broker:{}",
+                            lookupServiceAddress);
+                }
+            }
+        }
+    }
 
-    private void doCleanup(String broker)  {
+
+    private synchronized void doCleanup(String broker)  {
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
@@ -1153,13 +1190,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var state = state(stateData);
             if (StringUtils.equals(broker, stateData.dstBroker())) {
                 if (isActiveState(state)) {
-                    overrideOwnership(serviceUnit, stateData);
+                    overrideOwnership(serviceUnit, stateData, broker);
                     orphanServiceUnitCleanupCnt++;
                 }
 
             } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
                 if (isInFlightState(state)) {
-                    overrideOwnership(serviceUnit, stateData);
+                    overrideOwnership(serviceUnit, stateData, broker);
                     orphanServiceUnitCleanupCnt++;
                 }
             }
@@ -1194,9 +1231,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     }
 
-    private Optional<String> selectBroker(String serviceUnit) {
+    private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
         try {
-            return loadManager.selectAsync(getNamespaceBundle(serviceUnit))
+            return loadManager.selectAsync(getNamespaceBundle(serviceUnit), Optional.of(Set.of(inactiveBroker)))
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
@@ -1204,8 +1241,10 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return Optional.empty();
     }
 
-    private Optional<ServiceUnitStateData> getRollForwardStateData(String serviceUnit, long nextVersionId) {
-        Optional<String> selectedBroker = selectBroker(serviceUnit);
+    private Optional<ServiceUnitStateData> getRollForwardStateData(String serviceUnit,
+                                                                   String inactiveBroker,
+                                                                   long nextVersionId) {
+        Optional<String> selectedBroker = selectBroker(serviceUnit, inactiveBroker);
         if (selectedBroker.isEmpty()) {
             return Optional.empty();
         }
@@ -1220,7 +1259,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         var state = orphanData.state();
         switch (state) {
             case Assigning: {
-                return getRollForwardStateData(serviceUnit, nextVersionId);
+                return getRollForwardStateData(serviceUnit, orphanData.dstBroker(), nextVersionId);
             }
             case Splitting: {
                 return Optional.of(new ServiceUnitStateData(Splitting,
@@ -1233,7 +1272,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     // rollback to the src
                     return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true, nextVersionId));
                 } else {
-                    return getRollForwardStateData(serviceUnit, nextVersionId);
+                    return getRollForwardStateData(serviceUnit, orphanData.sourceBroker(), nextVersionId);
                 }
             }
             default: {
