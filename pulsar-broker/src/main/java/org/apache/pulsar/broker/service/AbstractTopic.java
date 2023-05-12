@@ -115,7 +115,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     protected volatile Boolean isAllowAutoUpdateSchema;
 
-    protected volatile PublishRateLimiter topicPublishRateLimiter;
+    protected volatile PublishRateLimiter topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
     private final Object topicPublishRateLimiterLock = new Object();
 
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
