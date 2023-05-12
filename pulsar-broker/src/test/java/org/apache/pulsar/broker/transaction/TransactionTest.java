@@ -290,6 +290,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // Destroy the namespace after the test
         admin.namespaces().deleteNamespace(namespaceName, true);
+        pulsarServiceList.get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
     }
 
     @Test
