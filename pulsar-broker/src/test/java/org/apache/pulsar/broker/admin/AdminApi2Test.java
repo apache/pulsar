@@ -431,7 +431,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         topicStats = (NonPersistentTopicStats) admin.topics().getStats(nonPersistentTopicName);
-        assertTrue(topicStats.getSubscriptions().containsKey("my-sub"));
+        assertFalse(topicStats.getSubscriptions().containsKey("my-sub"));
         assertEquals(topicStats.getPublishers().size(), 0);
         // test partitioned-topic
         final String partitionedTopicName = "non-persistent://prop-xyz/ns1/paritioned";

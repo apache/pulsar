@@ -1859,7 +1859,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
         workerConfig.setTlsEnabled(brokerConfig.isTlsEnabled());
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
-        workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
+        workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
