@@ -457,9 +457,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             String currentThreadName = Thread.currentThread().getName();
             String errorMessage = String.format("Expect to switch to thread %s, but currently it is thread %s",
                     metadataStoreName, currentThreadName);
-            if (!Thread.currentThread().getName().startsWith(metadataStoreName)){
-                throw new RuntimeException(errorMessage);
-            }
+            assertTrue(Thread.currentThread().getName().startsWith(metadataStoreName), errorMessage);
         };
 
         // put with node which has parent(but the parent node is not exists).
