@@ -38,7 +38,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -1138,19 +1140,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     /**
-     * @Deprecated This method is only used by test. call "isServiceUnitActiveAsync" is better.
+     * @Deprecated This method is only used in test now.
      */
     @Deprecated
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
-            OwnedBundle ownedBundle = ownershipCache.getOwnedBundle(getBundle(topicName));
-            if (ownedBundle == null) {
-                return false;
-            }
-            return ownedBundle.isActive();
-        } catch (Exception e) {
-            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName, e);
-            return false;
+            return isServiceUnitActiveAsync(topicName).get(pulsar.getConfig()
+                    .getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOG.warn("Unable to find OwnedBundle for topic in time - [{}]", topicName, e);
+            throw new RuntimeException(e);
         }
     }
 
