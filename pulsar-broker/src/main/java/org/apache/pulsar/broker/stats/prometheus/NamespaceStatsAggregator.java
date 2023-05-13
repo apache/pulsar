@@ -218,7 +218,6 @@ public class NamespaceStatsAggregator {
                 stats.rateIn += producer.getStats().msgRateIn;
                 stats.throughputIn += producer.getStats().msgThroughputIn;
                 stats.requestRateIn += producer.getStats().requestRateIn;
-                stats.averageMsgPerRequest += producer.getStats().averageMsgPerRequest;
 
                 if (includeProducerMetrics) {
                     AggregatedProducerStats producerStats = stats.producerStats.computeIfAbsent(
@@ -232,6 +231,7 @@ public class NamespaceStatsAggregator {
                 }
             }
         });
+        stats.averageMsgPerRequest = stats.rateIn / stats.requestRateIn;
 
         if (topic instanceof PersistentTopic) {
             tStatus.subscriptions.forEach((subName, subscriptionStats) -> {

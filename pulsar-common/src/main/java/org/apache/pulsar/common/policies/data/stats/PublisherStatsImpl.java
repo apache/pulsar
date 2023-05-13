@@ -101,8 +101,10 @@ public class PublisherStatsImpl implements PublisherStats {
         this.msgThroughputIn += stats.msgThroughputIn;
         double newAverageMsgSize = (this.averageMsgSize * (this.count - 1) + stats.averageMsgSize) / this.count;
         this.averageMsgSize = newAverageMsgSize;
+        double newAverageMsgPerRequest = (this.averageMsgPerRequest * (this.count - 1) + stats.averageMsgPerRequest)
+                / this.count;
+        this.averageMsgPerRequest = newAverageMsgPerRequest;
         this.requestRateIn += stats.requestRateIn;
-        this.averageMsgPerRequest += stats.averageMsgPerRequest;
         return this;
     }
 
