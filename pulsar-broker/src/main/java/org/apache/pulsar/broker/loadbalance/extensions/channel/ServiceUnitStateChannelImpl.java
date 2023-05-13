@@ -1233,7 +1233,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
         try {
-            return loadManager.selectAsync(getNamespaceBundle(serviceUnit), Optional.of(Set.of(inactiveBroker)))
+            return loadManager.selectAsync(getNamespaceBundle(serviceUnit), Set.of(inactiveBroker))
                     .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
         } catch (Throwable e) {
             log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);

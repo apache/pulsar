@@ -26,6 +26,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -380,19 +381,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
-        return selectAsync(bundle, Optional.empty());
+        return selectAsync(bundle, Collections.emptySet());
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
-                                                           Optional<Set<String>> excludeBrokerSet) {
+                                                           Set<String> excludeBrokerSet) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
-                    if (excludeBrokerSet.isPresent()) {
-                        for (String exclude : excludeBrokerSet.get()) {
+                    if (!excludeBrokerSet.isEmpty()) {
+                        for (String exclude : excludeBrokerSet) {
                             availableBrokerCandidates.remove(exclude);
                         }
                     }
