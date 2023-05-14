@@ -62,7 +62,7 @@ jobs:
                   issue_number: context.issue.number,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  labels: ['waiting-for-user']
+                  name: ['waiting-for-user']
                 })
               } catch (e) {
                 core.info(e.message)
@@ -79,7 +79,7 @@ jobs:
                   issue_number: context.issue.number,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  labels: ['waiting-for-reviewer']
+                  name: ['waiting-for-reviewer']
                 })
               } catch (e) {
                 core.info(e.message)
