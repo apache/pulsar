@@ -1574,7 +1574,8 @@ public abstract class NamespacesBase extends AdminResource {
             return null;
         });
     }
-
+status: wait-for-committer
+status: wait-for-user
     @SuppressWarnings("deprecation")
     protected void internalUnsubscribeNamespaceBundle(String subscription, String bundleRange, boolean authoritative) {
         validateNamespaceOperation(namespaceName, NamespaceOperation.UNSUBSCRIBE);
