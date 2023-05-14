@@ -29,8 +29,8 @@ on:
     types: [created]
 
 jobs:
-  pulsarbot:
-    if: (github.event.pull_request.state == 'open') || (github.event.issue.state == 'open')
+  ping-pong:
+    if: ${{ github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -46,14 +46,18 @@ jobs:
               username: context.payload.sender.login,
             })
 
-            core.info(`${context.payload.sender.login} has permission ${permission}`)
+            const creator = context.issue.user.login
+            const sender = context.payload.sender.login
 
-            if (permission === "read") {
+            core.info(`creator = ${creator}`)
+            core.info(`sender ${sender} has permission ${permission}`)
+
+            if (permission === "read" || creator === sender) {
               await github.rest.issues.addLabels({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                labels: ['waiting-for-committer']
+                labels: ['waiting-for-reviewer']
               })
             } else {
               await github.rest.issues.addLabels({
