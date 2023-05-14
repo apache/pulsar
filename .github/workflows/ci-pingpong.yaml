@@ -50,10 +50,10 @@ jobs:
               username: context.payload.sender.login,
             })
 
-            const creator = context.issue.user.login
+            const creator = context.payload
             const sender = context.payload.sender.login
 
-            core.info(`creator = ${creator}`)
+            core.info(`creator = ${JSON.stringify(creator)}`)
             core.info(`sender ${sender} has permission ${permission}`)
 
             if (permission === "read" || creator === sender) {
