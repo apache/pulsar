@@ -28,6 +28,10 @@ on:
   pull_request_review_comment:
     types: [created]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.number }}
+  cancel-in-progress: true
+
 jobs:
   ping-pong:
     if: ${{ github.event.issue.state == 'open' }}
