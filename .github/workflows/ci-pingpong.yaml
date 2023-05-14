@@ -57,12 +57,16 @@ jobs:
             core.info(`sender ${sender} has permission ${permission}`)
 
             if (permission === "read" || creator === sender) {
-             await github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                labels: ['waiting-for-user']
-              })
+              try {
+                await github.rest.issues.removeLabel({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  labels: ['waiting-for-user']
+                })
+              } catch (e) {
+                core.info(e.message)
+              }
               await github.rest.issues.addLabels({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
@@ -70,12 +74,16 @@ jobs:
                 labels: ['waiting-for-reviewer']
               })
             } else {
-              await github.rest.issues.removeLabel({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                labels: ['waiting-for-reviewer']
-              })
+              try {
+                await github.rest.issues.removeLabel({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  labels: ['waiting-for-reviewer']
+                })
+              } catch (e) {
+                core.info(e.message)
+              }
               await github.rest.issues.addLabels({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
