@@ -50,7 +50,7 @@ jobs:
               username: context.payload.sender.login,
             })
 
-            const creator = context.payload.issue.user.login
+            const creator = (context.payload.issue || context.payload.pull_request).user.login
             const sender = context.payload.sender.login
 
             core.info(`creator = ${JSON.stringify(creator)}`)
