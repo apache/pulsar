@@ -23,35 +23,35 @@ import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.testng.annotations.Test;
 
-public class PrecisPublishLimiterTest {
+public class PrecisePublishLimiterTest {
 
     @Test
     void shouldResetMsgLimitAfterUpdate() {
-        PrecisPublishLimiter precisPublishLimiter = new PrecisPublishLimiter(new PublishRate(), () -> {
+        PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
         });
-        precisPublishLimiter.update(new PublishRate(1, 1));
-        assertFalse(precisPublishLimiter.tryAcquire(99, 99));
-        precisPublishLimiter.update(new PublishRate(-1, 100));
-        assertTrue(precisPublishLimiter.tryAcquire(99, 99));
+        precisePublishLimiter.update(new PublishRate(1, 1));
+        assertFalse(precisePublishLimiter.tryAcquire(99, 99));
+        precisePublishLimiter.update(new PublishRate(-1, 100));
+        assertTrue(precisePublishLimiter.tryAcquire(99, 99));
     }
 
     @Test
     void shouldResetBytesLimitAfterUpdate() {
-        PrecisPublishLimiter precisPublishLimiter = new PrecisPublishLimiter(new PublishRate(), () -> {
+        PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(), () -> {
         });
-        precisPublishLimiter.update(new PublishRate(1, 1));
-        assertFalse(precisPublishLimiter.tryAcquire(99, 99));
-        precisPublishLimiter.update(new PublishRate(100, -1));
-        assertTrue(precisPublishLimiter.tryAcquire(99, 99));
+        precisePublishLimiter.update(new PublishRate(1, 1));
+        assertFalse(precisePublishLimiter.tryAcquire(99, 99));
+        precisePublishLimiter.update(new PublishRate(100, -1));
+        assertTrue(precisePublishLimiter.tryAcquire(99, 99));
     }
 
     @Test
     void shouldCloseResources() throws Exception {
         for (int i = 0; i < 20000; i++) {
-            PrecisPublishLimiter precisPublishLimiter = new PrecisPublishLimiter(new PublishRate(100, 100), () -> {
+            PrecisePublishLimiter precisePublishLimiter = new PrecisePublishLimiter(new PublishRate(100, 100), () -> {
             });
-            precisPublishLimiter.tryAcquire(99, 99);
-            precisPublishLimiter.close();
+            precisePublishLimiter.tryAcquire(99, 99);
+            precisePublishLimiter.close();
         }
     }
 }
