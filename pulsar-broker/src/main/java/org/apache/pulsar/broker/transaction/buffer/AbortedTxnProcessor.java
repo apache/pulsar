@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.buffer;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
 
 public interface AbortedTxnProcessor {
@@ -66,9 +67,8 @@ public interface AbortedTxnProcessor {
 
     /**
      * Get the lastSnapshotTimestamps.
-     * @return the lastSnapshotTimestamps.
      */
-    long getLastSnapshotTimestamps();
+    void generateSnapshotStats(TransactionBufferStats transactionBufferStats, boolean segmentStats);
 
     CompletableFuture<Void> closeAsync();
 

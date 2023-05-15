@@ -3547,8 +3547,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return subTypesEnabled != null && subTypesEnabled.contains(subType);
     }
 
-    public TransactionBufferStats getTransactionBufferStats(boolean lowWaterMarks) {
-        return this.transactionBuffer.getStats(lowWaterMarks);
+    public TransactionBufferStats getTransactionBufferStats(boolean lowWaterMarks, boolean segmentStats) {
+        return this.transactionBuffer.getStats(lowWaterMarks, segmentStats);
     }
 
     public TransactionPendingAckStats getTransactionPendingAckStats(String subName, boolean lowWaterMarks) {

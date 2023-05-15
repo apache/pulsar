@@ -56,9 +56,14 @@ public class CmdTransactions extends CmdBase {
                 description = "Whether to get information about lowWaterMarks stored in transaction buffer.")
         private boolean lowWaterMark;
 
+        @Parameter(names = {"-s", "--segment-stats"},
+                description = "Whether to get segment statistics.")
+        private boolean segmentStats = false;
+
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark));
+            // Assuming getTransactionBufferStats method signature has been updated to accept the new parameter
+            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark, segmentStats));
         }
     }
 

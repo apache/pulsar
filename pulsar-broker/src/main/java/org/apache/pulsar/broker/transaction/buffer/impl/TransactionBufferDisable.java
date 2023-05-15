@@ -99,7 +99,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
     }
 
     @Override
-    public TransactionBufferStats getStats(boolean lowWaterMarks) {
+    public TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats) {
         return null;
     }
 

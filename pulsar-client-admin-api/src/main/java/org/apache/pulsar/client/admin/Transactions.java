@@ -139,10 +139,24 @@ public interface Transactions {
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
-     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @param segmentStats Whether to get segment statistics.
      * @return the future stats of transaction buffer in topic.
      */
-    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks);
+    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks,
+                                                                             boolean segmentStats);
+
+    /**
+     * Get transaction buffer stats.
+     *
+     * @param topic the topic of getting transaction buffer stats
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @return the future stats of transaction buffer in topic.
+     */
+    default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
+                                                                                     boolean lowWaterMarks) {
+        return getTransactionBufferStatsAsync(topic, lowWaterMarks, false);
+    }
 
     /**
      * Get transaction buffer stats.
@@ -151,17 +165,31 @@ public interface Transactions {
      * @return the future stats of transaction buffer in topic.
      */
     default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
-        return getTransactionBufferStatsAsync(topic, false);
+        return getTransactionBufferStatsAsync(topic, false, false);
     }
 
     /**
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
-     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @param segmentStats Whether to get segment statistics.
      * @return the stats of transaction buffer in topic.
      */
-    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks) throws PulsarAdminException;
+    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks,
+                                                     boolean segmentStats) throws PulsarAdminException;
+
+    /**
+     * Get transaction buffer stats.
+     *
+     * @param topic the topic of getting transaction buffer stats
+     * @param lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @return the stats of transaction buffer in topic.
+     */
+    default TransactionBufferStats getTransactionBufferStats(String topic,
+                                                             boolean lowWaterMarks) throws PulsarAdminException {
+        return getTransactionBufferStats(topic, lowWaterMarks, false);
+    }
 
     /**
      * Get transaction buffer stats.
@@ -170,7 +198,7 @@ public interface Transactions {
      * @return the stats of transaction buffer in topic.
      */
     default TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
-        return getTransactionBufferStats(topic, false);
+        return getTransactionBufferStats(topic, false, false);
     }
 
     /**

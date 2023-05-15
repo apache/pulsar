@@ -171,11 +171,13 @@ public class Transactions extends TransactionsBase {
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic,
                                           @QueryParam("lowWaterMarks") @DefaultValue("false")
-                                                      boolean lowWaterMarks) {
+                                                      boolean lowWaterMarks,
+                                          @QueryParam("segmentStats") @DefaultValue("false")
+                                              boolean segmentStats) {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetTransactionBufferStats(authoritative, lowWaterMarks)
+            internalGetTransactionBufferStats(authoritative, lowWaterMarks, segmentStats)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (!isRedirectException(ex)) {

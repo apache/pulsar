@@ -60,6 +60,9 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SegmentStats;
+import org.apache.pulsar.common.policies.data.SegmentsStats;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -113,6 +116,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     private final PersistentTopic topic;
 
     private volatile long lastSnapshotTimestamps;
+
+    private volatile long lastTakedSnapshotSegmentTimestamp;
 
     /**
      * The number of the aborted transaction IDs in a segment.
@@ -385,8 +390,24 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
     }
 
     @Override
-    public long getLastSnapshotTimestamps() {
-        return this.lastSnapshotTimestamps;
+    public void generateSnapshotStats(TransactionBufferStats transactionBufferStats, boolean segmentStats) {
+        transactionBufferStats.snapshotType = "Segment";
+        transactionBufferStats.totalAbortedTransactions = this.aborts.size();
+        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        SegmentsStats segmentsStats = new SegmentsStats();
+        segmentsStats.currentSegmentCapacity = this.snapshotSegmentCapacity;
+        segmentsStats.lastTookSnapshotSegmentTimestamp = this.lastTakedSnapshotSegmentTimestamp;
+        segmentsStats.unsealedAbortTxnIDSize = this.unsealedTxnIds.size();
+        segmentsStats.segmentsSize = indexes.size();
+        if (segmentStats) {
+            List<SegmentStats> statsList = new ArrayList<>();
+            segmentIndex.forEach((position, txnID) -> {
+                SegmentStats stats = new SegmentStats(txnID.toString(), position.toString());
+                statsList.add(stats);
+            });
+            segmentsStats.segmentStats = statsList;
+        }
+        transactionBufferStats.segmentsStats = segmentsStats;
     }
 
     @Override
@@ -638,6 +659,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 transactionBufferSnapshotSegment.setSequenceId(this.sequenceID.get());
                 return segmentWriter.writeAsync(buildKey(this.sequenceID.get()), transactionBufferSnapshotSegment);
             }).thenCompose((messageId) -> {
+                lastTakedSnapshotSegmentTimestamp = System.currentTimeMillis();
                 //Build index for this segment
                 TransactionBufferSnapshotIndex index = new TransactionBufferSnapshotIndex();
                 index.setSequenceID(transactionBufferSnapshotSegment.getSequenceId());

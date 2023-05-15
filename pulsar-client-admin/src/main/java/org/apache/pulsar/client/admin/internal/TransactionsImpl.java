@@ -132,17 +132,20 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
-                                                                                    boolean lowWaterMarks) {
+                                                                                    boolean lowWaterMarks,
+                                                                                    boolean segmentStats) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
+        path = path.queryParam("segmentStats", segmentStats);
         return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>(){});
     }
 
     @Override
     public TransactionBufferStats getTransactionBufferStats(String topic,
-                                                            boolean lowWaterMarks) throws PulsarAdminException {
-        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks));
+                                                            boolean lowWaterMarks,
+                                                            boolean segmentStats) throws PulsarAdminException {
+        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks, segmentStats));
     }
 
     @Override

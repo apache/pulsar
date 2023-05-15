@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -28,6 +31,7 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -44,10 +48,15 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
+import org.apache.pulsar.client.admin.Transactions;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -64,11 +73,12 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
     @Override
     @BeforeClass
     protected void setup() throws Exception {
-        setUpBase(1, 1, PROCESSOR_TOPIC, 0);
+        setUpBase(1, 1, null, 0);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
                 SEGMENT_SIZE * 3);
+        admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
     }
 
     @Override
@@ -242,6 +252,59 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         verifySnapshotSegmentsSize(PROCESSOR_TOPIC, 0);
         verifySnapshotSegmentsIndexSize(PROCESSOR_TOPIC, 1);
         processor.closeAsync().get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testTxnSegmentStats() throws Exception {
+        Transactions transactions = admin.transactions();
+        String PROCESSOR_TOPIC = "persistent://" + NAMESPACE1 + "/testTxnSegmentStats";
+        admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
+        // Prepare topic, producer, consumer
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(PROCESSOR_TOPIC)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(PROCESSOR_TOPIC)
+                .subscriptionName("my-sub")
+                .subscribe();
+
+        // Record the start time of the test
+        long testStartTime = System.currentTimeMillis();
+
+        // Send messages with transactions and abort them
+        for (int i = 0; i < SEGMENT_SIZE + 2; i++) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS).build().get();
+            producer.newMessage(transaction).send();
+            transaction.abort();
+        }
+
+        // Get the transaction buffer stats without segment stats
+        TransactionBufferStats statsWithoutSegmentStats = transactions.getTransactionBufferStats(PROCESSOR_TOPIC,
+                false, false);
+        assertNotNull(statsWithoutSegmentStats);
+        assertNotNull(statsWithoutSegmentStats.segmentsStats);
+        assertNull(statsWithoutSegmentStats.segmentsStats.segmentStats);
+
+        // Get the transaction buffer stats with segment stats
+        TransactionBufferStats statsWithSegmentStats = transactions.getTransactionBufferStats(PROCESSOR_TOPIC,
+                false, true);
+        assertNotNull(statsWithSegmentStats);
+        assertNotNull(statsWithSegmentStats.segmentsStats);
+
+        // Verify the segment stats
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentsSize, 1L);
+        assertEquals(statsWithSegmentStats.segmentsStats.unsealedAbortTxnIDSize, 2L);
+        assertEquals(statsWithSegmentStats.segmentsStats.currentSegmentCapacity, SEGMENT_SIZE);
+        assertTrue(statsWithSegmentStats.segmentsStats.lastTookSnapshotSegmentTimestamp >= testStartTime);
+
+        // Verify if the segment stats are present when requested
+        assertEquals(statsWithSegmentStats.segmentsStats.segmentStats.size(), 1);
+
+        // Verify the totalAbortedTransactions field
+        assertEquals(statsWithSegmentStats.totalAbortedTransactions, SEGMENT_SIZE + 2);
     }
 
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {

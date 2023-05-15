@@ -170,9 +170,10 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative,
-                                                                                          boolean lowWaterMarks) {
+                                                                                          boolean lowWaterMarks,
+                                                                                          boolean segmentStats) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks));
+                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks, segmentStats));
     }
 
     protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
