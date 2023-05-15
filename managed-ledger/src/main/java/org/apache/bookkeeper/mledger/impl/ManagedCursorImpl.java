@@ -1757,32 +1757,26 @@ public class ManagedCursorImpl implements ManagedCursor {
         try {
             InvidualDeletedMessagesHandlingState state = new InvidualDeletedMessagesHandlingState(markDeletePosition);
             individualDeletedMessages.forEach((r) -> {
-                try {
-                    state.endPosition = r.lowerEndpoint();
-                    if (state.startPosition.compareTo(state.endPosition) <= 0) {
-                        Range<PositionImpl> range = Range.openClosed(state.startPosition, state.endPosition);
-                        long entries = ledger.getNumberOfEntries(range);
-                        if (state.totalEntriesToSkip + entries >= numEntries) {
-                            // do not process further
-                            return false;
-                        }
-                        state.totalEntriesToSkip += entries;
-                        state.deletedMessages += ledger.getNumberOfEntries(r);
-                        state.startPosition = r.upperEndpoint();
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
-                                    ledger.getName(), markDeletePosition, r.lowerEndpoint(), name);
-                        }
+                state.endPosition = r.lowerEndpoint();
+                if (state.startPosition.compareTo(state.endPosition) <= 0) {
+                    Range<PositionImpl> range = Range.openClosed(state.startPosition, state.endPosition);
+                    long entries = ledger.getNumberOfEntries(range);
+                    if (state.totalEntriesToSkip + entries >= numEntries) {
+                        // do not process further
+                        return false;
                     }
-                    return true;
-                } finally {
-                    if (r.lowerEndpoint() instanceof PositionImplRecyclable) {
-                        ((PositionImplRecyclable) r.lowerEndpoint()).recycle();
-                        ((PositionImplRecyclable) r.upperEndpoint()).recycle();
+                    state.totalEntriesToSkip += entries;
+                    state.deletedMessages += ledger.getNumberOfEntries(r);
+                    state.startPosition = r.upperEndpoint();
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] deletePosition {} moved ahead without clearing deleteMsgs {} for cursor {}",
+                                ledger.getName(), markDeletePosition, r.lowerEndpoint(), name);
                     }
                 }
-            }, recyclePositionRangeConverter);
+                return true;
+
+            });
             return state.deletedMessages;
         } finally {
             lock.readLock().unlock();
