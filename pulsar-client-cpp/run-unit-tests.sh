@@ -68,6 +68,7 @@ if [ $RES -eq 0 ]; then
     # Protobuf 3.18 only works with Python3. Since we're still using Python2 in CI, 
     # let's pin the Python version to the previous one
     pip install protobuf==3.17.3
+    pip install apache-bookkeeper-client==4.14.7
 
     pip install dist/${WHEEL_FILE}[all]
 
