@@ -513,24 +513,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // Need to proceed and read the last entry in the specified ledger to find out the last position
                     log.info("[{}] Consumer {} meta-data recover from ledger {}", ledger.getName(), name,
                             info.getCursorsLedgerId());
-                    recoverFromLedger(info, new VoidCallback() {
-                        @Override
-                        public void operationComplete() {
-                            LinkedHashSet<Long> ledgersDeletedButNotAcked = checkLedgersDeletedButNotAcked();
-                            if (!ledgersDeletedButNotAcked.isEmpty()){
-                                log.warn("[{}] ledgers {} has deleted from topic, but still in the records of"
-                                                + " incomplete-ack {}. If it is not cleaned up in time, it will cause"
-                                                + " the mark deleted position to not move forward.",
-                                        ledger.getName(), ledgersDeletedButNotAcked, name);
-                            }
-                            callback.operationComplete();
-                        }
-
-                        @Override
-                        public void operationFailed(ManagedLedgerException exception) {
-                            callback.operationFailed(exception);
-                        }
-                    });
+                    recoverFromLedger(info, callback);
                 }
             }
 
@@ -539,34 +522,6 @@ public class ManagedCursorImpl implements ManagedCursor {
                 callback.operationFailed(e);
             }
         });
-    }
-
-    private LinkedHashSet<Long> checkLedgersDeletedButNotAcked(){
-        lock.readLock().lock();
-        LinkedHashSet<Long> ledgersDeletedButNotAcked = new LinkedHashSet<>();
-        try {
-            for (Range<PositionImpl> positionRange : individualDeletedMessages.asRanges()){
-                long ledgerId = positionRange.lowerEndpoint().getLedgerId();
-                if (ledgersDeletedButNotAcked.contains(ledgerId)){
-                    continue;
-                }
-                if (!ledger.ledgers.containsKey(ledgerId)){
-                    ledgersDeletedButNotAcked.add(ledgerId);
-                }
-            }
-            for (PositionImpl position : batchDeletedIndexes.keySet()){
-                long ledgerId = position.getLedgerId();
-                if (ledgersDeletedButNotAcked.contains(ledgerId)){
-                    continue;
-                }
-                if (!ledger.ledgers.containsKey(ledgerId)){
-                    ledgersDeletedButNotAcked.add(ledgerId);
-                }
-            }
-        } finally {
-            lock.readLock().unlock();
-        }
-        return ledgersDeletedButNotAcked;
     }
 
     protected void recoverFromLedger(final ManagedCursorInfo info, final VoidCallback callback) {

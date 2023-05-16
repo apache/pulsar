@@ -26,7 +26,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -37,9 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -52,10 +49,10 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -100,7 +97,7 @@ public class LedgerLostTest {
     }
 
     protected void startLocalBookie() throws Exception{
-        log.info("===> Start bookie ");
+        log.info("Start bookie ");
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
         bkEnsemble.start();
         metadataServiceUri = String.format("zk:%s:%s", LOCALHOST, bkEnsemble.getZookeeperPort());
@@ -112,13 +109,13 @@ public class LedgerLostTest {
     }
 
     protected void stopLocalBookie() {
-        log.info("===> Close bookie client");
+        log.info("Close bookie client");
         try {
             bookKeeperClient.close();
         } catch (Exception e){
             log.error("Close bookie client fail", e);
         }
-        log.info("===> Stop bookie ");
+        log.info("Stop bookie ");
         try {
             bkEnsemble.stop();
         } catch (Exception e){
@@ -134,7 +131,7 @@ public class LedgerLostTest {
         pulsarConfig.setTransactionCoordinatorEnabled(false);
         pulsarConfig.setAllowAutoTopicCreation(true);
         pulsarConfig.setSystemTopicEnabled(true);
-        pulsarConfig.setAllowAutoTopicCreationType("non-partitioned");
+        pulsarConfig.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         pulsarConfig.setAutoSkipNonRecoverableData(true);
         pulsarConfig.setManagedLedgerDefaultMarkDeleteRateLimit(Integer.MAX_VALUE);
         pulsarConfig.setBrokerDeleteInactiveTopicsEnabled(false);
@@ -143,7 +140,7 @@ public class LedgerLostTest {
     }
 
     protected void startPulsar() throws Exception {
-        log.info("===> Start pulsar ");
+        log.info("Start pulsar ");
         pulsarService = new PulsarService(pulsarConfig);
         pulsarService.start();
         brokerWebServicePort = pulsarService.getListenPortHTTP().get();
@@ -156,32 +153,32 @@ public class LedgerLostTest {
     }
 
     protected void silentStopPulsar() throws Exception {
-        log.info("===> Close pulsar client ");
+        log.info("Close pulsar client ");
         try {
             pulsarClient.close();
         }catch (Exception e){
-            log.error("===> Close pulsar client fail", e);
+            log.error("Close pulsar client fail", e);
         }
-        log.info("===> Close pulsar admin ");
+        log.info("Close pulsar admin ");
         try {
             pulsarAdmin.close();
         }catch (Exception e){
-            log.error("===> Close pulsar admin fail", e);
+            log.error("Close pulsar admin fail", e);
         }
-        log.info("===> Stop pulsar service ");
+        log.info("Stop pulsar service ");
         try {
             pulsarService.close();
         }catch (Exception e){
-            log.error("===> Stop pulsar service fail", e);
+            log.error("Stop pulsar service fail", e);
         }
     }
 
     protected void stopPulsar() throws Exception {
-        log.info("===> Close pulsar client ");
+        log.info("Close pulsar client ");
         pulsarClient.close();
-        log.info("===> Close pulsar admin ");
+        log.info("Close pulsar admin ");
         pulsarAdmin.close();
-        log.info("===> Stop pulsar service ");
+        log.info("Stop pulsar service ");
         pulsarService.close();
     }
 
@@ -220,12 +217,12 @@ public class LedgerLostTest {
         String subName = UUID.randomUUID().toString().replaceAll("-", "");
         String topicName = String.format("persistent://%s/%s", "public/default", topicSimpleName);
 
-        log.info("===> create topic and subscription.");
+        log.info("create topic and subscription.");
         Consumer sub = createConsumer(topicName, subName, enabledBatch);
         sub.redeliverUnacknowledgedMessages();
         sub.close();
 
-        log.info("===> send many messages.");
+        log.info("send many messages.");
         int ledgerCount = 3;
         int messageCountPerLedger = enabledBatch ? 25 : 5;
         int messageCountPerEntry = enabledBatch ? 5 : 1;
@@ -233,9 +230,9 @@ public class LedgerLostTest {
                 sendManyMessages(topicName, ledgerCount, messageCountPerLedger, messageCountPerEntry);
         int sendMessageCount = Arrays.asList(sendMessages).stream()
                 .flatMap(s -> s.stream()).collect(Collectors.toList()).size();
-        log.info("===> send {} messages", sendMessageCount);
+        log.info("send {} messages", sendMessageCount);
 
-        log.info("===> make individual ack.");
+        log.info("make individual ack.");
         ConsumerAndReceivedMessages consumerAndReceivedMessages1 =
                 waitConsumeAndAllMessages(topicName, subName, enabledBatch,false);
         List<MessageIdImpl>[] messageIds = consumerAndReceivedMessages1.messageIds;
@@ -251,14 +248,14 @@ public class LedgerLostTest {
                 expectedMarkDeletedPosition.getEntryId());
         consumer.close();
 
-        log.info("===> Make lost ledger [{}].", individualPosition.getLedgerId());
+        log.info("Make lost ledger [{}].", individualPosition.getLedgerId());
         pulsarService.getBrokerService().getTopic(topicName, false).get().get().close(false);
         bookKeeperClient.deleteLedger(individualPosition.getLedgerId());
 
-        log.info("===> send some messages.");
+        log.info("send some messages.");
         sendManyMessages(topicName, 3, messageCountPerEntry);
 
-        log.info("===> receive all messages then verify mark deleted position");
+        log.info("receive all messages then verify mark deleted position");
         ConsumerAndReceivedMessages consumerAndReceivedMessages2 =
                 waitConsumeAndAllMessages(topicName, subName, enabledBatch, true);
         waitMarkDeleteLargeAndEquals(topicName, subName, lastPosition.getLedgerId(), lastPosition.getEntryId());
@@ -378,7 +375,7 @@ public class LedgerLostTest {
                 break;
             }
         }
-        log.info("===> receive {} messages", messageIds.size());
+        log.info("receive {} messages", messageIds.size());
         return new ConsumerAndReceivedMessages(consumer, sortMessageId(messageIds, enabledBatch));
     }
 
@@ -397,18 +394,15 @@ public class LedgerLostTest {
             res[i] = iterator.next().getValue();
         }
         for (List<MessageIdImpl> list : res){
-            list.sort(new Comparator<MessageIdImpl>() {
-                @Override
-                public int compare(MessageIdImpl m1, MessageIdImpl m2) {
-                    if (enabledBatch){
-                        BatchMessageIdImpl mb1 = (BatchMessageIdImpl) m1;
-                        BatchMessageIdImpl mb2 = (BatchMessageIdImpl) m2;
-                        return (int) (mb1.getLedgerId() * 1000000 + mb1.getEntryId() * 1000 + mb1.getBatchIndex() -
-                                mb2.getLedgerId() * 1000000 + mb2.getEntryId() * 1000 + mb2.getBatchIndex());
-                    }
-                    return (int) (m1.getLedgerId() * 1000 + m1.getEntryId() -
-                            m2.getLedgerId() * 1000 + m2.getEntryId());
+            list.sort((m1, m2) -> {
+                if (enabledBatch){
+                    BatchMessageIdImpl mb1 = (BatchMessageIdImpl) m1;
+                    BatchMessageIdImpl mb2 = (BatchMessageIdImpl) m2;
+                    return (int) (mb1.getLedgerId() * 1000000 + mb1.getEntryId() * 1000 + mb1.getBatchIndex() -
+                            mb2.getLedgerId() * 1000000 + mb2.getEntryId() * 1000 + mb2.getBatchIndex());
                 }
+                return (int) (m1.getLedgerId() * 1000 + m1.getEntryId() -
+                        m2.getLedgerId() * 1000 + m2.getEntryId());
             });
         }
         return res;
