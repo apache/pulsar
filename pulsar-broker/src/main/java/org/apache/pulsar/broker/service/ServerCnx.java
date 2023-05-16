@@ -41,6 +41,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.prometheus.client.Gauge;
+import io.prometheus.client.Counter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -223,6 +224,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private boolean preciseDispatcherFlowControl;
 
     private boolean preciseTopicPublishRateLimitingEnable;
+    private boolean preciseBrokerPublishRateLimitingEnable;
     private boolean encryptionRequireOnProducer;
 
     // Flag to manage throttling-rate by atomically enable/disable read-channel.
@@ -237,6 +239,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     // Flag to manage throttling-publish-buffer by atomically enable/disable read-channel.
     private boolean autoReadDisabledPublishBufferLimiting = false;
+    private boolean autoReadDisabledPublishPendingRequestLimiting = false;
     private final long maxPendingBytesPerThread;
     private final long resumeThresholdPendingBytesPerThread;
 
@@ -297,6 +300,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.resumeReadsThreshold = maxPendingSendRequests / 2;
         this.preciseDispatcherFlowControl = conf.isPreciseDispatcherFlowControl();
         this.preciseTopicPublishRateLimitingEnable = conf.isPreciseTopicPublishRateLimiterEnable();
+        this.preciseBrokerPublishRateLimitingEnable = conf.isPreciseBrokerPublishRateLimiterEnable();
         this.encryptionRequireOnProducer = conf.isEncryptionRequireOnProducer();
         // Assign a portion of max-pending bytes to each IO thread
         this.maxPendingBytesPerThread = conf.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L
@@ -3038,34 +3042,52 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             .help("Counter of connections throttled because of per-connection limit")
             .register();
 
+    private static final Counter throttledBrokerGlobal = Counter.build()
+            .name("pulsar_broker_throttled_count")
+            .help("Counter of broker throttled because of broker limit")
+            .register();
+
     public void startSendOperation(Producer producer, int msgSize, int numMessages) {
-        boolean isPublishRateExceeded = false;
+        boolean isTopicPublishRateExceeded = false;
+        boolean isResourceGroupRateExceeded = false;
         if (preciseTopicPublishRateLimitingEnable) {
-            boolean isPreciseTopicPublishRateExceeded =
-                    producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
-            if (isPreciseTopicPublishRateExceeded) {
-                producer.getTopic().disableCnxAutoRead();
-                return;
-            }
-            isPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded(numMessages, msgSize);
+            isTopicPublishRateExceeded = producer.getTopic().isTopicPublishRateExceeded(numMessages, msgSize);
+        }
+        if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
+            isResourceGroupRateExceeded = producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
         } else {
-            if (producer.getTopic().isResourceGroupRateLimitingEnabled()) {
-                final boolean resourceGroupPublishRateExceeded =
-                  producer.getTopic().isResourceGroupPublishRateExceeded(numMessages, msgSize);
-                if (resourceGroupPublishRateExceeded) {
-                    producer.getTopic().disableCnxAutoRead();
-                    return;
-                }
-            }
-            isPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
+            isTopicPublishRateExceeded = producer.getTopic().isPublishRateExceeded();
         }
 
-        if (++pendingSendRequest == maxPendingSendRequests || isPublishRateExceeded) {
+        boolean isBrokerPublishRateExceeded = false;
+        if (preciseBrokerPublishRateLimitingEnable) {
+            isBrokerPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded(numMessages, msgSize);
+        } else {
+            isBrokerPublishRateExceeded = producer.getTopic().isBrokerPublishRateExceeded();
+        }
+
+        autoReadDisabledRateLimiting = isResourceGroupRateExceeded || isTopicPublishRateExceeded
+                || isBrokerPublishRateExceeded;
+
+        // broker publish rate exceeded, disable all channel read for the broker.
+        if (isBrokerPublishRateExceeded) {
+            throttledBrokerGlobal.inc();
+            getBrokerService().disableAllProducerReadForPublishRateLimiting();
+            return;
+        }
+
+        // topic publish rate exceeded, disable all channel read for the topic.
+        if (isTopicPublishRateExceeded || isResourceGroupRateExceeded) {
+            producer.getTopic().disableCnxAutoRead();
+            return;
+        }
+
+        if (++pendingSendRequest == maxPendingSendRequests) {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             disableCnxAutoRead();
-            autoReadDisabledRateLimiting = isPublishRateExceeded;
             throttledConnections.inc();
+            autoReadDisabledPublishPendingRequestLimiting = true;
         }
 
         if (pendingBytesPerThread.get().addAndGet(msgSize) >= maxPendingBytesPerThread
@@ -3114,6 +3136,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         if (--pendingSendRequest == resumeReadsThreshold) {
+            autoReadDisabledPublishPendingRequestLimiting = false;
             enableCnxAutoRead();
         }
         if (isNonPersistentTopic) {
@@ -3127,7 +3150,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // pendingSendRequest to be volatile and it can be expensive while writing. also this will be called on if
         // throttling is enable on the topic. so, avoid pendingSendRequest check will be fine.
         if (ctx != null && !ctx.channel().config().isAutoRead()
-                && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting) {
+                && !autoReadDisabledRateLimiting && !autoReadDisabledPublishBufferLimiting
+                && !autoReadDisabledPublishPendingRequestLimiting) {
             // Resume reading from socket if pending-request is not reached to threshold
             ctx.channel().config().setAutoRead(true);
             throttledConnections.dec();

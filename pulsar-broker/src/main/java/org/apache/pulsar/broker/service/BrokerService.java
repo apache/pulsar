@@ -276,6 +276,7 @@ public class BrokerService implements Closeable {
     private Channel listenChannelTls;
 
     private boolean preciseTopicPublishRateLimitingEnable;
+    private boolean preciseBrokerPublishRateLimitingEnable;
     private final LongAdder pausedConnections = new LongAdder();
     private BrokerInterceptor interceptor;
     private final EntryFilterProvider entryFilterProvider;
@@ -290,6 +291,8 @@ public class BrokerService implements Closeable {
         this.pulsar = pulsar;
         this.preciseTopicPublishRateLimitingEnable =
                 pulsar.getConfiguration().isPreciseTopicPublishRateLimiterEnable();
+        this.preciseBrokerPublishRateLimitingEnable =
+                pulsar.getConfiguration().isPreciseBrokerPublishRateLimiterEnable();
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
         this.topics =
                 ConcurrentOpenHashMap.<String, CompletableFuture<Optional<Topic>>>newBuilder()
@@ -2622,10 +2625,12 @@ public class BrokerService implements Closeable {
                 });
 
         // add listener to notify broker publish-rate monitoring
-        registerConfigurationListener("brokerPublisherThrottlingTickTimeMillis",
-                (publisherThrottlingTickTimeMillis) -> {
-                    setupBrokerPublishRateLimiterMonitor();
-                });
+        if (!preciseBrokerPublishRateLimitingEnable) {
+            registerConfigurationListener("brokerPublisherThrottlingTickTimeMillis",
+                    (publisherThrottlingTickTimeMillis) -> {
+                        setupBrokerPublishRateLimiterMonitor();
+                    });
+        }
 
         // add listener to update topic publish-rate dynamic config
         registerConfigurationListener("maxPublishRatePerTopicInMessages",
@@ -2756,22 +2761,33 @@ public class BrokerService implements Closeable {
 
         log.info("Update broker publish rate limiting {}", publishRate);
         // lazy init broker Publish-rateLimiting monitoring if not initialized yet
-        this.setupBrokerPublishRateLimiterMonitor();
+        if (!preciseBrokerPublishRateLimitingEnable) {
+            this.setupBrokerPublishRateLimiterMonitor();
+        }
         if (brokerPublishRateLimiter == null
             || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
             // create new rateLimiter if rate-limiter is disabled
-            if (preciseTopicPublishRateLimitingEnable) {
-                brokerPublishRateLimiter = new PrecisPublishLimiter(publishRate, () -> {
-                    forEachTopic(topic -> {
-                        topic.enableCnxAutoRead();
-                    });
-                }, pulsar().getExecutor());
+            if (preciseBrokerPublishRateLimitingEnable) {
+                brokerPublishRateLimiter = new PrecisPublishLimiter(publishRate,
+                        () -> enableAllProducerReadForPublishRateLimiting(), pulsar().getExecutor());
             } else {
                 brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
             }
         } else {
             brokerPublishRateLimiter.update(publishRate);
         }
+    }
+
+    public void enableAllProducerReadForPublishRateLimiting(){
+        forEachTopic(topic -> {
+            topic.enableProducerReadForPublishRateLimiting();
+        });
+    }
+
+    public void disableAllProducerReadForPublishRateLimiting(){
+        forEachTopic(topic -> {
+            topic.disableCnxAutoRead();
+        });
     }
 
     private void updateTopicMessageDispatchRate() {

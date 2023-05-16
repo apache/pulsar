@@ -224,6 +224,8 @@ public interface Topic {
 
     void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
 
+    void enableProducerReadForPublishRateLimiting();
+
     boolean isPublishRateExceeded();
 
     boolean isTopicPublishRateExceeded(int msgSize, int numMessages);

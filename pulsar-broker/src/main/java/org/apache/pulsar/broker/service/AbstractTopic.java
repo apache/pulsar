@@ -121,7 +121,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile ResourceGroupPublishLimiter resourceGroupPublishLimiter;
 
     protected boolean preciseTopicPublishRateLimitingEnable;
-
+    protected boolean preciseBrokerPublishRateLimitingEnable;
     @Getter
     protected boolean resourceGroupRateLimitingEnabled;
 
@@ -164,6 +164,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
         this.lastActive = System.nanoTime();
         this.preciseTopicPublishRateLimitingEnable = config.isPreciseTopicPublishRateLimiterEnable();
+        this.preciseBrokerPublishRateLimitingEnable =
+                brokerService.pulsar().getConfiguration().isPreciseBrokerPublishRateLimiterEnable();
     }
 
     public SubscribeRate getSubscribeRate() {
@@ -948,10 +950,19 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     /**
      * it sets cnx auto-readable if producer's cnx is disabled due to publish-throttling.
      */
-    protected void enableProducerReadForPublishRateLimiting() {
+    public void enableProducerReadForPublishRateLimiting() {
         if (producers != null) {
             producers.values().forEach(producer -> {
                 producer.getCnx().cancelPublishRateLimiting();
+                producer.getCnx().enableCnxAutoRead();
+            });
+        }
+    }
+
+    protected void enableProducerReadForPublishBufferLimiting() {
+        if (producers != null) {
+            producers.values().forEach(producer -> {
+                producer.getCnx().cancelPublishBufferLimiting();
                 producer.getCnx().enableCnxAutoRead();
             });
         }
@@ -1088,9 +1099,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public boolean isPublishRateExceeded() {
-        // either topic or broker publish rate exceeded.
-        return this.topicPublishRateLimiter.isPublishRateExceeded()
-                || getBrokerPublishRateLimiter().isPublishRateExceeded();
+        // topic publish rate exceeded.
+        return this.topicPublishRateLimiter.isPublishRateExceeded();
     }
 
     @Override
@@ -1281,7 +1291,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                     // create new rateLimiter if rate-limiter is disabled
                     if (preciseTopicPublishRateLimitingEnable) {
                         this.topicPublishRateLimiter = new PrecisPublishLimiter(publishRate,
-                            () -> this.enableCnxAutoRead(), brokerService.pulsar().getExecutor());
+                                () -> this.enableProducerReadForPublishRateLimiting(),
+                                brokerService.pulsar().getExecutor());
                     } else {
                         this.topicPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
                     }
