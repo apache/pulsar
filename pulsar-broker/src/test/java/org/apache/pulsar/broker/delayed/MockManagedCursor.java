@@ -366,7 +366,7 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void clearIncompleteAckedRecordsByLedgerId(long ledgerId) {
+    public void noticeNonRecoverableLedgerSkipped(long ledgerId) {
 
     }
 

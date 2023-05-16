@@ -790,7 +790,7 @@ public interface ManagedCursor {
      * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
      * used to delete information about this ledger in the ManagedCursor.
      */
-    void clearIncompleteAckedRecordsByLedgerId(long ledgerId);
+    void noticeNonRecoverableLedgerSkipped(long ledgerId);
 
     /**
      * Returns cursor throttle mark-delete rate.

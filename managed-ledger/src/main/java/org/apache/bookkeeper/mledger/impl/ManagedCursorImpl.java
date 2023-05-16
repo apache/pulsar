@@ -2720,10 +2720,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
-    public void clearIncompleteAckedRecordsByLedgerId(final long ledgerId){
+    public void noticeNonRecoverableLedgerSkipped(final long ledgerId){
         lock.writeLock().lock();
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
-                + " be removed in individualDeletedMessages of current curosr", ledger.getName(), name, ledgerId);
+                + " be removed in individualDeletedMessages of current cursor", ledger.getName(), name, ledgerId);
         try {
             List<Range> rangeListToDelete = individualDeletedMessages.asRanges().stream()
                     .filter(range -> range.lowerEndpoint().getLedgerId() == ledgerId)

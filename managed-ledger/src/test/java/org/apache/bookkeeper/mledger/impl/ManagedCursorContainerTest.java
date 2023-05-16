@@ -361,7 +361,7 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void clearIncompleteAckedRecordsByLedgerId(long ledgerId) {
+        public void noticeNonRecoverableLedgerSkipped(long ledgerId) {
 
         }
 
