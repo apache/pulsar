@@ -87,6 +87,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -3865,12 +3866,26 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("rollover_inactive", config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
+        List<Long> ledgerIds = new ArrayList<>();
+
         int totalAddEntries = 5;
         for (int i = 0; i < totalAddEntries; i++) {
             String content = "entry"; // 5 bytes
             ledger.checkInactiveLedgerAndRollOver();
             ledger.addEntry(content.getBytes());
             Thread.sleep(inactiveLedgerRollOverTimeMs * 5);
+
+            ledgerIds.add(ledger.currentLedger.getId());
+        }
+
+        Map<Long, PulsarMockLedgerHandle> ledgerMap = bkc.getLedgerMap();
+        // skip check last ledger, it should be open
+        for (int i = 0; i < ledgerIds.size() - 1; i++) {
+            long ledgerId = ledgerIds.get(i);
+            LedgerMetadata ledgerMetadata = ledgerMap.get(ledgerId).getLedgerMetadata();
+            if (ledgerMetadata != null) {
+                assertTrue(ledgerMetadata.isClosed());
+            }
         }
 
         List<LedgerInfo> ledgers = ledger.getLedgersInfoAsList();
