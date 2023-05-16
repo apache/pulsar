@@ -161,7 +161,7 @@ public class LinuxInfoUtils {
      * </pre>
      * <p>
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum subtracting the idle cycles, this would include iowait, irq and steal.
      */
     public static ResourceUsage getCpuUsageForEntireHost() {
         try (Stream<String> stream = Files.lines(Paths.get(PROC_STAT_PATH))) {
