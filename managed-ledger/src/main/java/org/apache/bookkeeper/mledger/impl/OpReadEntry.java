@@ -134,7 +134,7 @@ class OpReadEntry implements ReadEntriesCallback {
             }
             updateReadPosition(nexReadPosition);
             if (lostLedger != null) {
-                clearIncompleteAckedRecordsFromLedger(lostLedger);
+                cursor.getManagedLedger().removeNonRecoverableLedger(lostLedger);
             }
             checkReadCompletion();
         } else {
@@ -157,10 +157,6 @@ class OpReadEntry implements ReadEntriesCallback {
     void updateReadPosition(Position newReadPosition) {
         nextReadPosition = (PositionImpl) newReadPosition;
         cursor.setReadPosition(nextReadPosition);
-    }
-
-    void clearIncompleteAckedRecordsFromLedger(long ledgerId){
-        cursor.getManagedLedger().removeNonRecoverableLedger(ledgerId);
     }
 
     void checkReadCompletion() {
