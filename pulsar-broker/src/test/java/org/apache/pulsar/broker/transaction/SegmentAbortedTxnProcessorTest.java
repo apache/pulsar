@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.junit.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -44,10 +45,16 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.events.EventType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -247,8 +254,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
     private void verifySnapshotSegmentsSize(String topic, int size) throws Exception {
         SystemTopicClient.Reader<TransactionBufferSnapshotSegment> reader =
                 pulsarService.getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotSegmentService()
-                .createReader(TopicName.get(topic)).get();
+                        .getTxnBufferSnapshotSegmentService()
+                        .createReader(TopicName.get(topic)).get();
         int segmentCount = 0;
         while (reader.hasMoreEvents()) {
             Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
@@ -285,5 +292,127 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         snapshotTopic.triggerCompaction();
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(snapshotTopic);
         org.awaitility.Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
+    }
+
+    /**
+     * This test verifies the compatibility of the transaction buffer segmented snapshot feature
+     * when enabled on an existing topic.
+     * It performs the following steps:
+     * 1. Creates a topic with segmented snapshot disabled.
+     * 2. Sends 10 messages without using transactions.
+     * 3. Sends 10 messages using transactions and aborts them.
+     * 4. Sends 10 messages without using transactions.
+     * 5. Verifies that only the non-transactional messages are received.
+     * 6. Enables the segmented snapshot feature and sets the snapshot segment size.
+     * 7. Unloads the topic.
+     * 8. Sends a new message using a transaction and aborts it.
+     * 9. Verifies that the topic has exactly one segment.
+     * 10. Re-subscribes the consumer and re-verifies that only the non-transactional messages are received.
+     */
+    @Test
+    public void testSnapshotProcessorUpgrade() throws Exception {
+        this.pulsarService = getPulsarServiceList().get(0);
+        this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
+
+        // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
+        // Abort these transactions and verify the data.
+        final String topicName = "persistent://" + NAMESPACE1 + "/testSnapshotProcessorUpgrade";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+
+        // Send 10 messages without using transactions
+        for (int i = 0; i < 10; i++) {
+            producer.send(("test-message-" + i).getBytes());
+        }
+
+        // Send 10 messages using transactions and abort them
+        for (int i = 0; i < 10; i++) {
+            Transaction txn = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build().get();
+            producer.newMessage(txn).value(("test-txn-message-" + i).getBytes()).sendAsync();
+            txn.abort().get();
+        }
+
+        // Send 10 messages without using transactions
+        for (int i = 10; i < 20; i++) {
+            producer.send(("test-message-" + i).getBytes());
+        }
+
+        // Verify the data
+        for (int i = 0; i < 20; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertEquals("test-message-" + i, new String(msg.getData()));
+        }
+
+        // Enable segmented snapshot
+        this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
+                SEGMENT_SIZE * 3);
+
+        // Unload the topic
+        admin.topics().unload(topicName);
+
+        // Sends a new message using a transaction and aborts it.
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage(txn).value("test-message-new".getBytes()).send();
+        txn.abort().get();
+
+        // Verifies that the topic has exactly one segment.
+        Awaitility.await().untilAsserted(() -> {
+            String segmentTopic = "persistent://" + NAMESPACE1 + "/" +
+                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
+            TopicStats topicStats = admin.topics().getStats(segmentTopic);
+            assertEquals(1, topicStats.getMsgInCounter());
+        });
+
+        // Re-subscribes the consumer and re-verifies that only the non-transactional messages are received.
+        consumer.close();
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+        for (int i = 0; i < 20; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertEquals("test-message-" + i, new String(msg.getData()));
+        }
+    }
+
+    /**
+     * This test verifies that when the segmented snapshot feature is enabled, creating a new topic
+     * does not create a __transaction_buffer_snapshot topic in the same namespace.
+     * The test performs the following steps:
+     * 1. Enable the segmented snapshot feature.
+     * 2. Create a new namespace.
+     * 3. Create a new topic in the namespace.
+     * 4. Check that the __transaction_buffer_snapshot topic is not created in the same namespace.
+     * 5. Destroy the namespace after the test.
+     */
+    @Test
+    public void testSegmentedSnapshotWithoutCreatingOldSnapshotTopic() throws Exception {
+        // Enable the segmented snapshot feature
+        pulsarService = getPulsarServiceList().get(0);
+        pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+
+        // Create a new namespace
+        String namespaceName = "tnx/testSegmentedSnapshotWithoutCreatingOldSnapshotTopic";
+        admin.namespaces().createNamespace(namespaceName);
+
+        // Create a new topic in the namespace
+        String topicName = "persistent://" + namespaceName + "/newTopic";
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+
+        // Check that the __transaction_buffer_snapshot topic is not created in the same namespace
+        String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/" +
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        try {
+            admin.topics().getStats(transactionBufferSnapshotTopic);
+            fail("The __transaction_buffer_snapshot topic should not exist");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+
+        // Destroy the namespace after the test
+        admin.namespaces().deleteNamespace(namespaceName, true);
     }
 }

@@ -35,12 +35,9 @@ github:
     # Enable projects for project management boards
     projects: true
   enabled_merge_buttons:
-    # enable squash button:
     squash:  true
-    # disable merge button:
     merge:   false
-    # disable rebase button:
-    rebase:  false
+    rebase:  true
   protected_branches:
     master:
       required_status_checks:
