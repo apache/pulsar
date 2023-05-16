@@ -1116,6 +1116,12 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return  getBrokerPublishRateLimiter().isPublishRateExceeded();
     }
 
+    public boolean isBrokerPublishRateExceeded(int numberMessages, int bytes) {
+        // whether broker publish rate exceed
+        return preciseTopicPublishRateLimitingEnable
+                && !getBrokerPublishRateLimiter().tryAcquire(numberMessages, bytes);
+    }
+
     public PublishRateLimiter getTopicPublishRateLimiter() {
         return topicPublishRateLimiter;
     }

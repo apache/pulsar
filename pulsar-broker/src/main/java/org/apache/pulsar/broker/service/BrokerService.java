@@ -2760,7 +2760,15 @@ public class BrokerService implements Closeable {
         if (brokerPublishRateLimiter == null
             || brokerPublishRateLimiter == PublishRateLimiter.DISABLED_RATE_LIMITER) {
             // create new rateLimiter if rate-limiter is disabled
-            brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
+            if (preciseTopicPublishRateLimitingEnable) {
+                brokerPublishRateLimiter = new PrecisPublishLimiter(publishRate, () -> {
+                    forEachTopic(topic -> {
+                        topic.enableCnxAutoRead();
+                    });
+                }, pulsar().getExecutor());
+            } else {
+                brokerPublishRateLimiter = new PublishRateLimiterImpl(publishRate);
+            }
         } else {
             brokerPublishRateLimiter.update(publishRate);
         }

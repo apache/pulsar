@@ -234,6 +234,8 @@ public interface Topic {
 
     boolean isBrokerPublishRateExceeded();
 
+    boolean isBrokerPublishRateExceeded(int msgSize, int numMessages);
+
     boolean isReplicationBacklogExist();
 
     void disableCnxAutoRead();
