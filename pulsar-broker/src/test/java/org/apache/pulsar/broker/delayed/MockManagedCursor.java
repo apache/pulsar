@@ -366,6 +366,11 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
+    public void clearIncompleteAckedRecordsByLedgerId(long ledgerId) {
+
+    }
+
+    @Override
     public double getThrottleMarkDelete() {
         return 0;
     }

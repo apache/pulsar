@@ -361,6 +361,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void clearIncompleteAckedRecordsByLedgerId(long ledgerId) {
+
+        }
+
+        @Override
         public void setThrottleMarkDelete(double throttleMarkDelete) {
         }
 

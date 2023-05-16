@@ -1747,9 +1747,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Iterator<ManagedCursor> managedCursorIterator = cursors.iterator();
         while (managedCursorIterator.hasNext()){
             ManagedCursor managedCursor = managedCursorIterator.next();
-            if (managedCursor instanceof ManagedCursorImpl managedCursorImpl){
-                managedCursorImpl.clearIncompleteAckedRecordsByLedgerId(ledgerId);
-            }
+            managedCursor.clearIncompleteAckedRecordsByLedgerId(ledgerId);
         }
     }
 
