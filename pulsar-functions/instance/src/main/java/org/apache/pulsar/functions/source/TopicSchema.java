@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
+import java.time.LocalTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -120,20 +121,44 @@ public class TopicSchema {
     }
 
     private static SchemaType getDefaultSchemaType(Class<?> clazz) {
-        if (byte[].class.equals(clazz)
+        if (Boolean.class.equals(clazz)) {
+            return SchemaType.BOOLEAN;
+        } else if (Short.class.equals(clazz)) {
+            return SchemaType.INT16;
+        } else if (Integer.class.equals(clazz)) {
+            return SchemaType.INT32;
+        } else if (Long.class.equals(clazz)) {
+            return SchemaType.INT64;
+        } else if (Float.class.equals(clazz)) {
+            return SchemaType.FLOAT;
+        } else if (Double.class.equals(clazz)) {
+            return SchemaType.DOUBLE;
+        } else if (byte[].class.equals(clazz)
             || ByteBuf.class.equals(clazz)
             || ByteBuffer.class.equals(clazz)) {
-            return SchemaType.NONE;
-        } else if (GenericObject.class.isAssignableFrom(clazz)) {
-            // the function is taking generic record/object, so we do auto schema detection
-            return SchemaType.AUTO_CONSUME;
+            return SchemaType.BYTES;
         } else if (String.class.equals(clazz)) {
             // If type is String, then we use schema type string, otherwise we fallback on default schema
             return SchemaType.STRING;
+        } else if (java.sql.Timestamp.class.equals(clazz)
+            || java.sql.Time.class.equals(clazz)
+            || java.util.Date.class.equals(clazz)) {
+            return SchemaType.TIMESTAMP;
+        } else if (java.time.Instant.class.equals(clazz)) {
+            return SchemaType.INSTANT;
+        } else if (java.time.LocalDate.class.equals(clazz)) {
+            return SchemaType.LOCAL_DATE;
+        } else if (java.time.LocalDateTime.class.equals(clazz)) {
+            return SchemaType.LOCAL_TIME;
+        } else if (java.time.LocalTime.class.equals(clazz)) {
+            return SchemaType.LOCAL_DATE_TIME;
+        } else if (GenericObject.class.isAssignableFrom(clazz)) {
+            // the function is taking generic record/object, so we do auto schema detection
+            return SchemaType.AUTO_CONSUME;
+        }  else if (KeyValue.class.equals(clazz)) {
+            return SchemaType.KEY_VALUE;
         } else if (isProtobufClass(clazz)) {
             return SchemaType.PROTOBUF;
-        } else if (KeyValue.class.equals(clazz)) {
-            return SchemaType.KEY_VALUE;
         } else {
             return DEFAULT_SCHEMA_TYPE;
         }
