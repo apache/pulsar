@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -228,6 +229,22 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                          String subName,
                                                                          boolean metadata) throws PulsarAdminException {
         return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
+    }
+
+    @Override
+    public CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
+                                                                                                    boolean metadata) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("transactionBufferInternalStats");
+        path = path.path(tn.getRestPath(false));
+        path = path.queryParam("metadata", metadata);
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferInternalStats>(){});
+    }
+
+    @Override
+    public TransactionBufferInternalStats getTransactionBufferInternalStats(String topic, boolean metadata)
+            throws PulsarAdminException {
+        return sync(() -> getTransactionBufferInternalStatsAsync(topic, metadata));
     }
 
     @Override

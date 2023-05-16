@@ -334,6 +334,51 @@ public class Transactions extends TransactionsBase {
         }
     }
 
+    @GET
+    @Path("/transactionBufferInternalStats/{tenant}/{namespace}/{topic}")
+    @ApiOperation(value = "Get transaction buffer internal stats.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not enable transaction"),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 405, message = "Transaction buffer don't use managedLedger!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")
+    })
+    public void getTransactionBufferInternalStats(@Suspended final AsyncResponse asyncResponse,
+                                                  @QueryParam("authoritative")
+                                                  @DefaultValue("false") boolean authoritative,
+                                                  @PathParam("tenant") String tenant,
+                                                  @PathParam("namespace") String namespace,
+                                                  @PathParam("topic") @Encoded String encodedTopic,
+                                                  @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionBufferInternalStats(authoritative, metadata)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get transaction buffer internal stats {}",
+                                    clientAppId(), topicName, ex);
+                        }
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
+                            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, cause));
+                        } else if (cause instanceof BrokerServiceException.NotAllowedException) {
+                            asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED, cause));
+                        } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
+                            asyncResponse.resume(new RestException(NOT_FOUND, cause));
+                        } else {
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
+    }
+
     @POST
     @Path("/transactionCoordinator/replicas")
     @ApiResponses(value = {

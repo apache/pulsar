@@ -391,7 +391,6 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
     @Override
     public void generateSnapshotStats(TransactionBufferStats transactionBufferStats, boolean segmentStats) {
-        transactionBufferStats.snapshotType = "Segment";
         transactionBufferStats.totalAbortedTransactions = this.aborts.size();
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         SegmentsStats segmentsStats = new SegmentsStats();

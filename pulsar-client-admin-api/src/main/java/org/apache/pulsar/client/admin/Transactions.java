@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -336,6 +337,28 @@ public interface Transactions {
      */
     TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName,
                                                                   boolean metadata) throws PulsarAdminException;
+
+    /**
+     * Get transaction buffer internal stats asynchronously.
+     *
+     * @param topic the topic to get transaction buffer internal stats from
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the future internal stats of transaction buffer
+     */
+    CompletableFuture<TransactionBufferInternalStats> getTransactionBufferInternalStatsAsync(String topic,
+                                                                                             boolean metadata);
+
+    /**
+     * Get transaction buffer internal stats.
+     *
+     * @param topic the topic to get transaction buffer internal stats from
+     * @param metadata whether to obtain ledger metadata
+     *
+     * @return the internal stats of transaction buffer
+     */
+    TransactionBufferInternalStats getTransactionBufferInternalStats(String topic,
+                                                                     boolean metadata) throws PulsarAdminException;
 
     /**
      * Sets the scale of the transaction coordinators.

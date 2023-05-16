@@ -375,6 +375,11 @@ class InMemTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public SnapshotType getSnapshotType() {
+        return null;
+    }
+
+    @Override
     public TransactionInBufferStats getTransactionInBufferStats(TxnID txnID) {
         return null;
     }

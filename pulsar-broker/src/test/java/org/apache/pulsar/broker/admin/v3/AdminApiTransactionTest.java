@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -61,6 +62,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TransactionBufferInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInfo;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -583,6 +585,58 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 stats.pendingAckLogStats.managedLedgerName);
         assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }
+
+    @Test(timeOut = 20000)
+    public void testGetTransactionBufferInternalStats() throws Exception {
+        initTransaction(1);
+        final String topic1 = "persistent://public/default/testGetTransactionBufferInternalStats-1";
+        final String topic2 = "persistent://public/default/testGetTransactionBufferInternalStats-2";
+        final String topic3 = "persistent://public/default/testGetTransactionBufferInternalStats-3";
+        pulsar.getConfig().setTransactionCoordinatorEnabled(false);
+        admin.topics().createNonPartitionedTopic(topic1);
+
+        try {
+            TransactionBufferInternalStats stats = admin.transactions()
+                    .getTransactionBufferInternalStatsAsync(topic1, true).get();
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof PulsarAdminException.NotFoundException);
+        }
+        pulsar.getConfig().setTransactionCoordinatorEnabled(true);
+        pulsar.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic2).create();
+        TransactionImpl transaction = (TransactionImpl) getTransaction();
+        producer.newMessage(transaction).send();
+        transaction.abort().get();
+        TransactionBufferInternalStats stats = admin.transactions()
+                .getTransactionBufferInternalStatsAsync(topic2, true).get();
+        assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Single.toString());
+        assertNotNull(stats.singleSnapshotInternalStats);
+        assertTrue(stats.singleSnapshotInternalStats.managedLedgerName
+                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT));
+        assertNull(stats.segmentInternalStats);
+        assertNull(stats.segmentIndexInternalStats);
+
+        pulsar.getConfig().setTransactionBufferSnapshotSegmentSize(9);
+        pulsar.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+
+        producer = pulsarClient.newProducer(Schema.BYTES).topic(topic3).create();
+        transaction = (TransactionImpl) getTransaction();
+        producer.newMessage(transaction).send();
+        transaction.abort().get();
+
+        stats = admin.transactions()
+                .getTransactionBufferInternalStatsAsync(topic3, true).get();
+        assertEquals(stats.snapshotType, TransactionBuffer.SnapshotType.Segment.toString());
+        assertNull(stats.singleSnapshotInternalStats);
+        assertNotNull(stats.segmentInternalStats);
+        assertTrue(stats.segmentInternalStats.managedLedgerName
+                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
+        assertNotNull(stats.segmentIndexInternalStats);
+        assertTrue(stats.segmentIndexInternalStats.managedLedgerName
+                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
+    }
+
 
     @Test(timeOut = 20000)
     public void testTransactionNotEnabled() throws Exception {

@@ -51,6 +51,11 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 @Beta
 public interface TransactionBuffer {
 
+    enum SnapshotType {
+        Single,
+        Segment,
+    }
+
     /**
      * Return the metadata of a transaction in the buffer.
      *
@@ -157,6 +162,17 @@ public interface TransactionBuffer {
      * @return the stable position.
      */
     PositionImpl getMaxReadPosition();
+
+    /**
+     * Get the snapshot type.
+     *
+     * The snapshot type can be either "Single" or "Segment". In "Single" mode, a single snapshot log is used
+     * to record the transaction buffer stats. In "Segment" mode, a snapshot segment topic is used to record
+     * the stats, and a separate snapshot segment index topic is used to index these stats.
+     *
+     * @return the snapshot type
+     */
+    SnapshotType getSnapshotType();
 
     /**
      * Get transaction in buffer stats.
