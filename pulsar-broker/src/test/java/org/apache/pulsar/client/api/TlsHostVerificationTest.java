@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.junit.Assert.assertTrue;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,7 +26,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.Assert;
-import org.testng.annotations.Ignore;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
