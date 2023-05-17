@@ -63,7 +63,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
         conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setAuthenticationEnabled(true);
-        conf.setSuperUserRoles(Set.of("superproxy", "broker.pulsar.apache.org"));
+        conf.setSuperUserRoles(Set.of("superproxy", "broker-localhost-SAN"));
         conf.setAuthenticationProviders(
                 Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
         conf.setAuthorizationEnabled(true);

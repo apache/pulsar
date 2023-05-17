@@ -101,9 +101,9 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
     protected void internalSetUpForBroker() {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setClusterName(configClusterName);
         conf.setAuthenticationRefreshCheckSeconds(1);
         conf.setTlsRequireTrustedClientCertOnConnect(false);
@@ -121,7 +121,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
     private PulsarClient getClient(String token) throws Exception {
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrlTls())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .enableTls(true)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(true)
@@ -132,7 +132,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
 
     private PulsarAdmin getAdmin(String token) throws Exception {
         PulsarAdminBuilder clientBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(false)
                 .authentication(AuthenticationToken.class.getName(),"token:" +token)
                 .enableTlsHostnameVerification(true);

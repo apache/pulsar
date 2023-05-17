@@ -327,6 +327,9 @@ public class PulsarTestContext implements AutoCloseable {
          */
         public Builder configCustomizer(Consumer<ServiceConfiguration> configCustomerizer) {
             configCustomerizer.accept(svcConfig);
+            if (config != null) {
+                configCustomerizer.accept(config);
+            }
             return this;
         }
 
