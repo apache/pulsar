@@ -211,7 +211,7 @@ public final class SchemaUtils {
 
     /**
      * Jsonify the schema info with version.
-
+     *
      * @param schemaInfoWithVersion the schema info
      * @return the jsonified schema info with version
      */
