@@ -466,7 +466,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     /**
      * Reset the subscription associated with this consumer to a specific message id.
      * <p>
-     * If there is already a seek operation in progress, the method will log a warning and 
+     * If there is already a seek operation in progress, the method will log a warning and
      * return a future completed exceptionally.
      *
      * <p>The message id can either be a specific message or represent the first or last messages in the topic.
@@ -487,7 +487,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
      * <p>
-     * If there is already a seek operation in progress, the method will log a warning and 
+     * If there is already a seek operation in progress, the method will log a warning and
      * return a future completed exceptionally.
      *
      * @param timestamp
@@ -499,9 +499,9 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     /**
      * Reset the subscription associated with this consumer to a specific message ID or message publish time.
      * <p>
-     * If there is already a seek operation in progress, the method will log a warning and 
+     * If there is already a seek operation in progress, the method will log a warning and
      * return a future completed exceptionally.
-     * 
+     *
      * <p>
      * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
@@ -534,7 +534,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
     /**
      * The asynchronous version of {@link Consumer#seek(MessageId)}.
      * <p>
-     * If there is already a seek operation in progress, the method will log a warning and 
+     * If there is already a seek operation in progress, the method will log a warning and
      * return a future completed exceptionally.
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
