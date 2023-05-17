@@ -161,7 +161,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .getFullyQualifiedName(funcDetails.getTenant(), funcDetails.getNamespace(), funcDetails.getName());
 
         String secretId = new String(functionAuthData.get().getData());
-        // Make sure secretName is empty.  Defensive programing
+        // Make sure secretName is empty.  Defensive programming
         if (isBlank(secretId)) {
             log.warn("Secret name for function {} is empty.", fqfn);
             return;
