@@ -232,6 +232,14 @@
     <!-- jetcd matched against ETCD server CVEs-->
     <suppress>
         <notes><![CDATA[
+       file name: jetcd-api-0.7.5.jar
+       ]]></notes>
+        <sha1>861af62ae22a71d30f401a80049397fe7ff44423</sha1>
+        <cve>CVE-2020-15113</cve>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
        file name: jetcd-core-0.7.5.jar
        ]]></notes>
         <sha1>663f2ccc0ec7797954c333fa75feeb7d559948b0</sha1>
