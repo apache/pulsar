@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.protocol.Commands.magicBrokerEntryMetadata;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
@@ -31,7 +32,6 @@ import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -94,7 +94,14 @@ public class RawBatchConverter {
         checkArgument(msg.getMessageIdData().getBatchIndex() == -1);
 
         ByteBuf payload = msg.getHeadersAndPayload();
-        BrokerEntryMetadata brokerEntryMetadata = Commands.parseBrokerEntryMetadataIfExist(payload);
+        int readerIndex = payload.readerIndex();
+        ByteBuf brokerMeta = null;
+        if (payload.getShort(readerIndex) == magicBrokerEntryMetadata) {
+            payload.skipBytes(Short.BYTES);
+            int brokerEntryMetadataSize = payload.readInt();
+            payload.readerIndex(readerIndex);
+            brokerMeta = payload.readRetainedSlice(brokerEntryMetadataSize + Short.BYTES + Integer.BYTES);
+        }
         MessageMetadata metadata = Commands.parseMessageMetadata(payload);
         ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
 
@@ -143,15 +150,8 @@ public class RawBatchConverter {
                 ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
                                                                                   metadata, compressedPayload);
 
-                if (brokerEntryMetadata != null) {
-                    int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
-                    ByteBuf brokerMeta =
-                            PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
-                    brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
-                    brokerMeta.writeInt(brokerMetaSize);
-                    brokerEntryMetadata.writeTo(brokerMeta);
-
-                    CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeBuffer();
+                if (brokerMeta != null) {
+                    CompositeByteBuf compositeByteBuf = PulsarByteBufAllocator.DEFAULT.compositeDirectBuffer();
                     compositeByteBuf.addComponents(true, brokerMeta, metadataAndPayload);
                     metadataAndPayload = compositeByteBuf;
                 }
