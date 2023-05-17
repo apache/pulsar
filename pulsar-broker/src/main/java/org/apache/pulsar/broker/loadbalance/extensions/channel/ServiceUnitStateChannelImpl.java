@@ -91,7 +91,6 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
@@ -261,6 +260,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    @Override
+    public void cleanOwnerships() {
+        doCleanup(lookupServiceAddress);
+    }
+
     public synchronized void start() throws PulsarServerException {
         if (!validateChannelState(LeaderElectionServiceStarted, false)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
@@ -288,7 +292,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 }
             }
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
-                    (pulsar.getPulsarResources(), NamespaceName.SYSTEM_NAMESPACE, config.getClusterName());
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
 
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
@@ -1148,12 +1152,18 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    public void cleanOwnerships() {
-        doCleanup(lookupServiceAddress);
+    protected void waitForCleanups(boolean excludeSystemTopics, int timeoutInMillis) {
         long started = System.currentTimeMillis();
-        while (System.currentTimeMillis() - started < OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS) {
+        while (System.currentTimeMillis() - started < timeoutInMillis) {
             boolean cleaned = true;
-            for (var data : tableview.values()) {
+            for (var etr : tableview.entrySet()) {
+                var serviceUnit = etr.getKey();
+                var data = etr.getValue();
+
+                if (excludeSystemTopics && serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                    continue;
+                }
+
                 if (data.state() == Owned && data.dstBroker().equals(lookupServiceAddress)) {
                     cleaned = false;
                     break;
@@ -1177,26 +1187,34 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-
     private synchronized void doCleanup(String broker)  {
         long startTime = System.nanoTime();
         log.info("Started ownership cleanup for the inactive broker:{}", broker);
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
 
+        Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
         for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
             var state = state(stateData);
             if (StringUtils.equals(broker, stateData.dstBroker())) {
                 if (isActiveState(state)) {
-                    overrideOwnership(serviceUnit, stateData, broker);
+                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                        orphanSystemServiceUnits.put(serviceUnit, stateData);
+                    } else {
+                        overrideOwnership(serviceUnit, stateData, broker);
+                    }
                     orphanServiceUnitCleanupCnt++;
                 }
 
             } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
                 if (isInFlightState(state)) {
-                    overrideOwnership(serviceUnit, stateData, broker);
+                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                        orphanSystemServiceUnits.put(serviceUnit, stateData);
+                    } else {
+                        overrideOwnership(serviceUnit, stateData, broker);
+                    }
                     orphanServiceUnitCleanupCnt++;
                 }
             }
@@ -1205,12 +1223,26 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         try {
             producer.flush();
         } catch (PulsarClientException e) {
-            log.error("Failed to flush the in-flight messages.", e);
+            log.error("Failed to flush the in-flight non-system bundle override messages.", e);
         }
 
+
         if (orphanServiceUnitCleanupCnt > 0) {
+            waitForCleanups(true, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
             this.totalInactiveBrokerCleanupCnt++;
+        }
+
+        // clean system bundles in the end
+        for (var orphanSystemServiceUnit : orphanSystemServiceUnits.entrySet()) {
+            log.info("Overriding orphan system service unit:{}", orphanSystemServiceUnit.getKey());
+            overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker);
+        }
+
+        try {
+            producer.flush();
+        } catch (PulsarClientException e) {
+            log.error("Failed to flush the in-flight system bundle override messages.", e);
         }
 
         double cleanupTime = TimeUnit.NANOSECONDS
