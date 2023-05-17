@@ -21,7 +21,7 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import io.etcd.jetcd.launcher.EtcdCluster;
-import io.etcd.jetcd.launcher.EtcdClusterFactory;
+import io.etcd.jetcd.test.EtcdClusterExtension;
 import java.io.File;
 import java.net.URI;
 import java.util.UUID;
@@ -84,10 +84,11 @@ public abstract class BaseMetadataStoreTest extends TestRetrySupport {
 
     private synchronized String getEtcdClusterConnectString() {
         if (etcdCluster == null) {
-            etcdCluster = EtcdClusterFactory.buildCluster("test", 1, false);
+            etcdCluster = EtcdClusterExtension.builder().withClusterName("test").withNodes(1).withSsl(false).build()
+                    .cluster();
             etcdCluster.start();
         }
-        return etcdCluster.getClientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
+        return etcdCluster.clientEndpoints().stream().map(URI::toString).collect(Collectors.joining(","));
     }
 
     public static Supplier<String> stringSupplier(Supplier<String> supplier) {
