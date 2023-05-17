@@ -272,7 +272,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
-
+        // check pulsarService is ready.
+        pulsarService.getAdminClient().tenants().getTenants();
     }
 
     @Override
