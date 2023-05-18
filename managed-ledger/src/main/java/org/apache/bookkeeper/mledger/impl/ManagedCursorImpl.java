@@ -2735,7 +2735,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         lock.writeLock().lock();
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
-                + " be removed in individualDeletedMessages of current cursor", ledger.getName(), name, ledgerId);
+                + " be auto acknowledge in subscription", ledger.getName(), name, ledgerId);
         try {
             List<Position> positionsToAck = new ArrayList<>();
             for (int i = 0; i < ledgerInfo.getEntries(); i++) {
