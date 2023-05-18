@@ -50,8 +50,8 @@ type Conf struct {
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
 	//Deprecated
-	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
-	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
+	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
+	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
 	//source config
 	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
 	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
@@ -59,10 +59,16 @@ type Conf struct {
 	CleanupSubscription  bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
 	SubscriptionPosition int32  `json:"subscriptionPosition" yaml:"subscriptionPosition"`
 	//source input specs
-	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
-	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
-	IsRegexPatternSubscription bool   `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
-	ReceiverQueueSize          int32  `json:"receiverQueueSize" yaml:"receiverQueueSize"`
+	SourceInputSpecs map[string]string `json:"sourceInputSpecs" yaml:"sourceInputSpecs"`
+	// for backward compatibility
+	// Deprecated
+	SourceSpecTopic string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
+	// Deprecated
+	SourceSchemaType string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
+	// Deprecated
+	IsRegexPatternSubscription bool `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
+	// Deprecated
+	ReceiverQueueSize int32 `json:"receiverQueueSize" yaml:"receiverQueueSize"`
 	//sink spec config
 	SinkSpecTopic  string `json:"sinkSpecsTopic" yaml:"sinkSpecsTopic"`
 	SinkSchemaType string `json:"sinkSchemaType" yaml:"sinkSchemaType"`

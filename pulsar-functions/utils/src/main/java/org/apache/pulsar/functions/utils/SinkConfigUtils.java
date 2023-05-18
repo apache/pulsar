@@ -202,12 +202,6 @@ public class SinkConfigUtils {
             sourceSpecBuilder.setNegativeAckRedeliveryDelayMs(sinkConfig.getNegativeAckRedeliveryDelayMs());
         }
 
-        if (sinkConfig.getCleanupSubscription() != null) {
-            sourceSpecBuilder.setCleanupSubscription(sinkConfig.getCleanupSubscription());
-        } else {
-            sourceSpecBuilder.setCleanupSubscription(true);
-        }
-
         if (sinkConfig.getSourceSubscriptionPosition() == SubscriptionInitialPosition.Earliest) {
             sourceSpecBuilder.setSubscriptionPosition(Function.SubscriptionPosition.EARLIEST);
         } else {
@@ -329,7 +323,6 @@ public class SinkConfigUtils {
         // Set subscription position
         sinkConfig.setSourceSubscriptionPosition(
                 convertFromFunctionDetailsSubscriptionPosition(functionDetails.getSource().getSubscriptionPosition()));
-        sinkConfig.setCleanupSubscription(functionDetails.getSource().getCleanupSubscription());
 
         if (functionDetails.getSource().getTimeoutMs() != 0) {
             sinkConfig.setTimeoutMs(functionDetails.getSource().getTimeoutMs());
@@ -670,9 +663,6 @@ public class SinkConfigUtils {
         }
         if (!StringUtils.isEmpty(newConfig.getCustomRuntimeOptions())) {
             mergedConfig.setCustomRuntimeOptions(newConfig.getCustomRuntimeOptions());
-        }
-        if (newConfig.getCleanupSubscription() != null) {
-            mergedConfig.setCleanupSubscription(newConfig.getCleanupSubscription());
         }
         if (newConfig.getTransformFunction() != null) {
             mergedConfig.setTransformFunction(newConfig.getTransformFunction());

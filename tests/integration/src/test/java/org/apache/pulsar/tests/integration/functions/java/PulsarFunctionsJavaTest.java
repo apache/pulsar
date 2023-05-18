@@ -98,12 +98,12 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, false, false, false);
+        testExclamationFunction(Runtime.JAVA, false, false, false, false);
     }
 
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, true, false, false);
+        testExclamationFunction(Runtime.JAVA, true, false, false, false);
     }
 
     @Test(groups = {"java_function", "function"})

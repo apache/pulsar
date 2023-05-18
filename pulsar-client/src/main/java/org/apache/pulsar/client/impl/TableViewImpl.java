@@ -192,6 +192,13 @@ public class TableViewImpl<T> implements TableView<T> {
                 if (compactionStrategy != null) {
                     T prev = data.get(key);
                     update = !compactionStrategy.shouldKeepLeft(prev, cur);
+                    if (!update) {
+                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
+                                conf.getTopicName(),
+                                key,
+                                cur,
+                                prev);
+                    }
                 }
 
                 if (update) {

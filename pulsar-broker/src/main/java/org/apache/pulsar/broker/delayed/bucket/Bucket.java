@@ -31,7 +31,8 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.roaringbitmap.RoaringBitmap;
@@ -132,8 +133,8 @@ abstract class Bucket {
     }
 
     CompletableFuture<Long> asyncSaveBucketSnapshot(
-            ImmutableBucket bucket, DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata snapshotMetadata,
-            List<DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment> bucketSnapshotSegments) {
+            ImmutableBucket bucket, SnapshotMetadata snapshotMetadata,
+            List<SnapshotSegment> bucketSnapshotSegments) {
         final String bucketKey = bucket.bucketKey();
         final String cursorName = Codec.decode(cursor.getName());
         final String topicName = dispatcherName.substring(0, dispatcherName.lastIndexOf(" / " + cursorName));

@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
+import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
@@ -225,7 +227,7 @@ public class PersistentTopicsBase extends AdminResource {
                 String topicUri = topicName.toString();
                 AuthPolicies auth = policies.get().auth_policies;
                 // First add namespace level permissions
-                auth.getNamespaceAuthentication().forEach(permissions::put);
+                permissions.putAll(auth.getNamespaceAuthentication());
 
                 // Then add topic level permissions
                 if (auth.getTopicAuthentication().containsKey(topicUri)) {
@@ -1171,6 +1173,21 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force));
     }
 
+    /**
+     * There has a known bug will make Pulsar misidentifies "tp-partition-0-DLQ-partition-0" as "tp-partition-0-DLQ".
+     * You can see the details from PR https://github.com/apache/pulsar/pull/19841.
+     * This method is a quick fix and will be removed in master branch after #19841 and PIP 263 are done.
+     */
+    private boolean isUnexpectedTopicName(PartitionedTopicMetadata topicMetadata) {
+        if (!topicName.toString().contains(PARTITIONED_TOPIC_SUFFIX)){
+            return false;
+        }
+        if (topicMetadata.partitions <= 0){
+            return false;
+        }
+        return topicName.getPartition(0).toString().equals(topicName.toString());
+    }
+
     protected void internalGetSubscriptions(AsyncResponse asyncResponse, boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
@@ -1188,7 +1205,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                                 .thenAccept(partitionMetadata -> {
-                            if (partitionMetadata.partitions > 0) {
+                            if (partitionMetadata.partitions > 0 && !isUnexpectedTopicName(partitionMetadata)) {
                                 try {
                                     final Set<String> subscriptions =
                                             Collections.newSetFromMap(
@@ -3045,6 +3062,10 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         PersistentTopic persistentTopic = (PersistentTopic) topic;
                         long totalMessage = persistentTopic.getNumberOfEntries();
+                        if (totalMessage <= 0) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Could not examine messages due to the total message is zero");
+                        }
                         PositionImpl startPosition = persistentTopic.getFirstPosition();
 
                         long messageToSkip = initialPositionLocal.equals("earliest") ? messagePositionLocal :
@@ -3716,7 +3737,7 @@ public class PersistentTopicsBase extends AdminResource {
                             .thenCompose(metadata -> {
                                 if (metadata.partitions > 0) {
                                     return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
-                                    + TopicName.PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
+                                    + PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
                                 } else {
                                     return validateTopicOwnershipAsync(topicName, authoritative);
                                 }
@@ -4388,8 +4409,13 @@ public class PersistentTopicsBase extends AdminResource {
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
+        // It is necessary for system topic operations because system topics are used to store metadata
+        // and other vital information. Even after namespace starting deletion,,
+        // we need to access the metadata of system topics to create readers and clean up topic data.
+        // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
         authorizationFuture.thenCompose(__ ->
-                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject()))
+                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(),
+                                SystemTopicNames.isSystemTopic(topicName)))
                 .thenCompose(res ->
                         pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
                 .thenAccept(metadata -> {
@@ -4416,7 +4442,11 @@ public class PersistentTopicsBase extends AdminResource {
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
+        // It is necessary for system topic operations because system topics are used to store metadata
+        // and other vital information. Even after namespace starting deletion,,
+        // we need to access the metadata of system topics to create readers and clean up topic data.
+        // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
+        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
             .thenCompose(res -> pulsar.getBrokerService()
                 .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
             .thenAccept(metadata -> {
@@ -4543,7 +4573,7 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> validatePartitionTopicUpdateAsync(String topicName, int numberOfPartition) {
         return internalGetListAsync().thenCompose(existingTopicList -> {
             TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
-            String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
+            String prefix = partitionTopicName.getPartitionedTopicName() + PARTITIONED_TOPIC_SUFFIX;
             return getPartitionedTopicMetadataAsync(partitionTopicName, false, false)
                     .thenAccept(metadata -> {
                         int oldPartition = metadata.partitions;
@@ -4551,8 +4581,8 @@ public class PersistentTopicsBase extends AdminResource {
                             if (existingTopicName.startsWith(prefix)) {
                                 try {
                                     long suffix = Long.parseLong(existingTopicName.substring(
-                                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
-                                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                                            existingTopicName.indexOf(PARTITIONED_TOPIC_SUFFIX)
+                                                    + PARTITIONED_TOPIC_SUFFIX.length()));
                                     // Skip partition of partitioned topic by making sure
                                     // the numeric suffix greater than old partition number.
                                     if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
@@ -4593,12 +4623,12 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private CompletableFuture<Void> validateNonPartitionTopicNameAsync(String topicName) {
         CompletableFuture<Void> ret = CompletableFuture.completedFuture(null);
-        if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+        if (topicName.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
                 // First check if what's after suffix "-partition-" is number or not, if not number then can create.
-                int partitionIndex = topicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
+                int partitionIndex = topicName.indexOf(PARTITIONED_TOPIC_SUFFIX);
                 long suffix = Long.parseLong(topicName.substring(partitionIndex
-                        + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                        + PARTITIONED_TOPIC_SUFFIX.length()));
                 TopicName partitionTopicName = TopicName.get(domain(),
                         namespaceName, topicName.substring(0, partitionIndex));
                 ret = getPartitionedTopicMetadataAsync(partitionTopicName, false, false)

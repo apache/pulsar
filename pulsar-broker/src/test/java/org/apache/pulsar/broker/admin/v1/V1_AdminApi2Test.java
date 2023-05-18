@@ -251,7 +251,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         client.close();
 
         topicStats = admin.nonPersistentTopics().getStats(persistentTopicName);
-        assertTrue(topicStats.getSubscriptions().keySet().contains("my-sub"));
+        assertFalse(topicStats.getSubscriptions().keySet().contains("my-sub"));
         assertEquals(topicStats.getPublishers().size(), 0);
 
         // test partitioned-topic

@@ -245,7 +245,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String bindAddresses;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = "Enable or disable the proxy protocol.")
+            doc = "Enable or disable the proxy protocol."
+                    + " If true, the real IP addresses of consumers and producers can be obtained"
+                    + " when getting topic statistics data.")
     private boolean haProxyProtocolEnabled;
 
     @FieldContext(
@@ -372,8 +374,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
             The max number of delayed message index bucket, \
-            after reaching the max buckets limitation, the adjacent buckets will be merged.""")
-    private int delayedDeliveryMaxNumBuckets = 50;
+            after reaching the max buckets limitation, the adjacent buckets will be merged.\
+            (disable with value -1)""")
+    private int delayedDeliveryMaxNumBuckets = -1;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay. "
@@ -1170,13 +1173,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Whether allow topic level entry filters policies overrides broker configuration."
     )
     private boolean allowOverrideEntryFilters = false;
-
-    @FieldContext(
-        category = CATEGORY_SERVER,
-        doc = "Whether to use streaming read dispatcher. Currently is in preview and can be changed "
-                + "in subsequent release."
-    )
-    private boolean streamingDispatch = false;
 
     @FieldContext(
         dynamic = true,

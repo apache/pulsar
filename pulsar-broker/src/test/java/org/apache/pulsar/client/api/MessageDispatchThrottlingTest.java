@@ -1228,7 +1228,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         conf.setManagedLedgerMinimumBacklogCursorsForCaching(2);
         conf.setManagedLedgerMinimumBacklogEntriesForCaching(10);
         conf.setManagedLedgerCacheEvictionTimeThresholdMillis(60 * 1000);
-        conf.setStreamingDispatch(false);
         restartBroker();
         final long totalMessages = 200;
         final int receiverSize = 10;

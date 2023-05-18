@@ -272,9 +272,13 @@ The Apache Software License, Version 2.0
     - grpc-protobuf-lite-1.45.1.jar
     - grpc-stub-1.45.1.jar
   * JEtcd
-    - jetcd-common-0.5.11.jar
-    - jetcd-core-0.5.11.jar
-
+    - jetcd-api-0.7.5.jar
+    - jetcd-common-0.7.5.jar
+    - jetcd-core-0.7.5.jar
+    - jetcd-grpc-0.7.5.jar
+  * Vertx
+    - vertx-core-4.3.8.jar
+    - vertx-grpc-4.3.5.jar
  * Joda Time
     - joda-time-2.10.10.jar
     - failsafe-2.4.4.jar
@@ -426,21 +430,21 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.16.0.jar
-    - bookkeeper-common-allocator-4.16.0.jar
-    - bookkeeper-proto-4.16.0.jar
-    - bookkeeper-server-4.16.0.jar
-    - bookkeeper-stats-api-4.16.0.jar
-    - bookkeeper-tools-framework-4.16.0.jar
-    - circe-checksum-4.16.0.jar
-    - codahale-metrics-provider-4.16.0.jar
-    - cpu-affinity-4.16.0.jar
-    - http-server-4.16.0.jar
-    - prometheus-metrics-provider-4.16.0.jar
-    - codahale-metrics-provider-4.16.0.jar
-    - bookkeeper-slogger-api-4.16.0.jar
-    - bookkeeper-slogger-slf4j-4.16.0.jar
-    - native-io-4.16.0.jar
+    - bookkeeper-common-4.16.1.jar
+    - bookkeeper-common-allocator-4.16.1.jar
+    - bookkeeper-proto-4.16.1.jar
+    - bookkeeper-server-4.16.1.jar
+    - bookkeeper-stats-api-4.16.1.jar
+    - bookkeeper-tools-framework-4.16.1.jar
+    - circe-checksum-4.16.1.jar
+    - codahale-metrics-provider-4.16.1.jar
+    - cpu-affinity-4.16.1.jar
+    - http-server-4.16.1.jar
+    - prometheus-metrics-provider-4.16.1.jar
+    - codahale-metrics-provider-4.16.1.jar
+    - bookkeeper-slogger-api-4.16.1.jar
+    - bookkeeper-slogger-slf4j-4.16.1.jar
+    - native-io-4.16.1.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
@@ -476,8 +480,6 @@ The Apache Software License, Version 2.0
     - swagger-annotations-1.6.2.jar
   * Perfmark
     - perfmark-api-0.19.0.jar
-  * Annotations
-    - auto-service-annotations-1.0.jar
   * RabbitMQ Java Client
     - amqp-client-5.5.3.jar
   * Stream Lib
@@ -520,9 +522,6 @@ MIT License
    - jcl-over-slf4j-1.7.32.jar
  * Checker Qual
    - checker-qual-3.12.0.jar
- * Annotations
-   - animal-sniffer-annotations-1.19.jar
-   - annotations-4.1.1.4.jar
  * ScribeJava
    - scribejava-apis-6.9.0.jar
    - scribejava-core-6.9.0.jar

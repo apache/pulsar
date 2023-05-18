@@ -42,13 +42,14 @@ on:
     - cron: '30 */12 * * *'
 
 env:
-  MAVEN_OPTS: -Xss1500k -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
+  MAVEN_OPTS: -Xss1500k -Daether.connector.http.reuseConnections=false -Daether.connector.requestTimeout=60000 -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.wagon.http.serviceUnavailableRetryStrategy.class=standard -Dmaven.wagon.rto=60000
 
 jobs:
   update-maven-dependencies-cache:
     name: Update Maven dependency cache for ${{ matrix.name }}
     env:
       JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
+      GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: 45
 
@@ -76,11 +77,6 @@ jobs:
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
-
-      - name: Configure Gradle Enterprise
-        uses: ./.github/actions/gradle-enterprise
-        with:
-          token: ${{ secrets.GE_ACCESS_TOKEN }}
 
       - name: Detect changed files
         if: ${{ github.event_name != 'schedule' }}

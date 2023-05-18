@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.Refe
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndex;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexesMetadata;
@@ -265,7 +266,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                     PositionImpl finalStartReadCursorPosition = startReadCursorPosition;
                     TransactionBufferSnapshotIndexes finalPersistentSnapshotIndexes = persistentSnapshotIndexes;
                     if (persistentSnapshotIndexes == null) {
-                        return CompletableFuture.completedFuture(null);
+                        return recoverOldSnapshot();
                     } else {
                         this.unsealedTxnIds = convertTypeToTxnID(persistentSnapshotIndexes
                                 .getSnapshot().getAborts());
@@ -376,6 +377,69 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
 
                     },  topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
                         .getExecutor(this));
+    }
+
+    // This method will be deprecated and removed in version 4.x.0
+    private CompletableFuture<PositionImpl> recoverOldSnapshot() {
+        return topic.getBrokerService().getTopic(TopicName.get(topic.getName()).getNamespace() + "/"
+                        + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT, false)
+                .thenCompose(topicOption -> {
+                    if (!topicOption.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    } else {
+                        return topic.getBrokerService().getPulsar().getTransactionBufferSnapshotServiceFactory()
+                                .getTxnBufferSnapshotService()
+                                .createReader(TopicName.get(topic.getName())).thenComposeAsync(snapshotReader -> {
+                                    PositionImpl startReadCursorPositionInOldSnapshot = null;
+                                    try {
+                                        while (snapshotReader.hasMoreEvents()) {
+                                            Message<TransactionBufferSnapshot> message = snapshotReader.readNextAsync()
+                                                    .get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+                                            if (topic.getName().equals(message.getKey())) {
+                                                TransactionBufferSnapshot transactionBufferSnapshot =
+                                                        message.getValue();
+                                                if (transactionBufferSnapshot != null) {
+                                                    handleOldSnapshot(transactionBufferSnapshot);
+                                                    startReadCursorPositionInOldSnapshot = PositionImpl.get(
+                                                            transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                                            transactionBufferSnapshot.getMaxReadPositionEntryId());
+                                                }
+                                            }
+                                        }
+                                    } catch (TimeoutException ex) {
+                                        Throwable t = FutureUtil.unwrapCompletionException(ex);
+                                        String errorMessage = String.format("[%s] Transaction buffer recover fail by "
+                                                + "read transactionBufferSnapshot timeout!", topic.getName());
+                                        log.error(errorMessage, t);
+                                        return FutureUtil.failedFuture(new BrokerServiceException
+                                                .ServiceUnitNotReadyException(errorMessage, t));
+                                    } catch (Exception ex) {
+                                        log.error("[{}] Transaction buffer recover fail when read "
+                                                + "transactionBufferSnapshot!", topic.getName(), ex);
+                                        return FutureUtil.failedFuture(ex);
+                                    } finally {
+                                        assert snapshotReader != null;
+                                        closeReader(snapshotReader);
+                                    }
+                                    return CompletableFuture.completedFuture(startReadCursorPositionInOldSnapshot);
+                                },
+                                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                                .getExecutor(this));
+                    }
+                });
+    }
+
+    // This method will be deprecated and removed in version 4.x.0
+    private void handleOldSnapshot(TransactionBufferSnapshot snapshot) {
+        if (snapshot.getAborts() != null) {
+            snapshot.getAborts().forEach(abortTxnMetadata -> {
+                TxnID txnID = new TxnID(abortTxnMetadata.getTxnIdMostBits(),
+                        abortTxnMetadata.getTxnIdLeastBits());
+                aborts.put(txnID, txnID);
+                //The old data will be written into the first segment.
+                unsealedTxnIds.add(txnID);
+            });
+        }
     }
 
     @Override

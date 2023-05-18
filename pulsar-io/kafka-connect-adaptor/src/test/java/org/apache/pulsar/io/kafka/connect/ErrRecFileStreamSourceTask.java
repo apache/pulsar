@@ -16,21 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
 
-import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
-import org.apache.pulsar.client.api.SimpleProducerConsumerTest;
-import org.testng.annotations.Test;
+package org.apache.pulsar.io.kafka.connect;
 
-/**
- * SimpleProducerConsumerTest with {@link StreamingDispatcher}
- */
-@Test(groups = "flaky")
-public class SimpleProducerConsumerTestStreamingDispatcherTest extends SimpleProducerConsumerTest {
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.connect.file.FileStreamSourceTask;
+import org.apache.kafka.connect.source.SourceRecord;
+
+public class ErrRecFileStreamSourceTask extends FileStreamSourceTask {
 
     @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setStreamingDispatch(true);
+    public void commitRecord(SourceRecord record, RecordMetadata metadata) throws InterruptedException {
+        throw new org.apache.kafka.connect.errors.ConnectException("blah");
     }
+
 }

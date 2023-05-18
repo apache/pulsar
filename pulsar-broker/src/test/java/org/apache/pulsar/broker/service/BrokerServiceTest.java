@@ -172,8 +172,6 @@ public class BrokerServiceTest extends BrokerTestBase {
             assertTrue(e instanceof PulsarClientException.TimeoutException);
         }
 
-        pulsar = null;
-
         producer.close();
         resetState();
     }
