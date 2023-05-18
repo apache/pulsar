@@ -32,7 +32,9 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
                        LoadData loadData,
                        ServiceConfiguration conf) throws BrokerFilterException {
         loadData.getBrokerData().forEach((key, value) -> {
-            if (!value.getLocalData().getLoadManagerClassName()
+            // The load manager class name can be null if the cluster has old version of broker.
+            if (value.getLocalData().getLoadManagerClassName() == null
+            || !value.getLocalData().getLoadManagerClassName()
                     .equals(conf.getLoadManagerClassName())) {
                 brokers.remove(key);
             }
