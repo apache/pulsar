@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -96,14 +97,10 @@ public class RedirectManager {
                 log.warn(errorMsg);
                 throw new IllegalStateException(errorMsg);
             }
-            if (latestServiceLookupData.get().getLoadManagerClassName() == null) {
-                String errorMsg = "No load manager class name found.";
-                log.warn(errorMsg);
-                throw new IllegalStateException(errorMsg);
-            }
-            if (latestServiceLookupData.get().getLoadManagerClassName().equals(currentLMClassName)) {
+
+            if (Objects.equals(latestServiceLookupData.get().getLoadManagerClassName(), currentLMClassName)) {
                 if (debug) {
-                    log.info("We don't need to redirect, current load manager class name: {}",
+                    log.info("No need to redirect, current load manager class name: {}",
                             currentLMClassName);
                 }
                 return Optional.empty();
@@ -111,10 +108,7 @@ public class RedirectManager {
             var serviceLookupDataObj = latestServiceLookupData.get();
             var candidateBrokers = new ArrayList<ServiceLookupData>();
             lookupDataMap.forEach((key, value) -> {
-                if (value.getLoadManagerClassName() == null) {
-                    return;
-                }
-                if (value.getLoadManagerClassName().equals(serviceLookupDataObj.getLoadManagerClassName())) {
+                if (Objects.equals(value.getLoadManagerClassName(), serviceLookupDataObj.getLoadManagerClassName())) {
                     candidateBrokers.add(value);
                 }
             });

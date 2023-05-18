@@ -65,12 +65,10 @@ public class RedirectManagerTest {
                 }}
         )).when(redirectManager).getAvailableBrokerLookupDataAsync();
 
-        try {
-            redirectManager.findRedirectLookupResultAsync().get();
-            fail();
-        } catch (Exception ex) {
-           assertEquals(ex.getCause().getMessage(), "No load manager class name found.");
-        }
+        // Should redirect to broker-1, since broker-1 has the latest load manager, even though the class name is null.
+        Optional<LookupResult> lookupResult = redirectManager.findRedirectLookupResultAsync().get();
+        assertTrue(lookupResult.isPresent());
+        assertTrue(lookupResult.get().getLookupData().getBrokerUrl().contains("broker-1"));
 
         // Test 2: Should redirect to broker-1, since the latest broker are using ExtensibleLoadManagerImpl
         doReturn(CompletableFuture.completedFuture(
@@ -80,7 +78,7 @@ public class RedirectManagerTest {
                 }}
         )).when(redirectManager).getAvailableBrokerLookupDataAsync();
 
-        Optional<LookupResult> lookupResult = redirectManager.findRedirectLookupResultAsync().get();
+        lookupResult = redirectManager.findRedirectLookupResultAsync().get();
         assertTrue(lookupResult.isPresent());
         assertTrue(lookupResult.get().getLookupData().getBrokerUrl().contains("broker-1"));
 
