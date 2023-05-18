@@ -163,7 +163,9 @@ public class ClustersBase extends PulsarWebResource {
     ) {
         validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
-
+        if (clusterData == null) {
+            throw new RestException(Status.BAD_REQUEST, "cluster data is required");
+        }
         try {
             NamedEntity.checkName(cluster);
             if (clusterResources().getCluster(cluster).isPresent()) {
