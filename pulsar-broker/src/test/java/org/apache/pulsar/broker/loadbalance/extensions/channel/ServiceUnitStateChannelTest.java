@@ -713,8 +713,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         var cleanupJobs1 = getCleanupJobs(channel1);
         var cleanupJobs2 = getCleanupJobs(channel2);
-        var leaderCleanupJobs = spy(cleanupJobs1);
-        var followerCleanupJobs = spy(cleanupJobs2);
+        var leaderCleanupJobsTmp = spy(cleanupJobs1);
+        var followerCleanupJobsTmp = spy(cleanupJobs2);
         var leaderChannel = channel1;
         var followerChannel = channel2;
         String leader = channel1.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
@@ -723,10 +723,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         if (leader.equals(lookupServiceAddress2)) {
             leaderChannel = channel2;
             followerChannel = channel1;
-            var tmp = followerCleanupJobs;
-            followerCleanupJobs = leaderCleanupJobs;
-            leaderCleanupJobs = tmp;
+            var tmp = followerCleanupJobsTmp;
+            followerCleanupJobsTmp = leaderCleanupJobsTmp;
+            leaderCleanupJobsTmp = tmp;
         }
+        final var leaderCleanupJobs = leaderCleanupJobsTmp;
+        final var followerCleanupJobs = followerCleanupJobsTmp;
         FieldUtils.writeDeclaredField(leaderChannel, "cleanupJobs", leaderCleanupJobs,
                 true);
         FieldUtils.writeDeclaredField(followerChannel, "cleanupJobs", followerCleanupJobs,
@@ -769,9 +771,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         verify(leaderCleanupJobs, times(1)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
 
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(0, leaderCleanupJobs.size());
+            assertEquals(0, followerCleanupJobs.size());
+        });
 
-        assertEquals(0, leaderCleanupJobs.size());
-        assertEquals(0, followerCleanupJobs.size());
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
@@ -797,8 +801,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         verify(leaderCleanupJobs, times(2)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
-        assertEquals(1, leaderCleanupJobs.size());
-        assertEquals(0, followerCleanupJobs.size());
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(1, leaderCleanupJobs.size());
+            assertEquals(0, followerCleanupJobs.size());
+        });
+
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
@@ -814,8 +822,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         verify(leaderCleanupJobs, times(2)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
-        assertEquals(0, leaderCleanupJobs.size());
-        assertEquals(0, followerCleanupJobs.size());
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(0, leaderCleanupJobs.size());
+            assertEquals(0, followerCleanupJobs.size());
+        });
+
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
@@ -833,8 +845,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         verify(leaderCleanupJobs, times(3)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
-        assertEquals(1, leaderCleanupJobs.size());
-        assertEquals(0, followerCleanupJobs.size());
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(1, leaderCleanupJobs.size());
+            assertEquals(0, followerCleanupJobs.size());
+        });
+
         validateMonitorCounters(leaderChannel,
                 1,
                 0,
@@ -852,8 +867,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         verify(leaderCleanupJobs, times(3)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
-        assertEquals(0, leaderCleanupJobs.size());
-        assertEquals(0, followerCleanupJobs.size());
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(0, leaderCleanupJobs.size());
+            assertEquals(0, followerCleanupJobs.size());
+        });
+
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
@@ -878,8 +896,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         verify(leaderCleanupJobs, times(3)).computeIfAbsent(eq(broker), any());
         verify(followerCleanupJobs, times(0)).computeIfAbsent(eq(broker), any());
-        assertEquals(0, leaderCleanupJobs.size());
-        assertEquals(0, followerCleanupJobs.size());
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(0, leaderCleanupJobs.size());
+            assertEquals(0, followerCleanupJobs.size());
+        });
+
         validateMonitorCounters(leaderChannel,
                 2,
                 0,
