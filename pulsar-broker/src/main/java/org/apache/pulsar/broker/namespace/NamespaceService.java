@@ -38,7 +38,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
@@ -1137,16 +1139,17 @@ public class NamespaceService implements AutoCloseable {
                 new IllegalArgumentException("Invalid class of NamespaceBundle: " + suName.getClass().getName()));
     }
 
+    /**
+     * @Deprecated This method is only used in test now.
+     */
+    @Deprecated
     public boolean isServiceUnitActive(TopicName topicName) {
         try {
-            OwnedBundle ownedBundle = ownershipCache.getOwnedBundle(getBundle(topicName));
-            if (ownedBundle == null) {
-                return false;
-            }
-            return ownedBundle.isActive();
-        } catch (Exception e) {
-            LOG.warn("Unable to find OwnedBundle for topic - [{}]", topicName, e);
-            return false;
+            return isServiceUnitActiveAsync(topicName).get(pulsar.getConfig()
+                    .getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOG.warn("Unable to find OwnedBundle for topic in time - [{}]", topicName, e);
+            throw new RuntimeException(e);
         }
     }
 
@@ -1156,12 +1159,13 @@ public class NamespaceService implements AutoCloseable {
             return getBundleAsync(topicName)
                     .thenCompose(bundle -> loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle));
         }
-        Optional<CompletableFuture<OwnedBundle>> res = ownershipCache.getOwnedBundleAsync(getBundle(topicName));
-        if (!res.isPresent()) {
-            return CompletableFuture.completedFuture(false);
-        }
-
-        return res.get().thenApply(ob -> ob != null && ob.isActive());
+        return getBundleAsync(topicName).thenCompose(bundle -> {
+            Optional<CompletableFuture<OwnedBundle>> optionalFuture = ownershipCache.getOwnedBundleAsync(bundle);
+            if (!optionalFuture.isPresent()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return optionalFuture.get().thenApply(ob -> ob != null && ob.isActive());
+        });
     }
 
     private boolean isNamespaceOwned(NamespaceName fqnn) throws Exception {
