@@ -223,26 +223,18 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                 if (dispatcher == null || !dispatcher.isConsumerConnected()) {
                     Dispatcher previousDispatcher = null;
-                    boolean useStreamingDispatcher = topic.getBrokerService().getPulsar()
-                            .getConfiguration().isStreamingDispatch();
                     switch (consumer.subType()) {
                         case Exclusive:
                             if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
                                 previousDispatcher = dispatcher;
-                                dispatcher = useStreamingDispatcher
-                                        ? new PersistentStreamingDispatcherSingleActiveConsumer(
-                                        cursor, SubType.Exclusive, 0, topic, this)
-                                        : new PersistentDispatcherSingleActiveConsumer(
+                                dispatcher = new PersistentDispatcherSingleActiveConsumer(
                                         cursor, SubType.Exclusive, 0, topic, this);
                             }
                             break;
                         case Shared:
                             if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                                 previousDispatcher = dispatcher;
-                                dispatcher = useStreamingDispatcher
-                                        ? new PersistentStreamingDispatcherMultipleConsumers(
-                                        topic, cursor, this)
-                                        : new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                             }
                             break;
                         case Failover:
@@ -256,10 +248,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
                             if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                                 previousDispatcher = dispatcher;
-                                dispatcher = useStreamingDispatcher
-                                        ? new PersistentStreamingDispatcherSingleActiveConsumer(
-                                        cursor, SubType.Failover, partitionIndex, topic, this) :
-                                        new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
+                                dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
                                                 partitionIndex, topic, this);
                             }
                             break;

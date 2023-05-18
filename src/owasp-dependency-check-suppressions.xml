@@ -232,46 +232,69 @@
     <!-- jetcd matched against ETCD server CVEs-->
     <suppress>
         <notes><![CDATA[
-       file name: jetcd-core-0.5.11.jar
+       file name: jetcd-api-0.7.5.jar
        ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15106</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
-        <cve>CVE-2020-15112</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-core-0.5.11.jar
-       ]]></notes>
-        <sha1>c85851ca3ea8128d480d3f75c568a37e64e8a77b</sha1>
+        <sha1>861af62ae22a71d30f401a80049397fe7ff44423</sha1>
         <cve>CVE-2020-15113</cve>
     </suppress>
 
     <suppress>
         <notes><![CDATA[
-       file name: jetcd-common-0.5.11.jar
+       file name: jetcd-core-0.7.5.jar
        ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15106</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
-        <cve>CVE-2020-15112</cve>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-       file name: jetcd-common-0.5.11.jar
-       ]]></notes>
-        <sha1>6dac6efe035a2be9ba299fbf31be5f903401869f</sha1>
+        <sha1>663f2ccc0ec7797954c333fa75feeb7d559948b0</sha1>
         <cve>CVE-2020-15113</cve>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-common-0.7.5.jar
+       ]]></notes>
+        <sha1>abd0ffcd4e66046057c3bfb34affc0de870a038b</sha1>
+        <cve>CVE-2020-15113</cve>
+    </suppress>
+
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-grpc-0.7.5.jar
+       ]]></notes>
+        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
+        <cve>CVE-2017-8359</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-grpc-0.7.5.jar
+       ]]></notes>
+        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
+        <cve>CVE-2020-15113</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-grpc-0.7.5.jar
+       ]]></notes>
+        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
+        <cve>CVE-2020-7768</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-grpc-0.7.5.jar
+       ]]></notes>
+        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
+        <cve>CVE-2017-7861</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-grpc-0.7.5.jar
+       ]]></notes>
+        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
+        <cve>CVE-2017-9431</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: jetcd-grpc-0.7.5.jar
+       ]]></notes>
+        <sha1>a2e99802fec5586daca0c4daae975fe601a057a8</sha1>
+        <cve>CVE-2017-7860</cve>
     </suppress>
 
     <!-- bouncycastle misdetections -->

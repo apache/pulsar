@@ -24,7 +24,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.util.RateLimitFunction;
 import org.apache.pulsar.common.util.RateLimiter;
 
-public class PrecisPublishLimiter implements PublishRateLimiter {
+public class PrecisePublishLimiter implements PublishRateLimiter {
     protected volatile int publishMaxMessageRate = 0;
     protected volatile long publishMaxByteRate = 0;
     // precise mode for publish rate limiter
@@ -33,18 +33,18 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     private final RateLimitFunction rateLimitFunction;
     private final ScheduledExecutorService scheduledExecutorService;
 
-    public PrecisPublishLimiter(Policies policies, String clusterName, RateLimitFunction rateLimitFunction) {
+    public PrecisePublishLimiter(Policies policies, String clusterName, RateLimitFunction rateLimitFunction) {
         this.rateLimitFunction = rateLimitFunction;
         update(policies, clusterName);
         this.scheduledExecutorService = null;
     }
 
-    public PrecisPublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction) {
+    public PrecisePublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction) {
         this(publishRate, rateLimitFunction, null);
     }
 
-    public PrecisPublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction,
-                                ScheduledExecutorService scheduledExecutorService) {
+    public PrecisePublishLimiter(PublishRate publishRate, RateLimitFunction rateLimitFunction,
+                                 ScheduledExecutorService scheduledExecutorService) {
         this.rateLimitFunction = rateLimitFunction;
         update(publishRate);
         this.scheduledExecutorService = scheduledExecutorService;

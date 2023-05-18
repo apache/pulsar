@@ -81,7 +81,7 @@ public abstract class TlsProducerConsumerBase extends ProducerConsumerBase {
         if (addCertificates) {
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
-            authParams.put("tlsKeyFile", getTlsFileForClient("admin.key"));
+            authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
             clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
         }
         replacePulsarClient(clientBuilder);
@@ -90,7 +90,7 @@ public abstract class TlsProducerConsumerBase extends ProducerConsumerBase {
     protected void internalSetUpForNamespace() throws Exception {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
-        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         if (admin != null) {
             admin.close();

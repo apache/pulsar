@@ -166,7 +166,7 @@ public class BKStateStoreImpl implements DefaultStateStore {
                             data.readBytes(result);
                             // Set position to off the buffer to the beginning, since the position after the
                             // read is going to be end of the buffer
-                            // If we do not rewind to the begining here, users will have to explicitly do
+                            // If we do not rewind to the beginning here, users will have to explicitly do
                             // this in their function code
                             // in order to use any of the ByteBuffer operations
                             result.position(0);
