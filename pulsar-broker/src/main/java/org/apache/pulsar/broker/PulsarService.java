@@ -787,6 +787,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 brokerService.setInterceptor(interceptor);
             }
             brokerService.start();
+            
+            // Initialize broker interceptors after broker is ready,
+            // so that the broker interceptors can access broker service properly.
+            if (interceptor != null) {
+                interceptor.initialize(this);
+            }
 
             // Load additional servlets
             this.brokerAdditionalServlets = AdditionalServlets.load(config);
@@ -875,12 +881,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
                 this.protocolHandlers.newChannelInitializers();
             this.brokerService.startProtocolHandlers(protocolHandlerChannelInitializers);
-
-            // Initialize broker interceptors after broker is ready,
-            // so that the broker interceptors can access broker service properly.
-            if (interceptor != null) {
-                interceptor.initialize(this);
-            }
 
             acquireSLANamespace();
 
