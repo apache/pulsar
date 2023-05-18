@@ -34,6 +34,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
@@ -248,7 +249,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             return service.getAuthorizationService()
                     .allowTopicOperationAsync(topic, TopicOperation.PRODUCE, authRole, authenticationData)
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException e) {
+        } catch (TimeoutException e) {
             log.warn("Time-out {} sec while checking authorization on {} ",
                     service.getConfig().getMetadataStoreOperationTimeoutSeconds(), topic);
             throw e;
