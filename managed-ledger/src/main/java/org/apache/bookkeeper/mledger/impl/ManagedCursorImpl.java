@@ -2719,6 +2719,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    /**
+     * Manually acknowledge all entries in the lost ledger.
+     * - Since this is an uncommon event, we focus on maintainability. So we do not modify
+     *   {@link #individualDeletedMessages} and {@link #batchDeletedIndexes}, but call
+     *   {@link #asyncDelete(Position, AsyncCallbacks.DeleteCallback, Object)}.
+     * - This method is valid regardless of the consumer ACK type.
+     * - If there is a consumer ack request after this event, it will also work.
+     */
     @Override
     public void noticeNonRecoverableLedgerSkipped(final long ledgerId){
         LedgerInfo ledgerInfo = ledger.getLedgersInfo().get(ledgerId);
