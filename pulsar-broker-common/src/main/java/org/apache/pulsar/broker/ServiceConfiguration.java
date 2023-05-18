@@ -2995,6 +2995,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean transactionCoordinatorEnabled = false;
 
     @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Max number of txnMeta of aborted transaction to persist in broker."
+                    + "If the number of aborted transaction is greater than this value, the oldest aborted transaction will be "
+                    + "removed from the cache and persisted in the store."
+                    + "default value is 0, disable persistence of aborted transaction."
+    )
+    private int TransactionMetaPersistCount = 0;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Time in hour to persist the transaction metadata in TransactionMetadataPreserver."
+    )
+    private long TransactionMetaPersistTimeInHour = 72;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "Interval in seconds to check the expired transaction in TransactionMetadataPreserver."
+    )
+    private long TransactionMetaExpireCheckIntervalInSecond = 300;
+
+
+    @FieldContext(
         category = CATEGORY_TRANSACTION,
             doc = "Class name for transaction metadata store provider"
     )
