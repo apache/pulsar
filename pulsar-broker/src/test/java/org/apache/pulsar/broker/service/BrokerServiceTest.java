@@ -792,7 +792,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
-        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         PulsarClient pulsarClient = null;
 
@@ -855,7 +855,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
-        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         PulsarClient pulsarClient = null;
 
@@ -918,7 +918,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
-        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         PulsarClient pulsarClient = null;
 

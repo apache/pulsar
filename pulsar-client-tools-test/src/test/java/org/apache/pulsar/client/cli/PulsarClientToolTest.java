@@ -329,7 +329,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         final String url = "pulsar+ssl://localhost:6651";
         final String authPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
         final String authParams = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
-                getTlsFileForClient("admin.key"));
+                getTlsFileForClient("admin.key-pk8"));
         final String message = "test msg";
         final int numberOfMessages = 1;
         final String topicName = getTopicWithRandomSuffix("test-topic");
