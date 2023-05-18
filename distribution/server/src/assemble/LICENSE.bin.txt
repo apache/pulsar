@@ -410,12 +410,6 @@ The Apache Software License, Version 2.0
      - com.squareup.okhttp3-logging-interceptor-4.10.0.jar
      - com.squareup.okhttp3-okhttp-4.10.0.jar
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
- * Kotlin Standard Lib
-     - org.jetbrains.kotlin-kotlin-stdlib-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-common-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk7-1.8.20.jar
-     - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.8.20.jar
-     - org.jetbrains-annotations-13.0.jar
  * gRPC
     - io.grpc-grpc-all-1.45.1.jar
     - io.grpc-grpc-auth-1.45.1.jar
