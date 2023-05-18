@@ -318,6 +318,27 @@ public class ClusterMigrationTest {
         retryStrategically((test) -> topic2.getSubscription("s2") != null, 10, 500);
         assertFalse(topic2.getSubscription("s2").getConsumers().isEmpty());
 
+        // new sub on migration topic must be redirected immediately
+        Consumer<byte[]> consumerM = client1.newConsumer().topic(topicName).subscriptionType(subType)
+                .subscriptionName("sM").subscribe();
+        assertFalse(pulsar2.getBrokerService().getTopicReference(topicName).get().getSubscription("sM").getConsumers()
+                .isEmpty());
+        consumerM.close();
+
+        // migrate topic after creating subscription
+        String newTopicName = topicName + "-new";
+        consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
+                .subscriptionName("sM").subscribe();
+        retryStrategically((t) -> pulsar1.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
+        pulsar1.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
+        retryStrategically((t) ->
+        pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent() &&
+        pulsar2.getBrokerService().getTopicReference(newTopicName).get().getSubscription("sM")
+                .getConsumers().isEmpty(), 5, 100);
+        assertFalse(pulsar2.getBrokerService().getTopicReference(newTopicName).get().getSubscription("sM").getConsumers()
+                .isEmpty());
+        consumerM.close();
+
         // publish messages to cluster-2 and consume them
         for (int i = 0; i < n; i++) {
             producer1.send("test2".getBytes());
