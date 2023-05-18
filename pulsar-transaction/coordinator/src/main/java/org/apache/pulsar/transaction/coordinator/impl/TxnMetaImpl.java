@@ -72,7 +72,7 @@ class TxnMetaImpl implements TxnMeta {
         this.clientName = null;
     }
 
-    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt,, String owner, String clientName) {
+    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt, String owner, String clientName) {
         this.txnID = txnID;
         this.openTimestamp = openTimestamp;
         this.timeoutAt = timeoutAt;
