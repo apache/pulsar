@@ -59,7 +59,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -95,6 +94,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.StringProperty;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
@@ -2721,31 +2721,60 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void noticeNonRecoverableLedgerSkipped(final long ledgerId){
+        LedgerInfo ledgerInfo = ledger.getLedgersInfo().get(ledgerId);
+        if (ledgerInfo == null) {
+            return;
+        }
         lock.writeLock().lock();
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
                 + " be removed in individualDeletedMessages of current cursor", ledger.getName(), name, ledgerId);
         try {
-            List<Range> rangeListToDelete = individualDeletedMessages.asRanges().stream()
-                    .filter(range -> range.lowerEndpoint().getLedgerId() == ledgerId)
-                    .map(range -> Range.openClosed(
-                            new LongPairRangeSet.LongPair(ledgerId, range.lowerEndpoint().getEntryId()),
-                            new LongPairRangeSet.LongPair(ledgerId, range.upperEndpoint().getEntryId())
-                    )).collect(Collectors.toList());
-            if (!rangeListToDelete.isEmpty()) {
-                rangeListToDelete.forEach(individualDeletedMessages::remove);
-            }
-
-            if (batchDeletedIndexes != null) {
-                Set<PositionImpl> batchedIndexesToDelete = batchDeletedIndexes.keySet().stream()
-                        .filter(position -> position.getLedgerId() == ledgerId)
-                        .collect(Collectors.toSet());
-                if (!batchedIndexesToDelete.isEmpty()) {
-                    batchedIndexesToDelete.forEach(batchDeletedIndexes::remove);
+            List<Position> positionsToAck = new ArrayList<>();
+            for (int i = 0; i < ledgerInfo.getEntries(); i++) {
+                if (!individualDeletedMessages.contains(ledgerId, i)) {
+                    positionsToAck.add(PositionImpl.get(ledgerId, i));
                 }
+                // Acknowledge in segments to avoid OOM.
+                if (positionsToAck.size() >= 1000) {
+                    retryToAcknowledgeNonRecoverablePositions(positionsToAck, 1);
+                    positionsToAck = new ArrayList<>();
+                }
+            }
+            // Acknowledge the last segments.
+            if (!positionsToAck.isEmpty()) {
+                retryToAcknowledgeNonRecoverablePositions(positionsToAck, 1);
             }
         } finally {
             lock.writeLock().unlock();
         }
+    }
+
+    private void retryToAcknowledgeNonRecoverablePositions(List<Position> positions, int retryTimes) {
+        if (CollectionUtils.isEmpty(positions)) {
+            return;
+        }
+        asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+                // ignore.
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException ex, Object ctx) {
+                if (retryTimes <= 3) {
+                    log.warn("[{}] [{}] Try to acknowledge the non recoverable positions fail and it will be retry"
+                                    + " after 60s. ledgerId: {}, the current retry times: {}",
+                            ledger.getName(), name, positions.get(0).getLedgerId(), retryTimes, ex);
+                    ledger.getScheduledExecutor()
+                            .schedule(() -> retryToAcknowledgeNonRecoverablePositions(positions, retryTimes + 1),
+                                    60, TimeUnit.SECONDS);
+                } else {
+                    log.error("[{}] [{}] Try to acknowledge the non recoverable positions ultimately failed."
+                                    + " ledgerId: {}, retry times: {}",
+                            ledger.getName(), name, positions.get(0).getLedgerId(), retryTimes, ex);
+                }
+            }
+        }, retryTimes);
     }
 
     // //////////////////////////////////////////////////

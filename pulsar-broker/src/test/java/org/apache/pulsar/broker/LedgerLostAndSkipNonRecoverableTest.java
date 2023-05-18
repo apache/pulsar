@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker;
 
-import java.net.Inet4Address;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -32,25 +31,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -60,146 +53,25 @@ import org.testng.annotations.Test;
 
 @Slf4j
 @Test(groups = "broker")
-public class LedgerLostTest {
+public class LedgerLostAndSkipNonRecoverableTest extends ProducerConsumerBase {
 
-    // prefer inet4.
-    private static final String LOCALHOST = Inet4Address.getLoopbackAddress().getHostAddress();
-    private static final String CLUSTER = "broken_ledger_test";
-    private static final String DEFAULT_TENANT = "public";
-    private static final String DEFAULT_NAMESPACE = DEFAULT_TENANT + "/default";
-
-    protected LocalBookkeeperEnsemble bkEnsemble;
-    protected ServiceConfiguration pulsarConfig;
-    protected PulsarService pulsarService;
-    protected int brokerWebServicePort;
-    protected int brokerServicePort;
-    protected String metadataServiceUri;
-    protected BookKeeper bookKeeperClient;
-    protected String brokerUrl;
-    protected String brokerServiceUrl;
-    protected PulsarAdmin pulsarAdmin;
-    protected PulsarClient pulsarClient;
+    private static final String DEFAULT_NAMESPACE = "my-property/my-ns";
 
     @BeforeClass
+    @Override
     protected void setup() throws Exception {
-        log.info("--- Start cluster ---");
-        startLocalBookie();
-        initPulsarConfig();
-        startPulsar();
+        super.internalSetup();
+        super.producerBaseSetup();
     }
 
     @AfterClass
+    @Override
     protected void cleanup() throws Exception {
-        log.info("--- Shutting down ---");
-        silentStopPulsar();
-        stopLocalBookie();
+        super.internalCleanup();
     }
 
-    protected void startLocalBookie() throws Exception{
-        log.info("Start bookie ");
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
-        bkEnsemble.start();
-        metadataServiceUri = String.format("zk:%s:%s", LOCALHOST, bkEnsemble.getZookeeperPort());
-        initBookieClient();
-    }
-
-    protected void initBookieClient() throws Exception {
-        bookKeeperClient = new BookKeeper(String.format("%s:%s", LOCALHOST, bkEnsemble.getZookeeperPort()));
-    }
-
-    protected void stopLocalBookie() {
-        log.info("Close bookie client");
-        try {
-            bookKeeperClient.close();
-        } catch (Exception e){
-            log.error("Close bookie client fail", e);
-        }
-        log.info("Stop bookie ");
-        try {
-            bkEnsemble.stop();
-        } catch (Exception e){
-            log.error("Stop bookie fail", e);
-        }
-    }
-
-    protected void initPulsarConfig() throws Exception{
-        pulsarConfig = new ServiceConfiguration();
-        pulsarConfig.setAdvertisedAddress(LOCALHOST);
-        pulsarConfig.setMetadataStoreUrl(metadataServiceUri);
-        pulsarConfig.setClusterName(CLUSTER);
-        pulsarConfig.setTransactionCoordinatorEnabled(false);
-        pulsarConfig.setAllowAutoTopicCreation(true);
-        pulsarConfig.setSystemTopicEnabled(true);
-        pulsarConfig.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
-        pulsarConfig.setAutoSkipNonRecoverableData(true);
-        pulsarConfig.setManagedLedgerDefaultMarkDeleteRateLimit(Integer.MAX_VALUE);
-        pulsarConfig.setBrokerDeleteInactiveTopicsEnabled(false);
-        pulsarConfig.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-        pulsarConfig.setLazyCursorRecovery(false);
-    }
-
-    protected void startPulsar() throws Exception {
-        log.info("Start pulsar ");
-        pulsarService = new PulsarService(pulsarConfig);
-        pulsarService.start();
-        brokerWebServicePort = pulsarService.getListenPortHTTP().get();
-        brokerServicePort = pulsarService.getBrokerListenPort().get();
-        brokerUrl = String.format("http://%s:%s", LOCALHOST, brokerWebServicePort);
-        brokerServiceUrl = String.format("pulsar://%s:%s", LOCALHOST, brokerServicePort);
-        initPulsarAdmin();
-        initPulsarClient();
-        initDefaultNamespace();
-    }
-
-    protected void silentStopPulsar() throws Exception {
-        log.info("Close pulsar client ");
-        try {
-            pulsarClient.close();
-        }catch (Exception e){
-            log.error("Close pulsar client fail", e);
-        }
-        log.info("Close pulsar admin ");
-        try {
-            pulsarAdmin.close();
-        }catch (Exception e){
-            log.error("Close pulsar admin fail", e);
-        }
-        log.info("Stop pulsar service ");
-        try {
-            pulsarService.close();
-        }catch (Exception e){
-            log.error("Stop pulsar service fail", e);
-        }
-    }
-
-    protected void stopPulsar() throws Exception {
-        log.info("Close pulsar client ");
-        pulsarClient.close();
-        log.info("Close pulsar admin ");
-        pulsarAdmin.close();
-        log.info("Stop pulsar service ");
-        pulsarService.close();
-    }
-
-    protected void initPulsarAdmin() throws Exception {
-        pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(brokerUrl).build();
-    }
-
-    protected void initPulsarClient() throws Exception {
-        pulsarClient = PulsarClient.builder().serviceUrl(brokerServiceUrl).build();
-    }
-
-    protected void initDefaultNamespace() throws Exception {
-        if (!pulsarAdmin.clusters().getClusters().contains(CLUSTER)) {
-            pulsarAdmin.clusters().createCluster(CLUSTER, ClusterData.builder().serviceUrl(brokerServiceUrl).build());
-        }
-        if (!pulsarAdmin.tenants().getTenants().contains(DEFAULT_TENANT)){
-            pulsarAdmin.tenants().createTenant(DEFAULT_TENANT,
-                    TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER)).build());
-        }
-        if (!pulsarAdmin.namespaces().getNamespaces(DEFAULT_TENANT).contains(DEFAULT_NAMESPACE)) {
-            pulsarAdmin.namespaces().createNamespace(DEFAULT_NAMESPACE, Collections.singleton(CLUSTER));
-        }
+    protected void doInitConf() throws Exception {
+        conf.setAutoSkipNonRecoverableData(true);
     }
 
     @DataProvider(name = "batchEnabled")
@@ -211,10 +83,10 @@ public class LedgerLostTest {
     }
 
     @Test(timeOut = 30000, dataProvider = "batchEnabled")
-    public void testTopicLedgerLost(boolean enabledBatch) throws Exception {
+    public void testMarkDeletedPositionCanForwardAfterTopicLedgerLost(boolean enabledBatch) throws Exception {
         String topicSimpleName = UUID.randomUUID().toString().replaceAll("-", "");
         String subName = UUID.randomUUID().toString().replaceAll("-", "");
-        String topicName = String.format("persistent://%s/%s", "public/default", topicSimpleName);
+        String topicName = String.format("persistent://%s/%s", DEFAULT_NAMESPACE, topicSimpleName);
 
         log.info("create topic and subscription.");
         Consumer sub = createConsumer(topicName, subName, enabledBatch);
@@ -248,8 +120,8 @@ public class LedgerLostTest {
         consumer.close();
 
         log.info("Make lost ledger [{}].", individualPosition.getLedgerId());
-        pulsarService.getBrokerService().getTopic(topicName, false).get().get().close(false);
-        bookKeeperClient.deleteLedger(individualPosition.getLedgerId());
+        pulsar.getBrokerService().getTopic(topicName, false).get().get().close(false);
+        pulsarTestContext.getMockBookKeeper().deleteLedger(individualPosition.getLedgerId());
 
         log.info("send some messages.");
         sendManyMessages(topicName, 3, messageCountPerEntry);
@@ -261,20 +133,22 @@ public class LedgerLostTest {
 
         // cleanup
         consumerAndReceivedMessages2.consumer.close();
-        pulsarAdmin.topics().delete(topicName);
+        admin.topics().delete(topicName);
     }
 
     private ManagedCursorImpl getCursor(String topicName, String subName) throws Exception {
         PersistentSubscription subscription_ =
-                (PersistentSubscription) pulsarService.getBrokerService().getTopic(topicName, false)
+                (PersistentSubscription) pulsar.getBrokerService().getTopic(topicName, false)
                         .get().get().getSubscription(subName);
         return  (ManagedCursorImpl) subscription_.getCursor();
     }
 
     private void waitMarkDeleteLargeAndEquals(String topicName, String subName, final long markDeletedLedgerId,
                                             final long markDeletedEntryId) throws Exception {
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(45)).untilAsserted(() -> {
             Position persistentMarkDeletedPosition = getCursor(topicName, subName).getMarkDeletedPosition();
+            log.info("markDeletedPosition {}:{}, expected {}:{}", persistentMarkDeletedPosition.getLedgerId(),
+                    persistentMarkDeletedPosition.getEntryId(), markDeletedLedgerId, markDeletedEntryId);
             Assert.assertTrue(persistentMarkDeletedPosition.getLedgerId() >= markDeletedLedgerId);
             if (persistentMarkDeletedPosition.getLedgerId() > markDeletedLedgerId){
                 return;
@@ -296,7 +170,7 @@ public class LedgerLostTest {
                                                    int messageCountPerEntry) throws Exception {
         List<MessageIdImpl>[] messageIds = new List[ledgerCount];
         for (int i = 0; i < ledgerCount; i++){
-            pulsarAdmin.topics().unload(topicName);
+            admin.topics().unload(topicName);
             if (messageCountPerEntry == 1) {
                 messageIds[i] = sendManyMessages(topicName, messageCountPerLedger);
             } else {
