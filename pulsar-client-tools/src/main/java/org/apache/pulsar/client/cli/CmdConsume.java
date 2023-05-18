@@ -142,6 +142,8 @@ public class CmdConsume {
     private ClientBuilder clientBuilder;
     private Authentication authentication;
     private String serviceURL;
+    @Parameter(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+    private boolean replicateSubscriptionState = false;
 
     public CmdConsume() {
         // Do nothing
@@ -304,7 +306,8 @@ public class CmdConsume {
                     .subscriptionType(subscriptionType)
                     .subscriptionMode(subscriptionMode)
                     .subscriptionInitialPosition(subscriptionInitialPosition)
-                    .poolMessages(poolMessages);
+                    .poolMessages(poolMessages)
+                    .replicateSubscriptionState(replicateSubscriptionState);
 
             if (isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));
