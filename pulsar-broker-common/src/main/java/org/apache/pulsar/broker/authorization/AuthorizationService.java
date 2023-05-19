@@ -183,7 +183,15 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.allowTopicOperationAsync(topicName, role, TopicOperation.PRODUCE, authenticationData);
+
+        return isSuperUserOrAdmin(topicName.getTenant(), role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowTopicOperationAsync(topicName, role, TopicOperation.PRODUCE,
+                            authenticationData);
+                });
     }
 
     /**
@@ -203,8 +211,15 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
 
-        return provider.allowTopicOperationAsync(topicName, role, TopicOperation.CONSUME,
-                new AuthenticationDataSubscription(authenticationData, subscription));
+
+        return isSuperUserOrAdmin(topicName.getNamespaceObject(), role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowTopicOperationAsync(topicName, role, TopicOperation.CONSUME,
+                            new AuthenticationDataSubscription(authenticationData, subscription));
+                });
     }
 
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
@@ -280,7 +295,15 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.allowTopicOperationAsync(topicName, role, TopicOperation.LOOKUP, authenticationData);
+
+        return isSuperUserOrAdmin(topicName.getTenant(), role, authenticationData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowTopicOperationAsync(topicName, role, TopicOperation.LOOKUP,
+                            authenticationData);
+                });
     }
 
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
@@ -374,10 +397,16 @@ public class AuthorizationService {
     private CompletableFuture<Boolean> isSuperUserOrAdmin(NamespaceName namespaceName,
                                                           String role,
                                                           AuthenticationDataSource authenticationData) {
+        return isSuperUserOrAdmin(namespaceName.getTenant(), role, authenticationData);
+    }
+
+    private CompletableFuture<Boolean> isSuperUserOrAdmin(String tenantName,
+                                                          String role,
+                                                          AuthenticationDataSource authenticationData) {
         return isSuperUser(role, authenticationData)
                 .thenCompose(isSuperUserOrAdmin -> isSuperUserOrAdmin
                         ? CompletableFuture.completedFuture(true)
-                        : isTenantAdmin(namespaceName.getTenant(), role, authenticationData));
+                        : isTenantAdmin(tenantName, role, authenticationData));
     }
 
     private CompletableFuture<Boolean> isTenantAdmin(String tenant, String role,
@@ -472,7 +501,14 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.allowTenantOperationAsync(tenantName, role, operation, authData);
+
+        return isSuperUserOrAdmin(tenantName, role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowTenantOperationAsync(tenantName, role, operation, authData);
+                });
     }
 
     public CompletableFuture<Boolean> allowTenantOperationAsync(String tenantName,
@@ -577,7 +613,15 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData);
+
+        return isSuperUserOrAdmin(namespaceName, role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role,
+                            authData);
+                });
     }
 
     public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
@@ -640,7 +684,14 @@ public class AuthorizationService {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
-        return provider.allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData);
+
+        return isSuperUserOrAdmin(topicName.getTenant(), role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData);
+                });
     }
 
     public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topicName,
@@ -710,8 +761,14 @@ public class AuthorizationService {
             return CompletableFuture.completedFuture(true);
         }
 
-        CompletableFuture<Boolean> allowFuture =
-                provider.allowTopicOperationAsync(topicName, role, operation, authData);
+        CompletableFuture<Boolean> allowFuture = isSuperUserOrAdmin(topicName.getTenant(), role, authData)
+                .thenCompose(isSuperUserOrAdmin -> {
+                    if (isSuperUserOrAdmin) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return provider.allowTopicOperationAsync(topicName, role, operation, authData);
+                });
+
         if (log.isDebugEnabled()) {
             return allowFuture.whenComplete((allowed, exception) -> {
                 if (exception == null) {
