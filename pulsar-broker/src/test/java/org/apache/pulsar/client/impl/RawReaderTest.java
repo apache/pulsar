@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -57,6 +58,11 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setBrokerEntryMetadataInterceptors(org.assertj.core.util.Sets.newTreeSet(
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor",
+                "org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor"
+        ));
+        conf.setExposingBrokerEntryMetadataToClientEnabled(true);
         super.internalSetup();
 
         admin.clusters().createCluster("test",
@@ -374,6 +380,40 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try (RawMessage m1 = reader.readNextAsync().get()) {
             RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
+            List<ImmutableTriple<MessageId, String, Integer>> idsAndKeys = RawBatchConverter.extractIdsAndKeysAndSize(m2);
+            Assert.assertEquals(idsAndKeys.size(), 1);
+            Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key2");
+            m2.close();
+            Assert.assertEquals(m1.getHeadersAndPayload().refCnt(), 1);
+        } finally {
+            reader.closeAsync().get();
+        }
+    }
+
+    @Test
+    public void testBatchingRebatchWithBrokerEntryMetadata() throws Exception {
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .maxPendingMessages(3)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create()) {
+            producer.newMessage().key("key1").value("my-content-1".getBytes()).sendAsync();
+            producer.newMessage().key("key2").value("my-content-2".getBytes()).sendAsync();
+            producer.newMessage().key("key3").value("my-content-3".getBytes()).send();
+        }
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        try (RawMessage m1 = reader.readNextAsync().get()) {
+            RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
+            BrokerEntryMetadata brokerEntryMetadata =
+                    Commands.parseBrokerEntryMetadataIfExist(m2.getHeadersAndPayload());
+            Assert.assertNotNull(brokerEntryMetadata);
+            Assert.assertEquals(brokerEntryMetadata.getIndex(), 2);
+            Assert.assertTrue(brokerEntryMetadata.getBrokerTimestamp() < System.currentTimeMillis());
             List<ImmutableTriple<MessageId, String, Integer>> idsAndKeys = RawBatchConverter.extractIdsAndKeysAndSize(m2);
             Assert.assertEquals(idsAndKeys.size(), 1);
             Assert.assertEquals(idsAndKeys.get(0).getMiddle(), "key2");
