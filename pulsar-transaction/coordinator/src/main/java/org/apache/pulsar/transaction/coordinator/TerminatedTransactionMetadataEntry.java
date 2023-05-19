@@ -19,17 +19,21 @@
 
 package org.apache.pulsar.transaction.coordinator;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.util.LinkedList;
 
-@AllArgsConstructor
-@NoArgsConstructor
-@Getter
-@Setter
 public class TerminatedTransactionMetadataEntry {
     LinkedList<TxnMeta> txnMetas;
+
+    public TerminatedTransactionMetadataEntry() {
+        this.txnMetas = new LinkedList<>();
+    }
+
+    public LinkedList<TxnMeta> getTxnMetas() {
+        return new LinkedList<>(txnMetas);
+    }
+
+    public void setTxnMetas(LinkedList<TxnMeta> txnMetas) {
+        this.txnMetas = new LinkedList<>(txnMetas);
+    }
 }

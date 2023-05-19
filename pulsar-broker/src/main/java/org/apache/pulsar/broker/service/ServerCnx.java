@@ -2591,7 +2591,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
 
-        verifyTxnOwnership(txnID)
+        verifyTxnOwnership(txnID, clientName)
                 .thenCompose(isOwner -> {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
@@ -2631,9 +2631,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID) {
+        return verifyTxnOwnership(txnID, null);
+    }
+
+    private CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, String clientName) {
         assert ctx.executor().inEventLoop();
         return service.pulsar().getTransactionMetadataStoreService()
-                .verifyTxnOwnership(txnID, getPrincipal())
+                .verifyTxnOwnership(txnID, getPrincipal(), clientName)
                 .thenComposeAsync(isOwner -> {
                     if (isOwner) {
                         return CompletableFuture.completedFuture(true);

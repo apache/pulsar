@@ -63,6 +63,11 @@ class InMemTransactionMetadataStore implements TransactionMetadataStore {
 
     @Override
     public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid) {
+        return getTxnMeta(txnid, null);
+    }
+
+    @Override
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid, String clientName) {
         CompletableFuture<TxnMeta> getFuture = new CompletableFuture<>();
         TxnMetaImpl txn = transactions.get(txnid);
         if (null == txn) {

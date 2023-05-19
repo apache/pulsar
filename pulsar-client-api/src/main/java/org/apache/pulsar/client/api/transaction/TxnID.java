@@ -54,10 +54,6 @@ public class TxnID implements Serializable {
      */
     private long leastSigBits;
 
-    public TxnID(long mostSigBits, long leastSigBits) {
-        this.mostSigBits = mostSigBits;
-        this.leastSigBits = leastSigBits;
-    }
 
     @Override
     public String toString() {

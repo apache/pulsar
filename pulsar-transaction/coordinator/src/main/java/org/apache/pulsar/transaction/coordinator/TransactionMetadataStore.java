@@ -53,6 +53,16 @@ public interface TransactionMetadataStore {
     CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid);
 
     /**
+     * Query the {@link TxnMeta} of a given transaction <tt>txnid</tt>.
+     *
+     * @param txnid transaction id
+     * @param clientName the client name that creates the transaction
+     * @return a future represents the result of this operation.
+     *         it returns {@link TxnMeta} of the given transaction.
+     */
+    CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid, String clientName);
+
+    /**
      * Query the {@link TxnMeta} of a given transaction <tt>txnID</tt>
      * and clientName from TransactionMetadataPreserver.
      * @param txnID

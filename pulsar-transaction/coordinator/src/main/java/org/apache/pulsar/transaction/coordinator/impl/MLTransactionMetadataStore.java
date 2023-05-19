@@ -65,6 +65,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
@@ -280,9 +281,18 @@ public class MLTransactionMetadataStore
     }
 
     @Override
-    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID) {
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnid) {
+        return getTxnMeta(txnid, null);
+    }
+
+    @Override
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID, String clientName) {
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID.getLeastSigBits());
         CompletableFuture<TxnMeta> completableFuture = new CompletableFuture<>();
+        if (txnMetaListPair == null && transactionMetadataPreserverEnabled() &&
+                clientName != null && isNotBlank(clientName)) {
+            completableFuture.complete(getTxnMetaFromPreserver(txnID, clientName));
+        }
         if (txnMetaListPair == null) {
             completableFuture.completeExceptionally(new TransactionNotFoundException(txnID));
         } else {
@@ -345,7 +355,7 @@ public class MLTransactionMetadataStore
                     }
                     transactionMetadataEntry.setOwner(owner);
                 }
-                if(clientName != null && !StringUtils.isBlank(owner)) {
+                if(clientName != null && !StringUtils.isBlank(clientName)) {
                     transactionMetadataEntry.setClientName(clientName);
                 }
                 transactionLog.append(transactionMetadataEntry)

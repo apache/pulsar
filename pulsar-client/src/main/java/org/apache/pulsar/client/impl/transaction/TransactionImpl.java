@@ -252,7 +252,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public TxnID getTxnID() {
-        return this.txnId;
+        return new TxnID(txnIdMostBits, txnIdLeastBits);
     }
 
     @Override

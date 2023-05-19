@@ -3324,7 +3324,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf clientCommand = Commands.serializeWithSize(Commands.newEndTxn(89L, 1L, 12L,
-                TxnAction.COMMIT));
+                TxnAction.COMMIT, null));
         channel.writeInbound(clientCommand);
         CommandEndTxnResponse response = (CommandEndTxnResponse) getResponse();
 
@@ -3349,7 +3349,7 @@ public class ServerCnxTest {
         resetChannel();
         setChannelConnected();
         ByteBuf clientCommand = Commands.serializeWithSize(Commands.newEndTxn(89L, 1L, 12L,
-                TxnAction.COMMIT));
+                TxnAction.COMMIT, null));
         channel.writeInbound(clientCommand);
         CommandEndTxnResponse response = (CommandEndTxnResponse) getResponse();
 

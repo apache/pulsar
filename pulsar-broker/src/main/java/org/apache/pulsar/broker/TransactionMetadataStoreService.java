@@ -274,6 +274,11 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills,
+                                                   String owner) {
+        return newTransaction(tcId, timeoutInMills, owner, null);
+    }
+
+    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills,
                                                    String owner, String clientName) {
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
@@ -307,6 +312,15 @@ public class TransactionMetadataStoreService {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
         return store.getTxnMeta(txnId);
+    }
+
+    public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnId, String clientName) {
+        TransactionCoordinatorID tcId = getTcIdFromTxnId(txnId);
+        TransactionMetadataStore store = stores.get(tcId);
+        if (store == null) {
+            return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
+        }
+        return store.getTxnMeta(txnId, clientName);
     }
 
     public long getLowWaterMark(TxnID txnID) {
@@ -565,7 +579,11 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, String checkOwner) {
-        return getTxnMeta(txnID)
+        return verifyTxnOwnership(txnID, checkOwner, null);
+    }
+
+    public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, String checkOwner, String clientName) {
+        return getTxnMeta(txnID, clientName)
                 .thenCompose(meta -> {
                     // owner was null in the old versions or no auth enabled
                     if (meta.getOwner() == null) {

@@ -954,6 +954,17 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testConcurrentCommit() throws Exception {
         String topic = NAMESPACE1 + "/testConcurrentCommit";
+
+        // configure clientName
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true)
+                .clientName("txnClient")
+                .build();
+
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer(Schema.BYTES)
@@ -988,6 +999,17 @@ public class TransactionTest extends TransactionTestBase {
     @Test
     public void testConcurrentAbort() throws Exception {
         String topic = NAMESPACE1 + "/testConcurrentCommit";
+
+        // configure clientName
+        if (pulsarClient != null) {
+            pulsarClient.shutdown();
+        }
+        pulsarClient = PulsarClient.builder()
+                .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
+                .enableTransaction(true)
+                .clientName("txnClient")
+                .build();
+
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer(Schema.BYTES)
@@ -1692,7 +1714,7 @@ public class TransactionTest extends TransactionTestBase {
                 .build().get();
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .endTransaction(transaction.getTxnID(), 0, false);
-        transaction.commit();
+        transaction.abort();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
 
