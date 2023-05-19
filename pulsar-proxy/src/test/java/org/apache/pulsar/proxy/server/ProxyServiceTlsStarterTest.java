@@ -47,7 +47,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
-
     private ProxyServiceStarter serviceStarter;
     private String serviceUrl;
     private int webPort;
@@ -76,8 +75,8 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
 
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        this.conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-        this.conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        this.conf.setTlsCertificateFilePath(PROXY_CERT_FILE_PATH);
+        this.conf.setTlsKeyFilePath(PROXY_KEY_FILE_PATH);
     }
 
     @Override
