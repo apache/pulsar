@@ -71,11 +71,12 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
     @Override
     @BeforeClass
     protected void setup() throws Exception {
-        setUpBase(1, 1, PROCESSOR_TOPIC, 0);
+        setUpBase(1, 1, null, 0);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
         this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
                 SEGMENT_SIZE * 3);
+        admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
     }
 
     @Override
@@ -311,12 +312,14 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
      */
     @Test
     public void testSnapshotProcessorUpgrade() throws Exception {
+        String NAMESPACE2 = TENANT + "/ns2";
+        admin.namespaces().createNamespace(NAMESPACE2);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
 
         // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
         // Abort these transactions and verify the data.
-        final String topicName = "persistent://" + NAMESPACE1 + "/testSnapshotProcessorUpgrade";
+        final String topicName = "persistent://" + NAMESPACE2 + "/testSnapshotProcessorUpgrade";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
 
@@ -362,7 +365,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Verifies that the topic has exactly one segment.
         Awaitility.await().untilAsserted(() -> {
-            String segmentTopic = "persistent://" + NAMESPACE1 + "/" +
+            String segmentTopic = "persistent://" + NAMESPACE2 + "/" +
                     SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
             TopicStats topicStats = admin.topics().getStats(segmentTopic);
             assertEquals(1, topicStats.getMsgInCounter());
