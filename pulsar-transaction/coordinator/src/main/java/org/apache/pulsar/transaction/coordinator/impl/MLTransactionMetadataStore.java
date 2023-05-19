@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.Timeout;
@@ -64,8 +66,6 @@ import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
@@ -289,8 +289,8 @@ public class MLTransactionMetadataStore
     public CompletableFuture<TxnMeta> getTxnMeta(TxnID txnID, String clientName) {
         Pair<TxnMeta, List<Position>> txnMetaListPair = txnMetaMap.get(txnID.getLeastSigBits());
         CompletableFuture<TxnMeta> completableFuture = new CompletableFuture<>();
-        if (txnMetaListPair == null && transactionMetadataPreserverEnabled() &&
-                clientName != null && isNotBlank(clientName)) {
+        if (txnMetaListPair == null && transactionMetadataPreserverEnabled()
+                && clientName != null && isNotBlank(clientName)) {
             completableFuture.complete(getTxnMetaFromPreserver(txnID, clientName));
         }
         if (txnMetaListPair == null) {
@@ -313,7 +313,7 @@ public class MLTransactionMetadataStore
 
     @Override
     public CompletableFuture<Void> appendTxnMetaToPreserver(TxnMeta txnMeta, String clientName) {
-        if(!transactionMetadataPreserver.enabled() || isBlank(clientName)) {
+        if (!transactionMetadataPreserver.enabled() || isBlank(clientName)) {
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
@@ -355,7 +355,7 @@ public class MLTransactionMetadataStore
                     }
                     transactionMetadataEntry.setOwner(owner);
                 }
-                if(clientName != null && !StringUtils.isBlank(clientName)) {
+                if (clientName != null && !StringUtils.isBlank(clientName)) {
                     transactionMetadataEntry.setClientName(clientName);
                 }
                 transactionLog.append(transactionMetadataEntry)
@@ -502,7 +502,7 @@ public class MLTransactionMetadataStore
                     // is useless, we will remove it to save memory and reduce message size.
                     txnMeta.clearProducedPartitions();
                     txnMeta.clearAckedPartitions();
-                    if(log.isDebugEnabled()) {
+                    if (log.isDebugEnabled()) {
                         log.debug("flush txnId:{} metadata before update status to {}",
                                 txnID, newStatus.name());
                     }
@@ -539,7 +539,7 @@ public class MLTransactionMetadataStore
                                     this.transactionTimeoutCount.increment();
                                 }
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
-                                    if(log.isDebugEnabled()) {
+                                    if (log.isDebugEnabled()) {
                                         log.debug("TxnID : " + txnMeta.id().toString()
                                                 + " update txn status to " + newStatus.name());
                                     }

@@ -1338,7 +1338,7 @@ public class Commands {
                 .setTcId(tcId)
                 .setRequestId(requestId)
                 .setTxnTtlSeconds(ttlSeconds);
-        if(clientName != null) {
+        if (clientName != null) {
             commandNewTxn.setClientName(clientName);
         }
         return serializeWithSize(cmd);
@@ -1446,7 +1446,7 @@ public class Commands {
                 .setRequestId(requestId)
                 .setTxnidLeastBits(txnIdLeastBits).setTxnidMostBits(txnIdMostBits)
                 .setTxnAction(txnAction);
-        if(clientName != null) {
+        if (clientName != null) {
             commandEndTxn.setClientName(clientName);
         }
         return cmd;

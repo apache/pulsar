@@ -126,7 +126,7 @@ public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker 
 
     @Override
     public void handleCommittingAndAbortingTransaction() {
-        if(log.isDebugEnabled()) {
+        if (log.isDebugEnabled()) {
             log.debug("Handle committing and aborting transaction, tcId: {}, committingTransactions: {}, "
                     + "abortingTransactions: {}", tcId, committingTransactions, abortingTransactions);
         }

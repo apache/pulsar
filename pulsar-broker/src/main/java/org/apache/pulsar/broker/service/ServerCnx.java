@@ -2458,7 +2458,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = command.getRequestId();
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
         final String clientName;
-        if(command.hasClientName()) {
+        if (command.hasClientName()) {
             clientName = command.getClientName();
         } else {
             clientName = null;
@@ -2572,7 +2572,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long requestId = command.getRequestId();
         final int txnAction = command.getTxnAction().getValue();
         final String clientName;
-        if(command.hasClientName()) {
+        if (command.hasClientName()) {
             clientName = command.getClientName();
         } else {
             clientName = null;

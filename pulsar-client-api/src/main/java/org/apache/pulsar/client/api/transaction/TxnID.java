@@ -20,10 +20,8 @@ package org.apache.pulsar.client.api.transaction;
 
 import java.io.Serializable;
 import java.util.Objects;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;

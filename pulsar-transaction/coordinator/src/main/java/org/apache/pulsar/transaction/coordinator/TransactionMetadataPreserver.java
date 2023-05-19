@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * An interface for persist metadata of aborted txn and recover from a compacted topic.

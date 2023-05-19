@@ -18,7 +18,14 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -38,15 +45,6 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
  * A transaction metadata preserver implementation.
@@ -72,7 +70,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
     public final Set<String> needToFlush = new HashSet<>();
 
     /**
-     * do not enable terminated transaction metadata persist
+     * do not enable terminated transaction metadata persist.
      */
     public MLTransactionMetadataPreserverImpl() {
         this.transactionMetaPersistCount = 0;
@@ -93,7 +91,8 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
                 || pulsarClient.isClosed() || tcID == null) {
             // do not enable terminated transaction metadata persist
             log.info("Transaction metadata preserver init failed, transaction metadata persist count is {}, "
-                    + "pulsar client is null or closed, or transaction coordinator id is null.", transactionMetaPersistCount);
+                    + "pulsar client is null or closed, or transaction coordinator id is null.",
+                    transactionMetaPersistCount);
             this.transactionMetaPersistCount = 0;
             this.transactionMetaPersistTimeInMS = 0;
             this.transactionMetaExpireCheckIntervalInMS = 0;
@@ -238,7 +237,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
         }
         TerminatedTransactionMetadataEntry entry = new TerminatedTransactionMetadataEntry();
         entry.setTxnMetas(terminatedTxnMetaList.get(clientName));
-        try{
+        try {
             producer.newMessage().key(clientName).value(entry).send();
         } catch (PulsarClientException e) {
             log.error("Flush transaction metadata failed, client name:{}, tcID:{}, reason:{}.",
@@ -261,7 +260,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
         // this method is not executed in single thread, so we need to ensure
         // NPE exception will not be thrown.
         Map<TxnID, TxnMeta> txnIDTxnMetaMap = terminatedTxnMetaMap.get(clientName);
-        if(txnIDTxnMetaMap == null) {
+        if (txnIDTxnMetaMap == null) {
             return null;
         }
         return txnIDTxnMetaMap.get(txnID);
@@ -269,7 +268,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
 
     @Override
     public void expireTransactionMetadata() {
-        if(!enabled()) {
+        if (!enabled()) {
             return;
         }
         if (log.isDebugEnabled()) {
@@ -291,7 +290,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
                     break;
                 }
             }
-            if(txnMetaList.isEmpty()) {
+            if (txnMetaList.isEmpty()) {
                 // delete the transaction metadata from the system topic __terminated_txn_state
                 // producer.newMessage().key(clientName).value(null).send();
                 terminatedTxnMetaList.remove(clientName);

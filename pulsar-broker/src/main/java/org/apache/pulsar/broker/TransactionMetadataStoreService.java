@@ -150,7 +150,8 @@ public class TransactionMetadataStoreService {
                                     pulsarService.getClient());
                             preserver.replay();
                         } catch (Throwable e) {
-                            LOG.error("Failed to create transaction metadata preserver for tcId {}, reason:{}", tcId, e);
+                            LOG.error("Failed to create transaction metadata preserver for tcId {}, reason:{}",
+                                    tcId, e);
                             preserver = new MLTransactionMetadataPreserverImpl();
                         }
                         openTransactionMetadataStore(tcId, preserver, timeoutTracker, recoverTracker).thenAccept(
@@ -422,8 +423,8 @@ public class TransactionMetadataStoreService {
                                     && (txnMeta.status() == TxnStatus.COMMITTED
                                     || txnMeta.status() == TxnStatus.COMMITTING)) {
                                 if (LOG.isDebugEnabled()) {
-                                    LOG.debug("try to commit a transaction that is already committed. " +
-                                            "TxnId : {}, clientName:{}.", txnID, clientName);
+                                    LOG.debug("try to commit a transaction that is already committed. "
+                                            + "TxnId : {}, clientName:{}.", txnID, clientName);
                                 }
                                 future.complete(null);
                                 return;
@@ -431,8 +432,8 @@ public class TransactionMetadataStoreService {
                                     && (txnMeta.status() == TxnStatus.ABORTED
                                     || txnMeta.status() == TxnStatus.ABORTING)) {
                                 if (LOG.isDebugEnabled()) {
-                                    LOG.debug("try to abort a transaction that is already aborted. " +
-                                            "TxnId : {}, clientName:{}.", txnID, clientName);
+                                    LOG.debug("try to abort a transaction that is already aborted. "
+                                            + "TxnId : {}, clientName:{}.", txnID, clientName);
                                 }
                                 future.complete(null);
                                 return;
