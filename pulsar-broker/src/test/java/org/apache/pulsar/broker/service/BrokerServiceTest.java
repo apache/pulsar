@@ -122,11 +122,6 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerServiceTest extends BrokerTestBase {
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
-
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -681,8 +676,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setAuthenticationEnabled(false);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
@@ -736,7 +731,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // Case 4: Access with TLS (Use trusted certificates)
         try {
             pulsarClient = PulsarClient.builder().serviceUrl(brokerUrlTls.toString()).enableTls(true)
-                    .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+                    .allowTlsInsecureConnection(false).tlsTrustCertsFilePath(BROKER_CERT_FILE_PATH)
                     .statsInterval(0, TimeUnit.SECONDS)
                     .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
 
@@ -760,8 +755,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.empty());
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
@@ -797,15 +792,15 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setAuthenticationProviders(providers);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(true);
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         PulsarClient pulsarClient = null;
 
@@ -860,15 +855,15 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setAuthenticationProviders(providers);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         PulsarClient pulsarClient = null;
 
@@ -922,16 +917,16 @@ public class BrokerServiceTest extends BrokerTestBase {
         conf.setAuthenticationProviders(providers);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setTlsAllowInsecureConnection(false);
-        conf.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
         restartBroker();
 
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
         PulsarClient pulsarClient = null;
 

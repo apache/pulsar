@@ -32,7 +32,6 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,10 +42,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -64,10 +59,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -438,10 +430,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
     @Test
     public void testWebserviceServiceTls() throws Exception {
         log.info("-- Starting {} test --", methodName);
-        final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-        final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-        final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-        final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -454,12 +442,15 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePort(Optional.of(0));
         conf2.setWebServicePortTls(Optional.of(0));
         conf2.setAdvertisedAddress("localhost");
-        conf2.setTlsAllowInsecureConnection(true);
-        conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf2.setTlsRequireTrustedClientCertOnConnect(true);
+        conf2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
         conf2.setMetadataStoreUrl("zk:localhost:2181");
         conf2.setConfigurationMetadataStoreUrl("zk:localhost:3181");
+        // Not in use, and because TLS is not configured, it will fail to start
+        conf2.setSystemTopicEnabled(false);
 
         @Cleanup
         PulsarTestContext pulsarTestContext2 = createAdditionalPulsarTestContext(conf2);
@@ -468,10 +459,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // restart broker1 with tls enabled
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsRequireTrustedClientCertOnConnect(true);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         conf.setNumExecutorThreadPoolSize(5);
+        // Not in use, and because TLS is not configured, it will fail to start
+        conf.setSystemTopicEnabled(false);
         stopBroker();
         startBroker();
         pulsar.getLoadManager().get().writeLoadReportOnZookeeper();
@@ -505,18 +499,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
 
         // set client cert_key file
-        KeyManager[] keyManagers = null;
-        Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(TLS_CLIENT_CERT_FILE_PATH);
-        PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(TLS_CLIENT_KEY_FILE_PATH);
-        KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
-        ks.load(null, null);
-        ks.setKeyEntry("private", tlsKey, "".toCharArray(), tlsCert);
-        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-        kmf.init(ks, "".toCharArray());
-        keyManagers = kmf.getKeyManagers();
-        TrustManager[] trustManagers = InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
-        SSLContext sslCtx = SSLContext.getInstance("TLS");
-        sslCtx.init(keyManagers, trustManagers, new SecureRandom());
+        SSLContext sslCtx = SecurityUtility.createSslContext(false, CA_CERT_FILE_PATH,
+                getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"), "");
         HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
 
         // hit broker2 url

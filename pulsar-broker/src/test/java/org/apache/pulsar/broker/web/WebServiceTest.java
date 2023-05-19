@@ -63,6 +63,7 @@ import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -84,10 +85,17 @@ public class WebServiceTest {
     private PulsarService pulsar;
     private String BROKER_LOOKUP_URL;
     private String BROKER_LOOKUP_URL_TLS;
-    private static final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
-    private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
-    private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
-    private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
+
+    private final static String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    private final static String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private final static String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private final static String CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private final static String CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
 
 
     @Test
@@ -351,8 +359,8 @@ public class WebServiceTest {
             if (useTls) {
                 KeyManager[] keyManagers = null;
                 if (useAuth) {
-                    Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(TLS_CLIENT_CERT_FILE_PATH);
-                    PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(TLS_CLIENT_KEY_FILE_PATH);
+                    Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
+                    PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
 
                     KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                     ks.load(null, null);
@@ -403,10 +411,10 @@ public class WebServiceTest {
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(false);
         config.setSuperUserRoles(roles);
-        config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
-        config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(allowInsecure);
-        config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
+        config.setTlsTrustCertsFilePath(allowInsecure ? "" : CA_CERT_FILE_PATH);
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
         config.setMetadataStoreUrl("zk:localhost:2181");
@@ -433,8 +441,8 @@ public class WebServiceTest {
             serviceUrl = BROKER_URL_BASE_TLS;
 
             Map<String, String> authParams = new HashMap<>();
-            authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-            authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+            authParams.put("tlsCertFile", CLIENT_CERT_FILE_PATH);
+            authParams.put("tlsKeyFile", CLIENT_KEY_FILE_PATH);
 
             adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
