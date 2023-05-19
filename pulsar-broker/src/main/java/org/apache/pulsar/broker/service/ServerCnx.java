@@ -1242,6 +1242,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
                         })
                         .thenAccept(consumer -> {
+                            if (consumer.checkAndApplyTopicMigration()) {
+                                log.info("[{}] Disconnecting consumer {} on migrated subscription on topic {} / {}",
+                                        remoteAddress, consumerId, subscriptionName, topicName);
+                                consumers.remove(consumerId, consumerFuture);
+                                return;
+                            }
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}",
                                         remoteAddress, topicName, subscriptionName);

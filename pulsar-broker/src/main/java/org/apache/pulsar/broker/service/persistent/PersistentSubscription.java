@@ -1240,6 +1240,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
+    public boolean isSubsciptionMigrated() {
+        log.info("backlog for {} - {}", topicName, cursor.getNumberOfEntriesInBacklog(true));
+        return topic.isMigrated() && cursor.getNumberOfEntriesInBacklog(true) <= 0;
+    }
+
+    @Override
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
     }

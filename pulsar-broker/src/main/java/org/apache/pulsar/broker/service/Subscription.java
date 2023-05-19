@@ -106,6 +106,8 @@ public interface Subscription {
 
     CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
 
+    boolean isSubsciptionMigrated();
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }
