@@ -69,8 +69,8 @@ public interface ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     boolean isBlockedConsumerOnUnackedMsgs();
 
-    /** The read position of the cursor when the consumer joining. */
-    String getReadPositionWhenJoining();
+    /** Last sent positions per sticky key of the cursor when the consumer joining. */
+    String getLastSentPositionsWhenJoining();
 
     /** Address of this consumer. */
     String getAddress();

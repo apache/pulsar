@@ -38,6 +38,14 @@ public class PositionImplRecyclable extends PositionImpl implements Position {
         this.recyclerHandle = recyclerHandle;
     }
 
+    public void setLedgerId(final long ledgerId) {
+        this.ledgerId = ledgerId;
+    }
+
+    public void setEntryId(final long entryId) {
+        this.entryId = entryId;
+    }
+
     public static PositionImplRecyclable create() {
         return RECYCLER.get();
     }

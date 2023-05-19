@@ -75,8 +75,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     public boolean blockedConsumerOnUnackedMsgs;
 
-    /** The read position of the cursor when the consumer joining. */
-    public String readPositionWhenJoining;
+    /** Last sent positions per sticky key of the cursor when the consumer joining. */
+    public String lastSentPositionsWhenJoining;
 
     /** Address of this consumer. */
     @JsonIgnore
@@ -129,7 +129,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
-        this.readPositionWhenJoining = stats.readPositionWhenJoining;
+        this.lastSentPositionsWhenJoining = stats.lastSentPositionsWhenJoining;
         return this;
     }
 
@@ -177,8 +177,8 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.stringBuffer.append(clientVersion);
     }
 
-    public String getReadPositionWhenJoining() {
-        return readPositionWhenJoining;
+    public String getLastSentPositionsWhenJoining() {
+        return lastSentPositionsWhenJoining;
     }
 
     public String getLastAckedTime() {

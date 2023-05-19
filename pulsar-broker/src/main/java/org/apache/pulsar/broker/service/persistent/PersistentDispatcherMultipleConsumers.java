@@ -1189,7 +1189,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
     }
 
     protected int getStickyKeyHash(Entry entry) {
-        return StickyKeyConsumerSelector.makeStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+        return getStickyKeyHash(peekStickyKey(entry.getDataBuffer()));
+    }
+
+    protected int getStickyKeyHash(byte[] stickyKey) {
+        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentDispatcherMultipleConsumers.class);

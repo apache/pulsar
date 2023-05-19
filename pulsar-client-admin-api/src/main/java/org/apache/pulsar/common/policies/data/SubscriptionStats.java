@@ -115,8 +115,8 @@ public interface SubscriptionStats {
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
     String getKeySharedMode();
 
-    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
-    Map<String, String> getConsumersAfterMarkDeletePosition();
+    /** This is for Key_Shared subscription to get the recentlyJoinedConsumers in the Key_Shared subscription. */
+    Map<String, String> getRecentlyJoinedConsumers();
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
     Map<String, String> getSubscriptionProperties();

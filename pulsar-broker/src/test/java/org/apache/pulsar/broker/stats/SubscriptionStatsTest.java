@@ -116,7 +116,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         TopicStats stats = admin.topics().getStats(topicName);
         Assert.assertEquals(stats.getSubscriptions().size(), 1);
         Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue()
-                .getConsumersAfterMarkDeletePosition().size(), 1);
+                .getRecentlyJoinedConsumers().size(), 1);
 
         consumer1.close();
         consumer2.close();
