@@ -613,7 +613,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
         return promise.whenComplete((__, t) -> {
             if (null != this.ml) {
-                this.offloaderStats.recordDeleteOffloadOps(TopicName.fromPersistenceNamingEncoding(this.ml.getName()), t == null);
+                this.offloaderStats.recordDeleteOffloadOps(
+                  TopicName.fromPersistenceNamingEncoding(this.ml.getName()), t == null);
             }
         });
     }
@@ -638,7 +639,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         });
 
         return promise.whenComplete((__, t) ->
-                this.offloaderStats.recordDeleteOffloadOps(TopicName.fromPersistenceNamingEncoding(this.ml.getName()), t == null));
+                this.offloaderStats.recordDeleteOffloadOps(
+                  TopicName.fromPersistenceNamingEncoding(this.ml.getName()), t == null));
     }
 
     @Override
