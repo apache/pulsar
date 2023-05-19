@@ -2443,6 +2443,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return new CoordinatorException.CoordinatorNotFoundException(cause.getMessage());
 
         }
+        if (cause instanceof CoordinatorException.PreserverClosedException) {
+            if (log.isDebugEnabled()) {
+                log.debug("The transaction metadata preserver was closed for the request {}", op);
+            }
+            return cause;
+        }
         log.error("Send response error for {} request {}.", op, requestId, cause);
         return cause;
     }
@@ -2451,6 +2457,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         final long requestId = command.getRequestId();
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTcId());
+        final String clientName;
+        if(command.hasClientName()) {
+            clientName = command.getClientName();
+        } else {
+            clientName = null;
+        }
         if (log.isDebugEnabled()) {
             log.debug("Receive new txn request {} to transaction meta store {} from {}.",
                     requestId, tcId, remoteAddress);
@@ -2463,7 +2475,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         TransactionMetadataStoreService transactionMetadataStoreService =
                 service.pulsar().getTransactionMetadataStoreService();
         final String owner = getPrincipal();
-        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds(), owner)
+        transactionMetadataStoreService.newTransaction(tcId, command.getTxnTtlSeconds(), owner, clientName)
             .whenComplete(((txnID, ex) -> {
                 if (ex == null) {
                     if (log.isDebugEnabled()) {
@@ -2559,8 +2571,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         final long requestId = command.getRequestId();
         final int txnAction = command.getTxnAction().getValue();
+        final String clientName;
+        if(command.hasClientName()) {
+            clientName = command.getClientName();
+        } else {
+            clientName = null;
+        }
         TxnID txnID = new TxnID(command.getTxnidMostBits(), command.getTxnidLeastBits());
         final TransactionCoordinatorID tcId = TransactionCoordinatorID.get(command.getTxnidMostBits());
+        if (log.isDebugEnabled()) {
+            log.debug("Receive end txn request {} to transaction meta store {} for txnId:{}.",
+                    requestId, tcId, txnID);
+        }
 
         if (!checkTransactionEnableAndSendError(requestId)) {
             return;
@@ -2574,7 +2596,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
                     }
-                    return transactionMetadataStoreService.endTransaction(txnID, txnAction, false);
+                    return transactionMetadataStoreService.endTransaction(txnID, txnAction, false, clientName);
                 })
                 .whenComplete((v, ex) -> {
                     if (ex == null) {

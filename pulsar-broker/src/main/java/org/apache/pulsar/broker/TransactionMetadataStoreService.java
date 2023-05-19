@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.getMLTransactionLogName;
 import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.ABORTING;
 import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.COMMITTING;
@@ -57,6 +58,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataPreserver;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreProvider;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
@@ -64,9 +66,11 @@ import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTrackerFactory;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
+import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataPreserverImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.slf4j.Logger;
@@ -137,7 +141,19 @@ public class TransactionMetadataStoreService {
                         TransactionRecoverTracker recoverTracker =
                                 new TransactionRecoverTrackerImpl(TransactionMetadataStoreService.this,
                                         timeoutTracker, tcId.getId());
-                        openTransactionMetadataStore(tcId, timeoutTracker, recoverTracker).thenAccept(
+                        TransactionMetadataPreserver preserver;
+                        try {
+                            preserver = new MLTransactionMetadataPreserverImpl(tcId,
+                                    pulsarService.getConfiguration().getTransactionMetaPersistCount(),
+                                    pulsarService.getConfiguration().getTransactionMetaPersistTimeInHour(),
+                                    pulsarService.getConfiguration().getTransactionMetaExpireCheckIntervalInSecond(),
+                                    pulsarService.getClient());
+                            preserver.replay();
+                        } catch (Throwable e) {
+                            LOG.error("Failed to create transaction metadata preserver for tcId {}, reason:{}", tcId, e);
+                            preserver = new MLTransactionMetadataPreserverImpl();
+                        }
+                        openTransactionMetadataStore(tcId, preserver, timeoutTracker, recoverTracker).thenAccept(
                                 store -> internalPinnedExecutor.execute(() -> {
                                     // TransactionMetadataStore initialization
                                     // need to use TransactionMetadataStore itself.
@@ -214,6 +230,7 @@ public class TransactionMetadataStoreService {
 
     public CompletableFuture<TransactionMetadataStore>
     openTransactionMetadataStore(TransactionCoordinatorID tcId,
+                                 TransactionMetadataPreserver preserver,
                                  TransactionTimeoutTracker timeoutTracker,
                                  TransactionRecoverTracker recoverTracker) {
         final Timer brokerClientSharedTimer = pulsarService.getBrokerClientSharedTimer();
@@ -228,7 +245,7 @@ public class TransactionMetadataStoreService {
 
         return pulsarService.getBrokerService().getManagedLedgerConfig(getMLTransactionLogName(tcId)).thenCompose(
                 v -> transactionMetadataStoreProvider.openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
-                        timeoutTracker, recoverTracker,
+                        timeoutTracker, recoverTracker, preserver,
                         pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator(), txnLogBufferedWriterConfig,
                         brokerClientSharedTimer));
     }
@@ -257,12 +274,12 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills,
-                                                   String owner) {
+                                                   String owner, String clientName) {
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.newTransaction(timeoutInMills, owner);
+        return store.newTransaction(timeoutInMills, owner, clientName);
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {
@@ -312,14 +329,31 @@ public class TransactionMetadataStoreService {
         return store.updateTxnStatus(txnId, newStatus, expectedStatus, isTimeout);
     }
 
+    public CompletableFuture<Void> appendTxnMetaToPreserver(TxnID txnID, TxnMeta txnMeta, String clientName) {
+        TransactionCoordinatorID tcId = getTcIdFromTxnId(txnID);
+        TransactionMetadataStore store = stores.get(tcId);
+        if (store == null) {
+            return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
+        }
+        return store.appendTxnMetaToPreserver(txnMeta, clientName);
+    }
+
     public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        endTransaction(txnID, txnAction, isTimeout, future);
+        endTransaction(txnID, txnAction, isTimeout, future, null);
         return future;
     }
 
+    public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction,
+                                                  boolean isTimeout, String clientName) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        endTransaction(txnID, txnAction, isTimeout, future, clientName);
+        return future;
+    }
+
+
     public void endTransaction(TxnID txnID, int txnAction, boolean isTimeout,
-                                                  CompletableFuture<Void> future) {
+                               CompletableFuture<Void> future, String clientName) {
         TxnStatus newStatus;
         switch (txnAction) {
             case TxnAction.COMMIT_VALUE:
@@ -335,20 +369,61 @@ public class TransactionMetadataStoreService {
                 future.completeExceptionally(exception);
                 return;
         }
+        TransactionCoordinatorID tcId = getTcIdFromTxnId(txnID);
+        TransactionMetadataStore store = stores.get(tcId);
+        if (store == null) {
+            future.completeExceptionally(new CoordinatorNotFoundException(tcId));
+            return;
+        }
         getTxnMeta(txnID)
                 .thenCompose(txnMeta -> {
                     if (txnMeta.status() == TxnStatus.OPEN) {
                         return updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout)
+                                .thenCompose(__ -> appendTxnMetaToPreserver(txnID, txnMeta, clientName))
                                 .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
+                    } else if (txnMeta.status() == TxnStatus.COMMITTED
+                            && txnAction == TxnAction.COMMIT_VALUE) {
+                        future.complete(null);
+                        return future;
+                    } else if (txnMeta.status() == TxnStatus.ABORTED
+                            && txnAction == TxnAction.ABORT_VALUE) {
+                        future.complete(null);
+                        return future;
                     }
+
                     return fakeAsyncCheckTxnStatus(txnMeta.status(), txnAction, txnID, newStatus)
+                            .thenCompose(__ -> appendTxnMetaToPreserver(txnID, txnMeta, clientName))
                             .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
-                }).whenComplete((__, ex)-> {
+                }).whenComplete((__, ex) -> {
                     if (ex == null) {
                         future.complete(null);
                         return;
                     }
                     if (!isRetryableException(ex)) {
+                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                        if (realCause instanceof CoordinatorException.TransactionNotFoundException
+                                && !isBlank(clientName) && store.transactionMetadataPreserverEnabled()) {
+                            TxnMeta txnMeta = store.getTxnMetaFromPreserver(txnID, clientName);
+                            if (txnAction == TxnAction.COMMIT_VALUE && txnMeta != null
+                                    && (txnMeta.status() == TxnStatus.COMMITTED
+                                    || txnMeta.status() == TxnStatus.COMMITTING)) {
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("try to commit a transaction that is already committed. " +
+                                            "TxnId : {}, clientName:{}.", txnID, clientName);
+                                }
+                                future.complete(null);
+                                return;
+                            } else if (txnAction == TxnAction.ABORT_VALUE && txnMeta != null
+                                    && (txnMeta.status() == TxnStatus.ABORTED
+                                    || txnMeta.status() == TxnStatus.ABORTING)) {
+                                if (LOG.isDebugEnabled()) {
+                                    LOG.debug("try to abort a transaction that is already aborted. " +
+                                            "TxnId : {}, clientName:{}.", txnID, clientName);
+                                }
+                                future.complete(null);
+                                return;
+                            }
+                        }
                         LOG.error("End transaction fail! TxnId : {}, "
                                 + "TxnAction : {}", txnID, txnAction, ex);
                         future.completeExceptionally(ex);
@@ -359,7 +434,7 @@ public class TransactionMetadataStoreService {
                                 + "TxnAction : {}", txnID, txnAction, ex);
                     }
                     transactionOpRetryTimer.newTimeout(timeout ->
-                                    endTransaction(txnID, txnAction, isTimeout, future),
+                                    endTransaction(txnID, txnAction, isTimeout, future, clientName),
                             endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
                 });
     }
@@ -395,15 +470,20 @@ public class TransactionMetadataStoreService {
     }
 
     public void endTransactionForTimeout(TxnID txnID) {
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("Transaction timeout! TxnId : {}", txnID);
+        }
+        final String[] clientName = {null};
         getTxnMeta(txnID).thenCompose(txnMeta -> {
+            clientName[0] = txnMeta.getClientName();
             if (txnMeta.status() == TxnStatus.OPEN) {
-                return endTransaction(txnID, TxnAction.ABORT_VALUE, true);
+                return endTransaction(txnID, TxnAction.ABORT_VALUE, true, clientName[0]);
             } else {
                 return null;
             }
         }).exceptionally(e -> {
             if (isRetryableException(e)) {
-                endTransaction(txnID, TxnAction.ABORT_VALUE, true);
+                endTransaction(txnID, TxnAction.ABORT_VALUE, true, clientName[0]);
             } else {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Transaction have been handle complete, "
