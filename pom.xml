@@ -32,7 +32,7 @@
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar</artifactId>
 
-  <version>3.0.0-SNAPSHOT</version>
+  <version>3.1.0-SNAPSHOT</version>
 
   <name>Pulsar</name>
   <description>Pulsar is a distributed pub-sub messaging platform with a very
@@ -92,8 +92,14 @@ flexible messaging model and an intuitive client API.</description>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-05-03T02:53:27Z</project.build.outputTimestamp>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+
+    <!-- By default build for local Docker platform.
+         To create multi-arch image, pass -Ddocker.platforms=linux/arm64,linux/amd64
+    -->
+    <docker.platforms></docker.platforms>
+
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -103,6 +109,7 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
       --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger & MBeanStatsGenerator-->
       --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED <!--MBeanStatsGenerator-->
+      --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -152,7 +159,7 @@ flexible messaging model and an intuitive client API.</description>
     <reflections.version>0.10.2</reflections.version>
     <swagger.version>1.6.2</swagger.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
-    <docker-maven.version>0.40.2</docker-maven.version>
+    <docker-maven.version>0.42.1</docker-maven.version>
     <docker.verbose>true</docker.verbose>
     <typetools.version>0.5.0</typetools.version>
     <protobuf3.version>3.19.6</protobuf3.version>
@@ -177,7 +184,7 @@ flexible messaging model and an intuitive client API.</description>
     <sqlite-jdbc.version>3.36.0.3</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.5.1</postgresql-jdbc.version>
-    <clickhouse-jdbc.version>0.3.2-patch11</clickhouse-jdbc.version>
+    <clickhouse-jdbc.version>0.4.6</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
     <hdfs-offload-version3>3.3.5</hdfs-offload-version3>
@@ -193,8 +200,8 @@ flexible messaging model and an intuitive client API.</description>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
     <opencensus.version>0.28.0</opencensus.version>
     <hadoop2.version>2.10.2</hadoop2.version>
-    <hadoop3.version>3.3.4</hadoop3.version>
-    <hbase.version>2.4.15</hbase.version>
+    <hadoop3.version>3.3.5</hadoop3.version>
+    <hbase.version>2.4.16</hbase.version>
     <guava.version>31.0.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
@@ -235,7 +242,7 @@ flexible messaging model and an intuitive client API.</description>
     <spring.version>5.3.27</spring.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
-    <jetcd.version>0.5.11</jetcd.version>
+    <jetcd.version>0.7.5</jetcd.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
@@ -250,7 +257,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
     <docker-java.version>3.2.13</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
-    <testng.version>7.7.0</testng.version>
+    <testng.version>7.7.1</testng.version>
     <mockito.version>3.12.4</mockito.version>
     <javassist.version>3.25.0-GA</javassist.version>
     <skyscreamer.version>1.5.0</skyscreamer.version>
@@ -266,14 +273,13 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.1.0</maven-enforcer-plugin.version>
+    <maven-enforcer-plugin.version>3.3.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
-    <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
-    <surefire.version>3.0.0-M3</surefire.version>
-    <maven-assembly-plugin.version>3.4.2</maven-assembly-plugin.version>
-    <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.4.0</maven-dependency-plugin.version>
+    <surefire.version>3.1.0</surefire.version>
+    <maven-assembly-plugin.version>3.5.0</maven-assembly-plugin.version>
+    <maven-compiler-plugin.version>3.11.0</maven-compiler-plugin.version>
+    <maven-dependency-plugin.version>3.5.0</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.4.1</maven-shade-plugin>
     <maven-antrun-plugin.version>3.1.0</maven-antrun-plugin.version>
@@ -281,7 +287,7 @@ flexible messaging model and an intuitive client API.</description>
     <nifi-nar-maven-plugin.version>1.3.4</nifi-nar-maven-plugin.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
-    <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
+    <wagon-ssh-external.version>3.5.3</wagon-ssh-external.version>
     <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.7.3.0</spotbugs-maven-plugin.version>
@@ -292,7 +298,7 @@ flexible messaging model and an intuitive client API.</description>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
     <dependency-check-maven.version>8.1.2</dependency-check-maven.version>
-    <roaringbitmap.version>0.9.15</roaringbitmap.version>
+    <roaringbitmap.version>0.9.44</roaringbitmap.version>
     <extra-enforcer-rules.version>1.6.1</extra-enforcer-rules.version>
     <oshi.version>6.4.0</oshi.version>
 
@@ -1482,7 +1488,6 @@ flexible messaging model and an intuitive client API.</description>
           <encoding>UTF-8</encoding>
           <showDeprecation>true</showDeprecation>
           <showWarnings>true</showWarnings>
-          <optimize>true</optimize>
           <!-- workaround https://issues.apache.org/jira/browse/MCOMPILER-205 -->
           <useIncrementalCompilation>false</useIncrementalCompilation>
           <annotationProcessorPaths>
@@ -1535,6 +1540,13 @@ flexible messaging model and an intuitive client API.</description>
             </property>
           </properties>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>${surefire.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
 
       <plugin>

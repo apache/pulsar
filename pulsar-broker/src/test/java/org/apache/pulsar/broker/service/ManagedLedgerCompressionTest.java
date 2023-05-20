@@ -100,7 +100,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
             producer.newMessage().value("test".getBytes()).send();
         }
         for (int i = 0; i < messageCnt; i++) {
-            Message<byte[]> message = consumer.receive(1000, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(1000, TimeUnit.MILLISECONDS);
             consumer.acknowledge(message);
             Assert.assertNotNull(message);
         }

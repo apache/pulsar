@@ -25,27 +25,26 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>23</version>
+    <version>29</version>
     <relativePath />
   </parent>
 
   <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
-  <version>3.0.0-SNAPSHOT</version>
+  <version>3.1.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
   <properties>
-    <project.build.outputTimestamp>${maven.build.timestamp}</project.build.outputTimestamp>
+    <project.build.outputTimestamp>2023-05-03T02:53:27Z</project.build.outputTimestamp>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
-    <surefire.version>3.0.0-M3</surefire.version>
+    <surefire.version>3.1.0</surefire.version>
     <log4j2.version>2.18.0</log4j2.version>
     <slf4j.version>1.7.32</slf4j.version>
-    <testng.version>7.7.0</testng.version>
+    <testng.version>7.7.1</testng.version>
     <commons-lang3.version>3.11</commons-lang3.version>
     <license-maven-plugin.version>4.1</license-maven-plugin.version>
-    <maven-shade-plugin.version>3.4.0</maven-shade-plugin.version>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <netty.version>4.1.89.Final</netty.version>
@@ -58,6 +57,7 @@
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+      --add-opens java.base/jdk.internal.platform=ALL-UNNAMED <!--LinuxInfoUtils-->
     </test.additional.args>
   </properties>
 
@@ -183,11 +183,17 @@
             ${test.additional.args}
           </argLine>
         </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.maven.surefire</groupId>
+            <artifactId>surefire-testng</artifactId>
+            <version>${surefire.version}</version>
+          </dependency>
+        </dependencies>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>${maven-shade-plugin.version}</version>
         <configuration>
           <createDependencyReducedPom>true</createDependencyReducedPom>
           <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
@@ -255,7 +261,7 @@
       <extension>
         <groupId>org.apache.maven.wagon</groupId>
         <artifactId>wagon-ssh-external</artifactId>
-        <version>2.10</version>
+        <version>3.5.3</version>
       </extension>
     </extensions>
   </build>

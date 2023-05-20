@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>bouncy-castle-parent</artifactId>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -84,6 +84,28 @@
         <configuration>
           <skip>true</skip>
         </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>copy-resources</id>
+            <phase>test-compile</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.testOutputDirectory}/certificate-authority</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${project.parent.parent.basedir}/tests/certificate-authority</directory>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

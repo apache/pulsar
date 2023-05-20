@@ -433,7 +433,6 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-services-1.45.1.jar
     - io.grpc-grpc-xds-1.45.1.jar
     - io.grpc-grpc-rls-1.45.1.jar
-    - com.google.auto.service-auto-service-annotations-1.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.19.0.jar
   * OpenCensus
@@ -475,6 +474,7 @@ The Apache Software License, Version 2.0
     - io.vertx-vertx-core-4.3.8.jar
     - io.vertx-vertx-web-4.3.8.jar
     - io.vertx-vertx-web-common-4.3.8.jar
+    - io.vertx-vertx-grpc-4.3.5.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-3.8.1.jar
     - org.apache.zookeeper-zookeeper-jute-3.8.1.jar
@@ -487,8 +487,10 @@ The Apache Software License, Version 2.0
     - com.google.auto.value-auto-value-annotations-1.9.jar
     - com.google.re2j-re2j-1.5.jar
   * Jetcd
-    - io.etcd-jetcd-common-0.5.11.jar
-    - io.etcd-jetcd-core-0.5.11.jar
+    - io.etcd-jetcd-api-0.7.5.jar
+    - io.etcd-jetcd-common-0.7.5.jar
+    - io.etcd-jetcd-core-0.7.5.jar
+    - io.etcd-jetcd-grpc-0.7.5.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * RxJava
@@ -496,7 +498,7 @@ The Apache Software License, Version 2.0
   * RabbitMQ Java Client
     - com.rabbitmq-amqp-client-5.5.3.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-0.9.15.jar
+    - org.roaringbitmap-RoaringBitmap-0.9.44.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library

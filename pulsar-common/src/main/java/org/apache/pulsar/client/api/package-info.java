@@ -16,26 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.persistent;
-
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.PersistentTopicTest;
-import org.apache.pulsar.broker.service.streamingdispatch.StreamingDispatcher;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 /**
- * PersistentTopicTest with {@link StreamingDispatcher}
+ * Additional helper classes to the pulsar-client-api module.
  */
-@Test(groups = "broker")
-public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
-
-    @BeforeMethod(alwaysRun = true)
-    public void setup() throws Exception {
-        super.setup();
-        ServiceConfiguration config = pulsarTestContext.getConfig();
-        config.setTopicLevelPoliciesEnabled(false);
-        config.setSystemTopicEnabled(false);
-        config.setStreamingDispatch(true);
-    }
-}
+package org.apache.pulsar.client.api;

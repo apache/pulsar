@@ -44,9 +44,15 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     }
 
+    private enum ErrorCode {
+        UNKNOWN,
+        AUTH_REQUIRED,
+    }
+
     static <T, W> T applyAuthProcessor(List<W> processors, AuthProcessor<T, W> authFunc)
         throws AuthenticationException {
         AuthenticationException authenticationException = null;
+        String errorCode = ErrorCode.UNKNOWN.name();
         for (W ap : processors) {
             try {
                 return authFunc.apply(ap);
@@ -56,19 +62,19 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 }
                 // Store the exception so we can throw it later instead of a generic one
                 authenticationException = ae;
+                errorCode = ap.getClass().getSimpleName() + "-INVALID-AUTH";
             }
         }
 
         if (null == authenticationException) {
             AuthenticationMetrics.authenticateFailure(
                     AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list", "Authentication required");
+                    "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             throw new AuthenticationException("Authentication required");
         } else {
-            AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list",
-                    authenticationException.getMessage() != null
-                            ? authenticationException.getMessage() : "Authentication required");
+            AuthenticationMetrics.authenticateFailure(
+                    AuthenticationProviderList.class.getSimpleName(),
+                    "authentication-provider-list", errorCode);
             throw authenticationException;
         }
 
@@ -129,7 +135,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                     previousException = new AuthenticationException("Authentication required");
                 }
                 AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                        "authentication-provider-list", "Authentication required");
+                        "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
                 authChallengeFuture.completeExceptionally(previousException);
                 return;
             }
@@ -235,7 +241,7 @@ public class AuthenticationProviderList implements AuthenticationProvider {
                 previousException = new AuthenticationException("Authentication required");
             }
             AuthenticationMetrics.authenticateFailure(AuthenticationProviderList.class.getSimpleName(),
-                    "authentication-provider-list", "Authentication required");
+                    "authentication-provider-list", ErrorCode.AUTH_REQUIRED);
             roleFuture.completeExceptionally(previousException);
             return;
         }

@@ -19,7 +19,8 @@
 package org.apache.pulsar.broker.delayed.bucket;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.io.IOException;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
@@ -36,8 +37,9 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotMetadata;
-import org.apache.pulsar.broker.delayed.proto.DelayedMessageIndexBucketSnapshotFormat.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
@@ -60,8 +62,9 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     public CompletableFuture<Long> createBucketSnapshot(SnapshotMetadata snapshotMetadata,
                                                         List<SnapshotSegment> bucketSnapshotSegments,
                                                         String bucketKey, String topicName, String cursorName) {
+        ByteBuf metadataByteBuf = Unpooled.wrappedBuffer(snapshotMetadata.toByteArray());
         return createLedger(bucketKey, topicName, cursorName)
-                .thenCompose(ledgerHandle -> addEntry(ledgerHandle, snapshotMetadata.toByteArray())
+                .thenCompose(ledgerHandle -> addEntry(ledgerHandle, metadataByteBuf)
                         .thenCompose(__ -> addSnapshotSegments(ledgerHandle, bucketSnapshotSegments))
                         .thenCompose(__ -> closeLedger(ledgerHandle))
                         .thenApply(__ -> ledgerHandle.getId()));
@@ -117,32 +120,49 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private CompletableFuture<Void> addSnapshotSegments(LedgerHandle ledgerHandle,
                                                         List<SnapshotSegment> bucketSnapshotSegments) {
         List<CompletableFuture<Void>> addFutures = new ArrayList<>();
+        ByteBuf byteBuf;
         for (SnapshotSegment bucketSnapshotSegment : bucketSnapshotSegments) {
-            addFutures.add(addEntry(ledgerHandle, bucketSnapshotSegment.toByteArray()));
+            byteBuf = PulsarByteBufAllocator.DEFAULT.directBuffer(bucketSnapshotSegment.getSerializedSize());
+            try {
+                bucketSnapshotSegment.writeTo(byteBuf);
+            } catch (Exception e){
+                byteBuf.release();
+                throw e;
+            }
+            addFutures.add(addEntry(ledgerHandle, byteBuf));
         }
 
         return FutureUtil.waitForAll(addFutures);
     }
 
     private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
+        ByteBuf entryBuffer = null;
         try {
-            return SnapshotMetadata.parseFrom(ledgerEntry.getEntry());
+            entryBuffer = ledgerEntry.getEntryBuffer();
+            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
         } catch (InvalidProtocolBufferException e) {
             throw new BucketSnapshotSerializationException(e);
+        } finally {
+            if (entryBuffer != null) {
+                entryBuffer.release();
+            }
         }
     }
 
     private List<SnapshotSegment> parseSnapshotSegmentEntries(Enumeration<LedgerEntry> entryEnumeration) {
         List<SnapshotSegment> snapshotMetadataList = new ArrayList<>();
-        try {
-            while (entryEnumeration.hasMoreElements()) {
-                LedgerEntry ledgerEntry = entryEnumeration.nextElement();
-                snapshotMetadataList.add(SnapshotSegment.parseFrom(ledgerEntry.getEntry()));
+        while (entryEnumeration.hasMoreElements()) {
+            LedgerEntry ledgerEntry = entryEnumeration.nextElement();
+            SnapshotSegment snapshotSegment = new SnapshotSegment();
+            ByteBuf entryBuffer = ledgerEntry.getEntryBuffer();
+            try {
+                snapshotSegment.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            } finally {
+                entryBuffer.release();
             }
-            return snapshotMetadataList;
-        } catch (IOException e) {
-            throw new BucketSnapshotSerializationException(e);
+            snapshotMetadataList.add(snapshotSegment);
         }
+        return snapshotMetadataList;
     }
 
     @NotNull
@@ -208,7 +228,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return future;
     }
 
-    private CompletableFuture<Void> addEntry(LedgerHandle ledgerHandle, byte[] data) {
+    private CompletableFuture<Void> addEntry(LedgerHandle ledgerHandle, ByteBuf data) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         ledgerHandle.asyncAddEntry(data,
                 (rc, handle, entryId, ctx) -> {
