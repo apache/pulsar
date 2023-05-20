@@ -168,12 +168,12 @@ public class PulsarCluster {
                             .withEnv("journalMaxGroupWaitMSec", "0")
                             .withEnv("clusterName", clusterName)
                             .withEnv("diskUsageThreshold", "0.99")
-                            .withEnv("nettyMaxFrameSizeBytes", "" + spec.maxMessageSize);
-                    if (spec.bookkeperEnvs != null) {
-                        bookieContainer.withEnv(spec.bookkeperEnvs);
+                            .withEnv("nettyMaxFrameSizeBytes", String.valueOf(spec.maxMessageSize));
+                    if (spec.bookkeeperEnvs != null) {
+                        bookieContainer.withEnv(spec.bookkeeperEnvs);
                     }
-                    if (spec.bookieAdditionalPorts() != null) {
-                        spec.bookieAdditionalPorts().forEach(bookieContainer::addExposedPort);
+                    if (spec.bookieAdditionalPorts != null) {
+                        spec.bookieAdditionalPorts.forEach(bookieContainer::addExposedPort);
                     }
                     return bookieContainer;
                 })

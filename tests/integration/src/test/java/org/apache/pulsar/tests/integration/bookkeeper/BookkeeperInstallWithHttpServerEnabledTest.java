@@ -51,7 +51,7 @@ public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTes
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
                 .numBrokers(1)
-                .bookkeperEnvs(bookkeeperEnvs)
+                .bookkeeperEnvs(bookkeeperEnvs)
                 .bookieAdditionalPorts(bookieAdditionalPorts)
                 .clusterName(clusterName)
                 .build();

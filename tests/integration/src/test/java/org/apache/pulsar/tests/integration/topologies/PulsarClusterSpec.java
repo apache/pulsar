@@ -153,7 +153,7 @@ public class PulsarClusterSpec {
     /**
      * Specify envs for bookkeeper.
      */
-    Map<String, String> bookkeperEnvs;
+    Map<String, String> bookkeeperEnvs;
 
     /**
      * Specify mount files.
