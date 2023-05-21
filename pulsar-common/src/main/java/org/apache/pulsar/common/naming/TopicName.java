@@ -348,26 +348,27 @@ public class TopicName implements ServiceUnitId {
         // The managedLedgerName convention is: tenant/namespace/domain/topic
         // We want to transform to topic full name in the order: domain://tenant/namespace/topic
         List<String> parts = Splitter.on("/").limit(5).splitToList(mlName);
-        boolean isV2 = parts.size() == 4;
         String tenant;
         String cluster;
         String namespacePortion;
         String domain;
         String localName;
-        if (isV2) {
+        if (parts.size() == 4) {
             tenant = parts.get(0);
             cluster = null;
             namespacePortion = parts.get(1);
             domain = parts.get(2);
             localName = parts.get(3);
             return String.format("%s://%s/%s/%s", domain, tenant, namespacePortion, localName);
-        } else {
+        } else if (parts.size() == 5) {
             tenant = parts.get(0);
             cluster = parts.get(1);
             namespacePortion = parts.get(2);
             domain = parts.get(3);
             localName = parts.get(4);
             return String.format("%s://%s/%s/%s/%s", domain, tenant, cluster, namespacePortion, localName);
+        } else {
+            throw new IllegalArgumentException("Invalid managedLedger name: " + mlName);
         }
     }
 
