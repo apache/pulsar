@@ -347,6 +347,9 @@ public class TopicName implements ServiceUnitId {
     public static String fromPersistenceNamingEncoding(String mlName) {
         // The managedLedgerName convention is: tenant/namespace/domain/topic
         // We want to transform to topic full name in the order: domain://tenant/namespace/topic
+        if (mlName == null || mlName.length() == 0) {
+            return mlName;
+        }
         List<String> parts = Splitter.on("/").limit(5).splitToList(mlName);
         String tenant;
         String cluster;
