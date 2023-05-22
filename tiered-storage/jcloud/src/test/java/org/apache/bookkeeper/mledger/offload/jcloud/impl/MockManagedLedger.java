@@ -335,6 +335,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public void noticeToCursorNonRecoverableLedgerSkipped(long ledgerId) {
+
+    }
+
+    @Override
     public void rollCurrentLedgerIfFull() {
 
     }
