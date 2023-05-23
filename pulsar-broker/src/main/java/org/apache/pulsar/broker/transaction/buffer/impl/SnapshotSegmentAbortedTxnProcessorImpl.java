@@ -131,7 +131,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
      */
     private final PersistentWorker persistentWorker;
 
-    TxnSnapshotSegmentStats txnSnapshotSegmentStats;
+    private final TxnSnapshotSegmentStats txnSnapshotSegmentStats;
     private static final String SNAPSHOT_PREFIX = "multiple-";
 
     public SnapshotSegmentAbortedTxnProcessorImpl(PersistentTopic topic) {
