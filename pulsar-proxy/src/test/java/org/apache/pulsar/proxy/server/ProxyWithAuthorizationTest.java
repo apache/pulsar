@@ -234,7 +234,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         webServer.stop();
     }
 
-    private void startProxy() throws Exception {
+    private void startProxy(boolean hostnameVerificationEnabled) throws Exception {
+        proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         proxyService.start();
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
         webServer.start();
@@ -258,7 +259,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        startProxy();
+        startProxy(false);
         // Skip hostname verification for admin and proxy clients because the certs intentionally do not have a hostname
         createProxyAdminClient(false);
         // create a client which connects to proxy over tls and pass authData
@@ -303,7 +304,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     public void testTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        startProxy();
+        // Not testing proxy to broker here
+        startProxy(false);
         // Testing client to proxy hostname verification, so use the dataProvider's value here
         createProxyAdminClient(hostnameVerificationEnabled);
         // create a client which connects to proxy over tls and pass authData
@@ -360,8 +362,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     public void testTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
-        startProxy();
+        startProxy(hostnameVerificationEnabled);
         // This test skips hostname verification for client to proxy in order to test proxy to broker
         createProxyAdminClient(false);
         // create a client which connects to proxy over tls and pass authData
@@ -506,7 +507,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     public void testProxyTlsTransportWithAuth(Authentication auth) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        startProxy();
+        startProxy(false);
         // Skip hostname verification because the certs intentionally do not have a hostname
         createProxyAdminClient(false);
 
@@ -589,9 +590,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+        admin = spy(PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrlTls.toString().replace(ADVERTISED_ADDRESS, "localhost"))
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-                .enableTlsHostnameVerification(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
     }
 
