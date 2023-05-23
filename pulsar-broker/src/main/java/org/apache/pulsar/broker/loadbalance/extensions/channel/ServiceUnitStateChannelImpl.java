@@ -81,6 +81,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -293,6 +294,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
+
+            ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
 
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
