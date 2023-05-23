@@ -403,7 +403,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
         // reset
-        proxyConfig.setTlsHostnameVerificationEnabled(false);
+        proxyConfig.setTlsHostnameVerificationEnabled(true);
     }
 
     /*
