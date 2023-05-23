@@ -14,6 +14,11 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.joining;
 import static org.testng.AssertJUnit.assertEquals;
 
+/***
+ * Test that verifies that regression in BookKeeper 4.16.0 is fixed.
+ *
+ * Anti-regression test for issue https://github.com/apache/pulsar/issues/20091.
+ */
 @Slf4j
 public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarClusterTestBase {
     @BeforeClass(alwaysRun = true)
@@ -48,13 +53,13 @@ public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarCluste
     }
 
     @Test
-    public void testBookieHttpServerIsRunning() throws Exception {
+    public void testBrokerHttpServerIsRunning() throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
                 PulsarCluster.CURL,
                 "-X",
                 "GET",
-                "http://localhost:6650/admin/v2/brokers/health");
+                "http://localhost:8080/admin/v2/brokers/health");
         assertEquals(result.getExitCode(), 0);
-        assertEquals(result.getStdout(), "ok\n");
+        assertEquals("ok", result.getStdout());
     }
 }
