@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.prometheus.client.CollectorRegistry;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -150,7 +151,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl implements AbortedTxnProcess
                 .getConfiguration().getTransactionBufferSnapshotSegmentSize() - 8 - topic.getName().length()) / 3;
         this.unsealedTxnIds = new LinkedList<>();
         TopicName topicName = TopicName.get(topic.getName());
-        this.txnSnapshotSegmentStats = new TxnSnapshotSegmentStats(topicName.getNamespace(), topicName.getLocalName());
+        this.txnSnapshotSegmentStats = new TxnSnapshotSegmentStats(topicName.getNamespace(), topicName.getLocalName(),
+                CollectorRegistry.defaultRegistry);
     }
 
     @Override

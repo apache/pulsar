@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.stats;
 
+import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
@@ -30,29 +31,15 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
     private static final String STATUS_LABEL_NAME = "status";
     private static final String PREFIX = "pulsar_txn_tb_snapshot_";
 
-    private static final Counter SNAPSHOT_SEGMENT_OP_TOTAL = Counter
-            .build(PREFIX + "segment_op_total",
-                    "Pulsar transaction buffer snapshot segment operation count.")
-            .labelNames(NAMESPACE_LABEL_NAME, TOPIC_NAME_LABEL_NAME, OPERATION_LABEL_NAME, STATUS_LABEL_NAME)
-            .register();
+    private final CollectorRegistry collectorRegistry;
 
-    private static final Counter SNAPSHOT_INDEX_OP_TOTAL = Counter
-            .build(PREFIX + "index_op_total", "Pulsar transaction buffer snapshot index operation count.")
-            .labelNames(NAMESPACE_LABEL_NAME, TOPIC_NAME_LABEL_NAME, OPERATION_LABEL_NAME, STATUS_LABEL_NAME)
-            .register();
+    private final Counter snapshotSegmentOpTotal;
 
-    private static final Gauge SNAPSHOT_SEGMENT_TOTAL = Gauge
-            .build(PREFIX + "index_total",
-                    "Number of snapshot segments maintained in the Pulsar transaction buffer.")
-            .labelNames("namespace", "topic")
-            .register();
+    private final Counter snapshotIndexOpTotal;
 
-    private static final Histogram SNAPSHOT_INDEX_ENTRY_BYTES = Histogram
-            .build(PREFIX + "index_entry_bytes",
-                    "Size of the snapshot index entry maintained in the Pulsar transaction buffer.")
-            .labelNames("namespace", "topic")
-            .unit("bytes")
-            .register();
+    private final Gauge snapshotSegmentTotal;
+
+    private final Histogram snapshotIndexEntryBytes;
 
     private final Counter.Child segmentOpAddSuccessChild;
     private final Counter.Child segmentOpDelSuccessChild;
@@ -73,37 +60,62 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
     private final String topicName;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    public TxnSnapshotSegmentStats(String namespace, String topicName) {
+    public TxnSnapshotSegmentStats(String namespace, String topicName, CollectorRegistry registry) {
         this.namespace = namespace;
         this.topicName = topicName;
+        this.collectorRegistry = registry;
 
-        this.segmentOpAddSuccessChild = SNAPSHOT_SEGMENT_OP_TOTAL
+        snapshotSegmentOpTotal = Counter
+                .build(PREFIX + "segment_op_total",
+                        "Pulsar transaction buffer snapshot segment operation count.")
+                .labelNames(NAMESPACE_LABEL_NAME, TOPIC_NAME_LABEL_NAME, OPERATION_LABEL_NAME, STATUS_LABEL_NAME)
+                .register(collectorRegistry);
+        this.segmentOpAddSuccessChild = snapshotSegmentOpTotal
                 .labels(namespace, topicName, "add", "success");
-        this.segmentOpDelSuccessChild = SNAPSHOT_SEGMENT_OP_TOTAL
+        this.segmentOpDelSuccessChild = snapshotSegmentOpTotal
                 .labels(namespace, topicName, "del", "success");
-        this.segmentOpReadSuccessChild = SNAPSHOT_SEGMENT_OP_TOTAL
+        this.segmentOpReadSuccessChild = snapshotSegmentOpTotal
                 .labels(namespace, topicName, "read", "success");
-        this.indexOpAddSuccessChild = SNAPSHOT_INDEX_OP_TOTAL
+        this.segmentOpAddFailedChild = snapshotSegmentOpTotal
+                .labels(namespace, topicName, "add", "fail");
+        this.segmentOpDelFailedChild = snapshotSegmentOpTotal
+                .labels(namespace, topicName, "del", "fail");
+        this.segmentOpReadFailedChild = snapshotSegmentOpTotal
+                .labels(namespace, topicName, "read", "fail");
+
+        snapshotIndexOpTotal = Counter
+                .build(PREFIX + "index_op_total",
+                        "Pulsar transaction buffer snapshot index operation count.")
+                .labelNames(NAMESPACE_LABEL_NAME, TOPIC_NAME_LABEL_NAME, OPERATION_LABEL_NAME, STATUS_LABEL_NAME)
+                .register(collectorRegistry);
+        this.indexOpAddSuccessChild = snapshotIndexOpTotal
                 .labels(namespace, topicName, "add", "success");
-        this.indexOpDelSuccessChild = SNAPSHOT_INDEX_OP_TOTAL
+        this.indexOpDelSuccessChild = snapshotIndexOpTotal
                 .labels(namespace, topicName, "del", "success");
-        this.indexOpReadSuccessChild = SNAPSHOT_INDEX_OP_TOTAL
+        this.indexOpReadSuccessChild = snapshotIndexOpTotal
                 .labels(namespace, topicName, "read", "success");
-        this.segmentOpAddFailedChild = SNAPSHOT_SEGMENT_OP_TOTAL
+        this.indexOpAddFailedChild = snapshotIndexOpTotal
                 .labels(namespace, topicName, "add", "fail");
-        this.segmentOpDelFailedChild = SNAPSHOT_SEGMENT_OP_TOTAL
+        this.indexOpDelFailedChild = snapshotIndexOpTotal
                 .labels(namespace, topicName, "del", "fail");
-        this.segmentOpReadFailedChild = SNAPSHOT_SEGMENT_OP_TOTAL
+        this.indexOpReadFailedChild = snapshotIndexOpTotal
                 .labels(namespace, topicName, "read", "fail");
-        this.indexOpAddFailedChild = SNAPSHOT_INDEX_OP_TOTAL
-                .labels(namespace, topicName, "add", "fail");
-        this.indexOpDelFailedChild = SNAPSHOT_INDEX_OP_TOTAL
-                .labels(namespace, topicName, "del", "fail");
-        this.indexOpReadFailedChild = SNAPSHOT_INDEX_OP_TOTAL
-                .labels(namespace, topicName, "read", "fail");
-        this.snapshotSegmentTotalChild = SNAPSHOT_SEGMENT_TOTAL
+
+        snapshotSegmentTotal = Gauge
+                .build(PREFIX + "index_total",
+                        "Number of snapshot segments maintained in the Pulsar transaction buffer.")
+                .labelNames("namespace", "topic")
+                .register(collectorRegistry);
+        this.snapshotSegmentTotalChild = snapshotSegmentTotal
                 .labels(namespace, topicName);
-        this.snapshotIndexEntryBytesChild = SNAPSHOT_INDEX_ENTRY_BYTES
+
+        snapshotIndexEntryBytes = Histogram
+                .build(PREFIX + "index_entry_bytes",
+                        "Size of the snapshot index entry maintained in the Pulsar transaction buffer.")
+                .labelNames("namespace", "topic")
+                .unit("bytes")
+                .register(collectorRegistry);
+        this.snapshotIndexEntryBytesChild = snapshotIndexEntryBytes
                 .labels(namespace, topicName);
     }
 
@@ -166,10 +178,10 @@ public final class TxnSnapshotSegmentStats implements AutoCloseable {
     @Override
     public void close() {
         if (this.closed.compareAndSet(false, true)) {
-            SNAPSHOT_SEGMENT_OP_TOTAL.clear();
-            SNAPSHOT_INDEX_OP_TOTAL.clear();
-            SNAPSHOT_SEGMENT_TOTAL.remove(namespace, topicName);
-            SNAPSHOT_INDEX_ENTRY_BYTES.remove(namespace, topicName);
+            collectorRegistry.unregister(snapshotSegmentOpTotal);
+            collectorRegistry.unregister(snapshotIndexOpTotal);
+            collectorRegistry.unregister(snapshotSegmentTotal);
+            collectorRegistry.unregister(snapshotIndexEntryBytes);
         }
     }
 }
