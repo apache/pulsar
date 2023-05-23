@@ -127,6 +127,8 @@ public class SecurityUtility {
             if (e.getCause() instanceof UnsatisfiedLinkError) {
                 log.warn("Conscrypt isn't available for {} {}. Using JDK default security provider.",
                         System.getProperty("os.name"), System.getProperty("os.arch"));
+            } else if (e.getCause() instanceof ClassNotFoundException) {
+                log.warn("Conscrypt jar isn't available in the classpath. Using JDK default security provider.");
             } else {
                 log.warn("Conscrypt isn't available. Using JDK default security provider.", e);
             }
