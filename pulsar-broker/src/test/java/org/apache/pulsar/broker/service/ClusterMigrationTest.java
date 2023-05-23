@@ -43,6 +43,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -311,6 +312,14 @@ public class ClusterMigrationTest {
         // from cluster-1 and reconnect with cluster-2
         retryStrategically((test) -> !topic2.getSubscriptions().isEmpty(), 10, 500);
         assertFalse(topic2.getSubscriptions().isEmpty());
+
+        topic1.checkClusterMigration().get();
+        ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
+        replicators.forEach((r, replicator) -> {
+            assertFalse(replicator.isConnected());
+        });
+
+        assertTrue(topic1.getSubscriptions().isEmpty());
 
         // not also create a new consumer which should also reconnect to cluster-2
         Consumer<byte[]> consumer2 = client1.newConsumer().topic(topicName).subscriptionType(subType)

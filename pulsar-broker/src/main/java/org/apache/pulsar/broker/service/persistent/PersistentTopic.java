@@ -180,6 +180,7 @@ import org.apache.pulsar.utils.StatsOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCallback {
 
     // Managed ledger associated with the topic
@@ -2575,25 +2576,49 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> checkClusterMigration() {
         Optional<ClusterUrl> clusterUrl = getMigratedClusterUrl();
-        if (!isMigrated() && clusterUrl.isPresent()) {
-            return ledger.asyncMigrate().thenApply(__ -> {
-                subscriptions.forEach((name, sub) -> {
-                    if (sub.isSubsciptionMigrated()) {
-                        sub.getConsumers().forEach(Consumer::checkAndApplyTopicMigration);
-                    }
-                });
-                return null;
-            });
-        } else {
+        if (!clusterUrl.isPresent()) {
             return CompletableFuture.completedFuture(null);
         }
+        CompletableFuture<?> migrated = !isMigrated() ? ledger.asyncMigrate() :
+                CompletableFuture.completedFuture(null);
+        return migrated.thenApply(__ -> {
+            subscriptions.forEach((name, sub) -> {
+                if (sub.isSubsciptionMigrated()) {
+                    sub.getConsumers().forEach(Consumer::checkAndApplyTopicMigration);
+                }
+            });
+            return null;
+        }).thenCompose(__ -> checkAndDisconnectReplicators()).thenCompose(__ -> checkAndUnsubscribeSubscriptions());
+    }
+
+    private CompletableFuture<Void> checkAndUnsubscribeSubscriptions() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        subscriptions.forEach((s, subscription) -> {
+            if (subscription.getNumberOfEntriesInBacklog(true) == 0
+                    && subscription.getConsumers().isEmpty()) {
+                futures.add(subscription.delete());
+            }
+        });
+
+        return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<Void> checkAndDisconnectReplicators() {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
+        replicators.forEach((r, replicator) -> {
+            if (replicator.getNumberOfEntriesInBacklog() <= 0) {
+                futures.add(replicator.disconnect());
+            }
+        });
+        return FutureUtil.waitForAll(futures);
     }
 
     public boolean isReplicationBacklogExist() {
         ConcurrentOpenHashMap<String, Replicator> replicators = getReplicators();
         if (replicators != null) {
             for (Replicator replicator : replicators.values()) {
-                if (replicator.getNumberOfEntriesInBacklog() != 0) {
+                if (replicator.getNumberOfEntriesInBacklog() > 0) {
                     return true;
                 }
             }
