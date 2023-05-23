@@ -25,6 +25,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -38,10 +39,12 @@ import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
+import org.apache.pulsar.broker.transaction.buffer.impl.SingleSnapshotAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.impl.SnapshotSegmentAbortedTxnProcessorImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
@@ -56,6 +59,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
+import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -77,6 +81,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
                 SEGMENT_SIZE * 3);
         admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
+        assertTrue(getSnapshotAbortedTxnProcessor(PROCESSOR_TOPIC) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
     }
 
     @Override
@@ -323,6 +328,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
 
+        assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SingleSnapshotAbortedTxnProcessorImpl);
         // Send 10 messages without using transactions
         for (int i = 0; i < 10; i++) {
             producer.send(("test-message-" + i).getBytes());
@@ -355,6 +361,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Unload the topic
         admin.topics().unload(topicName);
+        assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
 
         // Sends a new message using a transaction and aborts it.
         Transaction txn = pulsarClient.newTransaction()
@@ -404,7 +411,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         String topicName = "persistent://" + namespaceName + "/newTopic";
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
-
+        assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
         // Check that the __transaction_buffer_snapshot topic is not created in the same namespace
         String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/" +
                 SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
@@ -417,5 +424,22 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Destroy the namespace after the test
         admin.namespaces().deleteNamespace(namespaceName, true);
+    }
+
+    private AbortedTxnProcessor getSnapshotAbortedTxnProcessor(String topicName) {
+        PersistentTopic persistentTopic = getPersistentTopic(topicName);
+        return WhiteboxImpl.getInternalState(persistentTopic.getTransactionBuffer(), "snapshotAbortedTxnProcessor");
+    }
+
+    private PersistentTopic getPersistentTopic(String topicName) {
+        for (PulsarService pulsar : getPulsarServiceList()) {
+            CompletableFuture<Optional<Topic>> future =
+                    pulsar.getBrokerService().getTopic(topicName, false);
+            if (future == null) {
+                continue;
+            }
+            return (PersistentTopic) future.join().get();
+        }
+        throw new NullPointerException("topic[" + topicName +  "] not found");
     }
 }
