@@ -69,8 +69,8 @@ import org.slf4j.LoggerFactory;
 
 public class PerformanceConsumer {
     private static final Gauge messagesReceivedGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("messages_received")
             .labelNames("consumer", "subscription", "topic")
             .help("-")
@@ -78,8 +78,8 @@ public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
 
     private static final Gauge bytesReceivedGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("bytes_received")
             .labelNames("consumer", "subscription", "topic")
             .help("-")
@@ -89,32 +89,32 @@ public class PerformanceConsumer {
     private static final DecimalFormat dec = new DecimalFormat("0.000");
 
     private static final Gauge totalMessagesReceivedGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_messages_received")
             .help("-")
             .register();
     private static final LongAdder totalMessagesReceived = new LongAdder();
 
     private static final Gauge totalBytesReceivedGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_bytes_received")
             .help("-")
             .register();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
     private static final Gauge totalNumTxnOpenFailGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_txn_open_fail")
             .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenFail = new LongAdder();
 
     private static final Gauge totalNumTxnOpenSuccessGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_txn_open_success")
             .help("-")
             .register();
@@ -122,24 +122,24 @@ public class PerformanceConsumer {
 
 
     private static final Gauge totalMessageAckGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_message_ack")
             .help("-")
             .register();
     private static final LongAdder totalMessageAck = new LongAdder();
 
     private static final Gauge totalMessageAckFailedGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_message_ack_failed")
             .help("-")
             .register();
     private static final LongAdder totalMessageAckFailed = new LongAdder();
 
     private static final Gauge messageAckGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("message_ack")
             .labelNames("consumer", "subscription", "topic")
             .help("-")
@@ -147,23 +147,23 @@ public class PerformanceConsumer {
     private static final LongAdder messageAck = new LongAdder();
 
     private static final Gauge totalEndTxnOpFailNumGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_end_txn_failed")
             .help("-")
             .register();
 
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
     private static final Gauge totalEndTxnOpSuccessNumGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_end_txn_success")
             .help("-")
             .register();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
     private static final Gauge numTxnOpSuccessGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_txn_op_success")
             .help("-")
             .register();
@@ -174,8 +174,8 @@ public class PerformanceConsumer {
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 1};
 
     private static final Summary consumerE2ELatency = Summary.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("consumer_e2e_latency")
             .labelNames("consumer", "subscription", "topic")
             .quantile(0.75, 0.01D)
@@ -187,8 +187,8 @@ public class PerformanceConsumer {
     private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
 
     private static final Summary cumulativeE2ELatency = Summary.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("total_consumer_e2e_latency")
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
@@ -198,8 +198,8 @@ public class PerformanceConsumer {
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
     private static final Summary consumerQueueLength = Summary.build()
-            .subsystem("pulsar")
-            .namespace("perf_consumer")
+            .namespace("pulsar")
+            .subsystem("perf_consumer")
             .name("consumer_queue_length")
             .labelNames("consumer", "subscription", "topic")
             .quantile(0.75, 0.01D)
@@ -322,7 +322,8 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "--prometheus-metric-expose-port" },
                 description = "The http server port for expose performance consumer prometheus metrics."
-                        + "default not enabled. if config is enabled the metric can be get via 0.0.0.0:${port}/metrics")
+                        + "default not enabled. if config is enabled the metric can be "
+                        + "get via http://0.0.0.0:${port}/metrics")
         public int prometheusMetricExposePort = -1;
 
         @Override
@@ -498,6 +499,8 @@ public class PerformanceConsumer {
             context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics");
             log.info("Pulsar performance consumer metrics is expose at "
                     + "http://0.0.0.0:{}/metrics", serverPort);
+
+            server.start();
         }
 
         qRecorder = arguments.autoScaledReceiverQueueSize

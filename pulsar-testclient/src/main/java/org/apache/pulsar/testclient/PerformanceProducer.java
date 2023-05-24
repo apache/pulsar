@@ -90,24 +90,24 @@ public class PerformanceProducer {
             .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-producer-exec"));
 
     private static final Gauge messageSentGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("messages_send")
             .labelNames("producer", "topic")
             .help("-")
             .register();
     private static final LongAdder messagesSent = new LongAdder();
     private static final Gauge messagesFailedGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("messages_failed")
             .labelNames("producer", "topic")
             .help("-")
             .register();
     private static final LongAdder messagesFailed = new LongAdder();
     private static final Gauge bytesSentGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("bytes_send")
             .labelNames("producer", "topic")
             .help("-")
@@ -115,39 +115,39 @@ public class PerformanceProducer {
     private static final LongAdder bytesSent = new LongAdder();
 
     private static final Gauge totalNumTxnOpenTxnFailGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_txn_open_fail")
             .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
     private static final Gauge totalNumTxnOpenTxnSuccessGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_txn_open_success")
             .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
     private static final Gauge totalMessagesSentGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_message_send")
             .help("-")
             .register();
     private static final LongAdder totalMessagesSent = new LongAdder();
 
     private static final Gauge totalBytesSentGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_bytes_send")
             .help("-")
             .register();
     private static final LongAdder totalBytesSent = new LongAdder();
 
     private static final Summary sendLatency = Summary.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("send_latency")
             .labelNames("producer", "topic")
             .quantile(0.75, 0.01D)
@@ -158,8 +158,8 @@ public class PerformanceProducer {
     private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
     private static final Summary cumulativeSendLatency = Summary.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("cumulative_send_latency")
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
@@ -169,23 +169,23 @@ public class PerformanceProducer {
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
     private static final Gauge totalEndTxnOpSuccessNumGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_end_txn_success")
             .help("-")
             .register();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
 
     private static final Gauge totalEndTxnOpFailNumGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_end_txn_failed")
             .help("-")
             .register();
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
     private static final Gauge numTxnOpSuccessGauge = Gauge.build()
-            .subsystem("pulsar")
-            .namespace("perf_producer")
+            .namespace("pulsar")
+            .subsystem("perf_producer")
             .name("total_txn_op_success")
             .help("-")
             .register();
@@ -397,7 +397,8 @@ public class PerformanceProducer {
 
         @Parameter(names = { "--prometheus-metric-expose-port" },
                 description = "The http server port for expose performance consumer prometheus metrics."
-                        + "default not enabled. if config is enabled the metric can be get via 0.0.0.0:${port}/metrics")
+                        + "default not enabled. if config is enabled the metric can be "
+                        + "get via http://0.0.0.0:${port}/metrics")
         public int prometheusMetricExposePort = -1;
 
         @Override
@@ -481,8 +482,10 @@ public class PerformanceProducer {
             server.setHandler(context);
 
             context.addServlet(new ServletHolder(new MetricsServlet()), "/metrics");
-            log.info("Pulsar performance consumer metrics is expose at "
+            log.info("Pulsar performance producer metrics is expose at "
                     + "http://0.0.0.0:{}/metrics", serverPort);
+
+            server.start();
         }
 
         // Read payload data from file if needed
