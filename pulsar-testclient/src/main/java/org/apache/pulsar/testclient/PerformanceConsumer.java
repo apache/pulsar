@@ -73,7 +73,7 @@ public class PerformanceConsumer {
             .namespace("perf_consumer")
             .name("messages_received")
             .labelNames("consumer", "subscription", "topic")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder messagesReceived = new LongAdder();
 
@@ -82,7 +82,7 @@ public class PerformanceConsumer {
             .namespace("perf_consumer")
             .name("bytes_received")
             .labelNames("consumer", "subscription", "topic")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
@@ -92,7 +92,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_messages_received")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalMessagesReceived = new LongAdder();
 
@@ -100,7 +100,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_bytes_received")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalBytesReceived = new LongAdder();
 
@@ -108,7 +108,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_txn_open_fail")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenFail = new LongAdder();
 
@@ -116,7 +116,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_txn_open_success")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenSuccess = new LongAdder();
 
@@ -125,7 +125,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_message_ack")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalMessageAck = new LongAdder();
 
@@ -133,7 +133,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_message_ack_failed")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalMessageAckFailed = new LongAdder();
 
@@ -142,7 +142,7 @@ public class PerformanceConsumer {
             .namespace("perf_consumer")
             .name("message_ack")
             .labelNames("consumer", "subscription", "topic")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder messageAck = new LongAdder();
 
@@ -150,7 +150,7 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_end_txn_failed")
-            .help("")
+            .help("-")
             .register();
 
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
@@ -158,14 +158,14 @@ public class PerformanceConsumer {
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_end_txn_success")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
     private static final Gauge numTxnOpSuccessGauge = Gauge.build()
             .subsystem("pulsar")
             .namespace("perf_consumer")
             .name("total_txn_op_success")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
@@ -181,7 +181,7 @@ public class PerformanceConsumer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
-            .help("")
+            .help("-")
             .register();
 
     private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
@@ -193,7 +193,7 @@ public class PerformanceConsumer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
-            .help("")
+            .help("-")
             .register();
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
 
@@ -205,7 +205,7 @@ public class PerformanceConsumer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
-            .help("")
+            .help("-")
             .register();
     private static Recorder qRecorder;
 

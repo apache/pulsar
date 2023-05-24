@@ -94,7 +94,7 @@ public class PerformanceProducer {
             .namespace("perf_producer")
             .name("messages_send")
             .labelNames("producer", "topic")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder messagesSent = new LongAdder();
     private static final Gauge messagesFailedGauge = Gauge.build()
@@ -102,7 +102,7 @@ public class PerformanceProducer {
             .namespace("perf_producer")
             .name("messages_failed")
             .labelNames("producer", "topic")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder messagesFailed = new LongAdder();
     private static final Gauge bytesSentGauge = Gauge.build()
@@ -110,7 +110,7 @@ public class PerformanceProducer {
             .namespace("perf_producer")
             .name("bytes_send")
             .labelNames("producer", "topic")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder bytesSent = new LongAdder();
 
@@ -118,14 +118,14 @@ public class PerformanceProducer {
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_txn_open_fail")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenTxnFail = new LongAdder();
     private static final Gauge totalNumTxnOpenTxnSuccessGauge = Gauge.build()
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_txn_open_success")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalNumTxnOpenTxnSuccess = new LongAdder();
 
@@ -133,7 +133,7 @@ public class PerformanceProducer {
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_message_send")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalMessagesSent = new LongAdder();
 
@@ -141,7 +141,7 @@ public class PerformanceProducer {
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_bytes_send")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalBytesSent = new LongAdder();
 
@@ -153,7 +153,7 @@ public class PerformanceProducer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
-            .help("")
+            .help("-")
             .register();
     private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
@@ -164,7 +164,7 @@ public class PerformanceProducer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
-            .help("")
+            .help("-")
             .register();
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
 
@@ -172,7 +172,7 @@ public class PerformanceProducer {
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_end_txn_success")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
 
@@ -180,14 +180,14 @@ public class PerformanceProducer {
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_end_txn_failed")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
     private static final Gauge numTxnOpSuccessGauge = Gauge.build()
             .subsystem("pulsar")
             .namespace("perf_producer")
             .name("total_txn_op_success")
-            .help("")
+            .help("-")
             .register();
     private static final LongAdder numTxnOpSuccess = new LongAdder();
 
