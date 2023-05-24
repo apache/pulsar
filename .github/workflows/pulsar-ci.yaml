@@ -198,6 +198,10 @@ jobs:
           - name: Pulsar IO
             group: PULSAR_IO
             timeout: 75
+          - name: Pulsar IO - Elastic Search
+            group: PULSAR_IO_ELASTIC
+          - name: Pulsar IO - Kafka Connect Adaptor
+            group: PULSAR_IO_KAFKA_CONNECT
           - name: Pulsar Client
             group: CLIENT
 
