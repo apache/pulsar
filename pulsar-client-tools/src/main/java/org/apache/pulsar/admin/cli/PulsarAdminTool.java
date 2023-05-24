@@ -83,7 +83,7 @@ public class PulsarAdminTool {
 
         @Parameter(names = { "--tls-enable-hostname-verification" },
                 description = "Enable TLS common name verification")
-        Boolean tlsEnableHostnameVerification;
+        Boolean tlsHostnameVerificationEnabled;
 
         @Parameter(names = {"--tls-provider"}, description = "Set up TLS provider. "
                 + "When TLS authentication with CACert is used, the valid value is either OPENSSL or JDK. "
@@ -125,12 +125,12 @@ public class PulsarAdminTool {
         boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties
                 .getProperty("tlsAllowInsecureConnection", "false"));
 
-        boolean tlsEnableHostnameVerification = Boolean.parseBoolean(properties
-                .getProperty("tlsEnableHostnameVerification", "true"));
+        boolean tlsHostnameVerificationEnabled = Boolean.parseBoolean(properties
+                .getProperty("tlsHostnameVerificationEnabled", "true"));
         final String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
         return PulsarAdmin.builder().allowTlsInsecureConnection(tlsAllowInsecureConnection)
-                .enableTlsHostnameVerification(tlsEnableHostnameVerification)
+                .enableTlsHostnameVerification(tlsHostnameVerificationEnabled)
                 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
                 .useKeyStoreTls(useKeyStoreTls)
                 .tlsTrustStoreType(tlsTrustStoreType)

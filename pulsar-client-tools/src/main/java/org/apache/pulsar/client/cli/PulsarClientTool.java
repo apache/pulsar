@@ -80,7 +80,7 @@ public class PulsarClientTool {
 
     protected RootParams rootParams;
     boolean tlsAllowInsecureConnection;
-    boolean tlsEnableHostnameVerification;
+    boolean tlsHostnameVerificationEnabled;
 
     String tlsKeyFilePath;
     String tlsCertificateFilePath;
@@ -107,8 +107,8 @@ public class PulsarClientTool {
         initRootParamsFromProperties(properties);
         this.tlsAllowInsecureConnection = Boolean
                 .parseBoolean(properties.getProperty("tlsAllowInsecureConnection", "false"));
-        this.tlsEnableHostnameVerification = Boolean
-                .parseBoolean(properties.getProperty("tlsEnableHostnameVerification", "true"));
+        this.tlsHostnameVerificationEnabled = Boolean
+                .parseBoolean(properties.getProperty("tlsHostnameVerificationEnabled", "true"));
         this.useKeyStoreTls = Boolean
                 .parseBoolean(properties.getProperty("useKeyStoreTls", "false"));
         this.tlsTrustStoreType = properties.getProperty("tlsTrustStoreType", "JKS");
@@ -175,7 +175,7 @@ public class PulsarClientTool {
             clientBuilder.listenerName(this.rootParams.listenerName);
         }
         clientBuilder.allowTlsInsecureConnection(this.tlsAllowInsecureConnection);
-        clientBuilder.enableTlsHostnameVerification(this.tlsEnableHostnameVerification);
+        clientBuilder.enableTlsHostnameVerification(this.tlsHostnameVerificationEnabled);
         clientBuilder.serviceUrl(rootParams.serviceURL);
 
         clientBuilder.tlsTrustCertsFilePath(this.rootParams.tlsTrustCertsFilePath)

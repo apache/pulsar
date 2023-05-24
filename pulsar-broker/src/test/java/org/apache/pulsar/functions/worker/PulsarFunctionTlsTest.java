@@ -147,7 +147,7 @@ public class PulsarFunctionTlsTest {
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
             workerConfig.setUseTls(true);
-            workerConfig.setTlsEnableHostnameVerification(true);
+            workerConfig.setTlsHostnameVerificationEnabled(true);
             workerConfig.setTlsAllowInsecureConnection(false);
             fnWorkerServices[i] = WorkerServiceLoader.load(workerConfig);
 

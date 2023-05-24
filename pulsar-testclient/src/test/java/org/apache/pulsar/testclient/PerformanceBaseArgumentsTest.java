@@ -83,7 +83,7 @@ public class PerformanceBaseArgumentsTest {
             "authParams", "myparams",
             "tlsTrustCertsFilePath", "./path",
                     "tlsAllowInsecureConnection","true",
-            "tlsEnableHostnameVerification", "true"
+            "tlsHostnameVerificationEnabled", "true"
             );
             props.putAll(configs);
             FileOutputStream out = new FileOutputStream(tempConfigFile);
@@ -133,7 +133,7 @@ public class PerformanceBaseArgumentsTest {
                     "authParams", "myparams",
                     "tlsTrustCertsFilePath", "./path",
                     "tlsAllowInsecureConnection","true",
-                    "tlsEnableHostnameVerification", "true",
+                    "tlsHostnameVerificationEnabled", "true",
                     "proxyServiceURL", "https://my-proxy-pulsar:4443/",
                     "proxyProtocol", "TEST"
             );

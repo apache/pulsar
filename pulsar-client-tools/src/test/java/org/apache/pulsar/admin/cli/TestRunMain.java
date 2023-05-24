@@ -93,7 +93,7 @@ public class TestRunMain {
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("tlsTrustCertsFilePath=" + tlsTrustCertsFilePathInFile);
         printWriter.println("tlsAllowInsecureConnection=" + false);
-        printWriter.println("tlsEnableHostnameVerification=" + false);
+        printWriter.println("tlsHostnameVerificationEnabled=" + false);
 
         printWriter.close();
         testConfigFile.deleteOnExit();
