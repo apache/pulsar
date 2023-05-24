@@ -294,6 +294,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
                     (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
 
+            ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
+
             producer = pulsar.getClient().newProducer(schema)
                     .enableBatching(true)
                     .compressionType(MSG_COMPRESSION_TYPE)
