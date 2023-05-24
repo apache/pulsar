@@ -56,6 +56,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         conf.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         conf.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
         conf.setTlsRequireTrustedClientCertOnConnect(true);
+        conf.setAdvertisedAddress("localhost");
 
         internalSetup();
 
@@ -67,6 +68,7 @@ public class ProxyKeyStoreTlsTransportTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(true);
         proxyConfig.setTlsEnabledWithKeyStore(true);
+        proxyConfig.setAdvertisedAddress("localhost");
 
         proxyConfig.setTlsKeyStoreType(KEYSTORE_TYPE);
         proxyConfig.setTlsKeyStore(BROKER_KEYSTORE_FILE_PATH);
