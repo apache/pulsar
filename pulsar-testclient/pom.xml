@@ -112,6 +112,12 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- The client -->
+		<dependency>
+			<groupId>io.prometheus</groupId>
+			<artifactId>simpleclient</artifactId>
+			<version>0.16.0</version>
+		</dependency>
 
 	</dependencies>
 
