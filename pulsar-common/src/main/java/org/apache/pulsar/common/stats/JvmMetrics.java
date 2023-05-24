@@ -108,6 +108,9 @@ public class JvmMetrics {
 
         Runtime r = Runtime.getRuntime();
 
+        RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+
+        m.put("jvm_start_time", runtimeMXBean.getStartTime());
         m.put("jvm_heap_used", r.totalMemory() - r.freeMemory());
         m.put("jvm_max_memory", r.maxMemory());
         m.put("jvm_total_memory", r.totalMemory());
