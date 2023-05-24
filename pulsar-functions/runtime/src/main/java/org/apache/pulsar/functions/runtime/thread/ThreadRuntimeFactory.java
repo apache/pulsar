@@ -86,7 +86,21 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
                 rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
-                Optional.empty());
+                Optional.empty(), null);
+    }
+
+    public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl,
+                                String stateStorageImplClass,
+                                String storageServiceUrl,
+                                AuthenticationConfig authConfig, SecretsProvider secretsProvider,
+                                FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
+                                ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
+                                String pulsarWebServiceUrl, FunctionCacheManager fnCache) throws Exception {
+        initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
+                stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
+                narExtractionDirectory,
+                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
+                Optional.empty(), fnCache);
     }
 
     private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit,
@@ -96,7 +110,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                             FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                             ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
                             String pulsarWebServiceUrl, Optional<ConnectorsManager> connectorsManager,
-                            Optional<FunctionsManager> functionsManager)
+                            Optional<FunctionsManager> functionsManager, FunctionCacheManager fnCache)
             throws PulsarClientException {
 
         if (rootClassLoader == null) {
@@ -106,7 +120,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.rootClassLoader = rootClassLoader;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.defaultSecretsProvider = secretsProvider;
-        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        this.fnCache = fnCache;
+        if (fnCache == null) {
+            this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        }
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarAdmin =
                 exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig)
@@ -171,7 +188,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null,
                 workerConfig.isExposeAdminClientEnabled(),
-                workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager), Optional.of(functionsManager));
+                workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager), Optional.of(functionsManager),
+                null);
     }
 
     @Override
