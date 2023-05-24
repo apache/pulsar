@@ -181,6 +181,7 @@ public class PerformanceConsumer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
+            .unit("ms")
             .help("-")
             .register();
 
@@ -193,6 +194,7 @@ public class PerformanceConsumer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
+            .unit("ms")
             .help("-")
             .register();
     private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);

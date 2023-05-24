@@ -153,6 +153,7 @@ public class PerformanceProducer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
+            .unit("ms")
             .help("-")
             .register();
     private static final Recorder recorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
@@ -164,6 +165,7 @@ public class PerformanceProducer {
             .quantile(0.75, 0.01D)
             .quantile(0.95, 0.01D)
             .quantile(0.99, 0.01D)
+            .unit("ms")
             .help("-")
             .register();
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMicros(120000), 5);
@@ -862,7 +864,7 @@ public class PerformanceProducer {
 
                         long now = System.nanoTime();
                         if (now > warmupEndTime) {
-                            recordSendLatency(producerName, topic, NANOSECONDS.toMicros(now - sendTime));
+                            recordSendLatency(producerName, topic, NANOSECONDS.toMillis(now - sendTime));
                         }
                     }).exceptionally(ex -> {
                         // Ignore the exception of recorder since a very large latencyMicros will lead
