@@ -279,7 +279,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
         Iterator<Map.Entry<String, LinkedList<TxnMeta>>> iterator =
                 terminatedTxnMetaList.entrySet().iterator();
         Map.Entry<String, LinkedList<TxnMeta>> entry;
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             entry = iterator.next();
             String clientName = entry.getKey();
             LinkedList<TxnMeta> txnMetaList = entry.getValue();
