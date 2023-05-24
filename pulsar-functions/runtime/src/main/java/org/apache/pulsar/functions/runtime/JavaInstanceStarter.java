@@ -49,11 +49,14 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.common.util.Reflections;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 
 
 @Slf4j
@@ -167,7 +170,10 @@ public class JavaInstanceStarter implements AutoCloseable {
             functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
         }
         JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
-        inferringMissingTypeClassName(functionDetailsBuilder, functionInstanceClassLoader);
+        FunctionCacheManager fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        ClassLoader functionClassLoader = ThreadRuntime.loadJars(jarFile, instanceConfig,
+                functionDetailsBuilder.getName(), narExtractionDirectory, fnCache);
+        inferringMissingTypeClassName(functionDetailsBuilder, functionClassLoader);
         Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
@@ -210,7 +216,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl);
+                exposePulsarAdminClientEnabled, webServiceUrl, fnCache);
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
@@ -301,7 +307,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                     Map<String, Object> userConfigs = new Gson().fromJson(functionDetailsBuilder.getUserConfig(),
                             new TypeToken<Map<String, Object>>() {
                             }.getType());
-                    boolean isWindowConfigPresent = userConfigs.containsKey(WindowConfig.WINDOW_CONFIG_KEY);
+                    boolean isWindowConfigPresent =
+                            userConfigs != null && userConfigs.containsKey(WindowConfig.WINDOW_CONFIG_KEY);
                     String className = functionDetailsBuilder.getClassName();
                     if (isWindowConfigPresent) {
                         WindowConfig windowConfig = new Gson().fromJson(
@@ -332,7 +339,8 @@ public class JavaInstanceStarter implements AutoCloseable {
             case SINK:
                 if ((functionDetailsBuilder.hasSink()
                         && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
-                    String typeArg = getSinkType(functionDetailsBuilder.getClassName(), classLoader).getName();
+                    String typeArg =
+                            getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
 
                     Function.SinkSpec.Builder sinkBuilder =
                             Function.SinkSpec.newBuilder(functionDetailsBuilder.getSink());
@@ -350,7 +358,8 @@ public class JavaInstanceStarter implements AutoCloseable {
             case SOURCE:
                 if ((functionDetailsBuilder.hasSource()
                         && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())) {
-                    String typeArg = getSourceType(functionDetailsBuilder.getClassName(), classLoader).getName();
+                    String typeArg =
+                            getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
 
                     Function.SourceSpec.Builder sourceBuilder =
                             Function.SourceSpec.newBuilder(functionDetailsBuilder.getSource());
