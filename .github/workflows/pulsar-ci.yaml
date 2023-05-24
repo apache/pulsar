@@ -198,6 +198,8 @@ jobs:
           - name: Pulsar IO
             group: PULSAR_IO
             timeout: 75
+          - name: Pulsar IO - Elastic Search
+            group: PULSAR_IO_ELASTIC
           - name: Pulsar Client
             group: CLIENT
 
