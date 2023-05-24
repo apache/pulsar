@@ -64,30 +64,18 @@ import org.testng.collections.Maps;
 
 /**
  * This test verifies authentication as well as several aspects of TLS for client to proxy to broker.
- * That includes several combinations of hostname verification, cipher suites, and protocols. The hostname verification
- * checks rely on the fact that 127.0.0.2 loops back to the local host. This is not the default on OSX, so you may
- * need to configure that by running the following command: sudo ifconfig lo0 alias 127.0.0.2 up
+ * That includes several combinations of cipher suites and protocols. Hostname verification is verified in
+ * {@link ProxyWithHostnameVerificationTest}.
  */
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
-    // An IP that routes correctly, but is not on any of the TLS certificate's SAN list
-    // If you are seeing an inability to connect, you may need to configure loop back for this IP.
-    // Run: sudo ifconfig lo0 alias 127.0.0.2 up
-    private static final String ADVERTISED_ADDRESS = "127.0.0.2";
+    private static final String ADVERTISED_ADDRESS = "127.0.0.1";
 
     private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
     private ProxyService proxyService;
     private WebServer webServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
-
-    @DataProvider(name = "hostnameVerification")
-    public Object[][] hostnameVerificationCodecProvider() {
-        return new Object[][] {
-            { Boolean.TRUE },
-            { Boolean.FALSE }
-        };
-    }
 
     @DataProvider(name = "protocolsCiphersProvider")
     public Object[][] protocolsCiphersProviderCodecProvider() {
@@ -234,8 +222,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         webServer.stop();
     }
 
-    private void startProxy(boolean hostnameVerificationEnabled) throws Exception {
-        proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
+    private void startProxy() throws Exception {
         proxyService.start();
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
         webServer.start();
@@ -259,12 +246,11 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        startProxy(false);
-        // Skip hostname verification for admin and proxy clients because the certs intentionally do not have a hostname
-        createProxyAdminClient(false);
+        startProxy();
+        createProxyAdminClient();
         // create a client which connects to proxy over tls and pass authData
         @Cleanup
-        PulsarClient proxyClient = createProxyClient(proxyService.getServiceUrlTls(), PulsarClient.builder(), false);
+        PulsarClient proxyClient = createProxyClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
 
         String namespaceName = "my-tenant/my-ns";
 
@@ -298,113 +284,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
-    }
-
-    @Test(dataProvider = "hostnameVerification")
-    public void testTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        // Not testing proxy to broker here
-        startProxy(false);
-        // Testing client to proxy hostname verification, so use the dataProvider's value here
-        createProxyAdminClient(hostnameVerificationEnabled);
-        // create a client which connects to proxy over tls and pass authData
-        @Cleanup
-        PulsarClient proxyClient = createProxyClient(proxyService.getServiceUrlTls(),
-                PulsarClient.builder(), hostnameVerificationEnabled);
-
-        String namespaceName = "my-tenant/my-ns";
-
-        try {
-            initializeCluster(admin, namespaceName);
-            if (hostnameVerificationEnabled) {
-                Assert.fail("Connection should be failed due to hostnameVerification enabled");
-            }
-        } catch (PulsarAdminException e) {
-            if (!hostnameVerificationEnabled) {
-                Assert.fail("Cluster should initialize because hostnameverification is disabled");
-            }
-            admin.close();
-            // Need new client because the admin client to proxy is failing due to hostname verification, and we still
-            // want to test the binary protocol client fails to connect as well
-            createProxyAdminClient(false);
-            initializeCluster(admin, namespaceName);
-        }
-
-        try {
-            proxyClient.newConsumer().topic("persistent://my-tenant/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscribe();
-            if (hostnameVerificationEnabled) {
-                Assert.fail("Connection should be failed due to hostnameVerification enabled");
-            }
-        } catch (PulsarClientException e) {
-            if (!hostnameVerificationEnabled) {
-                Assert.fail("Consumer should be created because hostnameverification is disabled");
-            }
-        }
-
-        log.info("-- Exiting {} test --", methodName);
-    }
-
-    /**
-     * It verifies hostname verification at proxy when proxy tries to connect with broker. Proxy performs hostname
-     * verification when broker sends its certs over tls .
-     *
-     * <pre>
-     * 1. Broker sends certs back to proxy with CN="Broker" however, proxy tries to connect with hostname=localhost
-     * 2. so, client fails to create consumer if proxy is enabled with hostname verification
-     * </pre>
-     *
-     * @param hostnameVerificationEnabled
-     * @throws Exception
-     */
-    @Test(dataProvider = "hostnameVerification")
-    public void testTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        startProxy(hostnameVerificationEnabled);
-        // This test skips hostname verification for client to proxy in order to test proxy to broker
-        createProxyAdminClient(false);
-        // create a client which connects to proxy over tls and pass authData
-        @Cleanup
-        PulsarClient proxyClient = createProxyClient(proxyService.getServiceUrlTls(),
-                PulsarClient.builder().operationTimeout(15, TimeUnit.SECONDS),
-                hostnameVerificationEnabled);
-
-        String namespaceName = "my-tenant/my-ns";
-
-        try {
-            initializeCluster(admin, namespaceName);
-            if (hostnameVerificationEnabled) {
-                Assert.fail("Connection should be failed due to hostnameVerification enabled for proxy to broker");
-            }
-        } catch (PulsarAdminException.ServerSideErrorException e) {
-            if (!hostnameVerificationEnabled) {
-                Assert.fail("Cluster should initialize because hostnameverification is disabled for proxy to broker");
-            }
-            Assert.assertEquals(e.getStatusCode(), 502, "Should get bad gateway");
-            admin.close();
-            // Need to use broker's admin client because the proxy to broker is failing, and we still want to test
-            // the binary protocol client fails to connect as well
-            createBrokerAdminClient();
-            initializeCluster(admin, namespaceName);
-        }
-
-        try {
-            proxyClient.newConsumer().topic("persistent://my-tenant/my-ns/my-topic1")
-                    .subscriptionName("my-subscriber-name").subscribe();
-            if (hostnameVerificationEnabled) {
-                Assert.fail("Connection should be failed due to hostnameVerification enabled");
-            }
-        } catch (PulsarClientException e) {
-            if (!hostnameVerificationEnabled) {
-                Assert.fail("Consumer should be created because hostnameverification is disabled");
-            }
-        }
-
-        log.info("-- Exiting {} test --", methodName);
-        // reset
-        proxyConfig.setTlsHostnameVerificationEnabled(true);
     }
 
     /*
@@ -473,7 +352,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         try {
             @Cleanup
             PulsarClient proxyClient = createProxyClient("pulsar://localhost:" + proxyService.getListenPortTls().get(),
-                    PulsarClient.builder(), true);
+                    PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-tenant/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
@@ -507,9 +386,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     public void testProxyTlsTransportWithAuth(Authentication auth) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        startProxy(false);
-        // Skip hostname verification because the certs intentionally do not have a hostname
-        createProxyAdminClient(false);
+        startProxy();
+        createProxyAdminClient();
 
         @Cleanup
         PulsarClient proxyClient = PulsarClient.builder()
@@ -573,7 +451,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
                 Sets.newHashSet(AuthAction.consume, AuthAction.produce));
     }
 
-    private void createProxyAdminClient(boolean enableTlsHostnameVerification) throws Exception {
+    private void createProxyAdminClient() throws Exception {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
         authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
@@ -581,7 +459,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(
                 String.format("https://%s:%s", ADVERTISED_ADDRESS, webServer.getListenPortHTTPS().get()))
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-                .enableTlsHostnameVerification(enableTlsHostnameVerification)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
     }
 
@@ -597,7 +474,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     }
 
     @SuppressWarnings("deprecation")
-    private PulsarClient createProxyClient(String proxyServiceUrl, ClientBuilder clientBuilder, boolean enableTlsHostnameVerification)
+    private PulsarClient createProxyClient(String proxyServiceUrl, ClientBuilder clientBuilder)
             throws PulsarClientException {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", getTlsFileForClient("user1.cert"));
@@ -608,7 +485,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         return clientBuilder.serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .authentication(authTls).enableTls(true)
-                .enableTlsHostnameVerification(enableTlsHostnameVerification)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
     }
 }
