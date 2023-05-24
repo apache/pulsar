@@ -2446,6 +2446,13 @@ flexible messaging model and an intuitive client API.</description>
     </profile>
 
     <profile>
+      <id>pulsar-io-kafka-connect-tests</id>
+      <modules>
+        <module>pulsar-io</module>
+      </modules>
+    </profile>
+
+    <profile>
       <id>pulsar-sql-tests</id>
       <modules>
         <module>pulsar-sql</module>
