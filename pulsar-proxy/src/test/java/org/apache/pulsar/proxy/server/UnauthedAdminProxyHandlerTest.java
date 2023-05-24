@@ -57,8 +57,6 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     @Override
     @BeforeClass
     protected void setup() throws Exception {
-        // enable tls and auth&auth at broker
-
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("localhost");
         superUserRoles.add("superUser");

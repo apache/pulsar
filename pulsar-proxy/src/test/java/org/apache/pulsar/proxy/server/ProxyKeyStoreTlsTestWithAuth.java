@@ -66,6 +66,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
         proxyConfig.setTlsEnabledWithBroker(false);
+        proxyConfig.setAdvertisedAddress("localhost");
 
         proxyConfig.setTlsEnabledWithKeyStore(true);
         proxyConfig.setTlsKeyStoreType(KEYSTORE_TYPE);
