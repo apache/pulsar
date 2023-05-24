@@ -197,7 +197,7 @@ jobs:
             group: PROXY
           - name: Pulsar IO
             group: PULSAR_IO
-            timeout: 75
+            timeout: 90
           - name: Pulsar Client
             group: CLIENT
 
