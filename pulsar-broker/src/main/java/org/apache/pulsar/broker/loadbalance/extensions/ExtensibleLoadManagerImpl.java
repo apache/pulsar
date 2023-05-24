@@ -78,6 +78,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionS
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -212,6 +213,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
 
+    public static void createSystemTopic(PulsarService pulsar, String topic) throws PulsarServerException {
+        try {
+            pulsar.getAdminClient().topics().createNonPartitionedTopic(topic);
+            log.info("Created topic {}.", topic);
+        } catch (PulsarAdminException.ConflictException ex) {
+            if (debug(pulsar.getConfiguration(), log)) {
+                log.info("Topic {} already exists.", topic, ex);
+            }
+        } catch (PulsarAdminException e) {
+            throw new PulsarServerException(e);
+        }
+    }
+
     @Override
     public void start() throws PulsarServerException {
         if (this.started) {
@@ -245,6 +259,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
         this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
         this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
+
+        createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
+        createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
 
         try {
             this.brokerLoadDataStore = LoadDataStoreFactory

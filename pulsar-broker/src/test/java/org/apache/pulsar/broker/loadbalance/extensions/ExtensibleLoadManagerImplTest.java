@@ -97,6 +97,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -129,6 +130,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setForceDeleteNamespaceAllowed(true);
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
