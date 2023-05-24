@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
+import java.util.Objects;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -43,7 +44,9 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
         }
         brokers.entrySet().removeIf(entry -> {
             BrokerLookupData v = entry.getValue();
-            return !v.getLoadManagerClassName().equals(context.brokerConfiguration().getLoadManagerClassName());
+            // The load manager class name can be null if the cluster has old version of broker.
+            return !Objects.equals(v.getLoadManagerClassName(),
+                    context.brokerConfiguration().getLoadManagerClassName());
         });
         return brokers;
     }

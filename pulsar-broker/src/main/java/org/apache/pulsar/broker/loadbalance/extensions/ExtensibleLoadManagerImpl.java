@@ -26,6 +26,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -380,12 +381,22 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
+        return selectAsync(bundle, Collections.emptySet());
+    }
+
+    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
+                                                           Set<String> excludeBrokerSet) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
+                    if (!excludeBrokerSet.isEmpty()) {
+                        for (String exclude : excludeBrokerSet) {
+                            availableBrokerCandidates.remove(exclude);
+                        }
+                    }
 
                     // Filter out brokers that do not meet the rules.
                     List<BrokerFilter> filterPipeline = getBrokerFilterPipeline();
@@ -684,5 +695,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
+    }
+
+    public void disableBroker() throws Exception {
+        serviceUnitStateChannel.cleanOwnerships();
+        leaderElectionService.close();
+        brokerRegistry.unregister();
     }
 }

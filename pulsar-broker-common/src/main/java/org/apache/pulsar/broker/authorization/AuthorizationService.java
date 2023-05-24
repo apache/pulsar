@@ -23,6 +23,7 @@ import java.net.SocketAddress;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -221,7 +222,7 @@ public class AuthorizationService {
         try {
             return canProduceAsync(topicName, role, authenticationData).get(
                     conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException e) {
+        } catch (TimeoutException e) {
             log.warn("Time-out {} sec while checking authorization on {} ",
                     conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
@@ -237,7 +238,7 @@ public class AuthorizationService {
         try {
             return canConsumeAsync(topicName, role, authenticationData, subscription)
                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException e) {
+        } catch (TimeoutException e) {
             log.warn("Time-out {} sec while checking authorization on {} ",
                     conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
@@ -263,7 +264,7 @@ public class AuthorizationService {
         try {
             return canLookupAsync(topicName, role, authenticationData)
                     .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-        } catch (InterruptedException e) {
+        } catch (TimeoutException e) {
             log.warn("Time-out {} sec while checking authorization on {} ",
                     conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;

@@ -272,9 +272,13 @@ The Apache Software License, Version 2.0
     - grpc-protobuf-lite-1.45.1.jar
     - grpc-stub-1.45.1.jar
   * JEtcd
-    - jetcd-common-0.5.11.jar
-    - jetcd-core-0.5.11.jar
-
+    - jetcd-api-0.7.5.jar
+    - jetcd-common-0.7.5.jar
+    - jetcd-core-0.7.5.jar
+    - jetcd-grpc-0.7.5.jar
+  * Vertx
+    - vertx-core-4.3.8.jar
+    - vertx-grpc-4.3.5.jar
  * Joda Time
     - joda-time-2.10.10.jar
     - failsafe-2.4.4.jar
@@ -476,8 +480,6 @@ The Apache Software License, Version 2.0
     - swagger-annotations-1.6.2.jar
   * Perfmark
     - perfmark-api-0.19.0.jar
-  * Annotations
-    - auto-service-annotations-1.0.jar
   * RabbitMQ Java Client
     - amqp-client-5.5.3.jar
   * Stream Lib
@@ -520,9 +522,6 @@ MIT License
    - jcl-over-slf4j-1.7.32.jar
  * Checker Qual
    - checker-qual-3.12.0.jar
- * Annotations
-   - animal-sniffer-annotations-1.19.jar
-   - annotations-4.1.1.4.jar
  * ScribeJava
    - scribejava-apis-6.9.0.jar
    - scribejava-core-6.9.0.jar

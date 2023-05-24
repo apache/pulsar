@@ -273,6 +273,27 @@ public class TransactionTest extends TransactionTestBase {
     }
 
     @Test
+    public void testCanDeleteNamespaceWhenEnableTxnSegmentedSnapshot() throws Exception {
+        // Enable the segmented snapshot feature
+        pulsarServiceList.get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
+        pulsarServiceList.get(0).getConfig().setForceDeleteNamespaceAllowed(true);
+
+        // Create a new namespace
+        String namespaceName =  TENANT + "/testSegmentedSnapshotWithoutCreatingOldSnapshotTopic";
+        admin.namespaces().createNamespace(namespaceName);
+
+        // Create a new topic in the namespace
+        String topicName = "persistent://" + namespaceName + "/newTopic";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+
+        // Destroy the namespace after the test
+        admin.namespaces().deleteNamespace(namespaceName, true);
+        pulsarServiceList.get(0).getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
+    }
+
+    @Test
     public void brokerNotInitTxnManagedLedgerTopic() throws Exception {
         String subName = "test";
 
