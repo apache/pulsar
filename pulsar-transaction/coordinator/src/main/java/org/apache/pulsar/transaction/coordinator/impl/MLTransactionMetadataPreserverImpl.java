@@ -21,6 +21,7 @@ package org.apache.pulsar.transaction.coordinator.impl;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -275,7 +276,11 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
             log.debug("Start to check transaction metadata expire, tcID:{}.", tcID);
         }
         long now = System.currentTimeMillis();
-        for (Map.Entry<String, LinkedList<TxnMeta>> entry : terminatedTxnMetaList.entrySet()) {
+        Iterator<Map.Entry<String, LinkedList<TxnMeta>>> iterator =
+                terminatedTxnMetaList.entrySet().iterator();
+        Map.Entry<String, LinkedList<TxnMeta>> entry;
+        while(iterator.hasNext()) {
+            entry = iterator.next();
             String clientName = entry.getKey();
             LinkedList<TxnMeta> txnMetaList = entry.getValue();
             Map<TxnID, TxnMeta> txnIDTxnMetaMap = terminatedTxnMetaMap.get(clientName);
@@ -293,7 +298,7 @@ public class MLTransactionMetadataPreserverImpl implements TransactionMetadataPr
             if (txnMetaList.isEmpty()) {
                 // delete the transaction metadata from the system topic __terminated_txn_state
                 // producer.newMessage().key(clientName).value(null).send();
-                terminatedTxnMetaList.remove(clientName);
+                iterator.remove();
                 terminatedTxnMetaMap.remove(clientName);
             }
         }
