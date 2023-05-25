@@ -184,8 +184,6 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>By default, the acknowledgment timeout is disabled (set to `0`, which means infinite).
      * When a consumer with an infinite acknowledgment timeout terminates, any unacknowledged
      * messages that it receives are re-delivered to another consumer.
-     * <p>Since 2.3.0, when a dead letter policy is specified and no ackTimeoutMillis is specified,
-     * the acknowledgment timeout is set to 30 seconds.
      *
      * <p>When enabling acknowledgment timeout, if a message is not acknowledged within the specified timeout,
      * it is re-delivered to the consumer (possibly to a different consumer, in the case of

@@ -53,7 +53,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
@@ -254,7 +253,7 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> asyncResponse.resume(BrokerService.getDynamicConfiguration()))
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getDynamicConfiguration()))
                 .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -287,11 +286,11 @@ public class BrokersBase extends AdminResource {
      */
     private synchronized CompletableFuture<Void> persistDynamicConfigurationAsync(
             String configName, String configValue) {
-        if (!BrokerService.validateDynamicConfiguration(configName, configValue)) {
+        if (!pulsar().getBrokerService().validateDynamicConfiguration(configName, configValue)) {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
         }
-        if (BrokerService.isDynamicConfiguration(configName)) {
+        if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
                 Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
                 configurationMap.put(configName, configValue);
@@ -512,7 +511,7 @@ public class BrokersBase extends AdminResource {
     }
 
     private CompletableFuture<Void> internalDeleteDynamicConfigurationOnMetadataAsync(String configName) {
-        if (!BrokerService.isDynamicConfiguration(configName)) {
+        if (!pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             throw new RestException(Status.PRECONDITION_FAILED, " Can't update non-dynamic configuration");
         } else {
             return dynamicConfigurationResources().setDynamicConfigurationAsync(old -> {

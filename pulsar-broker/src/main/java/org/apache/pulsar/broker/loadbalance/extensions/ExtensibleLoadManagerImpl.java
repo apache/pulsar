@@ -26,6 +26,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +79,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.strategy.BrokerSelectionS
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.LeastResourceUsageWithWeight;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -212,6 +214,19 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         return config.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
     }
 
+    public static void createSystemTopic(PulsarService pulsar, String topic) throws PulsarServerException {
+        try {
+            pulsar.getAdminClient().topics().createNonPartitionedTopic(topic);
+            log.info("Created topic {}.", topic);
+        } catch (PulsarAdminException.ConflictException ex) {
+            if (debug(pulsar.getConfiguration(), log)) {
+                log.info("Topic {} already exists.", topic, ex);
+            }
+        } catch (PulsarAdminException e) {
+            throw new PulsarServerException(e);
+        }
+    }
+
     @Override
     public void start() throws PulsarServerException {
         if (this.started) {
@@ -245,6 +260,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         SimpleResourceAllocationPolicies policies = new SimpleResourceAllocationPolicies(pulsar);
         this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
         this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
+
+        createSystemTopic(pulsar, BROKER_LOAD_DATA_STORE_TOPIC);
+        createSystemTopic(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC);
 
         try {
             this.brokerLoadDataStore = LoadDataStoreFactory
@@ -380,12 +398,22 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
     }
 
     public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle) {
+        return selectAsync(bundle, Collections.emptySet());
+    }
+
+    public CompletableFuture<Optional<String>> selectAsync(ServiceUnitId bundle,
+                                                           Set<String> excludeBrokerSet) {
         BrokerRegistry brokerRegistry = getBrokerRegistry();
         return brokerRegistry.getAvailableBrokerLookupDataAsync()
                 .thenCompose(availableBrokers -> {
                     LoadManagerContext context = this.getContext();
 
                     Map<String, BrokerLookupData> availableBrokerCandidates = new HashMap<>(availableBrokers);
+                    if (!excludeBrokerSet.isEmpty()) {
+                        for (String exclude : excludeBrokerSet) {
+                            availableBrokerCandidates.remove(exclude);
+                        }
+                    }
 
                     // Filter out brokers that do not meet the rules.
                     List<BrokerFilter> filterPipeline = getBrokerFilterPipeline();
@@ -684,5 +712,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager {
         } catch (Throwable e) {
             log.error("Failed to get the channel ownership.", e);
         }
+    }
+
+    public void disableBroker() throws Exception {
+        serviceUnitStateChannel.cleanOwnerships();
+        leaderElectionService.close();
+        brokerRegistry.unregister();
     }
 }

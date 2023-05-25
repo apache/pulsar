@@ -343,17 +343,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
             + "affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second. "
-            + "Note that this time is used to configure the HashedWheelTimer's tick time for the "
-            + "InMemoryDelayedDeliveryTrackerFactory.")
+            + "Note that this time is used to configure the HashedWheelTimer's tick time.")
     private long delayedDeliveryTickTimeMillis = 1000;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "When using the InMemoryDelayedDeliveryTrackerFactory (the default "
-            + "DelayedDeliverTrackerFactory), whether the deliverAt time is strictly followed. When false (default), "
-            + "messages may be sent to consumers before the deliverAt time by as much as the tickTimeMillis. This can "
-            + "reduce the overhead on the broker of maintaining the delayed index for a potentially very short time "
-            + "period. When true, messages will not be sent to consumer until the deliverAt time has passed, and they "
-            + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
-            + "delayedDeliveryTickTimeMillis.")
+    @FieldContext(category = CATEGORY_SERVER, doc = "Whether the deliverAt time is strictly followed. "
+            + "When false (default), messages may be sent to consumers before the deliverAt time by as much "
+            + "as the tickTimeMillis. This can reduce the overhead on the broker of maintaining the delayed index "
+            + "for a potentially very short time period. When true, messages will not be sent to consumer until the "
+            + "deliverAt time has passed, and they may be as late as the deliverAt time plus the tickTimeMillis for "
+            + "the topic plus the delayedDeliveryTickTimeMillis.")
     private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
@@ -379,7 +377,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int delayedDeliveryMaxNumBuckets = -1;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
-            + "when detecting if all the messages in the topic have a fixed delay. "
+            + "when detecting if all the messages in the topic have a fixed delay for "
+            + "InMemoryDelayedDeliveryTracker (the default DelayedDeliverTracker). "
             + "Default is 50,000. Setting the lookahead window to 0 will disable the "
             + "logic to handle fixed delays in messages in a different way.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;

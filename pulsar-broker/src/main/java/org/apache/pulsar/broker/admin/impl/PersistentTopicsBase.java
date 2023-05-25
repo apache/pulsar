@@ -699,7 +699,11 @@ public class PersistentTopicsBase extends AdminResource {
 
                     @Override
                     public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        if (managedLedger.getConfig().getProperties() == null) {
+                            managedLedger.getConfig().setProperties(new HashMap<>());
+                        }
                         managedLedger.getConfig().getProperties().putAll(properties);
+
                         future.complete(null);
                     }
 

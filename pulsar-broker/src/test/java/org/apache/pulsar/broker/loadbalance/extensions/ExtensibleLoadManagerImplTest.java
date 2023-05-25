@@ -97,6 +97,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
@@ -129,6 +130,7 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setForceDeleteNamespaceAllowed(true);
+        conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         conf.setAllowAutoTopicCreation(true);
         conf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         conf.setLoadBalancerLoadSheddingStrategy(TransferShedder.class.getName());
@@ -878,6 +880,51 @@ public class ExtensibleLoadManagerImplTest extends MockedPulsarServiceBaseTest {
                         """.split("\n"));
         var actual = primaryLoadManager.getMetrics().stream().map(m -> m.toString()).collect(Collectors.toSet());
         assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testDisableBroker() throws Exception {
+        // Test rollback to modular load manager.
+        ServiceConfiguration defaultConf = getDefaultConf();
+        defaultConf.setAllowAutoTopicCreation(true);
+        defaultConf.setForceDeleteNamespaceAllowed(true);
+        defaultConf.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
+        defaultConf.setLoadBalancerSheddingEnabled(false);
+        try (var additionalPulsarTestContext = createAdditionalPulsarTestContext(defaultConf)) {
+            var pulsar3 = additionalPulsarTestContext.getPulsarService();
+            ExtensibleLoadManagerImpl ternaryLoadManager = spy((ExtensibleLoadManagerImpl)
+                    FieldUtils.readField(pulsar3.getLoadManager().get(), "loadManager", true));
+            String topic = "persistent://public/default/test";
+
+            String lookupResult1 = pulsar3.getAdminClient().lookups().lookupTopic(topic);
+            TopicName topicName = TopicName.get("test");
+            NamespaceBundle bundle = getBundleAsync(pulsar1, topicName).get();
+            if (!pulsar3.getBrokerServiceUrl().equals(lookupResult1)) {
+                admin.namespaces().unloadNamespaceBundle(topicName.getNamespace(), bundle.getBundleRange(),
+                        pulsar3.getLookupServiceAddress());
+                lookupResult1 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
+            }
+            String lookupResult2 = pulsar1.getAdminClient().lookups().lookupTopic(topic);
+            String lookupResult3 = pulsar2.getAdminClient().lookups().lookupTopic(topic);
+
+            assertEquals(lookupResult1, pulsar3.getBrokerServiceUrl());
+            assertEquals(lookupResult1, lookupResult2);
+            assertEquals(lookupResult1, lookupResult3);
+
+
+            assertFalse(primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+            assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+            assertTrue(ternaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+
+            ternaryLoadManager.disableBroker();
+
+            assertFalse(ternaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+            if (primaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get()) {
+                assertFalse(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+            } else {
+                assertTrue(secondaryLoadManager.checkOwnershipAsync(Optional.empty(), bundle).get());
+            }
+        }
     }
 
     private static abstract class MockBrokerFilter implements BrokerFilter {
