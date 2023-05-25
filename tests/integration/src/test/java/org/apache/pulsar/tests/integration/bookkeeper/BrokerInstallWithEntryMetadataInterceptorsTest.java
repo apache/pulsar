@@ -21,6 +21,8 @@ import static org.testng.AssertJUnit.assertEquals;
  */
 @Slf4j
 public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarClusterTestBase {
+    private static final String PREFIX = "PULSAR_PREFIX_";
+
     @BeforeClass(alwaysRun = true)
     @Override
     public final void setupCluster() throws Exception {
@@ -29,11 +31,12 @@ public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarCluste
         final String clusterName = Stream.of(this.getClass().getSimpleName(), randomName(5))
                 .filter(s -> !s.isEmpty())
                 .collect(joining("-"));
-        brokerEnvs.put("exposingBrokerEntryMetadataToClientEnabled", "true");
-        brokerEnvs.put("brokerEntryMetadataInterceptors", "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        brokerEnvs.put(PREFIX + "exposingBrokerEntryMetadataToClientEnabled", "true");
+        brokerEnvs.put(PREFIX + "brokerEntryMetadataInterceptors", "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
                 .numBrokers(1)
+                .brokerEnvs(brokerEnvs)
                 .clusterName(clusterName)
                 .build();
 
