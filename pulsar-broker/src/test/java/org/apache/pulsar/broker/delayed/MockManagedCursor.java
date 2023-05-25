@@ -366,11 +366,6 @@ public class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void noticeNonRecoverableLedgerSkipped(long ledgerId) {
-
-    }
-
-    @Override
     public double getThrottleMarkDelete() {
         return 0;
     }

@@ -1742,11 +1742,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public void noticeToCursorNonRecoverableLedgerSkipped(long ledgerId){
-        Iterator<ManagedCursor> managedCursorIterator = cursors.iterator();
-        while (managedCursorIterator.hasNext()){
-            ManagedCursor managedCursor = managedCursorIterator.next();
-            managedCursor.noticeNonRecoverableLedgerSkipped(ledgerId);
+    public void skipNonRecoverableLedger(long ledgerId){
+        for (ManagedCursor managedCursor : cursors) {
+            managedCursor.skipNonRecoverableLedger(ledgerId);
         }
     }
 

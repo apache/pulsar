@@ -134,7 +134,7 @@ class OpReadEntry implements ReadEntriesCallback {
             }
             updateReadPosition(nexReadPosition);
             if (lostLedger != null) {
-                cursor.getManagedLedger().noticeToCursorNonRecoverableLedgerSkipped(lostLedger);
+                cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
             }
             checkReadCompletion();
         } else {

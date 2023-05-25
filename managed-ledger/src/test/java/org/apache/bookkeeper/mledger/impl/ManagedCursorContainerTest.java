@@ -361,11 +361,6 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void noticeNonRecoverableLedgerSkipped(long ledgerId) {
-
-        }
-
-        @Override
         public void setThrottleMarkDelete(double throttleMarkDelete) {
         }
 

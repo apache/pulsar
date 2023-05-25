@@ -2728,7 +2728,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * - If there is a consumer ack request after this event, it will also work.
      */
     @Override
-    public void noticeNonRecoverableLedgerSkipped(final long ledgerId){
+    public void skipNonRecoverableLedger(final long ledgerId){
         LedgerInfo ledgerInfo = ledger.getLedgersInfo().get(ledgerId);
         if (ledgerInfo == null) {
             return;
