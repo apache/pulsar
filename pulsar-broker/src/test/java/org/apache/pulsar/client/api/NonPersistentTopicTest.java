@@ -38,6 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -50,6 +51,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -824,13 +826,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
             startBroker();
+
+            pulsar.getBrokerService().updateRates();
+
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-1")
-                    .receiverQueueSize(1)
-                    .messageListener((c, msg) -> {}).subscribe();
+                    .receiverQueueSize(1).subscribe();
 
             Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-2")
-                    .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared)
-                    .messageListener((c, msg) -> {}).subscribe();
+                    .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared).subscribe();
 
             ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName)
                 .enableBatching(false)
@@ -839,17 +842,26 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 200;
-            CountDownLatch latch = new CountDownLatch(totalProduceMessages);
+            final int totalProduceMessages = 1000;
+            CountDownLatch latch = new CountDownLatch(1);
+            AtomicInteger messagesSent = new AtomicInteger(0);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
-                    producer.sendAsync(msgData).handle((msg, e) -> {
-                        latch.countDown();
+                    producer.sendAsync(msgData).handle((msgId, e) -> {
+                        int count = messagesSent.incrementAndGet();
+                        // process at least 20% of messages before signalling the latch
+                        // a non-persistent message will return entryId as -1 when it has been dropped
+                        // due to setMaxConcurrentNonPersistentMessagePerConnection limit
+                        // also ensure that it has happened before the latch is signalled
+                        if (count > totalProduceMessages * 0.2 && msgId != null
+                                && ((MessageIdImpl) msgId).getEntryId() == -1) {
+                            latch.countDown();
+                        }
                         return null;
                     });
                 });
             }
-            latch.await();
+            latch.await(5, TimeUnit.SECONDS);
 
             NonPersistentTopic topic =
                     (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
