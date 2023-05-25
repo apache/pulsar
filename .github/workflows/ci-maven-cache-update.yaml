@@ -52,7 +52,7 @@ jobs:
       JOB_NAME: Update Maven dependency cache for ${{ matrix.name }}
       GRADLE_ENTERPRISE_ACCESS_KEY: ${{ secrets.GE_ACCESS_TOKEN }}
     runs-on: ${{ matrix.runs-on }}
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
