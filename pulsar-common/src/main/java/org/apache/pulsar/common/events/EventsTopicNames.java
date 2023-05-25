@@ -57,6 +57,6 @@ public class EventsTopicNames {
         if (topic == null) {
             return false;
         }
-        return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
+        return TopicName.getPartitionedTopicName(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
     }
 }
