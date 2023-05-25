@@ -280,6 +280,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 instanceFile = pythonInstanceFile;
                 break;
             case GO:
+                // Go functions should communicate via grpcPort directly.
+                instanceConfig.setPort(grpcPort);
                 break;
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
