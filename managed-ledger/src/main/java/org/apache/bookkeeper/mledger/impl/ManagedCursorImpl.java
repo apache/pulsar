@@ -2769,18 +2769,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
             @Override
             public void deleteFailed(ManagedLedgerException ex, Object ctx) {
-                if (retryTimes <= 3) {
-                    log.warn("[{}] [{}] Try to acknowledge the non recoverable positions fail and it will be retry"
-                                    + " after 60s. ledgerId: {}, the current retry times: {}",
-                            ledger.getName(), name, positions.get(0).getLedgerId(), retryTimes, ex);
-                    ledger.getScheduledExecutor()
-                            .schedule(() -> retryToAcknowledgeNonRecoverablePositions(positions, retryTimes + 1),
-                                    60, TimeUnit.SECONDS);
-                } else {
-                    log.error("[{}] [{}] Try to acknowledge the non recoverable positions ultimately failed."
-                                    + " ledgerId: {}, retry times: {}",
-                            ledger.getName(), name, positions.get(0).getLedgerId(), retryTimes, ex);
-                }
+                // The method internalMarkDelete already handled the failure operation. We only need to make sure the
+                // memory state is updated.
+                // If the broker crashed, the non-recoverable ledger will be detected again.
             }
         }, retryTimes);
     }
