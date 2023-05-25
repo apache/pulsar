@@ -2737,43 +2737,26 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.warn("[{}] [{}] Since the ledger [{}] is lost and the autoSkipNonRecoverableData is true, this ledger will"
                 + " be auto acknowledge in subscription", ledger.getName(), name, ledgerId);
         try {
-            List<Position> positionsToAck = new ArrayList<>();
             for (int i = 0; i < ledgerInfo.getEntries(); i++) {
                 if (!individualDeletedMessages.contains(ledgerId, i)) {
-                    positionsToAck.add(PositionImpl.get(ledgerId, i));
+                    asyncDelete(PositionImpl.get(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
+                        @Override
+                        public void deleteComplete(Object ctx) {
+                            // ignore.
+                        }
+
+                        @Override
+                        public void deleteFailed(ManagedLedgerException ex, Object ctx) {
+                            // The method internalMarkDelete already handled the failure operation. We only need to make sure the
+                            // memory state is updated.
+                            // If the broker crashed, the non-recoverable ledger will be detected again.
+                        }
+                    }, null);
                 }
-                // Acknowledge in segments to avoid OOM.
-                if (positionsToAck.size() >= 1000) {
-                    retryToAcknowledgeNonRecoverablePositions(positionsToAck, 1);
-                    positionsToAck = new ArrayList<>();
-                }
-            }
-            // Acknowledge the last segments.
-            if (!positionsToAck.isEmpty()) {
-                retryToAcknowledgeNonRecoverablePositions(positionsToAck, 1);
             }
         } finally {
             lock.writeLock().unlock();
         }
-    }
-
-    private void retryToAcknowledgeNonRecoverablePositions(List<Position> positions, int retryTimes) {
-        if (CollectionUtils.isEmpty(positions)) {
-            return;
-        }
-        asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {
-            @Override
-            public void deleteComplete(Object ctx) {
-                // ignore.
-            }
-
-            @Override
-            public void deleteFailed(ManagedLedgerException ex, Object ctx) {
-                // The method internalMarkDelete already handled the failure operation. We only need to make sure the
-                // memory state is updated.
-                // If the broker crashed, the non-recoverable ledger will be detected again.
-            }
-        }, retryTimes);
     }
 
     // //////////////////////////////////////////////////
