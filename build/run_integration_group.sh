@@ -40,12 +40,18 @@ mvn_list_modules() {
   )
 }
 
+function mvn_unblock_http_repositories() {
+  # disable CVE-2021-26291 mitigation since it causes the build to be very slow when NAR files are built
+  $SCRIPT_DIR/pulsar_ci_tool.sh mvn_unblock_http_repositories
+}
+
 # runs integration tests
 # 1. cds to "tests" directory and lists the active modules to be used as value
 #    for "-pl" parameter of later mvn commands
 # 2. runs "mvn -pl [active_modules] -am install [given_params]" to build and install required dependencies
 # 3. finally runs tests with "mvn -pl [active_modules] test [given_params]"
 mvn_run_integration_test() {
+  mvn_unblock_http_repositories
   set +x
   # skip test run if next parameter is "--build-only"
   local build_only=0

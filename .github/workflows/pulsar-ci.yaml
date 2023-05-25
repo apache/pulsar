@@ -750,8 +750,11 @@ jobs:
           path: |
             ~/.m2/repository/*/*/*
             !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-m2-dependencies-docker-all-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
+            ${{ runner.os }}-m2-dependencies-docker-all-
+            ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
+            ${{ runner.os }}-m2-dependencies-all-
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
@@ -776,6 +779,8 @@ jobs:
 
       - name: Build latest-version-image docker image
         run: |
+          # disable CVE-2021-26291 mitigation since it causes the build to be very slow when NAR files are built
+          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh mvn_unblock_http_repositories          
           # build docker image
           # include building of Pulsar SQL, Connectors, Offloaders and server distros
           mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,distribution/shell,tests/docker-images/latest-version-image install \

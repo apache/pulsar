@@ -26,8 +26,14 @@ set -o errexit
 
 MVN_TEST_OPTIONS='mvn -B -ntp -DskipSourceReleaseAssembly=true -DskipBuildDistribution=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true'
 
+function mvn_unblock_http_repositories() {
+  # disable CVE-2021-26291 mitigation since it causes the build to be very slow when NAR files are built
+  $SCRIPT_DIR/pulsar_ci_tool.sh mvn_unblock_http_repositories
+}
+
 function mvn_test() {
   (
+    mvn_unblock_http_repositories
     local clean_arg=""
     if [[ "$1" == "--clean" ]]; then
         clean_arg="clean"

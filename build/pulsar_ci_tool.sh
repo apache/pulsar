@@ -50,6 +50,23 @@ function _ci_mvn() {
         "$@"
 }
 
+function ci_mvn_unblock_http_repositories() {
+  if [[ "$GITHUB_ACTIONS" == "true" ]]; then
+    MAVEN_HOME=$(mvn -v |grep "Maven home" | awk '{ print $3 }')
+    if [ ! -d "$MAVEN_HOME" ]; then
+      echo "Couldn't locate maven home directory."
+      return 0
+    fi
+    if [ -f "$MAVEN_HOME/conf/settings.xml" ]; then
+      ci_install_tool xmlstarlet && \
+        # disable CVE-2021-26291 mitigation since it causes the build to be very slow when NAR files are built
+        # https://maven.apache.org/docs/3.8.1/release-notes.html#cve-2021-26291
+        # remove the mirror entry for maven-default-http-blocker
+        xmlstarlet ed --inplace -d "//_:mirror[_:id/text()='maven-default-http-blocker']" "$MAVEN_HOME/conf/settings.xml" || true
+    fi
+  fi
+}
+
 # runs OWASP Dependency Check for all projects
 function ci_dependency_check() {
   _ci_mvn -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl '!pulsar-client-tools-test' "$@"
