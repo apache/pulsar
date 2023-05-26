@@ -49,8 +49,6 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         setUpBase(1, 16, null, 0);
         Awaitility.await().until(() -> ((PulsarClientImpl) pulsarClient)
                 .getTcClient().getState() == TransactionCoordinatorClient.State.READY);
-        admin.tenants().createTenant(TENANT,
-                new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
     }
 
     @AfterMethod(alwaysRun = true)
