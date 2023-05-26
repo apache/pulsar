@@ -38,6 +38,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -50,6 +51,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
@@ -64,6 +66,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -823,6 +826,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
             startBroker();
+
+            pulsar.getBrokerService().updateRates();
+
             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-1")
                     .receiverQueueSize(1).subscribe();
 
@@ -836,27 +842,40 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             @Cleanup("shutdownNow")
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
-            final int totalProduceMessages = 200;
-            CountDownLatch latch = new CountDownLatch(totalProduceMessages);
+            final int totalProduceMessages = 1000;
+            CountDownLatch latch = new CountDownLatch(1);
+            AtomicInteger messagesSent = new AtomicInteger(0);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
-                    producer.sendAsync(msgData).handle((msg, e) -> {
-                        latch.countDown();
+                    producer.sendAsync(msgData).handle((msgId, e) -> {
+                        int count = messagesSent.incrementAndGet();
+                        // process at least 20% of messages before signalling the latch
+                        // a non-persistent message will return entryId as -1 when it has been dropped
+                        // due to setMaxConcurrentNonPersistentMessagePerConnection limit
+                        // also ensure that it has happened before the latch is signalled
+                        if (count > totalProduceMessages * 0.2 && msgId != null
+                                && ((MessageIdImpl) msgId).getEntryId() == -1) {
+                            latch.countDown();
+                        }
                         return null;
                     });
                 });
             }
-            latch.await();
+            latch.await(5, TimeUnit.SECONDS);
 
-            NonPersistentTopic topic = (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-            pulsar.getBrokerService().updateRates();
-            NonPersistentTopicStats stats = topic.getStats(false, false, false);
-            NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
-            NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
-            NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
-            assertTrue(npStats.getMsgDropRate() > 0);
-            assertTrue(sub1Stats.getMsgDropRate() > 0);
-            assertTrue(sub2Stats.getMsgDropRate() > 0);
+            NonPersistentTopic topic =
+                    (NonPersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+
+            Awaitility.await().untilAsserted(() -> {
+                pulsar.getBrokerService().updateRates();
+                NonPersistentTopicStats stats = topic.getStats(false, false, false);
+                NonPersistentPublisherStats npStats = stats.getPublishers().get(0);
+                NonPersistentSubscriptionStats sub1Stats = stats.getSubscriptions().get("subscriber-1");
+                NonPersistentSubscriptionStats sub2Stats = stats.getSubscriptions().get("subscriber-2");
+                assertTrue(npStats.getMsgDropRate() > 0);
+                assertTrue(sub1Stats.getMsgDropRate() > 0);
+                assertTrue(sub2Stats.getMsgDropRate() > 0);
+            });
 
             producer.close();
             consumer.close();
