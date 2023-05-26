@@ -164,7 +164,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // There is a pending read from previous run. We must wait for it to complete and then rewind
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
-                cursor.rewind();
+                rewindCursor();
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
@@ -189,6 +189,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         consumerSet.add(consumer);
 
         return CompletableFuture.completedFuture(null);
+    }
+
+    protected synchronized void rewindCursor() {
+        cursor.rewind();
     }
 
     @Override
@@ -563,7 +567,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (shouldRewindBeforeReadingOrReplaying && readType == ReadType.Normal) {
             // All consumers got disconnected before the completion of the read operation
             entries.forEach(Entry::release);
-            cursor.rewind();
+            rewindCursor();
             shouldRewindBeforeReadingOrReplaying = false;
             readMoreEntries();
             return;
@@ -679,7 +683,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 // Do nothing, cursor will be rewind at reconnection
                 log.info("[{}] rewind because no available consumer found from total {}", name, consumerList.size());
                 entries.subList(start, entries.size()).forEach(Entry::release);
-                cursor.rewind();
+                rewindCursor();
                 return false;
             }
 
@@ -846,7 +850,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         if (shouldRewindBeforeReadingOrReplaying) {
             shouldRewindBeforeReadingOrReplaying = false;
-            cursor.rewind();
+            rewindCursor();
         }
 
         if (readType == ReadType.Normal) {
