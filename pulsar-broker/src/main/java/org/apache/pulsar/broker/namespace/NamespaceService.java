@@ -1228,7 +1228,7 @@ public class NamespaceService implements AutoCloseable {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             try {
                 if (bundleOwnedListener.test(bundle)) {
-                    bundleOwnedListener.onSplit(bundle);
+                    bundleOwnedListener.unLoad(bundle);
                 }
             } catch (Throwable t) {
                 LOG.error("Call bundle {} ownership lister error", bundle, t);
@@ -1240,7 +1240,7 @@ public class NamespaceService implements AutoCloseable {
         for (NamespaceBundleSplitListener bundleSplitListener : bundleSplitListeners) {
             try {
                 if (bundleSplitListener.test(bundle)) {
-                    bundleSplitListener.unLoad(bundle);
+                    bundleSplitListener.onSplit(bundle);
                 }
             } catch (Throwable t) {
                 LOG.error("Call bundle {} split lister error", bundle, t);
