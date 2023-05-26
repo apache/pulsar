@@ -1228,7 +1228,7 @@ public class NamespaceService implements AutoCloseable {
         for (NamespaceBundleOwnershipListener bundleOwnedListener : bundleOwnershipListeners) {
             try {
                 if (bundleOwnedListener.test(bundle)) {
-                    bundleOwnedListener.unLoad(bundle);
+                    bundleOwnedListener.onSplit(bundle);
                 }
             } catch (Throwable t) {
                 LOG.error("Call bundle {} ownership lister error", bundle, t);

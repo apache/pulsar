@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
-import static lombok.Cleanup;
+import lombok.Cleanup;
 
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -91,7 +91,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
     @Test
     public void testBundleSplitListener() throws Exception {
         String namespaceName = "prop/" + UUID.randomUUID().toString();
-        String topicName = "persistent://" + namespaceName + "/my-topics";
+        String topicName = "persistent://" + namespaceName + "/my-topic5";
         admin.namespaces().createNamespace(namespaceName);
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).sendTimeout(1,
@@ -111,7 +111,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
                 return true;
             }
         });
-        admin.namespaces().splitNamspaceBundle(namespaceName, bundleRange, false, null);
+        admin.namespaces().splitNamespaceBundle(namespaceName, bundleRange, false, null);
         Awaitility.await().untilAsserted(() -> assertTrue(isTriggered.get()));
     }
 }
