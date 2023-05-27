@@ -53,8 +53,6 @@ import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
-import static org.rocksdb.util.SizeUnit.KB;
-
 /**
  * Pulsar service configuration object.
  */
