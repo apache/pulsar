@@ -140,7 +140,7 @@ public class NamespaceService implements AutoCloseable {
 
     private final List<NamespaceBundleOwnershipListener> bundleOwnershipListeners;
 
-    private final List<NamespaceBundlehipListener> bundleSplitListeners;
+    private final List<NamespaceBundleSplitListener> bundleSplitListeners;
 
 
     private final RedirectManager redirectManager;
