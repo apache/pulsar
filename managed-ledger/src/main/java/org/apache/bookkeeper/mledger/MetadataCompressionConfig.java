@@ -29,15 +29,15 @@ import org.apache.commons.lang.StringUtils;
 @ToString
 public class MetadataCompressionConfig {
     MLDataFormats.CompressionType compressionType;
-    int compressThreshold;
+    long compressSizeThresholdInBytes;
 
     public MetadataCompressionConfig(String compressionType) throws IllegalArgumentException {
         this(compressionType, 0);
     }
 
-    public MetadataCompressionConfig(String compressionType, int compressThreshold) throws IllegalArgumentException {
+    public MetadataCompressionConfig(String compressionType, long compressThreshold) throws IllegalArgumentException {
         this.compressionType = parseCompressionType(compressionType);
-        this.compressThreshold = compressThreshold;
+        this.compressSizeThresholdInBytes = compressThreshold;
     }
 
     public static MetadataCompressionConfig noCompression =

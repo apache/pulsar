@@ -53,6 +53,8 @@ import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
+import static org.rocksdb.util.SizeUnit.KB;
+
 /**
  * Pulsar service configuration object.
  */
@@ -2139,7 +2141,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "ManagedLedgerInfo compression size threshold (bytes), "
                     + "only compress metadata when origin size more then this value.\n"
                     + "0 means compression will always apply.\n")
-    private int managedLedgerInfoCompressionSizeThreshold = 0;
+    private long managedLedgerInfoCompressionThresholdInBytes = 16 * 1024;
 
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
@@ -2152,7 +2154,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "ManagedCursorInfo compression size threshold (bytes), "
                     + "only compress metadata when origin size more then this value.\n"
                     + "0 means compression will always apply.\n")
-    private int managedCursorInfoCompressionSizeThreshold = 0;
+    private long managedCursorInfoCompressionThresholdInBytes = 16 * 1024;
 
     @FieldContext(
             dynamic = true,

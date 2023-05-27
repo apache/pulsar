@@ -42,7 +42,6 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
-import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
@@ -413,7 +412,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         }
 
         int uncompressedSize = managedLedgerInfo.getSerializedSize();
-        if (uncompressedSize > ledgerInfoCompressionConfig.getCompressThreshold()) {
+        if (uncompressedSize > ledgerInfoCompressionConfig.getCompressSizeThresholdInBytes()) {
             MLDataFormats.ManagedLedgerInfoMetadata mlInfoMetadata = MLDataFormats.ManagedLedgerInfoMetadata
                     .newBuilder()
                     .setCompressionType(compressionType)
@@ -433,7 +432,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         }
 
         int uncompressedSize = managedCursorInfo.getSerializedSize();
-        if (uncompressedSize > cursorInfoCompressionConfig.getCompressThreshold()) {
+        if (uncompressedSize > cursorInfoCompressionConfig.getCompressSizeThresholdInBytes()) {
             MLDataFormats.ManagedCursorInfoMetadata metadata = MLDataFormats.ManagedCursorInfoMetadata
                     .newBuilder()
                     .setCompressionType(compressionType)

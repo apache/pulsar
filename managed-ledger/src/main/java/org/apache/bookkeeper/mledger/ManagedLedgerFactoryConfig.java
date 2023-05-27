@@ -96,7 +96,7 @@ public class ManagedLedgerFactoryConfig {
      * ManagedLedgerInfo compression threshold. If the origin metadata size below configuration.
      * compression will not apply.
      */
-    private int managedLedgerInfoCompressionSizeThresholdBytes = 0;
+    private long managedLedgerInfoCompressionThresholdInBytes = 0;
 
     /**
      * ManagedCursorInfo compression type. If the compression type is null or invalid, don't compress data.
@@ -107,15 +107,15 @@ public class ManagedLedgerFactoryConfig {
      * ManagedCursorInfo compression threshold. If the origin metadata size below configuration.
      * compression will not apply.
      */
-    private int managedCursorInfoCompressionSizeThresholdBytes = 0;
+    private long managedCursorInfoCompressionThresholdInBytes = 0;
 
     public MetadataCompressionConfig getCompressionConfigForManagedLedgerInfo() {
         return new MetadataCompressionConfig(managedLedgerInfoCompressionType,
-                managedLedgerInfoCompressionSizeThresholdBytes);
+                managedLedgerInfoCompressionThresholdInBytes);
     }
 
     public MetadataCompressionConfig getCompressionConfigForManagedCursorInfo() {
         return new MetadataCompressionConfig(managedCursorInfoCompressionType,
-                managedCursorInfoCompressionSizeThresholdBytes);
+                managedCursorInfoCompressionThresholdInBytes);
     }
 }
