@@ -2296,7 +2296,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
                 .addEncryptionKey("client-non-existant-rsa.pem")
                 .cryptoKeyReader(new EncKeyReader())
                 .create();
-            Assert.fail("Producer creation should not suceed if failing to read key");
+            Assert.fail("Producer creation should not succeed if failing to read key");
         } catch (Exception e) {
             // ok
         }

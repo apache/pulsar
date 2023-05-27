@@ -80,9 +80,9 @@ The process works in the following way:
 1. The author(s) of the proposal will create a GitHub issue ticket choosing the
    template for PIP proposals. The issue title should be "PIP-xxx: title", where
    the "xxx" number should be chosen to be the next number from the existing PIP 
-   issues, listed [here]([url](https://github.com/apache/pulsar/labels/PIP)).
+   issues, listed [here](https://github.com/apache/pulsar/issues?q=is%3Aissue+label%3APIP+)
 2. The author(s) will send a note to the dev@pulsar.apache.org mailing list
-   to start the discussion, using subject prefix `[DISCUSS] PIP-xxx: `. The discussion
+   to start the discussion, using subject prefix `[DISCUSS] PIP-xxx: {PIP TITLE}`. The discussion
    need to happen in the mailing list. Please avoid discussing it using
    GitHub comments in the PIP GitHub issue, as it creates two tracks 
    of feedback.
@@ -90,10 +90,11 @@ The process works in the following way:
    authors to the text of the proposal.
 4. Once some consensus is reached, there will be a vote to formally approve
    the proposal.
-   The vote will be held on the dev@pulsar.apache.org mailing list. Everyone
-   is welcome to vote on the proposal, though it will be considered to be binding
-   only the vote of PMC members.
-   I would be required to have a lazy majority of at least 3 binding +1s votes.
+   The vote will be held on the dev@pulsar.apache.org mailing list, by
+   sending a message using subject `[VOTE] PIP-xxx: {PIP TITLE}".
+   Everyone is welcome to vote on the proposal, though only the the vote of the PMC 
+   members will be considered binding.
+   It is required to have a lazy majority of at least 3 binding +1s votes.
    The vote should stay open for at least 48 hours.
 5. When the vote is closed, if the outcome is positive, the state of the
    proposal is updated, and the Pull Requests associated with this proposal can
@@ -115,38 +116,5 @@ Some examples:
 
 ## Template for a PIP design doc
 
-```
-## Motivation
+Read [the template file](/.github/ISSUE_TEMPLATE/pip.md).
 
-Explain why this change is needed, what benefits it would bring to Apache Pulsar
-and what problem it's trying to solve.
-
-## Goal
-
-Define the scope of this proposal. Given the motivation stated above, what are
-the problems that this proposal is addressing and what other items will be
-considering out of scope, perhaps to be left to a different PIP.
-
-## API Changes
-
-Illustrate all the proposed changes to the API or wire protocol, with examples
-of all the newly added classes/methods, including Javadoc.
-
-## Implementation
-
-This should be a detailed description of all the changes that are
-expected to be made. It should be detailed enough that any developer that is
-familiar with Pulsar internals would be able to understand all the parts of the
-code changes for this proposal.
-
-This should also serve as documentation for any person that is trying to
-understand or debug the behavior of a certain feature.
-
-
-## Reject Alternatives
-
-If there are alternatives that were already considered by the authors or,
-after the discussion, by the community, and were rejected, please list them
-here along with the reason why they were rejected.
-
-```

@@ -589,7 +589,7 @@ public interface Topics {
     CompletableFuture<Void> createMissedPartitionsAsync(String topic);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -605,7 +605,7 @@ public interface Topics {
     void updatePartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -621,7 +621,7 @@ public interface Topics {
     CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -641,7 +641,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -661,7 +661,7 @@ public interface Topics {
             boolean force);
 
     /**
-     * Update number of partitions of a non-global partitioned topic.
+     * Update number of partitions of a partitioned topic.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
@@ -679,7 +679,7 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
-     * Update number of partitions of a non-global partitioned topic asynchronously.
+     * Update number of partitions of a partitioned topic asynchronously.
      * <p/>
      * It requires partitioned-topic to be already exist and number of new partitions must be greater than existing
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.

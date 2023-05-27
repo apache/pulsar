@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions;
 
+import static org.apache.pulsar.broker.loadbalance.LoadManager.LOADBALANCE_BROKERS_ROOT;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -50,8 +50,6 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
  */
 @Slf4j
 public class BrokerRegistryImpl implements BrokerRegistry {
-
-    protected static final String LOOKUP_DATA_PATH = "/loadbalance/brokers";
 
     private final PulsarService pulsar;
 
@@ -94,6 +92,8 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 pulsar.getProtocolDataToAdvertise(),
                 pulsar.getConfiguration().isEnablePersistentTopics(),
                 pulsar.getConfiguration().isEnableNonPersistentTopics(),
+                conf.getLoadManagerClassName(),
+                System.currentTimeMillis(),
                 pulsar.getBrokerVersion());
         this.state = State.Init;
     }
@@ -151,7 +151,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
     @Override
     public CompletableFuture<List<String>> getAvailableBrokersAsync() {
         this.checkState();
-        return brokerLookupDataLockManager.listLocks(LOOKUP_DATA_PATH).thenApply(Lists::newArrayList);
+        return brokerLookupDataLockManager.listLocks(LOADBALANCE_BROKERS_ROOT).thenApply(ArrayList::new);
     }
 
     @Override
@@ -215,7 +215,7 @@ public class BrokerRegistryImpl implements BrokerRegistry {
                 return;
             }
             this.scheduler.submit(() -> {
-                String brokerId = t.getPath().substring(LOOKUP_DATA_PATH.length() + 1);
+                String brokerId = t.getPath().substring(LOADBALANCE_BROKERS_ROOT.length() + 1);
                 for (BiConsumer<String, NotificationType> listener : listeners) {
                     listener.accept(brokerId, t.getType());
                 }
@@ -227,12 +227,13 @@ public class BrokerRegistryImpl implements BrokerRegistry {
 
     @VisibleForTesting
     protected static boolean isVerifiedNotification(Notification t) {
-       return t.getPath().startsWith(LOOKUP_DATA_PATH + "/") && t.getPath().length() > LOOKUP_DATA_PATH.length() + 1;
+       return t.getPath().startsWith(LOADBALANCE_BROKERS_ROOT + "/")
+               && t.getPath().length() > LOADBALANCE_BROKERS_ROOT.length() + 1;
     }
 
     @VisibleForTesting
     protected static String keyPath(String brokerId) {
-        return String.format("%s/%s", LOOKUP_DATA_PATH, brokerId);
+        return String.format("%s/%s", LOADBALANCE_BROKERS_ROOT, brokerId);
     }
 
     private void checkState() throws IllegalStateException {

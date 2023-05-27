@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
+import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.github.zafarkhaja.semver.Version;
@@ -225,7 +227,7 @@ public class PersistentTopicsBase extends AdminResource {
                 String topicUri = topicName.toString();
                 AuthPolicies auth = policies.get().auth_policies;
                 // First add namespace level permissions
-                auth.getNamespaceAuthentication().forEach(permissions::put);
+                permissions.putAll(auth.getNamespaceAuthentication());
 
                 // Then add topic level permissions
                 if (auth.getTopicAuthentication().containsKey(topicUri)) {
@@ -420,7 +422,7 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(partitionedTopicMetadata -> {
                 int currentMetadataPartitions = partitionedTopicMetadata.partitions;
                 if (currentMetadataPartitions <= 0) {
-                    throw new RestException(422 /* Unprocessable entity*/,
+                    throw new RestException(Status.CONFLICT /* Unprocessable entity*/,
                             String.format("Topic %s is not the partitioned topic.", topicName));
                 }
                 if (expectPartitions < currentMetadataPartitions) {
@@ -697,7 +699,11 @@ public class PersistentTopicsBase extends AdminResource {
 
                     @Override
                     public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        if (managedLedger.getConfig().getProperties() == null) {
+                            managedLedger.getConfig().setProperties(new HashMap<>());
+                        }
                         managedLedger.getConfig().getProperties().putAll(properties);
+
                         future.complete(null);
                     }
 
@@ -1171,6 +1177,21 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force));
     }
 
+    /**
+     * There has a known bug will make Pulsar misidentifies "tp-partition-0-DLQ-partition-0" as "tp-partition-0-DLQ".
+     * You can see the details from PR https://github.com/apache/pulsar/pull/19841.
+     * This method is a quick fix and will be removed in master branch after #19841 and PIP 263 are done.
+     */
+    private boolean isUnexpectedTopicName(PartitionedTopicMetadata topicMetadata) {
+        if (!topicName.toString().contains(PARTITIONED_TOPIC_SUFFIX)){
+            return false;
+        }
+        if (topicMetadata.partitions <= 0){
+            return false;
+        }
+        return topicName.getPartition(0).toString().equals(topicName.toString());
+    }
+
     protected void internalGetSubscriptions(AsyncResponse asyncResponse, boolean authoritative) {
         CompletableFuture<Void> future;
         if (topicName.isGlobal()) {
@@ -1188,7 +1209,7 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                                 .thenAccept(partitionMetadata -> {
-                            if (partitionMetadata.partitions > 0) {
+                            if (partitionMetadata.partitions > 0 && !isUnexpectedTopicName(partitionMetadata)) {
                                 try {
                                     final Set<String> subscriptions =
                                             Collections.newSetFromMap(
@@ -2098,11 +2119,15 @@ public class PersistentTopicsBase extends AdminResource {
 
                             FutureUtil.waitForAll(futures).handle((result, exception) -> {
                                 if (exception != null) {
-                                    Throwable t = exception.getCause();
-                                    log.error("[{}] Failed to expire messages up to {} on {}",
-                                            clientAppId(), expireTimeInSeconds,
-                                            topicName, t);
-                                    asyncResponse.resume(new RestException(t));
+                                    Throwable t = FutureUtil.unwrapCompletionException(exception);
+                                    if (t instanceof PulsarAdminException) {
+                                        log.warn("[{}] Failed to expire messages up to {} on {}: {}", clientAppId(),
+                                                expireTimeInSeconds, topicName, t.toString());
+                                    } else {
+                                        log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
+                                                expireTimeInSeconds, topicName, t);
+                                    }
+                                    resumeAsyncResponseExceptionally(asyncResponse, t);
                                     return null;
                                 }
                                 asyncResponse.resume(Response.noContent().build());
@@ -2169,9 +2194,14 @@ public class PersistentTopicsBase extends AdminResource {
                     FutureUtil.waitForAll(futures).handle((result, exception) -> {
                         if (exception != null) {
                             Throwable throwable = FutureUtil.unwrapCompletionException(exception);
-                            log.error("[{}] Failed to expire messages for all subscription up to {} on {}",
-                                    clientAppId(), expireTimeInSeconds, topicName, throwable);
-                            asyncResponse.resume(new RestException(throwable));
+                            if (throwable instanceof RestException) {
+                                log.warn("[{}] Failed to expire messages for all subscription up to {} on {}: {}",
+                                        clientAppId(), expireTimeInSeconds, topicName, throwable.toString());
+                            } else {
+                                log.error("[{}] Failed to expire messages for all subscription up to {} on {}",
+                                        clientAppId(), expireTimeInSeconds, topicName, throwable);
+                            }
+                            resumeAsyncResponseExceptionally(asyncResponse, throwable);
                             return null;
                         }
                         asyncResponse.resume(Response.noContent().build());
@@ -3036,6 +3066,10 @@ public class PersistentTopicsBase extends AdminResource {
                     try {
                         PersistentTopic persistentTopic = (PersistentTopic) topic;
                         long totalMessage = persistentTopic.getNumberOfEntries();
+                        if (totalMessage <= 0) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Could not examine messages due to the total message is zero");
+                        }
                         PositionImpl startPosition = persistentTopic.getFirstPosition();
 
                         long messageToSkip = initialPositionLocal.equals("earliest") ? messagePositionLocal :
@@ -3707,7 +3741,7 @@ public class PersistentTopicsBase extends AdminResource {
                             .thenCompose(metadata -> {
                                 if (metadata.partitions > 0) {
                                     return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
-                                    + TopicName.PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
+                                    + PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
                                 } else {
                                     return validateTopicOwnershipAsync(topicName, authoritative);
                                 }
@@ -3927,17 +3961,24 @@ public class PersistentTopicsBase extends AdminResource {
 
                                                 FutureUtil.waitForAll(futures).handle((result, exception) -> {
                                                     if (exception != null) {
-                                                        Throwable t = exception.getCause();
+                                                        Throwable t = FutureUtil.unwrapCompletionException(exception);
                                                         if (t instanceof NotFoundException) {
                                                             asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                                                     getSubNotFoundErrorMessage(topicName.toString(),
                                                                             subName)));
                                                             return null;
                                                         } else {
-                                                            log.error("[{}] Failed to expire messages up "
-                                                                            + "to {} on {}", clientAppId(),
-                                                                    expireTimeInSeconds, topicName, t);
-                                                            asyncResponse.resume(new RestException(t));
+                                                            if (t instanceof PulsarAdminException) {
+                                                                log.warn("[{}] Failed to expire messages up "
+                                                                        + "to {} on {}: {}", clientAppId(),
+                                                                                expireTimeInSeconds, topicName,
+                                                                                        t.toString());
+                                                            } else {
+                                                                log.error("[{}] Failed to expire messages up "
+                                                                        + "to {} on {}", clientAppId(),
+                                                                                expireTimeInSeconds, topicName, t);
+                                                            }
+                                                            resumeAsyncResponseExceptionally(asyncResponse, t);
                                                             return null;
                                                         }
                                                     }
@@ -3955,12 +3996,18 @@ public class PersistentTopicsBase extends AdminResource {
                                 }))
 
         ).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
             // If the exception is not redirect exception we need to log it.
-            if (!isRedirectException(ex)) {
-                log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
-                        expireTimeInSeconds, topicName, ex);
+            if (!isRedirectException(cause)) {
+                if (cause instanceof RestException) {
+                    log.warn("[{}] Failed to expire messages up to {} on {}: {}", clientAppId(), expireTimeInSeconds,
+                            topicName, cause.toString());
+                } else {
+                    log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds,
+                            topicName, cause);
+                }
             }
-            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
     }
@@ -4068,7 +4115,7 @@ public class PersistentTopicsBase extends AdminResource {
         future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES, subName))
                 .thenCompose(__ -> {
-                    log.info("[{}][{}] received expire messages on subscription {} to position {}", clientAppId(),
+                    log.info("[{}][{}] Received expire messages on subscription {} to position {}", clientAppId(),
                             topicName, subName, messageId);
                     return internalExpireMessagesNonPartitionedTopicByPosition(asyncResponse, subName,
                             messageId, isExcluded, batchIndex);
@@ -4134,16 +4181,22 @@ public class PersistentTopicsBase extends AdminResource {
                                     + topicName + " for subscription " + subName + " due to ongoing"
                                     + " message expiration not finished or invalid message position provided.");
                         }
+                    } catch (RestException exception) {
+                        throw exception;
                     } catch (Exception exception) {
-                        log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}",
-                                clientAppId(), position, topicName, subName, exception);
                         throw new RestException(exception);
                     }
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(e -> {
-                    log.error("[{}] Failed to expire messages up to {} on {} with subscription {} {}",
-                            clientAppId(), messageId, topicName, subName, e);
-                    asyncResponse.resume(e);
+                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
+                    if (throwable instanceof RestException) {
+                        log.warn("[{}] Failed to expire messages up to {} on {} with subscription {}: {}",
+                                clientAppId(), messageId, topicName, subName, throwable.toString());
+                    } else {
+                        log.error("[{}] Failed to expire messages up to {} on {} with subscription {}", clientAppId(),
+                                messageId, topicName, subName, throwable);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, throwable);
                     return null;
                 });
             } catch (Exception e) {
@@ -4152,9 +4205,14 @@ public class PersistentTopicsBase extends AdminResource {
                 resumeAsyncResponseExceptionally(asyncResponse, e);
             }
         }).exceptionally(ex -> {
-            Throwable cause = ex.getCause();
-            log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}", clientAppId(),
-                    topicName, subName, messageId, cause);
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof RestException) {
+                log.warn("[{}] Failed to expire messages up to {} on subscription {} to position {}: {}", clientAppId(),
+                        topicName, subName, messageId, cause.toString());
+            } else {
+                log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}", clientAppId(),
+                        topicName, subName, messageId, cause);
+            }
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
         });
@@ -4355,8 +4413,13 @@ public class PersistentTopicsBase extends AdminResource {
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
+        // It is necessary for system topic operations because system topics are used to store metadata
+        // and other vital information. Even after namespace starting deletion,,
+        // we need to access the metadata of system topics to create readers and clean up topic data.
+        // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
         authorizationFuture.thenCompose(__ ->
-                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject()))
+                        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(),
+                                SystemTopicNames.isSystemTopic(topicName)))
                 .thenCompose(res ->
                         pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
                 .thenAccept(metadata -> {
@@ -4383,7 +4446,11 @@ public class PersistentTopicsBase extends AdminResource {
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
+        // It is necessary for system topic operations because system topics are used to store metadata
+        // and other vital information. Even after namespace starting deletion,,
+        // we need to access the metadata of system topics to create readers and clean up topic data.
+        // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
+        checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
             .thenCompose(res -> pulsar.getBrokerService()
                 .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
             .thenAccept(metadata -> {
@@ -4510,7 +4577,7 @@ public class PersistentTopicsBase extends AdminResource {
     private CompletableFuture<Void> validatePartitionTopicUpdateAsync(String topicName, int numberOfPartition) {
         return internalGetListAsync().thenCompose(existingTopicList -> {
             TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
-            String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
+            String prefix = partitionTopicName.getPartitionedTopicName() + PARTITIONED_TOPIC_SUFFIX;
             return getPartitionedTopicMetadataAsync(partitionTopicName, false, false)
                     .thenAccept(metadata -> {
                         int oldPartition = metadata.partitions;
@@ -4518,8 +4585,8 @@ public class PersistentTopicsBase extends AdminResource {
                             if (existingTopicName.startsWith(prefix)) {
                                 try {
                                     long suffix = Long.parseLong(existingTopicName.substring(
-                                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
-                                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                                            existingTopicName.indexOf(PARTITIONED_TOPIC_SUFFIX)
+                                                    + PARTITIONED_TOPIC_SUFFIX.length()));
                                     // Skip partition of partitioned topic by making sure
                                     // the numeric suffix greater than old partition number.
                                     if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
@@ -4560,12 +4627,12 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private CompletableFuture<Void> validateNonPartitionTopicNameAsync(String topicName) {
         CompletableFuture<Void> ret = CompletableFuture.completedFuture(null);
-        if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+        if (topicName.contains(PARTITIONED_TOPIC_SUFFIX)) {
             try {
                 // First check if what's after suffix "-partition-" is number or not, if not number then can create.
-                int partitionIndex = topicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX);
+                int partitionIndex = topicName.indexOf(PARTITIONED_TOPIC_SUFFIX);
                 long suffix = Long.parseLong(topicName.substring(partitionIndex
-                        + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                        + PARTITIONED_TOPIC_SUFFIX.length()));
                 TopicName partitionTopicName = TopicName.get(domain(),
                         namespaceName, topicName.substring(0, partitionIndex));
                 ret = getPartitionedTopicMetadataAsync(partitionTopicName, false, false)

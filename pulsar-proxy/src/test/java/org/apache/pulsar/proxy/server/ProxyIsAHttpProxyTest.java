@@ -44,8 +44,12 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.api.Result;
+import org.eclipse.jetty.server.Connector;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -66,6 +70,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
     private Server backingServer1;
     private Server backingServer2;
+    private Server backingServer3;
     private PulsarResources resource;
     private Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
 
@@ -85,6 +90,15 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         backingServer2 = new Server(0);
         backingServer2.setHandler(newHandler("server2"));
         backingServer2.start();
+
+        backingServer3 = new Server();
+        HttpConfiguration httpConfig = new HttpConfiguration();
+        httpConfig.setRequestHeaderSize(20000);
+        ServerConnector connector = new ServerConnector(backingServer3, new HttpConnectionFactory(httpConfig));
+        connector.setPort(0);
+        backingServer3.setConnectors(new Connector[]{connector});
+        backingServer3.setHandler(newHandler("server3"));
+        backingServer3.start();
     }
 
     private static AbstractHandler newHandler(String text) {
@@ -96,7 +110,9 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 baseRequest.setHandled(true);
-                response.getWriter().println(String.format("%s,%s", text, request.getRequestURI()));
+                String uri = request.getRequestURI();
+                response.getWriter().println(String.format("%s,%s", text,
+                        uri.substring(0, uri.length() > 1024 ? 1024 : uri.length())));
             }
         };
     }
@@ -328,6 +344,47 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(r.readEntity(String.class).trim(), "server1,/foobar");
         } finally {
             webServer.stop();
+        }
+    }
+
+    @Test
+    public void testLongUri() throws Exception {
+        Properties props = new Properties();
+        props.setProperty("httpReverseProxy.3.path", "/service3");
+        props.setProperty("httpReverseProxy.3.proxyTo", backingServer3.getURI().toString());
+        props.setProperty("servicePort", "0");
+        props.setProperty("webServicePort", "0");
+
+        ProxyConfiguration proxyConfig = PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
+        AuthenticationService authService = new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig));
+
+        StringBuilder longUri = new StringBuilder("/service3/tp");
+        for (int i = 10 * 1024; i > 0; i = i - 11){
+            longUri.append("_sub1_RETRY");
+        }
+
+        WebServer webServerMaxUriLen8k = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen8k, proxyConfig, null,
+                new BrokerDiscoveryProvider(proxyConfig, resource));
+        webServerMaxUriLen8k.start();
+        try {
+            Response r = client.target(webServerMaxUriLen8k.getServiceUri()).path(longUri.toString()).request().get();
+            Assert.assertEquals(r.getStatus(), Response.Status.REQUEST_URI_TOO_LONG.getStatusCode());
+        } finally {
+            webServerMaxUriLen8k.stop();
+        }
+
+        proxyConfig.setHttpMaxRequestHeaderSize(12 * 1024);
+        WebServer webServerMaxUriLen12k = new WebServer(proxyConfig, authService);
+        ProxyServiceStarter.addWebServerHandlers(webServerMaxUriLen12k, proxyConfig, null,
+                new BrokerDiscoveryProvider(proxyConfig, resource));
+        webServerMaxUriLen12k.start();
+        try {
+            Response r = client.target(webServerMaxUriLen12k.getServiceUri()).path(longUri.toString()).request().get();
+            Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
+        } finally {
+            webServerMaxUriLen12k.stop();
         }
     }
 

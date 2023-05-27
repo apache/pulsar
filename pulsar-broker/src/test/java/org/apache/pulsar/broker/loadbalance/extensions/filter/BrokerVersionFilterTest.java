@@ -41,7 +41,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
     @Test
     public void testFilterEmptyBrokerList() throws BrokerFilterException {
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(), getContext());
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(), null, getContext());
         assertTrue(result.isEmpty());
     }
 
@@ -58,7 +58,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
         );
         Map<String, BrokerLookupData> brokers = new HashMap<>(originalBrokers);
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(brokers, context);
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(brokers, null, context);
         assertEquals(result, originalBrokers);
     }
 
@@ -71,7 +71,8 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6653", getLookupData("2.10.1")
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(
+                new HashMap<>(originalBrokers), null, getContext());
         assertEquals(result, Map.of(
                 "localhost:6651", getLookupData("2.10.1"),
                 "localhost:6652", getLookupData("2.10.1"),
@@ -84,7 +85,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6652", getLookupData("2.10.1"),
                 "localhost:6653", getLookupData("2.10.1")
         );
-        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext());
 
         assertEquals(result, Map.of(
                 "localhost:6652", getLookupData("2.10.1"),
@@ -98,7 +99,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6653", getLookupData("2.10.2-SNAPSHOT")
         );
 
-        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext());
         assertEquals(result, Map.of(
                 "localhost:6653", getLookupData("2.10.2-SNAPSHOT")
         ));
@@ -111,6 +112,6 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6650", getLookupData("xxx")
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        brokerVersionFilter.filter(new HashMap<>(originalBrokers), getContext());
+        brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext());
     }
 }

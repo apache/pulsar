@@ -28,6 +28,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.SystemTopicTxnBufferSnapshotService.ReferenceCountedWriter;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -42,7 +43,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 @Slf4j
 public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcessor {
     private final PersistentTopic topic;
-    private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter;
+    private final ReferenceCountedWriter<TransactionBufferSnapshot> takeSnapshotWriter;
     /**
      * Aborts, map for jude message is aborted, linked for remove abort txn in memory when this
      * position have been deleted.
@@ -51,12 +52,14 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     private volatile long lastSnapshotTimestamps;
 
+    private volatile boolean isClosed = false;
+
     public SingleSnapshotAbortedTxnProcessorImpl(PersistentTopic topic) {
         this.topic = topic;
         this.takeSnapshotWriter = this.topic.getBrokerService().getPulsar()
                 .getTransactionBufferSnapshotServiceFactory()
-                .getTxnBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
-        this.takeSnapshotWriter.exceptionally((ex) -> {
+                .getTxnBufferSnapshotService().getReferenceWriter(TopicName.get(topic.getName()).getNamespaceObject());
+        this.takeSnapshotWriter.getFuture().exceptionally((ex) -> {
                     log.error("{} Failed to create snapshot writer", topic.getName());
                     topic.close();
                     return null;
@@ -132,7 +135,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     @Override
     public CompletableFuture<Void> clearAbortedTxnSnapshot() {
-        return this.takeSnapshotWriter.thenCompose(writer -> {
+        return this.takeSnapshotWriter.getFuture().thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             return writer.deleteAsync(snapshot.getTopicName(), snapshot);
@@ -141,7 +144,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
 
     @Override
     public CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition) {
-        return takeSnapshotWriter.thenCompose(writer -> {
+        return takeSnapshotWriter.getFuture().thenCompose(writer -> {
             TransactionBufferSnapshot snapshot = new TransactionBufferSnapshot();
             snapshot.setTopicName(topic.getName());
             snapshot.setMaxReadPositionLedgerId(maxReadPosition.getLedgerId());
@@ -175,8 +178,12 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     }
 
     @Override
-    public CompletableFuture<Void> closeAsync() {
-        return takeSnapshotWriter.thenCompose(SystemTopicClient.Writer::closeAsync);
+    public synchronized CompletableFuture<Void> closeAsync() {
+        if (!isClosed) {
+            isClosed = true;
+            takeSnapshotWriter.release();
+        }
+        return CompletableFuture.completedFuture(null);
     }
 
     private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {

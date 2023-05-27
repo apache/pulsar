@@ -256,6 +256,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 LedgerEntry ledgerEntry = iterator.next();
                                 EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
 
+                                ml.getMbean().recordReadEntriesOpsCacheMisses();
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                                 ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
                                 callback.readEntryComplete(returnEntry, ctx);
@@ -449,6 +450,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     }
                                 }
 
+                                ml.getMbean().recordReadEntriesOpsCacheMisses();
                                 manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
                                 ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 

@@ -81,6 +81,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -381,6 +382,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         localMetadataStore.close();
     }
 
+    private void closeLeaderElectionService() throws Exception {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            ExtensibleLoadManagerImpl.get(loadManager.get()).getLeaderElectionService().close();
+        } else {
+            if (this.leaderElectionService != null) {
+                this.leaderElectionService.close();
+                this.leaderElectionService = null;
+            }
+        }
+    }
+
     @Override
     public void close() throws PulsarServerException {
         try {
@@ -466,6 +478,12 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 protocolHandlers = null;
             }
 
+            // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
+            if (this.loadSheddingTask != null) {
+                this.loadSheddingTask.cancel();
+            }
+            executorServicesShutdown.shutdown(loadManagerExecutor);
+
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
                 CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
@@ -495,16 +513,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.bkClientFactory = null;
             }
 
-            if (this.leaderElectionService != null) {
-                this.leaderElectionService.close();
-                this.leaderElectionService = null;
-            }
-
-            // cancel loadShedding task and shutdown the loadManager executor before shutting down the broker
-            if (this.loadSheddingTask != null) {
-                this.loadSheddingTask.cancel();
-            }
-            executorServicesShutdown.shutdown(loadManagerExecutor);
+            closeLeaderElectionService();
 
             if (adminClient != null) {
                 adminClient.close();
@@ -1133,8 +1142,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         }
                     } else {
                         if (leaderElectionService != null) {
-                            LOG.info("This broker is a follower. Current leader is {}",
-                                    leaderElectionService.getCurrentLeader());
+                            final Optional<LeaderBroker> currentLeader = leaderElectionService.getCurrentLeader();
+                            if (currentLeader.isPresent()) {
+                                LOG.info("This broker is a follower. Current leader is {}",
+                                        currentLeader);
+                            } else {
+                                LOG.info("This broker is a follower. No leader has been elected yet");
+                            }
+
                         }
                         if (loadSheddingTask != null) {
                             loadSheddingTask.cancel();
@@ -1309,7 +1324,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * @return a reference of the current <code>LeaderElectionService</code> instance.
      */
     public LeaderElectionService getLeaderElectionService() {
-        return this.leaderElectionService;
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(config)) {
+            return ExtensibleLoadManagerImpl.get(loadManager.get()).getLeaderElectionService();
+        } else {
+            return this.leaderElectionService;
+        }
     }
 
     /**
@@ -1852,7 +1871,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
         workerConfig.setTlsEnabled(brokerConfig.isTlsEnabled());
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
-        workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
+        workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
@@ -1860,6 +1880,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // inherit super users
         workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+        workerConfig.setProxyRoles(brokerConfig.getProxyRoles());
         workerConfig.setFunctionsWorkerEnablePackageManagement(brokerConfig.isFunctionsWorkerEnablePackageManagement());
 
         // inherit the nar package locations

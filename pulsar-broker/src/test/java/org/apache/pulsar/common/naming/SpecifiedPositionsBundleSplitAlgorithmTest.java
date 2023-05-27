@@ -35,6 +35,21 @@ import static org.testng.Assert.fail;
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
 
     @Test
+    public void testEmptyTopicWithForce() {
+        SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm(true);
+        NamespaceService mockNamespaceService = mock(NamespaceService.class);
+        NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
+        doReturn(1L).when(mockNamespaceBundle).getLowerEndpoint();
+        doReturn(1000L).when(mockNamespaceBundle).getUpperEndpoint();
+        doReturn(CompletableFuture.completedFuture(List.of()))
+                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+        List<Long> splitPositions =
+                algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle,
+                        Arrays.asList(1L, 2L))).join();
+        assertEquals(splitPositions, Arrays.asList(2L));
+    }
+
+    @Test
     public void testTotalTopicsSizeLessThan1() {
         SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();
         NamespaceService mockNamespaceService = mock(NamespaceService.class);

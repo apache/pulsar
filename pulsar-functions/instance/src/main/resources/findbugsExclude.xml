@@ -542,4 +542,14 @@
     <Method name="setEvictionPolicy"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.go.GoInstanceConfig"/>
+    <Method name="getSourceInputSpecs"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.instance.go.GoInstanceConfig"/>
+    <Method name="setSourceInputSpecs"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
 </FindBugsFilter>

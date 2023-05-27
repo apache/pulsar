@@ -65,19 +65,15 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
-    private static String getTLSFile(String name) {
-        return String.format("./src/test/resources/authentication/tls-http/%s.pem", name);
-    }
-
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(getTLSFile("broker.cert"));
-        conf.setTlsKeyFilePath(getTLSFile("broker.key-pk8"));
-        conf.setTlsTrustCertsFilePath(getTLSFile("ca.cert"));
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setAuthenticationEnabled(true);
         conf.setAuthenticationProviders(
                 Set.of("org.apache.pulsar.broker.authentication.AuthenticationProviderTls"));
@@ -87,8 +83,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTLSFile("admin.cert"), getTLSFile("admin.key-pk8")));
-        conf.setBrokerClientTrustCertsFilePath(getTLSFile("ca.cert"));
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+        conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setBrokerClientTlsEnabled(true);
         conf.setNumExecutorThreadPoolSize(5);
 
@@ -115,11 +111,11 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
         X509Certificate trustCertificates[] = SecurityUtility.loadCertificatesFromPemFile(
-                getTLSFile("ca.cert"));
+                CA_CERT_FILE_PATH);
         SSLContext sslCtx = SecurityUtility.createSslContext(
                 false, trustCertificates,
-                SecurityUtility.loadCertificatesFromPemFile(getTLSFile(user + ".cert")),
-                SecurityUtility.loadPrivateKeyFromPemFile(getTLSFile(user + ".key-pk8")));
+                SecurityUtility.loadCertificatesFromPemFile(getTlsFileForClient(user + ".cert")),
+                SecurityUtility.loadPrivateKeyFromPemFile(getTlsFileForClient(user + ".key-pk8")));
         clientBuilder.sslContext(sslCtx).hostnameVerifier(NoopHostnameVerifier.INSTANCE);
         Client client = clientBuilder.build();
 
@@ -133,8 +129,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             .serviceHttpUrl(brokerUrlTls.toString())
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                                          getTLSFile(user + ".cert"), getTLSFile(user + ".key-pk8")))
-            .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
+                                          getTlsFileForClient(user + ".cert"), getTlsFileForClient(user + ".key-pk8")))
+            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
     }
 
     PulsarClient buildClient(String user) throws Exception {
@@ -143,8 +139,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             .enableTlsHostnameVerification(false)
             .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                             String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                                          getTLSFile(user + ".cert"), getTLSFile(user + ".key-pk8")))
-            .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
+                                          getTlsFileForClient(user + ".cert"), getTlsFileForClient(user + ".key-pk8")))
+            .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
     }
 
     @Test
@@ -471,11 +467,11 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     public void testCertRefreshForPulsarAdmin() throws Exception {
         String adminUser = "admin";
         String user2 = "user1";
-        File keyFile = new File(getTLSFile("temp" + ".key-pk8"));
+        File keyFile = File.createTempFile("temp", ".key-pk8");
         Path keyFilePath = Paths.get(keyFile.getAbsolutePath());
         int autoCertRefreshTimeSec = 1;
         try {
-            Files.copy(Paths.get(getTLSFile(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
             PulsarAdmin admin = PulsarAdmin.builder()
                     .allowTlsInsecureConnection(false)
                     .enableTlsHostnameVerification(false)
@@ -483,8 +479,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                     .autoCertRefreshTime(autoCertRefreshTimeSec, TimeUnit.SECONDS)
                     .authentication("org.apache.pulsar.client.impl.auth.AuthenticationTls",
                                     String.format("tlsCertFile:%s,tlsKeyFile:%s",
-                                                  getTLSFile(adminUser + ".cert"), keyFile))
-                    .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
+                                                  getTlsFileForClient(adminUser + ".cert"), keyFile))
+                    .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).build();
             // try to call admin-api which should fail due to incorrect key-cert
             try {
                 admin.tenants().createTenant("tenantX",
@@ -496,7 +492,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             // replace correct key file
             Files.delete(keyFile.toPath());
             Thread.sleep(2 * autoCertRefreshTimeSec * 1000);
-            Files.copy(Paths.get(getTLSFile(adminUser + ".key-pk8")), keyFilePath);
+            Files.copy(Paths.get(getTlsFileForClient(adminUser + ".key-pk8")), keyFilePath);
             MutableBoolean success = new MutableBoolean(false);
             retryStrategically((test) -> {
                 try {

@@ -140,7 +140,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuUsageForCGroup(double elapsedTimeSeconds) {
-        double usage = getCpuUsageForCGroup();
+        double usage = (double) getCpuUsageForCGroup();
         double currentUsage = usage - lastCpuUsage;
         lastCpuUsage = usage;
         return 100 * currentUsage / elapsedTimeSeconds / TimeUnit.SECONDS.toNanos(1);
@@ -155,7 +155,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      * </pre>
      *
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum subtracting the idle cycles, this would include iowait, irq and steal.
      */
     private double getTotalCpuUsageForEntireHost() {
         LinuxInfoUtils.ResourceUsage cpuUsageForEntireHost = getCpuUsageForEntireHost();
