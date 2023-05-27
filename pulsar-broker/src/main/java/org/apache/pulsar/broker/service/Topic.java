@@ -307,7 +307,9 @@ public interface Topic {
      * add the passed schema to the topic. Otherwise, check that the passed schema is compatible
      * with what the topic already has.
      */
-    CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
+    CompletableFuture<Long> addSchemaIfIdleOrCheckCompatible(SchemaData schema);
+
+    CompletableFuture<Long> findSchemaVersion(SchemaData schema);
 
     CompletableFuture<Void> deleteForcefully();
 

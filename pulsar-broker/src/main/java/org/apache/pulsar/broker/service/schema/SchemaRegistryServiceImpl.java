@@ -445,8 +445,37 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return completableFuture;
     }
 
+    @Override
+    public CompletableFuture<Void> tryCompleteTheLostSchema(String schemaId, SchemaVersion schemaVersion,
+                                                            SchemaData schema) {
+        // long start = this.clock.millis();
+        CompletableFuture<Void> longCompletableFuture = new CompletableFuture<>();
+        schemaStorage
+                .tryCompleteTheLostSchemaLedger(schemaId, schemaVersion, schema)
+                .whenComplete((v, t) -> {
+                    // TODO: add completeLostSchemaLedger stats?
+                    if (t != null) {
+                        // this.stats.recordDelFailed(schemaId);
+                        log.error("[{}] Delete schema storage failed", schemaId);
+                        longCompletableFuture.completeExceptionally(t);
+                    } else {
+                        // this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Delete schema storage finished", schemaId);
+                        }
+                        longCompletableFuture.complete(null);
+                    }
+                });
+        return longCompletableFuture;
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> getLatestSchemaVersion(String schemaId) {
+        return schemaStorage.getLatestSchemaVersion(schemaId);
+    }
+
     private CompletableFuture<Void> checkCompatibilityWithLatest(String schemaId, SchemaData schema,
-                                                                    SchemaCompatibilityStrategy strategy) {
+                                                                 SchemaCompatibilityStrategy strategy) {
         if (SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE == strategy) {
             return CompletableFuture.completedFuture(null);
         }

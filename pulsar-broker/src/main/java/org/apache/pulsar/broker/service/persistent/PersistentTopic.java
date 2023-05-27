@@ -30,6 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -161,6 +162,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.Codec;
@@ -783,7 +785,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.isReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()),
-                option.getConsumerEpoch(), option.getSchemaType());
+                option.getConsumerEpoch(), option.getSchemaData(), option.getSchemaVersion());
     }
 
     private CompletableFuture<Consumer> internalSubscribe(final TransportCnx cnx, String subscriptionName,
@@ -797,7 +799,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch,
-                                                          SchemaType schemaType) {
+                                                          SchemaData schemaData,
+                                                          long schemaVersion) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -885,8 +888,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType);
-
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaData, schemaVersion);
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     if (subscription instanceof PersistentSubscription persistentSubscription) {
                         checkBackloggedCursor(persistentSubscription);
@@ -964,7 +966,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null, 0L);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,
@@ -3244,21 +3246,63 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<Void> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
-        return hasSchema().thenCompose((hasSchema) -> {
+    public CompletableFuture<Long> addSchemaIfIdleOrCheckCompatible(SchemaData schema) {
+        return hasSchema().handle((hasSchema, ex) -> {
+            log.warn("hasSchema: " + hasSchema + " ex: " + ex);
+            if (ex != null) {
+                log.error("addSchemaIfIdleOrCheckCompatible: " + ex.getMessage());
+                if (ex.getMessage().contains("Failed to open ledger")) {
+                    getLatestSchemaVersion().thenApply(schemaVersion -> {
+                        log.warn("++++++++latest" + schemaVersion.toString());
+                        SchemaData schemaData = null;
+                        Collection<Producer> values = producers.values();
+                        // TODO: CompletableFuture.anyOf()
+                        for (Producer value : values) {
+                            log.warn("++++++++producer schemaversion:" + value.getSchemaVersion());
+                            if (((LongSchemaVersion) value.getSchemaVersion()).getVersion()
+                                    == ((LongSchemaVersion) schemaVersion).getVersion()) {
+                                schemaData = value.getSchemaData();
+                                break;
+                            }
+                        }
+                        // TODO: CompletableFuture.anyOf()
+                        for (PersistentSubscription value : subscriptions.values()) {
+                            for (Consumer consumer : value.getConsumers()) {
+                                log.warn("++++++++consumer schemaversion:" + consumer.getSchemaVersion());
+                                if (consumer.getSchemaVersion() == ((LongSchemaVersion) schemaVersion).getVersion()) {
+                                    schemaData = consumer.getSchemaData();
+                                    break;
+                                }
+                            }
+                            break;
+                        }
+                        return tryCompleteTheLostSchema(schemaVersion, schemaData);
+                    });
+                    return true;
+                }
+            }
+            return hasSchema;
+        }).thenCompose((hasSchema) -> {
             int numActiveConsumersWithoutAutoSchema = subscriptions.values().stream()
                     .mapToInt(subscription -> subscription.getConsumers().stream()
-                            .filter(consumer -> consumer.getSchemaType() != SchemaType.AUTO_CONSUME)
+                            .filter(consumer -> consumer.getSchemaData().getType() != SchemaType.AUTO_CONSUME)
                             .toList().size())
                     .sum();
             if (hasSchema
                     || (!producers.isEmpty())
                     || (numActiveConsumersWithoutAutoSchema != 0)
                     || (ledger.getTotalSize() != 0)) {
-                return checkSchemaCompatibleForConsumer(schema);
+                log.warn("################ checkSchemaCompatibleForConsumer:" + hasSchema);
+                checkSchemaCompatibleForConsumer(schema);
+                log.warn("################ checkSchemaCompatibleForConsumer success");
+                return findSchemaVersion(schema);
             } else {
-                return addSchema(schema).thenCompose(schemaVersion ->
-                        CompletableFuture.completedFuture(null));
+                log.warn("################ addSchema:");
+                return addSchema(schema).thenApply(version -> {
+                    log.warn("################ addSchema:" + version);
+                    LongSchemaVersion longVersion = (LongSchemaVersion) version;
+                    return longVersion.getVersion();
+                });
             }
         });
     }

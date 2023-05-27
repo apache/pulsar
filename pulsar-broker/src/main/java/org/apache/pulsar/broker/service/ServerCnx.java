@@ -1222,23 +1222,31 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                         "Subscription does not exist"));
                             }
 
-                            SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
+                            SubscriptionOption.SubscriptionOptionBuilder optionBuilder = SubscriptionOption.builder()
+                                    .cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
-                                    .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
-                                    .consumerName(consumerName).isDurable(isDurable)
-                                    .startMessageId(startMessageId).metadata(metadata).readCompacted(readCompacted)
+                                    .consumerId(consumerId)
+                                    .subType(subType)
+                                    .priorityLevel(priorityLevel)
+                                    .consumerName(consumerName)
+                                    .isDurable(isDurable)
+                                    .startMessageId(startMessageId)
+                                    .metadata(metadata)
+                                    .readCompacted(readCompacted)
                                     .initialPosition(initialPosition)
                                     .startMessageRollbackDurationSec(startMessageRollbackDurationSec)
-                                    .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
+                                    .replicatedSubscriptionStateArg(isReplicated)
+                                    .keySharedMeta(keySharedMeta)
                                     .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
-                                    .schemaType(schema == null ? null : schema.getType())
-                                    .build();
+                                    .schemaData(schema);
                             if (schema != null && schema.getType() != SchemaType.AUTO_CONSUME) {
                                 return topic.addSchemaIfIdleOrCheckCompatible(schema)
-                                        .thenCompose(v -> topic.subscribe(option));
+                                        .thenCompose(schemaVersion ->
+                                                topic.subscribe(optionBuilder.schemaVersion(schemaVersion).build()));
                             } else {
-                                return topic.subscribe(option);
+                                topic.findSchemaVersion(schema).thenApply(optionBuilder::schemaVersion);
+                                return topic.subscribe(optionBuilder.build());
                             }
                         })
                         .thenAccept(consumer -> {
@@ -1499,7 +1507,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                                 buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
                                     metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                    producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
+                                    producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture, schema);
                             });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
@@ -1572,11 +1580,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              boolean userProvidedProducerName, TopicName topicName,
                              ProducerAccessMode producerAccessMode,
                              Optional<Long> topicEpoch, boolean supportsPartialProducer,
-                             CompletableFuture<Producer> producerFuture){
+                             CompletableFuture<Producer> producerFuture, SchemaData schemaData){
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer);
+                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer, schemaData);
 
         topic.addProducer(producer, producerQueuedFuture).thenAccept(newTopicEpoch -> {
             if (isActive()) {
@@ -2798,7 +2806,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (schema != null) {
             return topic.addSchema(schema);
         } else {
-            return topic.hasSchema().thenCompose((hasSchema) -> {
+            return topic.hasSchema()
+            //         .handle((hasSchema, ex) -> {
+            //     if (ex != null) {
+            //         if (ex.getCause() instanceof BKException.BKNoSuchLedgerExistsException
+            //                 || ex.getCause() instanceof BKException.BKNoSuchLedgerExistsOnMetadataServerException) {
+            //             topic.completeTheMissingSchema(SchemaVersion.Latest, schema);
+            //             return true;
+            //         }
+            //     }
+            //     return hasSchema;
+            // })
+                    .thenCompose((hasSchema) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] {} configured with schema {}", remoteAddress, topic.getName(), hasSchema);
                 }

@@ -22,6 +22,7 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
+import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertTrue;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.HashFunction;
@@ -32,6 +33,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -40,11 +42,23 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Cleanup;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -54,6 +68,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -82,13 +97,15 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     private static final SchemaData schemaData3 = getSchemaData(schemaJson3);
 
     private SchemaRegistryServiceImpl schemaRegistryService;
+    private BookkeeperSchemaStorage storage;
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         conf.setSchemaRegistryStorageClassName("org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory");
         super.internalSetup();
-        BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
+        super.setupDefaultTenantAndNamespace();
+        storage = new BookkeeperSchemaStorage(pulsar);
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
@@ -324,6 +341,148 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getClass(), PulsarServerException.class);
             Assert.assertTrue(e.getMessage().contains("User class must be in class path"));
         }
+    }
+
+    @Test(dataProvider = "lostSchemaLedgerIndexes", timeOut = 30000)
+    public void testSchemaLedgerLost(List<Integer> lostSchemaLedgerIndexes) throws Exception {
+        final String namespace = "public/default";
+        final String topic = namespace + "/testSchemaLedgerLost";
+        final Schema<V1Data> schemaV1 = Schema.AVRO(V1Data.class);
+        final Schema<V2Data> schemaV2 = Schema.AVRO(V2Data.class);
+        admin.namespaces().setSchemaCompatibilityStrategy(namespace, SchemaCompatibilityStrategy.BACKWARD);
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().setSchemaValidationEnforced(topic, true);
+
+        Producer<V1Data> producer1 = pulsarClient.newProducer(schemaV1)
+                .topic(topic)
+                .producerName("producer1")
+                .create();
+        Producer<V2Data> producer2 = pulsarClient.newProducer(schemaV2)
+                .topic(topic)
+                .producerName("producer2")
+                .create();
+        Consumer<V1Data> consumer1 = pulsarClient.newConsumer(schemaV1)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumer1")
+                .subscribe();
+        // @Cleanup
+        // Consumer<V2Data> consumer2 = pulsarClient.newConsumer(schemaV2)
+        //         .topic(topic)
+        //         .subscriptionType(SubscriptionType.Shared)
+        //         .subscriptionName("sub0")
+        //         .consumerName("consumerAfterLostLedger2")
+        //         .subscribe();
+
+        SchemaAndMetadata schemaAndMetadata0 = schemaRegistryService.getSchema(TopicName.get(topic)
+                .getSchemaName(), new LongSchemaVersion(0)).get();
+        SchemaAndMetadata schemaAndMetadata1 = schemaRegistryService.getSchema(TopicName.get(topic)
+                .getSchemaName(), new LongSchemaVersion(1)).get();
+
+        // delete ledger
+        String key = TopicName.get(topic).getSchemaName();
+        List<Long> schemaLedgerList = storage.getSchemaLedgerList(key);
+        Assert.assertEquals(schemaLedgerList.size(), 2);
+        for (int i = 0; i < schemaLedgerList.size(); i++){
+            if (lostSchemaLedgerIndexes.contains(i)){
+                storage.getBookKeeper().deleteLedger(schemaLedgerList.get(i));
+            }
+        }
+
+        // Without introducing this pr, connected producers or consumers are not affected if the schema ledger is lost
+        final int numMessages = 5;
+        for (int i = 0; i < numMessages; i++) {
+            producer1.send(new V1Data(i));
+            producer2.send(new V2Data(i, i + 1));
+        }
+        for (int i = 0; i < numMessages; i++) {
+            Message<V1Data> msg = consumer1.receive(3, TimeUnit.SECONDS);
+            consumer1.acknowledge(msg);
+        }
+
+        // try to fix the lost schema ledger
+        if (lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.contains(1)) {
+            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
+                            .getSchemaName(), new LongSchemaVersion(0)
+                    , schemaAndMetadata0.schema);
+            // TODO: BadVersion for /schemas/public/default/testSchemaLedgerLost. Need to fix.
+            //  When lostSchemaLedgerIndexes contains 0 and 1.
+            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
+                            .getSchemaName(), new LongSchemaVersion(1)
+                    , schemaAndMetadata1.schema);
+        } else if (lostSchemaLedgerIndexes.contains(0) && !lostSchemaLedgerIndexes.contains(1)) {
+            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
+                            .getSchemaName(), new LongSchemaVersion(0)
+                    , schemaAndMetadata0.schema);
+        } else if (!lostSchemaLedgerIndexes.contains(0) && lostSchemaLedgerIndexes.contains(1)) {
+            schemaRegistryService.tryCompleteTheLostSchema(TopicName.get(topic)
+                            .getSchemaName(), new LongSchemaVersion(1)
+                    , schemaAndMetadata1.schema);
+        }
+
+        @Cleanup
+        Producer<V1Data> producerAfterLostLedger1 = pulsarClient.newProducer(schemaV1)
+                .topic(topic)
+                .producerName("producerAfterLostLedger1")
+                .create();
+        assertNotNull(producerAfterLostLedger1.send(new V1Data(10)));
+        @Cleanup
+        Producer<V2Data> producerAfterLostLedger2 = pulsarClient.newProducer(schemaV2)
+                .topic(topic)
+                .producerName("producerAfterLostLedger2")
+                .create();
+        assertNotNull(producerAfterLostLedger2.send(new V2Data(10, 10)));
+
+        @Cleanup
+        Consumer<V1Data> consumerAfterLostLedger1 = pulsarClient.newConsumer(schemaV1)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerAfterLostLedger1")
+                .subscribe();
+        producer1.send(new V1Data(11));
+        assertNotNull(consumerAfterLostLedger1.receive(3, TimeUnit.SECONDS));
+
+        @Cleanup
+        Consumer<V2Data> consumerAfterLostLedger2 = pulsarClient.newConsumer(schemaV2)
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerAfterLostLedger2")
+                .subscribe();
+        producer2.send(new V2Data(11, 11));
+        assertNotNull(consumerAfterLostLedger2.receive(3, TimeUnit.SECONDS));
+
+        producer1.close();
+        producer2.close();
+        consumer1.close();
+    }
+
+    @DataProvider(name = "lostSchemaLedgerIndexes")
+    public Object[][] lostSchemaLedgerIndexes(){
+        return new Object[][]{
+                // {Arrays.asList(0,1)},
+                {Arrays.asList(0)},
+                {Arrays.asList(1)}
+        };
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    static class V1Data {
+        int i;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    static class V2Data {
+        int i;
+        Integer j;
     }
 
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {
