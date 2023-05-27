@@ -1048,8 +1048,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
-        if ((getNumberOfEntriesInBacklog(false) == 0) || (dispatcher != null && dispatcher.isConsumerConnected()
-                && getNumberOfEntriesInBacklog(false) < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
+        long backlog = getNumberOfEntriesInBacklog(false);
+        if (backlog == 0 || (dispatcher != null && dispatcher.isConsumerConnected()
+                && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK
                 && !topic.isOldestMessageExpired(cursor, messageTTLInSeconds))) {
             // don't do anything for almost caught-up connected subscriptions
             return false;
