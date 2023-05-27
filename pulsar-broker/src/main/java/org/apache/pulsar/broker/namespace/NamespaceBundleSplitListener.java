@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.namespace;
 
 import java.util.function.Predicate;
-
 import org.apache.pulsar.common.naming.NamespaceBundle;
 
 /**
