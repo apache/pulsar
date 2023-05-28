@@ -21,9 +21,11 @@ package org.apache.pulsar.common.util.netty;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+@UtilityClass
 public class DnsResolverUtil {
     private static final int MIN_TTL = 0;
     private static final int TTL;
@@ -52,10 +54,6 @@ public class DnsResolverUtil {
         }
         TTL = ttl <= 0 ? DEFAULT_TTL : ttl;
         NEGATIVE_TTL = negativeTtl < 0 ? DEFAULT_NEGATIVE_TTL : negativeTtl;
-    }
-
-    private DnsResolverUtil() {
-        // utility class with static methods, prevent instantiation
     }
 
     /**
