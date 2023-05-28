@@ -82,6 +82,7 @@ The process works in the following way:
 11. If the outcome is negative, please close the PR (with a small comment that the close is a result of a vote).
 
 All the future implementation Pull Requests that will be created, should always reference the PIP-XXX in the commit log message and the PR title.
+It is advised to create a master GitHub issue to formulate the execution plan and track its progress.
 
 ## List of PIPs
 
