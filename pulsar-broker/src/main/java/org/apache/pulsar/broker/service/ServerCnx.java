@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
@@ -716,7 +717,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
         }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
-        this.clientVersion = StringInterner.intern(clientVersion);
+        if (isNotBlank(clientVersion)) {
+            this.clientVersion = StringInterner.intern(clientVersion);
+        }
         if (!service.isAuthenticationEnabled()) {
             log.info("[{}] connected with clientVersion={}, clientProtocolVersion={}, proxyVersion={}", remoteAddress,
                     clientVersion, clientProtoVersion, proxyVersion);
