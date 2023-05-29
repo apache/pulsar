@@ -1,7 +1,7 @@
 <!--
 RULES
 * Never place a link to an external site like Google Doc. The proposal should be in this issue entirely.
-* Use a spelling and grammar checker tools if available for you (there are plenty of free ones)
+* Use a spelling and grammar checker tools if available for you (there are plenty of free ones).
 
 PROPOSAL HEALTH CHECK
 I can read the design document and understand the problem statement and what you plan to change *without* resorting to a couple of hours of code reading just to start having a high level understanding of the change.
