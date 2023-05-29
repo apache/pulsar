@@ -615,13 +615,12 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
      */
     public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin,
                                                 Collection<PulsarService> pulsars) throws Exception {
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().ignoreExceptions().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             try {
                 // Maybe fail by race-condition with create topics, just retry.
                 admin.namespaces().deleteNamespace(ns, force);
-                return true;
-            } catch (Exception ex) {
-                return false;
+            } catch (PulsarAdminException.NotFoundException ex) {
+                // topic was already deleted, ignore exception
             }
         });
     }
