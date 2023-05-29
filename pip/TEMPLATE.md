@@ -143,7 +143,7 @@ Describe a cookbook detailing the steps required to revert pulsar to previous ve
 ## Upgrade
 
 <!--
-Specify the list of instructions, if there are such, needed to perform before/after upgrading to Pulsar version containing this feature
+Specify the list of instructions, if there are such, needed to perform before/after upgrading to Pulsar version containing this feature.
 -->
 
 # Alternatives
