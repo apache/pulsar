@@ -24,7 +24,7 @@ DON'T
 
 EXAMPLES
 * See [PIP-248](https://github.com/apache/pulsar/issues/19601), Background section to get an understanding on how you add the background knowledge needed.
-  (They also included the motivation there, but ignore it as we place that in Motivation section explicitly)
+  (They also included the motivation there, but ignore it as we place that in Motivation section explicitly).
 -->
 
 # Motivation
