@@ -73,7 +73,7 @@ DON'T
 <!--
 This is the section where you dive into the details. It can be:
 * Concrete class names and their roles and responsibility, including methods.
-* Code snippets of existing code 
+* Code snippets of existing code.
 * interface names and its methods,
 * ...
 -->
