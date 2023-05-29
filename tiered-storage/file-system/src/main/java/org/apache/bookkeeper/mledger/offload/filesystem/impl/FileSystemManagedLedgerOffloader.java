@@ -315,8 +315,10 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     LedgerEntry entry = iterator.next();
                     long entryId = entry.getEntryId();
                     key.set(entryId);
+                    int currentEntrySize;
                     try {
-                        value.set(entry.getEntryBytes(), 0, entry.getEntryBytes().length);
+                        currentEntrySize = entry.getEntryBytes().length;
+                        value.set(entry.getEntryBytes(), 0, currentEntrySize);
                         dataWriter.append(key, value);
                     } catch (IOException e) {
                         ledgerReader.fileSystemWriteException = e;
@@ -324,7 +326,7 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                         break;
                     }
                     haveOffloadEntryNumber.incrementAndGet();
-                    ledgerReader.offloaderStats.recordOffloadBytes(topicName, entry.getEntryBytes().length);
+                    ledgerReader.offloaderStats.recordOffloadBytes(topicName, currentEntrySize);
                 }
             }
             countDownLatch.countDown();
