@@ -42,7 +42,7 @@ Describe the problem this proposal is trying to solve.
 
 <!--
 What this PIP intend to achieve once It's integrated into Pulsar.
-Why does it benefit Pulsar
+Why does it benefit Pulsar.
 -->
 
 ## Out of Scope
