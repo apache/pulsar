@@ -1347,7 +1347,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Enable or disable the broker interceptor, which is only used for testing for now"
+        doc = "Enable or disable the broker interceptor"
     )
     private boolean disableBrokerInterceptors = true;
 
