@@ -168,11 +168,7 @@ public class KafkaAbstractSourceTest {
         consumerField.setAccessible(true);
         consumerField.set(source, consumer);
 
-        try {
-            source.start();
-        } finally {
-            source.close();
-        }
+        source.start();
 
         Field runningField = KafkaAbstractSource.class.getDeclaredField("running");
         runningField.setAccessible(true);
