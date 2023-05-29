@@ -94,7 +94,7 @@ When adding a new endpoint to the REST API, please make sure to document the fol
 * query parameters
 * HTTP body parameters, usually as JSON.
 * Response codes, and for each what they mean.
-  For each response code, please include a detailed description of the response body JSON, specifying each field and what it means
+  For each response code, please include a detailed description of the response body JSON, specifying each field and what it means.
   This is the place to document the errors.
 -->
 
