@@ -103,6 +103,7 @@ class OpReadEntry implements ReadEntriesCallback {
             // try to find and move to next valid ledger
             final Position nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
             // fail callback if it couldn't find next valid ledger
+            Long lostLedger = readPosition.ledgerId;
             if (nexReadPosition == null) {
                 callback.readEntriesFailed(exception, ctx);
                 cursor.ledger.mbean.recordReadEntriesError();
@@ -110,6 +111,9 @@ class OpReadEntry implements ReadEntriesCallback {
                 return;
             }
             updateReadPosition(nexReadPosition);
+            if (lostLedger < nexReadPosition.getLedgerId()) {
+                cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
+            }
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
