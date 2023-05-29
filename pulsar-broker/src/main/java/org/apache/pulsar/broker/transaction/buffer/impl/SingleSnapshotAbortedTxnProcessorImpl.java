@@ -176,6 +176,7 @@ public class SingleSnapshotAbortedTxnProcessorImpl implements AbortedTxnProcesso
     @Override
     public void generateSnapshotStats(TransactionBufferStats transactionBufferStats, boolean segmentStats) {
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+        transactionBufferStats.totalAbortedTransactions = aborts.size();
     }
 
     @Override

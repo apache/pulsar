@@ -491,8 +491,8 @@ public abstract class TransactionsBase extends AdminResource {
                                                     singleStats.managedLedgerInternalStats = singleInternalStats;
                                                     transactionBufferInternalStats
                                                             .singleSnapshotInternalStats = singleStats;
-                                                    return null;
-                                                })).thenApply(ignore -> transactionBufferInternalStats);
+                                                    return transactionBufferInternalStats;
+                                                }));
                     }
                     return FutureUtil.failedFuture(new RestException(INTERNAL_SERVER_ERROR, "Unknown SnapshotType "
                             + snapshotType));
