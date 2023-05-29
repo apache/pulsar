@@ -119,7 +119,7 @@ For each metric provide:
 
 <!-- 
 Describe how the changes you make in this proposal should be monitored. 
-Don't describe the detailed metrics - they should be at "Public-facing Changes" / "Metrics" section
+Don't describe the detailed metrics - they should be at "Public-facing Changes" / "Metrics" section.
 Describe how the user will use the metrics to monitor the feature: Which alerts they should set up, which thresholds, ...
 -->
 
