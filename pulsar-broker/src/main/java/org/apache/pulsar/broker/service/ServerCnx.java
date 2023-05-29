@@ -214,6 +214,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final String replicatorPrefix;
     private String clientVersion = null;
     private String proxyVersion = null;
+    private String clientSourceAddressAndPort;
     private int nonPersistentPendingMessages = 0;
     private final int maxNonPersistentPendingMessages;
     private String originalPrincipal = null;
@@ -3372,6 +3373,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public String clientSourceAddressAndPort() {
+        if (clientSourceAddressAndPort == null) {
+            if (hasHAProxyMessage()) {
+                clientSourceAddressAndPort =
+                        getHAProxyMessage().sourceAddress() + ":" + getHAProxyMessage().sourcePort();
+            } else {
+                clientSourceAddressAndPort = clientAddress().toString();
+            }
+        }
+        return clientSourceAddressAndPort;
     }
 
     CompletableFuture<Boolean> connectionCheckInProgress;
