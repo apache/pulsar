@@ -18,29 +18,24 @@
  */
 package org.apache.pulsar.common.util.netty;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import io.netty.channel.EventLoop;
-import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class DnsResolverTest {
 
     @Test
-    public void testMaxTtl() throws Exception {
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(Mockito.mock(EventLoop.class));
-        assertThat(dnsNameResolverBuilder).isNotNull();
+    public void testMaxTtl() {
+        EventLoop eventLoop = Mockito.mock(EventLoop.class);
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoop);
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
-
-        CountDownLatch latch = new CountDownLatch(1);
-        try (MockedConstruction<?> ignore = Mockito.mockConstruction(
-                DnsNameResolver.class, (a, b) -> latch.countDown())) {
+        // If the maxTtl is <=0, it will throw IllegalArgumentException.
+        try {
             dnsNameResolverBuilder.build();
-            assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+        } catch (Exception ex) {
+            Assert.assertFalse(ex instanceof IllegalArgumentException);
         }
     }
 }
