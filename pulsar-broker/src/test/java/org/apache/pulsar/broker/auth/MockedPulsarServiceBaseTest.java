@@ -620,7 +620,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
                 // Maybe fail by race-condition with create topics, just retry.
                 admin.namespaces().deleteNamespace(ns, force);
             } catch (PulsarAdminException.NotFoundException ex) {
-                // topic was already deleted, ignore exception
+                // namespace was already deleted, ignore exception
             }
         });
     }
