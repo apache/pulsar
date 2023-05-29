@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static javax.ws.rs.core.Response.Status.INTERNAL_SERVER_ERROR;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
 import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrl;
@@ -164,6 +163,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.StringInterner;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
@@ -716,9 +716,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.debug("[{}] connect state change to : [{}]", remoteAddress, State.Connected.name());
         }
         setRemoteEndpointProtocolVersion(clientProtoVersion);
-        if (isNotBlank(clientVersion)) {
-            this.clientVersion = clientVersion.intern();
-        }
+        this.clientVersion = StringInterner.intern(clientVersion);
         if (!service.isAuthenticationEnabled()) {
             log.info("[{}] connected with clientVersion={}, clientProtocolVersion={}, proxyVersion={}", remoteAddress,
                     clientVersion, clientProtoVersion, proxyVersion);
