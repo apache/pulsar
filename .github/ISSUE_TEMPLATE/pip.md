@@ -1,7 +1,6 @@
 ---
 name: PIP
 about: [DEPRECATED. see 'pip' folder] Submit a Pulsar Improvement Proposal (PIP)
-description: DEPRECATED. Please read `pip/README.md`
 title: 'PIP-XYZ: '
 labels: PIP
 ---
