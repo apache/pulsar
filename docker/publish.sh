@@ -62,16 +62,24 @@ set -x
 # Fail if any of the subsequent commands fail
 set -e
 
-docker tag apachepulsar/pulsar:latest ${docker_registry_org}/pulsar:latest
-docker tag apachepulsar/pulsar-all:latest ${docker_registry_org}/pulsar-all:latest
-
-docker tag apachepulsar/pulsar:latest ${docker_registry_org}/pulsar:$MVN_VERSION
-docker tag apachepulsar/pulsar-all:latest ${docker_registry_org}/pulsar-all:$MVN_VERSION
+docker tag apachepulsar/pulsar:$MVN_VERSION ${docker_registry_org}/pulsar:$MVN_VERSION
+docker tag apachepulsar/pulsar-all:$MVN_VERSION ${docker_registry_org}/pulsar-all:$MVN_VERSION
 
 # Push all images and tags
-docker push ${docker_registry_org}/pulsar:latest
-docker push ${docker_registry_org}/pulsar-all:latest
 docker push ${docker_registry_org}/pulsar:$MVN_VERSION
 docker push ${docker_registry_org}/pulsar-all:$MVN_VERSION
+
+read -r -p "Do you want to publish the latest images? Default to 'n'.
+NOTICE: Enter 'y' if the Pulsar is the latest version, otherwise enter 'n'.
+(y/n)" yn
+
+case $yn in
+  y )
+    docker tag apachepulsar/pulsar:$MVN_VERSION ${docker_registry_org}/pulsar:latest
+    docker tag apachepulsar/pulsar-all:$MVN_VERSION ${docker_registry_org}/pulsar-all:latest
+    docker push ${docker_registry_org}/pulsar:latest
+    docker push ${docker_registry_org}/pulsar-all:latest
+    ;;
+esac
 
 echo "Finished pushing images to ${docker_registry_org}"
