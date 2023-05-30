@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+ARG PULSAR_IMAGE
 FROM busybox as pulsar-all
 
 ARG PULSAR_IO_DIR
@@ -26,6 +26,6 @@ ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 
-FROM apachepulsar/pulsar:latest
+FROM $PULSAR_IMAGE
 COPY --from=pulsar-all /connectors /pulsar/connectors
 COPY --from=pulsar-all /offloaders /pulsar/offloaders
