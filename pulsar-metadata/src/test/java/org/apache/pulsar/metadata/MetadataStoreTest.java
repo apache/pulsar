@@ -663,4 +663,56 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
             assertTrue(e.getCause() instanceof MetadataStoreException.AlreadyClosedException);
         }
     }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testGetChildrenDistributed(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String parent = newKey();
+        byte[] value = "value1".getBytes(StandardCharsets.UTF_8);
+        store1.put(parent, value, Optional.empty()).get();
+        store1.put(parent + "/a", value, Optional.empty()).get();
+        assertEquals(store1.getChildren(parent).get(), List.of("a"));
+        store1.delete(parent + "/a", Optional.empty()).get();
+        assertEquals(store1.getChildren(parent).get(), Collections.emptyList());
+        store1.delete(parent, Optional.empty()).get();
+        assertEquals(store1.getChildren(parent).get(), Collections.emptyList());
+        store2.put(parent + "/b", value, Optional.empty()).get();
+        // There is a chance watcher event is not triggered before the store1.getChildren() call.
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertEquals(store1.getChildren(parent).get(), List.of("b")));
+        store2.put(parent + "/c", value, Optional.empty()).get();
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertEquals(store1.getChildren(parent).get(), List.of("b", "c")));
+    }
+
+    @Test(dataProvider = "distributedImpl")
+    public void testExistsDistributed(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        @Cleanup
+        MetadataStore store2 = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        String parent = newKey();
+        byte[] value = "value1".getBytes(StandardCharsets.UTF_8);
+        assertFalse(store1.exists(parent).get());
+        store1.put(parent, value, Optional.empty()).get();
+        assertTrue(store1.exists(parent).get());
+        assertFalse(store1.exists(parent + "/a").get());
+        store2.put(parent + "/a", value, Optional.empty()).get();
+        assertTrue(store1.exists(parent + "/a").get());
+        // There is a chance watcher event is not triggered before the store1.exists() call.
+        Awaitility.await().atMost(3, TimeUnit.SECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertFalse(store1.exists(parent + "/b").get()));
+    }
 }
