@@ -173,29 +173,29 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 }
 
                 // Trigger all the futures in the batch
-                for (int i = 0; i < ops.size(); i++) {
-                    OpResult opr = results.get(i);
-                    MetadataOp op = ops.get(i);
-
-                    switch (op.getType()) {
-                        case PUT:
-                            handlePutResult(op.asPut(), opr);
-                            break;
-                        case DELETE:
-                            handleDeleteResult(op.asDelete(), opr);
-                            break;
-                        case GET:
-                            handleGetResult(op.asGet(), opr);
-                            break;
-                        case GET_CHILDREN:
-                            handleGetChildrenResult(op.asGetChildren(), opr);
-                            break;
-
-                        default:
-                            op.getFuture().completeExceptionally(new MetadataStoreException(
-                                    "Operation type not supported in multi: " + op.getType()));
-                    }
-                }
+                execute(() -> {
+                    for (int i = 0; i < ops.size(); i++) {
+                        OpResult opr = results.get(i);
+                        MetadataOp op = ops.get(i);
+                            switch (op.getType()) {
+                                case PUT:
+                                    handlePutResult(op.asPut(), opr);
+                                    break;
+                                case DELETE:
+                                    handleDeleteResult(op.asDelete(), opr);
+                                    break;
+                                case GET:
+                                    handleGetResult(op.asGet(), opr);
+                                    break;
+                                case GET_CHILDREN:
+                                    handleGetChildrenResult(op.asGetChildren(), opr);
+                                    break;
+                                default:
+                                    op.getFuture().completeExceptionally(new MetadataStoreException(
+                                            "Operation type not supported in multi: " + op.getType()));
+                            }
+                        }
+                }, () -> ops.stream().map(MetadataOp::getFuture).collect(Collectors.toList()));
             }, null);
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
