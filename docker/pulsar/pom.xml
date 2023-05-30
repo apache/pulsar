@@ -58,6 +58,29 @@
       <build>
         <plugins>
           <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <version>${git-commit-id-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>git-info</id>
+                <goals>
+                  <goal>revision</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <useNativeGit>true</useNativeGit>
+              <prefix>git</prefix>
+              <failOnNoGitDirectory>true</failOnNoGitDirectory>
+              <skipPoms>false</skipPoms>
+              <gitDescribe>
+                <skip>false</skip>
+                <always>false</always>
+              </gitDescribe>
+            </configuration>
+          </plugin>
+          <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
             <executions>
@@ -81,8 +104,7 @@
                         </args>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>latest</tag>
-                          <tag>${project.version}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <buildx>
                           <platforms>

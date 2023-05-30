@@ -126,6 +126,29 @@
             </executions>
           </plugin>
           <plugin>
+            <groupId>pl.project13.maven</groupId>
+            <artifactId>git-commit-id-plugin</artifactId>
+            <version>${git-commit-id-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>git-info</id>
+                <goals>
+                  <goal>revision</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <useNativeGit>true</useNativeGit>
+              <prefix>git</prefix>
+              <failOnNoGitDirectory>true</failOnNoGitDirectory>
+              <skipPoms>false</skipPoms>
+              <gitDescribe>
+                <skip>false</skip>
+                <always>false</always>
+              </gitDescribe>
+            </configuration>
+          </plugin>
+          <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
             <executions>
@@ -143,12 +166,12 @@
                       <build>
                         <contextDir>${project.basedir}</contextDir>
                         <tags>
-                          <tag>${project.version}</tag>
+                          <tag>${project.version}-${git.commit.id.abbrev}</tag>
                         </tags>
                         <args>
                           <PULSAR_IO_DIR>target/apache-pulsar-io-connectors-${project.version}-bin</PULSAR_IO_DIR>
                           <PULSAR_OFFLOADER_TARBALL>target/pulsar-offloader-distribution-${project.version}-bin.tar.gz</PULSAR_OFFLOADER_TARBALL>
-                          <PULSAR_IMAGE>${docker.organization}/pulsar:${project.version}</PULSAR_IMAGE>
+                          <PULSAR_IMAGE>${docker.organization}/pulsar:${project.version}-${git.commit.id.abbrev}</PULSAR_IMAGE>
                         </args>
                         <buildx>
                           <platforms>
