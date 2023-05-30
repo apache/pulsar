@@ -1,7 +1,7 @@
 ---
 name: PIP
-about: [DEPRECATED. see 'pip' folder] Submit a Pulsar Improvement Proposal (PIP)
-title: 'PIP-XYZ: '
+description: '[DEPRECATED. see pip folder] Submit a Pulsar Improvement Proposal (PIP)'
+title: 'DEPRECATED - Read https://github.com/apache/pulsar/blob/master/pip/README.md'
 labels: PIP
 ---
 
