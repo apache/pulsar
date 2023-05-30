@@ -83,6 +83,9 @@ type Conf struct {
 	UserConfig                  string `json:"userConfig" yaml:"userConfig"`
 	//metrics config
 	MetricsPort int `json:"metricsPort" yaml:"metricsPort"`
+
+	ClientAuthPlugin string `json:"clientAuthPlugin" yaml:"clientAuthPlugin"`
+	ClientAuthParams string `json:"clientAuthParams" yaml:"clientAuthParams"`
 }
 
 var (
