@@ -169,7 +169,8 @@ public class TransactionMetadataStoreService {
                                     tcLoadSemaphore.release();
                                 })).exceptionally(e -> {
                             internalPinnedExecutor.execute(() -> {
-                                completableFuture.completeExceptionally(e.getCause());
+                                Throwable realCause = FutureUtil.unwrapCompletionException(e);
+                                completableFuture.completeExceptionally(realCause);
                                 // release before handle request queue,
                                 //in order to client reconnect infinite loop
                                 tcLoadSemaphore.release();
@@ -180,7 +181,7 @@ public class TransactionMetadataStoreService {
                                         CompletableFuture<Void> future = deque.poll();
                                         if (future != null) {
                                             // this means that this tc client connection connect fail
-                                            future.completeExceptionally(e);
+                                            future.completeExceptionally(realCause);
                                         } else {
                                             break;
                                         }
