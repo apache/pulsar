@@ -134,13 +134,15 @@ public class ThreadRuntime implements Runtime {
                         .getClassLoader();
             }
         }
-        return loadJars(jarFile, instanceConfig, narExtractionDirectory, fnCache);
+        return loadJars(jarFile, instanceConfig, instanceConfig.getFunctionDetails().getName(),
+                narExtractionDirectory, fnCache);
     }
 
-    private static ClassLoader loadJars(String jarFile,
-                                 InstanceConfig instanceConfig,
-                                 String narExtractionDirectory,
-                                 FunctionCacheManager fnCache) throws Exception {
+    public static ClassLoader loadJars(String jarFile,
+                                       InstanceConfig instanceConfig,
+                                       String functionName,
+                                       String narExtractionDirectory,
+                                       FunctionCacheManager fnCache) throws Exception {
         if (jarFile == null) {
             return Thread.currentThread().getContextClassLoader();
         }
@@ -172,7 +174,7 @@ public class ThreadRuntime implements Runtime {
         }
 
         log.info("Initialize function class loader for function {} at function cache manager, functionClassLoader: {}",
-                instanceConfig.getFunctionDetails().getName(), fnCache.getClassLoader(instanceConfig.getFunctionId()));
+                functionName, fnCache.getClassLoader(instanceConfig.getFunctionId()));
 
         fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {
