@@ -350,7 +350,7 @@ public class TopicName implements ServiceUnitId {
         if (mlName == null || mlName.length() == 0) {
             return mlName;
         }
-        List<String> parts = Splitter.on("/").limit(5).splitToList(mlName);
+        List<String> parts = Splitter.on("/").splitToList(mlName);
         String tenant;
         String cluster;
         String namespacePortion;
