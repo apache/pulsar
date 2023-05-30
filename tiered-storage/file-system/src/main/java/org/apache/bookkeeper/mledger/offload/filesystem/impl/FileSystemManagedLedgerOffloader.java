@@ -315,10 +315,12 @@ public class FileSystemManagedLedgerOffloader implements LedgerOffloader {
                     LedgerEntry entry = iterator.next();
                     long entryId = entry.getEntryId();
                     key.set(entryId);
+                    byte[] currentEntryBytes;
                     int currentEntrySize;
                     try {
-                        currentEntrySize = entry.getEntryBytes().length;
-                        value.set(entry.getEntryBytes(), 0, currentEntrySize);
+                        currentEntryBytes = entry.getEntryBytes();
+                        currentEntrySize = currentEntryBytes.length;
+                        value.set(currentEntryBytes, 0, currentEntrySize);
                         dataWriter.append(key, value);
                     } catch (IOException e) {
                         ledgerReader.fileSystemWriteException = e;
