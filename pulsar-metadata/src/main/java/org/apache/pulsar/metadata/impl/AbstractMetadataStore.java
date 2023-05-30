@@ -40,6 +40,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -442,6 +443,18 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             executor.execute(task);
         } catch (Throwable t) {
             future.completeExceptionally(t);
+        }
+    }
+
+    /**
+     * Run the task in the executor thread and fail the future if the executor is shutting down.
+     */
+    @VisibleForTesting
+    public void execute(Runnable task, Supplier<List<CompletableFuture<?>>> futures) {
+        try {
+            executor.execute(task);
+        } catch (final Throwable t) {
+            futures.get().forEach(f -> f.completeExceptionally(t));
         }
     }
 
