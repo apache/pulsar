@@ -20,9 +20,12 @@ package org.apache.pulsar.broker.intercept;
 
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,6 +39,7 @@ import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
@@ -307,4 +311,25 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testLoadWhenDisableBrokerInterceptorsIsTrue() throws IOException {
+        ServiceConfiguration serviceConfiguration = spy(ServiceConfiguration.class);
+        serviceConfiguration.setDisableBrokerInterceptors(true);
+        BrokerInterceptor brokerInterceptor = BrokerInterceptors.load(serviceConfiguration);
+        assertNull(brokerInterceptor);
+
+        verify(serviceConfiguration, times(1)).isDisableBrokerInterceptors();
+        verify(serviceConfiguration, times(0)).getBrokerInterceptorsDirectory();
+    }
+
+    @Test
+    public void testLoadWhenDisableBrokerInterceptorsIsFalse() throws IOException {
+        ServiceConfiguration serviceConfiguration = spy(ServiceConfiguration.class);
+        serviceConfiguration.setDisableBrokerInterceptors(false);
+        BrokerInterceptor brokerInterceptor = BrokerInterceptors.load(serviceConfiguration);
+        assertNull(brokerInterceptor);
+
+        verify(serviceConfiguration, times(1)).isDisableBrokerInterceptors();
+        verify(serviceConfiguration, times(1)).getBrokerInterceptorsDirectory();
+    }
 }
