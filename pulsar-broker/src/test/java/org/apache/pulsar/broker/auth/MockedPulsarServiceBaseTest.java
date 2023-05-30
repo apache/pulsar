@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import static org.apache.pulsar.broker.BrokerTestUtil.*;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithoutRecordingInvocations;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
@@ -55,11 +55,11 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.zookeeper.MockZooKeeper;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.internal.util.MockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 
 /**
