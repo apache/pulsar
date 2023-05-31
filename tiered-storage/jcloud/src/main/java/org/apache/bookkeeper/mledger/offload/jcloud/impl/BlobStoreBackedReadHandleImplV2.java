@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
@@ -297,13 +298,14 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             throws IOException {
         List<BackedInputStream> inputStreams = new LinkedList<>();
         List<OffloadIndexBlockV2> indice = new LinkedList<>();
+        String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
         for (int i = 0; i < indexKeys.size(); i++) {
             String indexKey = indexKeys.get(i);
             String key = keys.get(i);
             log.debug("open bucket: {} index key: {}", bucket, indexKey);
             long startTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
-            offloaderStats.recordReadOffloadIndexLatency(managedLedgerName,
+            offloaderStats.recordReadOffloadIndexLatency(topicName,
                     System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
