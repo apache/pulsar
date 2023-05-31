@@ -1398,6 +1398,17 @@ public class NamespaceService implements AutoCloseable {
                 || SLA_NAMESPACE_PATTERN.matcher(namespace).matches();
     }
 
+    /**
+     * used for filtering bundles in special namespace.
+     * @param namespace
+     * @return True if namespace is HEARTBEAT_NAMESPACE or SLA_NAMESPACE
+     */
+    public static boolean filterNamespaceForShedding(String namespace) {
+        return SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+    }
+
     public static boolean isHeartbeatNamespace(ServiceUnitId ns) {
         String namespace = ns.getNamespaceObject().toString();
         return HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
