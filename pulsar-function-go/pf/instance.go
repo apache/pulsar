@@ -388,11 +388,25 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 	log.Debugf("ack input message topic name is: %s", inputMessage.Topic())
-	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
+	gi.respondMessage(inputMessage, true)
 }
 
 func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
-	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
+	gi.respondMessage(inputMessage, false)
+}
+
+func (gi *goInstance) respondMessage(inputMessage pulsar.Message, ack bool) {
+	topicName, err := ParseTopicName(inputMessage.Topic())
+	if err != nil {
+		log.Errorf("unable respond to message ID %s - invalid topic: %v", messageIDStr(inputMessage), err)
+		return
+	}
+	// consumers are indexed by topic name only (no partition)
+	if ack {
+		gi.consumers[topicName.NameWithoutPartition()].Ack(inputMessage)
+		return
+	}
+	gi.consumers[topicName.NameWithoutPartition()].Nack(inputMessage)
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
