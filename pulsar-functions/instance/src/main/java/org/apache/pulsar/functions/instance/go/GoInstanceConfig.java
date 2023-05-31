@@ -27,6 +27,8 @@ import org.apache.pulsar.functions.proto.Function;
 @Getter
 public class GoInstanceConfig {
     private String pulsarServiceURL = "";
+    private String stateStorageServiceUrl = "";
+    private String pulsarWebServiceUrl = "";
     private int instanceID;
     private String funcID = "";
     private String funcVersion = "";
