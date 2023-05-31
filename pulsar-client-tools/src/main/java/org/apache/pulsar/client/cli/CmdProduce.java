@@ -120,6 +120,10 @@ public class CmdProduce {
 
     @Parameter(names = { "-k", "--key"}, description = "message key to add ")
     private String key;
+    @Parameter(names = { "-kvk", "--key-value-key"}, description = "message key to add ")
+    private String keyValueKey;
+    @Parameter(names = { "-kvkf", "--key-value-key-file"}, description = "message key to add ")
+    private String keyValueKeyFile;
 
     @Parameter(names = { "-vs", "--value-schema"}, description = "Schema type (can be bytes,avro,json,string...)")
     private String valueSchema = "bytes";
@@ -268,6 +272,17 @@ public class CmdProduce {
                     kvMap.put(kv[0], kv[1]);
                 }
 
+                final byte[] keyValueKeyBytes;
+                if (this.key != null) {
+                    keyValueKeyBytes = this.key.getBytes(StandardCharsets.UTF_8);
+                } else if (this.keyValueKey != null) {
+                    keyValueKeyBytes = this.keyValueKey.getBytes(StandardCharsets.UTF_8);
+                } else if (this.keyValueKeyFile != null) {
+                    keyValueKeyBytes = Files.readAllBytes(Paths.get(this.keyValueKeyFile));
+                } else {
+                    keyValueKeyBytes = null;
+                }
+
                 for (int i = 0; i < this.numTimesProduce; i++) {
                     for (byte[] content : messageBodies) {
                         if (limiter != null) {
@@ -290,8 +305,7 @@ public class CmdProduce {
                             case KEY_VALUE_ENCODING_TYPE_SEPARATED:
                             case KEY_VALUE_ENCODING_TYPE_INLINE:
                                 KeyValue kv = new KeyValue<>(
-                                        // TODO: support AVRO encoded key
-                                        key != null ? key.getBytes(StandardCharsets.UTF_8) : null,
+                                        keyValueKeyBytes,
                                         content);
                                 message.value(kv);
                                 break;
