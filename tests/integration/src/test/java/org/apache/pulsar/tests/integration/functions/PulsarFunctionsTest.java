@@ -729,6 +729,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         //get function status
         getFunctionStatus(functionName, 0, true, 2);
 
+        // update code file
+        switch (runtime) {
+            case JAVA:
+                updateFunctionCodeFile(functionName, Runtime.JAVA, "test");
+                break;
+            case PYTHON:
+                updateFunctionCodeFile(functionName, Runtime.PYTHON, EXCLAMATION_PYTHON_FILE);
+                break;
+            case GO:
+                updateFunctionCodeFile(functionName, Runtime.GO, EXCLAMATION_GO_FILE);
+                break;
+        }
+
         // delete function
         deleteFunction(functionName);
 
@@ -884,6 +897,22 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         generator.setFunctionName(functionName);
         generator.setParallelism(parallelism);
         String command = generator.generateUpdateFunctionCommand();
+
+        log.info("---------- Function command: {}", command);
+        String[] commands = {
+                "sh", "-c", command
+        };
+        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                commands);
+        assertTrue(result.getStdout().contains("Updated successfully"));
+    }
+
+    private void updateFunctionCodeFile(String functionName, Runtime runtime, String codeFile) throws Exception {
+
+        CommandGenerator generator = new CommandGenerator();
+        generator.setFunctionName(functionName);
+        generator.setRuntime(runtime);
+        String command = generator.generateUpdateFunctionCommand(codeFile);
 
         log.info("---------- Function command: {}", command);
         String[] commands = {
