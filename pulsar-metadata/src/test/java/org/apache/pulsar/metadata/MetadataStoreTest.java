@@ -432,7 +432,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "conditionOfSwitchThread")
     public void testThreadSwitchOfZkMetadataStore(boolean hasSynchronizer, boolean enabledBatch) throws Exception {
         final String prefix = newKey();
-        final String metadataStoreNamePrefix = "metadata-store-";
+        final String metadataStoreNamePrefix = "metadata-store";
         MetadataStoreConfig.MetadataStoreConfigBuilder builder =
                 MetadataStoreConfig.builder();
         builder.batchingEnabled(enabledBatch);
