@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.transaction;
 import static org.junit.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.lang.reflect.Field;
 import java.util.LinkedList;
 import java.util.NavigableMap;
@@ -58,8 +57,8 @@ import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
-import org.testcontainers.shaded.org.awaitility.reflect.WhiteboxImpl;
+import org.awaitility.Awaitility;
+import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
