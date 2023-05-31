@@ -94,14 +94,14 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         }
         if (config.isTransactionCoordinatorEnabled()) {
             try {
-                transactionBufferProvider = TransactionBufferProvider
-                        .newProvider(config.getTransactionBufferProviderClassName());
+                setTransactionBufferProvider(TransactionBufferProvider
+                        .newProvider(config.getTransactionBufferProviderClassName()));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
             try {
-                transactionPendingAckStoreProvider = TransactionPendingAckStoreProvider
-                        .newProvider(config.getTransactionPendingAckStoreProviderClassName());
+                setTransactionPendingAckStoreProvider(TransactionPendingAckStoreProvider
+                        .newProvider(config.getTransactionPendingAckStoreProviderClassName()));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }

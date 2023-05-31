@@ -248,7 +248,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private MetricsGenerator metricsGenerator;
 
     private TransactionMetadataStoreService transactionMetadataStoreService;
-    protected TransactionBufferProvider transactionBufferProvider;
+    private TransactionBufferProvider transactionBufferProvider;
     private TransactionBufferClient transactionBufferClient;
     private HashedWheelTimer transactionTimer;
 
@@ -270,7 +270,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private PulsarResources pulsarResources;
 
-    protected TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
+    private TransactionPendingAckStoreProvider transactionPendingAckStoreProvider;
     private final ExecutorProvider transactionExecutorProvider;
 
     public enum State {
