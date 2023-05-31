@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -134,6 +135,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** The size of DelayedDeliveryTracer memory usage. */
     public long delayedMessageIndexSizeInBytes;
 
+    @JsonIgnore
     public Map<String, TopicMetricBean> bucketDelayedIndexStats;
 
     /** SubscriptionProperties (key/value strings) associated with this subscribe. */
